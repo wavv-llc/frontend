@@ -4,6 +4,8 @@ import { useAuth } from '@clerk/nextjs'
 import { LandingPage } from '@/components/landing/LandingPage'
 import { DashboardSection } from '@/components/dashboard/DashboardSection'
 import { AssistantSection } from '@/components/assistant/AssistantSection'
+import { AppSidebar } from '@/components/assistant/AppSidebar'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 
 export default function Home() {
   const { isSignedIn, isLoaded } = useAuth()
@@ -21,17 +23,15 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="flex h-screen">
-
-        <div className="w-1/2 bg-background border-r border-border overflow-hidden">
-          <DashboardSection />
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <div className="flex h-screen flex-col">
+          <div className="flex-1 overflow-hidden">
+            <AssistantSection />
+          </div>
         </div>
-
-        <div className="w-1/2 bg-background overflow-hidden">
-          <AssistantSection />
-        </div>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

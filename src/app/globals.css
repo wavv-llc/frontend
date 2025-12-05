@@ -133,3 +133,18 @@
 .animate-bounce-slow {
   animation: bounce-slow 2s ease-in-out infinite;
 }
+
+/* Smoother sidebar transitions */
+[data-slot="sidebar-gap"],
+[data-slot="sidebar-container"],
+[data-sidebar="sidebar"] {
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+  transition-duration: 300ms !important;
+}
+
+/* Smooth opacity transitions for sidebar content */
+[data-sidebar="content"] *,
+[data-sidebar="header"] *,
+[data-sidebar="footer"] * {
+  transition: opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
