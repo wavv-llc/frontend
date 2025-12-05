@@ -1,15 +1,37 @@
-import Image from "next/image";
+'use client'
+
+import { useAuth } from '@clerk/nextjs'
+import { LandingPage } from '@/components/landing/LandingPage'
+import { DashboardSection } from '@/components/dashboard/DashboardSection'
+import { AssistantSection } from '@/components/assistant/AssistantSection'
+import { AppSidebar } from '@/components/assistant/AppSidebar'
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 
 export default function Home() {
+  const { isSignedIn, isLoaded } = useAuth()
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!isSignedIn) {
+    return <LandingPage />
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            Wavv Test
-          </h1>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <div className="flex h-screen flex-col">
+          <div className="flex-1 overflow-hidden">
+            <AssistantSection />
+          </div>
         </div>
-      </main>
-    </div>
-  );
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }
