@@ -1,6 +1,6 @@
 'use client'
 
-import { SignInButton, SignUpButton } from '@clerk/nextjs'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export function LandingPage() {
@@ -18,16 +18,16 @@ export function LandingPage() {
             access knowledge with an integrated AI assistant.
           </p>
           <div className="flex items-center justify-center gap-4 pt-4">
-            <SignUpButton mode="modal">
+            <Link href="/sign-up">
               <Button size="lg" className="text-lg px-8">
                 Get Started Free
               </Button>
-            </SignUpButton>
-            <SignInButton mode="modal">
+            </Link>
+            <Link href="/sign-in">
               <Button size="lg" variant="outline" className="text-lg px-8">
                 Sign In
               </Button>
-            </SignInButton>
+            </Link>
           </div>
           </div>
         </div>
