@@ -7,9 +7,7 @@ import {
   Plus,
   Search,
   Pencil,
-  Settings,
 } from 'lucide-react'
-import Link from 'next/link'
 import {
   Sidebar,
   SidebarContent,
@@ -110,17 +108,6 @@ export function AppSidebar() {
                     <Folder className="h-5 w-5" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Settings"
-                    className="w-full justify-center"
-                    asChild
-                  >
-                    <Link href="/settings">
-                      <Settings className="h-5 w-5" />
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -141,14 +128,6 @@ export function AppSidebar() {
                     <SidebarMenuButton className="w-full">
                       <Search className="h-4 w-4" />
                       <span>Search chats</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild className="w-full">
-                      <Link href="/settings">
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
