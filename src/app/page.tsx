@@ -1,14 +1,35 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { LandingPage } from '@/components/landing/LandingPage'
 import { DashboardSection } from '@/components/dashboard/DashboardSection'
 import { AssistantSection } from '@/components/assistant/AssistantSection'
 import { AppSidebar } from '@/components/assistant/AppSidebar'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { userApi } from '@/lib/api'
 
 export default function Home() {
-  const { isSignedIn, isLoaded } = useAuth()
+  const { isSignedIn, isLoaded, getToken } = useAuth()
+
+  // Sync user to database after sign-in
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+
+    const syncUser = async () => {
+      try {
+        const token = await getToken()
+        if (!token) return
+
+        // This call creates/updates the user in the database
+        await userApi.getMe(token)
+      } catch (error) {
+        console.error('Error syncing user to database:', error)
+      }
+    }
+
+    syncUser()
+  }, [isLoaded, isSignedIn, getToken])
 
   if (!isLoaded) {
     return (

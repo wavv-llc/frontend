@@ -148,3 +148,31 @@
 [data-sidebar="footer"] * {
   transition: opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
+
+/* Clerk card styling overrides for borderless, full-screen auth */
+.cl-card,
+.cl-cardBox,
+[class*="cl-card"] {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.cl-rootBox {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.cl-main {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Remove any background from Clerk components */
+.cl-form,
+.cl-formBox,
+[class*="cl-formBox"] {
+  background: transparent !important;
+}
