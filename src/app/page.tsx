@@ -12,7 +12,7 @@ import { userApi } from '@/lib/api'
 export default function Home() {
   const { isSignedIn, isLoaded, getToken } = useAuth()
 
-  // Sync user to database after sign-in
+  // Sync user to database after sign-in and check onboarding status
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
 
@@ -22,7 +22,14 @@ export default function Home() {
         if (!token) return
 
         // This call creates/updates the user in the database
-        await userApi.getMe(token)
+        const response = await userApi.getMe(token)
+        
+        // Check if user has completed onboarding
+        if (response.data && !response.data.hasCompletedOnboarding) {
+          // Redirect to onboarding if not completed
+          window.location.href = '/onboarding'
+          return
+        }
       } catch (error) {
         console.error('Error syncing user to database:', error)
       }
