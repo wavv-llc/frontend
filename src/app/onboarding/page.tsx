@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CheckCircle2 } from 'lucide-react'
@@ -23,7 +24,6 @@ export default function OnboardingPage() {
   const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isLoaded) return
@@ -58,10 +58,9 @@ export default function OnboardingPage() {
   const loadSites = async () => {
     try {
       setIsLoading(true)
-      setError(null)
       const token = await getToken()
       if (!token) {
-        setError('Authentication required')
+        toast.error('Authentication required')
         return
       }
 
@@ -71,7 +70,7 @@ export default function OnboardingPage() {
       }
     } catch (err) {
       console.error('Error loading SharePoint sites:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load SharePoint sites')
+      toast.error(err instanceof Error ? err.message : 'Failed to load SharePoint sites')
     } finally {
       setIsLoading(false)
     }
@@ -89,16 +88,21 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     if (selectedSiteIds.size === 0) {
-      setError('Please select at least one SharePoint site')
+      toast.error('Please select at least one SharePoint site')
+      return
+    }
+
+    // Prevent double-clicks
+    if (isSaving) {
       return
     }
 
     try {
       setIsSaving(true)
-      setError(null)
       const token = await getToken()
       if (!token) {
-        setError('Authentication required')
+        toast.error('Authentication required')
+        setIsSaving(false)
         return
       }
 
@@ -115,12 +119,11 @@ export default function OnboardingPage() {
       // Mark onboarding as complete
       await userApi.completeOnboarding(token)
 
-      // Redirect to dashboard
+      // Redirect to dashboard - don't reset isSaving since we're leaving the page
       router.push('/')
     } catch (err) {
       console.error('Error saving selected sites:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save selected sites')
-    } finally {
+      toast.error(err instanceof Error ? err.message : 'Failed to save selected sites')
       setIsSaving(false)
     }
   }
@@ -157,12 +160,6 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {error && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                  {error}
-                </div>
-              )}
-
               {sites.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No SharePoint sites found. Make sure you have access to SharePoint sites.</p>
