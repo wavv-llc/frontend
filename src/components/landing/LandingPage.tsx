@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, FileText, Shield, Zap, Search, Database, MessageSquare, Lock, Key, Eye, EyeOff } from 'lucide-react'
@@ -19,6 +19,120 @@ const NAV_ITEMS = [
 
 export function LandingPage() {
   const lottieContainerRef = useRef<HTMLDivElement>(null)
+  const [isLottieLoaded, setIsLottieLoaded] = useState(false)
+  const hasDetectedLoadRef = useRef(false)
+
+  // Preload Lottie file immediately when component mounts
+  useEffect(() => {
+    const lottieUrl = "https://lottie.host/ee632d9e-027f-407c-be17-e58327b074b8/CZ1LlQhAQd.lottie"
+    
+    // Add preload link to head for instant loading
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.href = lottieUrl
+    link.as = 'fetch'
+    link.crossOrigin = 'anonymous'
+    document.head.appendChild(link)
+    
+    // Also start fetching immediately to warm up the cache
+    fetch(lottieUrl, {
+      method: 'GET',
+      cache: 'force-cache',
+    }).catch(() => {
+      // Silently fail - the DotLottieReact component will handle loading
+    })
+    
+    return () => {
+      // Cleanup: remove preload link when component unmounts
+      const existingLink = document.querySelector(`link[href="${lottieUrl}"]`)
+      if (existingLink) {
+        document.head.removeChild(existingLink)
+      }
+    }
+  }, [])
+
+  // Detect when Lottie animation has loaded
+  useEffect(() => {
+    if (!lottieContainerRef.current || hasDetectedLoadRef.current) return
+
+    const checkLottieLoaded = () => {
+      if (!lottieContainerRef.current || hasDetectedLoadRef.current) return
+      
+      const container = lottieContainerRef.current
+      
+      // Check for SVG elements (Lottie can render as SVG)
+      const svgElements = container.querySelectorAll('svg')
+      const hasValidSvg = svgElements.length > 0 && Array.from(svgElements).some(svg => {
+        // Check if SVG has any meaningful content (paths, groups, etc.)
+        return svg.children.length > 0 || svg.querySelector('path, g, circle, rect, polygon') !== null
+      })
+      
+      // Check for canvas elements (Lottie can also render as canvas)
+      const canvasElements = container.querySelectorAll('canvas')
+      const hasValidCanvas = canvasElements.length > 0 && Array.from(canvasElements).some(canvas => {
+        return canvas.width > 0 && canvas.height > 0
+      })
+      
+      // Check for any visible content with dimensions
+      const hasAnyContent = container.children.length > 0 && Array.from(container.children).some(child => {
+        const el = child as HTMLElement
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      
+      if ((hasValidSvg || hasValidCanvas || hasAnyContent) && !hasDetectedLoadRef.current) {
+        hasDetectedLoadRef.current = true
+        // Small delay to ensure animation is fully rendered
+        setTimeout(() => {
+          setIsLottieLoaded(true)
+        }, 150)
+        return true
+      }
+      return false
+    }
+
+    // Check immediately
+    if (checkLottieLoaded()) return
+
+    // Then check periodically
+    const interval = setInterval(() => {
+      if (checkLottieLoaded()) {
+        clearInterval(interval)
+      }
+    }, 100)
+
+    // Also use MutationObserver to detect when content is added
+    const observer = new MutationObserver(() => {
+      if (checkLottieLoaded()) {
+        observer.disconnect()
+        clearInterval(interval)
+      }
+    })
+
+    if (lottieContainerRef.current) {
+      observer.observe(lottieContainerRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      })
+    }
+
+    // Fallback timeout - show animation after 2 seconds even if detection fails
+    const timeout = setTimeout(() => {
+      if (!hasDetectedLoadRef.current) {
+        hasDetectedLoadRef.current = true
+        setIsLottieLoaded(true)
+      }
+      clearInterval(interval)
+      observer.disconnect()
+    }, 2000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+      observer.disconnect()
+    }
+  }, [])
 
   // Modify purple colors in Lottie animation to slate blue
   useEffect(() => {
@@ -238,15 +352,189 @@ export function LandingPage() {
             {/* Right column - Lottie / Visual */}
             <div className="flex-1">
               <div className="relative w-full aspect-square max-w-lg mx-auto">
-                <div className="relative h-full w-full bg-background rounded-2xl flex items-center justify-center p-8 shadow-lg border border-border/50">
+                <div className="relative h-full w-full bg-background rounded-2xl flex items-center justify-center p-8 shadow-lg border border-border/50 overflow-hidden">
+                  {/* Loading placeholder with Lottie outline skeleton */}
+                  <AnimatePresence mode="wait">
+                    {!isLottieLoaded && (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="absolute inset-0 flex items-center justify-center"
+                      >
+                        <div className="relative w-full h-full flex items-center justify-center">
+                          {/* Animated gradient background */}
+                          <motion.div
+                            className="absolute inset-0 bg-gradient-to-br from-muted/20 via-background to-muted/10"
+                            animate={{
+                              backgroundPosition: ['0% 0%', '100% 100%'],
+                            }}
+                            transition={{
+                              duration: 4,
+                              repeat: Infinity,
+                              repeatType: 'reverse',
+                              ease: 'easeInOut',
+                            }}
+                          />
+                          {/* Lottie outline skeleton - generic character/figure shape */}
+                          <svg
+                            className="w-full h-full max-w-md max-h-md"
+                            viewBox="0 0 400 400"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            {/* Head outline */}
+                            <motion.circle
+                              cx="200"
+                              cy="120"
+                              r="45"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeDasharray="283"
+                              className="text-[#1e293b]/30"
+                              initial={{ strokeDashoffset: 283, opacity: 0.3 }}
+                              animate={{ 
+                                strokeDashoffset: [283, 0, 283],
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                strokeDashoffset: { duration: 1.5, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                              }}
+                            />
+                            {/* Body outline */}
+                            <motion.path
+                              d="M 200 165 L 200 280"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              className="text-[#1e293b]/30"
+                              initial={{ pathLength: 0, opacity: 0.3 }}
+                              animate={{ 
+                                pathLength: 1,
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                pathLength: { duration: 1.5, delay: 0.2, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }
+                              }}
+                            />
+                            {/* Left arm */}
+                            <motion.path
+                              d="M 200 200 L 140 240 L 130 280"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              className="text-[#1e293b]/30"
+                              initial={{ pathLength: 0, opacity: 0.3 }}
+                              animate={{ 
+                                pathLength: 1,
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                pathLength: { duration: 1.5, delay: 0.4, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }
+                              }}
+                            />
+                            {/* Right arm */}
+                            <motion.path
+                              d="M 200 200 L 260 240 L 270 280"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              className="text-[#1e293b]/30"
+                              initial={{ pathLength: 0, opacity: 0.3 }}
+                              animate={{ 
+                                pathLength: 1,
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                pathLength: { duration: 1.5, delay: 0.6, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }
+                              }}
+                            />
+                            {/* Left leg */}
+                            <motion.path
+                              d="M 200 280 L 180 340 L 170 380"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              className="text-[#1e293b]/30"
+                              initial={{ pathLength: 0, opacity: 0.3 }}
+                              animate={{ 
+                                pathLength: 1,
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                pathLength: { duration: 1.5, delay: 0.8, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }
+                              }}
+                            />
+                            {/* Right leg */}
+                            <motion.path
+                              d="M 200 280 L 220 340 L 230 380"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              className="text-[#1e293b]/30"
+                              initial={{ pathLength: 0, opacity: 0.3 }}
+                              animate={{ 
+                                pathLength: 1,
+                                opacity: [0.3, 0.6, 0.3],
+                              }}
+                              transition={{
+                                pathLength: { duration: 1.5, delay: 1, ease: "easeInOut" },
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }
+                              }}
+                            />
+                            {/* Shimmer effect overlay */}
+                            <motion.rect
+                              x="0"
+                              y="0"
+                              width="200"
+                              height="400"
+                              fill="url(#shimmer)"
+                              opacity={0}
+                              animate={{
+                                opacity: [0, 0.2, 0],
+                                x: [-200, 400],
+                              }}
+                              transition={{
+                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                                x: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
+                              }}
+                            />
+                            <defs>
+                              <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="transparent" />
+                                <stop offset="50%" stopColor="#1e293b" stopOpacity="0.3" />
+                                <stop offset="100%" stopColor="transparent" />
+                              </linearGradient>
+                            </defs>
+                          </svg>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Lottie Animation - Colors modified programmatically */}
-                  <div ref={lottieContainerRef} className="w-full h-full lottie-match-theme opacity-95">
+                  <motion.div
+                    ref={lottieContainerRef}
+                    className="w-full h-full lottie-match-theme opacity-95"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ 
+                      opacity: isLottieLoaded ? 1 : 0,
+                      scale: isLottieLoaded ? 1 : 0.98
+                    }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                  >
                     <DotLottieReact
                       src="https://lottie.host/ee632d9e-027f-407c-be17-e58327b074b8/CZ1LlQhAQd.lottie"
                       loop
                       autoplay
                     />
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
