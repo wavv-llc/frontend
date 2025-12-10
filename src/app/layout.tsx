@@ -2,7 +2,7 @@ import { type Metadata } from 'next'
 import {
   ClerkProvider,
 } from '@clerk/nextjs'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Crimson_Pro } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -14,6 +14,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+const crimsonPro = Crimson_Pro({
+  variable: '--font-crimson',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -28,8 +34,8 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <html lang="en" className="bg-background" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
+        <body className={`${geistSans.variable} ${geistMono.variable} ${crimsonPro.variable} antialiased bg-background`} style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
           {children}
           <Toaster />
         </body>

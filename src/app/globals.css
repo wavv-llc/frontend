@@ -7,6 +7,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-crimson);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -45,86 +46,139 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.147 0.004 49.25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.216 0.006 56.043);
-  --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
-  --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.216 0.006 56.043);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+
+  /* Rich Cream - Much more visible cream tone */
+  --background: 42 50% 88%;
+
+  /* Deep Earthy Brown - Rich dark brown */
+  --foreground: 28 25% 20%;
+
+  /* Cards match background for clean paper look */
+  --card: 42 50% 88%;
+  --card-foreground: 28 25% 20%;
+
+  --popover: 42 50% 88%;
+  --popover-foreground: 28 25% 20%;
+
+  /* Primary: Vibrant Blue Accent */
+  --primary: 210 60% 45%;
+  --primary-foreground: 42 50% 88%;
+
+  /* Secondary: Visible Dark Green - Earthy tone */
+  --secondary: 140 35% 30%;
+  --secondary-foreground: 42 50% 88%;
+
+  /* Muted: Cream with warmth */
+  --muted: 42 40% 86%;
+  --muted-foreground: 28 20% 45%;
+
+  /* Accent: Warm Brown - Earthy tone */
+  --accent: 32 30% 42%;
+  --accent-foreground: 42 50% 88%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+
+  /* Border: Warm Tan/Brown */
+  --border: 38 25% 82%;
+  --input: 38 25% 82%;
+
+  --ring: 210 45% 35%;
+
+  /* Chart colors with earthy tones and blue */
+  --chart-1: 210 60% 50%; /* Blue */
+  --chart-2: 140 40% 35%; /* Dark Green */
+  --chart-3: 32 50% 45%; /* Brown */
+  --chart-4: 42 60% 70%; /* Cream accent */
+  --chart-5: 200 50% 55%; /* Blue-green */
+
+  --sidebar: 42 50% 88%;
+  --sidebar-foreground: 28 25% 20%;
+  --sidebar-primary: 210 60% 45%;
+  --sidebar-primary-foreground: 42 50% 88%;
+  --sidebar-accent: 42 40% 86%;
+  --sidebar-accent-foreground: 28 25% 20%;
+  --sidebar-border: 38 25% 82%;
+  --sidebar-ring: 210 45% 35%;
 }
 
+/* Lottie container - filter to convert purple to slate blue */
+/* Purple is around 270deg, darker slate blue is around 220deg, so we need -50deg rotation */
+/* Darker blue with high saturation but brighter overall appearance */
+.lottie-match-theme {
+  filter: hue-rotate(-25deg) saturate(.5) brightness(.8) contrast(1.2);
+}
+
+
 .dark {
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  /* Dark Warm Brown */
+  --background: 30 15% 8%;
+  --foreground: 40 20% 90%;
+
+  --card: 30 15% 9%;
+  --card-foreground: 40 20% 90%;
+  --popover: 30 15% 9%;
+  --popover-foreground: 40 20% 90%;
+
+  --primary: 40 20% 90%;
+  --primary-foreground: 30 15% 10%;
+
+  --secondary: 30 15% 15%;
+  --secondary-foreground: 40 20% 90%;
+
+  --muted: 30 15% 15%;
+  --muted-foreground: 40 10% 60%;
+
+  --accent: 30 15% 15%;
+  --accent-foreground: 40 20% 90%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 30 15% 18%;
+  --input: 30 15% 18%;
+  --ring: 40 20% 90%;
+
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+
+  --sidebar: 30 15% 8%;
+  --sidebar-foreground: 40 20% 90%;
+  --sidebar-primary: 40 20% 90%;
+  --sidebar-primary-foreground: 30 15% 10%;
+  --sidebar-accent: 30 15% 15%;
+  --sidebar-accent-foreground: 40 20% 90%;
+  --sidebar-border: 30 15% 18%;
+  --sidebar-ring: 40 20% 90%;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    @apply bg-background;
+    scroll-behavior: smooth;
+    min-height: 100vh;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
   }
 }
 
 @keyframes bounce-slow {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -175,4 +229,133 @@
 .cl-formBox,
 [class*="cl-formBox"] {
   background: transparent !important;
+}
+
+/* Fix Clerk sign-in page specific styling */
+.cl-main > div,
+.cl-main__body,
+.cl-main__body > div {
+  background: transparent !important;
+}
+
+/* Remove striped patterns and unwanted backgrounds */
+[class*="cl-cardBox"] > div,
+.cl-cardBox > div > div {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Hide Clerk footer branding and sign-up links */
+.cl-footerPages,
+.cl-footerPages__wrapper,
+.cl-footerPages__link,
+.cl-footerPages__linkWrapper,
+[class*="cl-footerPages"],
+[class*="footerPages"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide "Don't have an account? Sign up" */
+.cl-footerAction,
+.cl-footerActionLink,
+.cl-footerActionText,
+[class*="footerAction"],
+[class*="cl-footerAction"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide "Secured by clerk" branding - target all possible variations */
+[data-testid*="footer"],
+[class*="branding"],
+[aria-label*="Secured"],
+[aria-label*="Clerk"],
+.cl-footerPages *,
+[class*="cl-footerPages"] * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide development mode badge */
+[data-testid*="dev"],
+[class*="dev-mode"],
+[class*="development"],
+.cl-devBadge,
+.cl-environmentBadge,
+[aria-label*="Development"],
+[class*="environment"][class*="mode"],
+[class*="badge"][class*="dev"],
+span[class*="dev"]:not([class*="device"]),
+div[class*="dev-mode"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide Clerk footer entirely except for essential form elements */
+.cl-footer:not(:has(.cl-formButton)):not(:has(.cl-socialButtonsBlockButton)) {
+  display: none !important;
+}
+
+/* Hide any links to sign-up in footer */
+a[href*="sign-up"],
+a[href*="signUp"] {
+  display: none !important;
+}
+
+/* Fix social button backgrounds */
+.cl-socialButtonsBlockButton {
+  background: transparent !important;
+}
+
+.cl-socialButtonsBlockButton:hover {
+  background: hsl(var(--muted) / 0.3) !important;
+}
+
+/* Ensure form inputs have proper backgrounds */
+.cl-formFieldInput {
+  background: hsl(var(--background)) !important;
+}
+
+/* Remove any pattern overlays */
+[style*="background-image"],
+[style*="background-pattern"] {
+  background-image: none !important;
+}
+
+/* Center Clerk form elements */
+.cl-main,
+.cl-main__body,
+.cl-form,
+.cl-formBox {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.cl-formField,
+.cl-socialButtonsBlockButton,
+.cl-formButton {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Ensure even spacing above social button */
+.cl-main__body,
+.cl-socialButtons,
+.cl-socialButtonsBlockButton:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
