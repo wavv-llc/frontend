@@ -44,131 +44,82 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* Rich Cream - Much more visible cream tone */
-  --background: 42 50% 88%;
+  /* ChatGPT-like "Clean Neutral" Theme */
+  /* Main Content: Pure White */
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  /* Approx #09090b */
 
-  /* Deep Earthy Brown - Rich dark brown */
-  --foreground: 28 25% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
 
-  /* Cards match background for clean paper look */
-  --card: 42 50% 88%;
-  --card-foreground: 28 25% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
 
-  --popover: 42 50% 88%;
-  --popover-foreground: 28 25% 20%;
+  --primary: 240 5.9% 10%;
+  /* Almost black primary actions */
+  --primary-foreground: 0 0% 98%;
 
-  /* Primary: Vibrant Blue Accent */
-  --primary: 210 60% 45%;
-  --primary-foreground: 42 50% 88%;
+  --secondary: 240 4.8% 95.9%;
+  /* Very light gray */
+  --secondary-foreground: 240 5.9% 10%;
 
-  /* Secondary: Visible Dark Green - Earthy tone */
-  --secondary: 140 35% 30%;
-  --secondary-foreground: 42 50% 88%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
 
-  /* Muted: Cream with warmth */
-  --muted: 42 40% 86%;
-  --muted-foreground: 28 20% 45%;
-
-  /* Accent: Warm Brown - Earthy tone */
-  --accent: 32 30% 42%;
-  --accent-foreground: 42 50% 88%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
 
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9.1% 97.8%;
-
-  /* Border: Warm Tan/Brown */
-  --border: 38 25% 82%;
-  --input: 38 25% 82%;
-
-  --ring: 210 45% 35%;
-
-  /* Chart colors with earthy tones and blue */
-  --chart-1: 210 60% 50%; /* Blue */
-  --chart-2: 140 40% 35%; /* Dark Green */
-  --chart-3: 32 50% 45%; /* Brown */
-  --chart-4: 42 60% 70%; /* Cream accent */
-  --chart-5: 200 50% 55%; /* Blue-green */
-
-  --sidebar: 42 50% 88%;
-  --sidebar-foreground: 28 25% 20%;
-  --sidebar-primary: 210 60% 45%;
-  --sidebar-primary-foreground: 42 50% 88%;
-  --sidebar-accent: 42 40% 86%;
-  --sidebar-accent-foreground: 28 25% 20%;
-  --sidebar-border: 38 25% 82%;
-  --sidebar-ring: 210 45% 35%;
-}
-
-/* Lottie container - filter to convert purple to slate blue */
-/* Purple is around 270deg, darker slate blue is around 220deg, so we need -50deg rotation */
-/* Darker blue with high saturation but brighter overall appearance */
-.lottie-match-theme {
-  filter: hue-rotate(-25deg) saturate(.5) brightness(.8) contrast(1.2);
-}
-
-
-.dark {
-  /* Dark Warm Brown */
-  --background: 30 15% 8%;
-  --foreground: 40 20% 90%;
-
-  --card: 30 15% 9%;
-  --card-foreground: 40 20% 90%;
-  --popover: 30 15% 9%;
-  --popover-foreground: 40 20% 90%;
-
-  --primary: 40 20% 90%;
-  --primary-foreground: 30 15% 10%;
-
-  --secondary: 30 15% 15%;
-  --secondary-foreground: 40 20% 90%;
-
-  --muted: 30 15% 15%;
-  --muted-foreground: 40 10% 60%;
-
-  --accent: 30 15% 15%;
-  --accent-foreground: 40 20% 90%;
-
-  --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 30 15% 18%;
-  --input: 30 15% 18%;
-  --ring: 40 20% 90%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 10% 3.9%;
 
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
 
-  --sidebar: 30 15% 8%;
-  --sidebar-foreground: 40 20% 90%;
-  --sidebar-primary: 40 20% 90%;
-  --sidebar-primary-foreground: 30 15% 10%;
-  --sidebar-accent: 30 15% 15%;
-  --sidebar-accent-foreground: 40 20% 90%;
-  --sidebar-border: 30 15% 18%;
-  --sidebar-ring: 40 20% 90%;
+  /* Sidebar: Dark Theme (ChatGPT Style) */
+  --sidebar: 240 5% 10%;
+  /* #18181b approx - Zinc 900/950 mix */
+  --sidebar-foreground: 240 5% 90%;
+  /* Light gray text */
+  --sidebar-primary: 240 5% 20%;
+  /* Slightly lighter for active */
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 4% 16%;
+  /* Hover state */
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 240 5% 15%;
+  /* Subtle border (or none) */
+  --sidebar-ring: 240 5% 90%;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: hsl(var(--ring) / 0.5);
   }
 
   html {
-    @apply bg-background;
+    background-color: theme('colors.background');
     scroll-behavior: smooth;
     min-height: 100vh;
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: theme('colors.background');
+    color: theme('colors.foreground');
     min-height: 100vh;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
@@ -232,15 +183,15 @@
 }
 
 /* Fix Clerk sign-in page specific styling */
-.cl-main > div,
+.cl-main>div,
 .cl-main__body,
-.cl-main__body > div {
+.cl-main__body>div {
   background: transparent !important;
 }
 
 /* Remove striped patterns and unwanted backgrounds */
-[class*="cl-cardBox"] > div,
-.cl-cardBox > div > div {
+[class*="cl-cardBox"]>div,
+.cl-cardBox>div>div {
   background: transparent !important;
   background-image: none !important;
 }

@@ -1,6 +1,75 @@
 // Use relative URLs so Next.js rewrites can proxy to backend
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || ''
 
+// TypeScript Types
+export interface User {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+}
+
+export interface Workspace {
+  id: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt: string
+  owners: User[]
+  members: User[]
+}
+
+export interface Project {
+  id: string
+  description?: string
+  workspaceId: string
+  createdAt: string
+  updatedAt: string
+  workspace: {
+    id: string
+    name: string
+    description?: string
+  }
+  owners: User[]
+  members: User[]
+}
+
+export interface Category {
+  id: string
+  name: string
+  description?: string
+  color?: string
+}
+
+export interface Document {
+  id: string
+  filename: string
+  originalName: string
+  filesize: number
+  mimeType: string
+  status: string
+}
+
+export interface Task {
+  id: string
+  name: string
+  description?: string
+  projectId: string
+  categoryId?: string
+  dueAt?: string
+  status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+  createdAt: string
+  updatedAt: string
+  project: {
+    id: string
+    description?: string
+  }
+  category?: Category
+  preparers: User[]
+  reviewers: User[]
+  linkedFiles: Document[]
+}
+
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
@@ -42,10 +111,43 @@ export async function apiRequest<T = any>(
     throw new Error(`Expected JSON response but got ${contentType || 'unknown'}. This usually means the API endpoint is not found (404).`)
   }
 
-  const data = await response.json()
+  let data
+  try {
+    data = await response.json()
+  } catch (parseError) {
+    console.error('Failed to parse JSON response:', parseError)
+    throw new Error(`Failed to parse response: ${response.statusText}`)
+  }
 
   if (!response.ok) {
-    throw new Error(data.error?.message || `API error: ${response.statusText}`)
+    // Log the error response for debugging
+    console.error('API Error Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data,
+      endpoint,
+      dataKeys: data ? Object.keys(data) : 'null/undefined',
+      dataType: typeof data,
+    })
+
+    // Handle various error response formats
+    let errorMessage = 'An error occurred'
+
+    if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+      if (data.error && typeof data.error === 'object' && data.error.message) {
+        errorMessage = data.error.message
+      } else if (data.error && typeof data.error === 'string') {
+        errorMessage = data.error
+      } else if (data.message && typeof data.message === 'string') {
+        errorMessage = data.message
+      } else {
+        errorMessage = `API error (${response.status}): ${response.statusText}`
+      }
+    } else {
+      errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`
+    }
+
+    throw new Error(errorMessage)
   }
 
   return data
@@ -180,3 +282,308 @@ export const signupRequestApi = {
   },
 }
 
+// Workspace API functions
+export const workspaceApi = {
+  getWorkspaces: async (token: string) => {
+    return apiRequest<Workspace[]>('/api/v1/workspaces', {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getWorkspace: async (token: string, id: string) => {
+    return apiRequest<Workspace>(`/api/v1/workspaces/${id}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createWorkspace: async (token: string, name: string, description?: string) => {
+    return apiRequest<Workspace>('/api/v1/workspaces', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ name, description }),
+    })
+  },
+
+  updateWorkspace: async (
+    token: string,
+    id: string,
+    data: { name?: string; description?: string }
+  ) => {
+    return apiRequest<Workspace>(`/api/v1/workspaces/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  deleteWorkspace: async (token: string, id: string) => {
+    return apiRequest<{ message: string; workspaceId: string }>(
+      `/api/v1/workspaces/${id}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+
+  addMember: async (token: string, workspaceId: string, userId: string) => {
+    return apiRequest<Workspace>(`/api/v1/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ userId }),
+    })
+  },
+
+  removeMember: async (token: string, workspaceId: string, userId: string) => {
+    return apiRequest<Workspace>(
+      `/api/v1/workspaces/${workspaceId}/members/${userId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+
+  addOwner: async (token: string, workspaceId: string, userId: string) => {
+    return apiRequest<Workspace>(`/api/v1/workspaces/${workspaceId}/owners`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ userId }),
+    })
+  },
+
+  removeOwner: async (token: string, workspaceId: string, userId: string) => {
+    return apiRequest<Workspace>(
+      `/api/v1/workspaces/${workspaceId}/owners/${userId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+}
+
+// Project API functions
+export const projectApi = {
+  getProjectsByWorkspace: async (token: string, workspaceId: string) => {
+    return apiRequest<Project[]>(`/api/v1/projects/workspace/${workspaceId}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getProject: async (token: string, id: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${id}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createProject: async (
+    token: string,
+    workspaceId: string,
+    description?: string
+  ) => {
+    return apiRequest<Project>('/api/v1/projects', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ workspaceId, description }),
+    })
+  },
+
+  updateProject: async (token: string, id: string, description?: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ description }),
+    })
+  },
+
+  deleteProject: async (token: string, id: string) => {
+    return apiRequest<{ message: string }>(`/api/v1/projects/${id}`, {
+      method: 'DELETE',
+      token,
+    })
+  },
+
+  addMember: async (token: string, projectId: string, userId: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}/members`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ userId }),
+    })
+  },
+
+  removeMember: async (token: string, projectId: string, userId: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+      token,
+    })
+  },
+
+  addOwner: async (token: string, projectId: string, userId: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}/owners`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ userId }),
+    })
+  },
+
+  removeOwner: async (token: string, projectId: string, userId: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}/owners/${userId}`, {
+      method: 'DELETE',
+      token,
+    })
+  },
+}
+
+// Task API functions
+export const taskApi = {
+  getTasksByProject: async (token: string, projectId: string) => {
+    return apiRequest<Task[]>(`/api/v1/projects/${projectId}/tasks`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getTask: async (token: string, projectId: string, id: string) => {
+    return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createTask: async (
+    token: string,
+    projectId: string,
+    data: {
+      name: string
+      description?: string
+      categoryId?: string
+      dueAt?: string
+      status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+    }
+  ) => {
+    return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  updateTask: async (
+    token: string,
+    projectId: string,
+    id: string,
+    data: { name?: string; description?: string }
+  ) => {
+    return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  deleteTask: async (token: string, projectId: string, id: string) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/projects/${projectId}/tasks/${id}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+
+  changeStatus: async (
+    token: string,
+    projectId: string,
+    id: string,
+    status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+  ) => {
+    return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}/status`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ status }),
+    })
+  },
+
+  changeDueDate: async (
+    token: string,
+    projectId: string,
+    id: string,
+    dueAt: string | null
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/due-date`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ dueAt }),
+      }
+    )
+  },
+
+  addPreparer: async (
+    token: string,
+    projectId: string,
+    id: string,
+    userId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/preparers`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ userId }),
+      }
+    )
+  },
+
+  removePreparer: async (
+    token: string,
+    projectId: string,
+    id: string,
+    userId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/preparers/${userId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+
+  addReviewer: async (
+    token: string,
+    projectId: string,
+    id: string,
+    userId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/reviewers`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ userId }),
+      }
+    )
+  },
+
+  removeReviewer: async (
+    token: string,
+    projectId: string,
+    id: string,
+    userId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/reviewers/${userId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+}

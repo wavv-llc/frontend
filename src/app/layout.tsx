@@ -34,8 +34,8 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className="bg-background" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
-        <body className={`${geistSans.variable} ${geistMono.variable} ${crimsonPro.variable} antialiased bg-background`} style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable} ${crimsonPro.variable} antialiased`}>
           {children}
           <Toaster />
         </body>

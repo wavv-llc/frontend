@@ -3,10 +3,8 @@
 import { useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { LandingPage } from '@/components/landing/LandingPage'
-import { DashboardSection } from '@/components/dashboard/DashboardSection'
 import { AssistantSection } from '@/components/assistant/AssistantSection'
-import { AppSidebar } from '@/components/assistant/AppSidebar'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
+import { DashboardLayout } from '@/components/dashboard/DashboardLayout'
 import { userApi } from '@/lib/api'
 
 export default function Home() {
@@ -23,7 +21,7 @@ export default function Home() {
 
         // This call creates/updates the user in the database
         const response = await userApi.getMe(token)
-        
+
         // Check if user has completed onboarding
         if (response.data && !response.data.hasCompletedOnboarding) {
           // Redirect to onboarding if not completed
@@ -51,15 +49,8 @@ export default function Home() {
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <div className="flex h-screen flex-col">
-          <div className="flex-1 overflow-hidden">
-            <AssistantSection />
-          </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <DashboardLayout>
+      <AssistantSection />
+    </DashboardLayout>
   )
 }
