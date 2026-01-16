@@ -17,6 +17,7 @@ export interface Workspace {
   updatedAt: string
   owners: User[]
   members: User[]
+  progress?: number
 }
 
 export interface Project {

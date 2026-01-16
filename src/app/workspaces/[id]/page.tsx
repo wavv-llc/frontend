@@ -263,15 +263,7 @@ export default function WorkspaceDetailsPage() {
                                     <Plus className="h-3.5 w-3.5" />
                                     New Project
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 h-8 bg-background hover:bg-muted font-medium transition-all"
-                                    onClick={handleCreateTask}
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                    New Task
-                                </Button>
+
                                 <FilterSortControls
                                     onFilterChange={handleFilterChange}
                                     onSortChange={handleSortChange}

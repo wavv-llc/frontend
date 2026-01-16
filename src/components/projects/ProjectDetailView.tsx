@@ -2,23 +2,23 @@
 
 import { useState } from 'react'
 import {
-    ChevronDown,
-    AlertCircle,
-    CheckCircle2,
+    Calendar as CalendarIcon,
+    List as ListIcon,
     Plus,
-    MoreHorizontal,
+    Calendar,
+    Clock,
+    User as UserIcon,
+    MoreVertical,
+    CheckCircle2,
+    Circle,
     HelpCircle,
-    ArrowLeft
+    AlertCircle
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { FilterSortControls, type TaskFilters, type TaskSort } from '@/components/workspace/FilterSortControls'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import { type Project, type Task } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { type Project, type Task, taskApi } from '@/lib/api'
-import { toast } from 'sonner'
-import { useAuth } from '@clerk/nextjs'
+import { ProjectCalendarView } from './ProjectCalendarView'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -29,285 +29,172 @@ import {
 interface ProjectDetailViewProps {
     project: Project
     tasks: Task[]
-    onRefresh?: () => void
-    onCreateTask?: () => void
+    onRefresh: () => void
+    onCreateTask: () => void
 }
 
-export function ProjectDetailView({ project, tasks, onRefresh, onCreateTask }: ProjectDetailViewProps) {
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set())
-    const [filters, setFilters] = useState<TaskFilters>({
-        status: [],
-        showOverdue: false,
-        showCompleted: true,
-    })
-    const [sort, setSort] = useState<TaskSort>({
-        field: 'createdAt',
-        direction: 'desc',
-    })
+type ViewMode = 'list' | 'calendar'
 
-    const handleStatusChange = async (task: Task, newStatus: Task['status']) => {
-        setUpdatingTasks(prev => new Set(prev).add(task.id))
-        try {
-            const token = await getToken()
-            if (!token) {
-                toast.error('You must be logged in')
-                return
-            }
+export function ProjectDetailView({
+    project,
+    tasks,
+    onRefresh,
+    onCreateTask
+}: ProjectDetailViewProps) {
+    const [view, setView] = useState<ViewMode>('list')
 
-            await taskApi.changeStatus(token, task.projectId, task.id, newStatus)
-            toast.success('Task status updated')
-        } catch (error) {
-            console.error('Failed to update task status:', error)
-            toast.error(error instanceof Error ? error.message : 'Failed to update task status')
-        } finally {
-            onRefresh?.()
-            setUpdatingTasks(prev => {
-                const next = new Set(prev)
-                next.delete(task.id)
-                return next
-            })
-        }
-    }
-
-    const getStatusBadge = (status: Task['status']) => {
+    const getStatusIcon = (status: Task['status']) => {
         switch (status) {
-            case 'COMPLETED':
-                return (
-                    <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex items-center justify-center w-fit">
-                        Complete
-                    </div>
-                )
-            case 'IN_REVIEW':
-                return (
-                    <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex items-center justify-center w-fit">
-                        In Reviewer 1
-                    </div>
-                )
-            case 'IN_PROGRESS':
-                return (
-                    <div className="bg-pink-500 text-white px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex items-center justify-center w-fit">
-                        In Preparation
-                    </div>
-                )
-            default:
-                return (
-                    <div className="bg-gray-200 text-gray-700 px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex items-center justify-center w-fit">
-                        Pending
-                    </div>
-                )
+            case 'COMPLETED': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            case 'IN_PROGRESS': return <Circle className="h-4 w-4 text-blue-500 fill-blue-500/20" />
+            case 'IN_REVIEW': return <AlertCircle className="h-4 w-4 text-orange-500" />
+            default: return <Circle className="h-4 w-4 text-muted-foreground" />
         }
     }
 
-    const formatDate = (dateString?: string, icon = true) => {
-        if (!dateString) return <span className="text-muted-foreground">-</span>
-        const date = new Date(dateString)
-        const isPast = date < new Date()
-        const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-
-        return (
-            <div className="flex items-center gap-2">
-                {icon && (
-                    isPast ? (
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                    ) : (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    )
-                )}
-                <span className={cn(isPast ? "text-destructive" : "text-foreground")}>
-                    {formatted}
-                </span>
-            </div>
-        )
+    const getStatusLabel = (status: Task['status']) => {
+        switch (status) {
+            case 'COMPLETED': return 'Completed'
+            case 'IN_PROGRESS': return 'In Progress'
+            case 'IN_REVIEW': return 'In Review'
+            default: return 'Pending'
+        }
     }
-
-    // Filter and Sort Logic
-    const filteredTasks = tasks.filter(task => {
-        // Status filter
-        if (filters.status.length > 0 && !filters.status.includes(task.status)) {
-            return false
-        }
-
-        // Overdue filter
-        if (filters.showOverdue) {
-            const isOverdue = task.dueAt && new Date(task.dueAt) < new Date() && task.status !== 'COMPLETED'
-            if (!isOverdue) return false
-        }
-
-        // Completed filter
-        if (!filters.showCompleted && task.status === 'COMPLETED') {
-            return false
-        }
-
-        return true
-    })
-
-    const sortedTasks = [...filteredTasks].sort((a, b) => {
-        let comparison = 0
-        switch (sort.field) {
-            case 'name':
-                comparison = a.name.localeCompare(b.name)
-                break
-            case 'dueDate':
-                const dateA = a.dueAt ? new Date(a.dueAt).getTime() : 0
-                const dateB = b.dueAt ? new Date(b.dueAt).getTime() : 0
-                comparison = dateA - dateB
-                break
-            case 'status':
-                comparison = a.status.localeCompare(b.status)
-                break
-            case 'createdAt':
-                const createdA = new Date(a.createdAt).getTime()
-                const createdB = new Date(b.createdAt).getTime()
-                comparison = createdA - createdB
-                break
-        }
-        return sort.direction === 'asc' ? comparison : -comparison
-    })
 
     return (
-        <div className="flex flex-col h-full bg-background no-scrollbar">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => router.push(`/workspaces/${project.workspaceId}`)}>
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="default" size="sm" className="bg-black text-white hover:bg-black/90 h-8 font-medium" onClick={onCreateTask}>
-                        New
-                        <ChevronDown className="ml-2 h-3 w-3" />
-                    </Button>
-                    <FilterSortControls
-                        onFilterChange={setFilters}
-                        onSortChange={setSort}
-                    />
+        <div className="flex flex-col h-full space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">{project.description || 'Project Details'}</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Workspace: <span className="font-medium text-foreground">{project.workspace.name}</span>
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-8 gap-2 text-muted-foreground font-medium">
-                        <MoreHorizontal className="h-4 w-4" />
-                        Options
+                    <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border/50">
+                        <button
+                            onClick={() => setView('list')}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                view === 'list'
+                                    ? "bg-background shadow-sm text-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            )}
+                        >
+                            <ListIcon className="h-4 w-4" />
+                            List
+                        </button>
+                        <button
+                            onClick={() => setView('calendar')}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                view === 'calendar'
+                                    ? "bg-background shadow-sm text-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                            )}
+                        >
+                            <CalendarIcon className="h-4 w-4" />
+                            Calendar
+                        </button>
+                    </div>
+
+                    <Button onClick={onCreateTask} className="gap-2 ml-2">
+                        <Plus className="h-4 w-4" />
+                        New Task
                     </Button>
                 </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
-                <div className="p-6">
-                    {/* Project Header */}
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-1 h-6 bg-emerald-500 rounded-full" />
-                        <div className="flex items-center gap-2 group cursor-pointer">
-                            <h2 className="text-xl font-semibold text-emerald-600">{project.description || `Project ${project.id.slice(0, 8)}`}</h2>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                        </div>
-                    </div>
-
-                    {/* Task Table */}
-                    <div className="w-full">
-                        {/* Header */}
-                        <div className="grid grid-cols-[40px_2fr_1fr_1.5fr_1fr_1.5fr_1.5fr_40px] gap-4 px-4 py-3 border-b text-sm font-medium text-muted-foreground">
-                            <div><Checkbox /></div>
-                            <div>Task</div>
-                            <div>Preparer</div>
-                            <div className="flex items-center gap-1">
-                                Preparer Due...
-                                <HelpCircle className="h-3 w-3 text-muted-foreground/50" />
-                            </div>
-                            <div>Reviewer 1</div>
-                            <div>Reviewer 1 Due Date</div>
-                            <div className="flex items-center gap-1">
-                                Status
-                                <HelpCircle className="h-3 w-3 text-muted-foreground/50" />
-                            </div>
-                            <div></div>
+            <div className="flex-1 min-h-0">
+                {view === 'calendar' ? (
+                    <ProjectCalendarView tasks={tasks} />
+                ) : (
+                    <div className="w-full border border-border rounded-xl bg-card shadow-sm overflow-hidden flex flex-col h-full">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/20">
+                            <div className="col-span-5">Task Name</div>
+                            <div className="col-span-2">Status</div>
+                            <div className="col-span-2">Due Date</div>
+                            <div className="col-span-2">Assigned To</div>
+                            <div className="col-span-1 text-right">Actions</div>
                         </div>
 
-                        {/* Rows */}
-                        <div className="divide-y divide-border">
-                            {sortedTasks.map((task) => (
-                                <div key={task.id} className="grid grid-cols-[40px_2fr_1fr_1.5fr_1fr_1.5fr_1.5fr_40px] gap-4 px-4 py-3 items-center hover:bg-muted/30 group transition-colors text-sm">
-                                    <div className="flex items-center h-full">
-                                        <Checkbox
-                                            checked={task.status === 'COMPLETED'}
-                                            onCheckedChange={(checked) => handleStatusChange(task, checked ? 'COMPLETED' : 'PENDING')}
-                                        />
+                        {/* Table Body */}
+                        <div className="overflow-y-auto flex-1">
+                            {tasks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-64 text-center">
+                                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                                        <ListIcon className="h-6 w-6 text-muted-foreground" />
                                     </div>
-                                    <div className="font-medium">{task.name}</div>
-
-                                    {/* Preparer */}
-                                    <div>
-                                        {task.preparers.length > 0 ? (
-                                            <div className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                                                {task.preparers[0].firstName?.[0] || 'P'}
-                                            </div>
-                                        ) : (
-                                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
-                                                ?
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Preparer Due Date */}
-                                    <div>{formatDate(task.dueAt)}</div>
-
-                                    {/* Reviewer 1 */}
-                                    <div>
-                                        {task.reviewers.length > 0 ? (
-                                            <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white">
-                                                {task.reviewers[0].firstName?.[0] || 'R'}
-                                            </div>
-                                        ) : (
-                                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                                                ?
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Reviewer 1 Due Date */}
-                                    <div className="text-muted-foreground">-</div>
-
-                                    {/* Status */}
-                                    <div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger className="outline-none">
-                                                {getStatusBadge(task.status)}
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handleStatusChange(task, 'PENDING')}>
-                                                    Pending
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleStatusChange(task, 'IN_PROGRESS')}>
-                                                    In Preparation
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleStatusChange(task, 'IN_REVIEW')}>
-                                                    In Reviewer 1
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleStatusChange(task, 'COMPLETED')}>
-                                                    Complete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
-                                        <Plus className="h-4 w-4" />
-                                    </div>
+                                    <h3 className="font-semibold text-lg mb-1">No tasks yet</h3>
+                                    <p className="text-muted-foreground mb-4 max-w-sm">
+                                        Get started by creating your first task for this project.
+                                    </p>
+                                    <Button variant="outline" onClick={onCreateTask}>
+                                        Create Task
+                                    </Button>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Add Task Row */}
-                        <div
-                            className="flex items-center gap-2 px-4 py-3 text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/30 transition-colors border-t"
-                            onClick={onCreateTask}
-                        >
-                            <Plus className="h-4 w-4" />
-                            <span className="text-sm font-medium">Add task</span>
+                            ) : (
+                                <div className="divide-y divide-border">
+                                    {tasks.map((task) => (
+                                        <div
+                                            key={task.id}
+                                            className="grid grid-cols-12 gap-4 px-6 py-3 items-center hover:bg-muted/50 transition-colors group"
+                                        >
+                                            <div className="col-span-5 font-medium text-sm text-foreground">
+                                                {task.name}
+                                            </div>
+                                            <div className="col-span-2">
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    {getStatusIcon(task.status)}
+                                                    <span>{getStatusLabel(task.status)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-2">
+                                                {task.dueAt ? (
+                                                    <>
+                                                        <Calendar className="h-3.5 w-3.5" />
+                                                        {new Date(task.dueAt).toLocaleDateString()}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-muted-foreground/50">-</span>
+                                                )}
+                                            </div>
+                                            <div className="col-span-2 flex items-center -space-x-2">
+                                                {(task.preparers || []).length > 0 ? (
+                                                    (task.preparers || []).slice(0, 3).map((user, i) => (
+                                                        <Avatar key={i} className="h-6 w-6 border-2 border-background ring-1 ring-border">
+                                                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                                                {user.firstName?.[0] || user.email[0].toUpperCase()}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground/50 pl-2">Unassigned</span>
+                                                )}
+                                            </div>
+                                            <div className="col-span-1 flex justify-end">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem>Edit Task</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive">Delete Task</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     )

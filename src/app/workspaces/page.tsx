@@ -154,6 +154,21 @@ export default function WorkspacesPage() {
                                         {workspace.description || 'No description'}
                                     </p>
 
+                                    {/* Progress */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary transition-all duration-500 rounded-full"
+                                                    style={{ width: `${workspace.progress || 0}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground w-8 text-right font-medium">
+                                                {workspace.progress || 0}%
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     {/* Footer */}
                                     <div className="flex items-center gap-4 text-xs text-muted-foreground mt-auto">
                                         <div className="flex items-center gap-1.5">
