@@ -44,7 +44,7 @@ export function FilterSortControls({ onFilterChange, onSortChange }: FilterSortC
     const [filterOpen, setFilterOpen] = useState(false)
     const [sortOpen, setSortOpen] = useState(false)
 
-    const statuses = ['PENDING', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'BLOCKED']
+    const statuses = ['PENDING', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED']
 
     const handleStatusToggle = (status: string) => {
         const newStatuses = filters.status.includes(status)

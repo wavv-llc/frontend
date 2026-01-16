@@ -10,8 +10,10 @@ import {
   Settings,
   MoreHorizontal,
   ChevronRight,
+  ChevronDown,
   Clock,
-  Hash
+  Hash,
+  FileText
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -25,11 +27,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuAction,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
-import { workspaceApi, type Workspace } from '@/lib/api'
+import { workspaceApi, projectApi, type Workspace, type Project } from '@/lib/api'
 
 const recents: { id: string; title: string }[] = []
 
@@ -40,6 +45,9 @@ export function AppSidebar() {
   const isCollapsed = state === 'collapsed'
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true)
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<string>>(new Set())
+  const [workspaceProjects, setWorkspaceProjects] = useState<Record<string, Project[]>>({})
+  const [loadingProjects, setLoadingProjects] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchWorkspaces = async () => {
@@ -58,6 +66,41 @@ export function AppSidebar() {
 
     fetchWorkspaces()
   }, [getToken])
+
+  const toggleWorkspace = async (workspaceId: string) => {
+    const newExpanded = new Set(expandedWorkspaces)
+
+    if (newExpanded.has(workspaceId)) {
+      newExpanded.delete(workspaceId)
+    } else {
+      newExpanded.add(workspaceId)
+
+      // Fetch projects if not already loaded
+      if (!workspaceProjects[workspaceId]) {
+        setLoadingProjects(prev => new Set(prev).add(workspaceId))
+        try {
+          const token = await getToken()
+          if (!token) return
+
+          const response = await projectApi.getProjectsByWorkspace(token, workspaceId)
+          setWorkspaceProjects(prev => ({
+            ...prev,
+            [workspaceId]: response.data || []
+          }))
+        } catch (error) {
+          console.error('Failed to fetch projects:', error)
+        } finally {
+          setLoadingProjects(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(workspaceId)
+            return newSet
+          })
+        }
+      }
+    }
+
+    setExpandedWorkspaces(newExpanded)
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -124,16 +167,57 @@ export function AppSidebar() {
                   No workspaces yet
                 </div>
               ) : (
-                workspaces.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton asChild className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-                      <Link href={`/workspaces/${item.id}`}>
+                workspaces.map((workspace) => {
+                  const isExpanded = expandedWorkspaces.has(workspace.id)
+                  const projects = workspaceProjects[workspace.id] || []
+                  const isLoading = loadingProjects.has(workspace.id)
+
+                  return (
+                    <SidebarMenuItem key={workspace.id}>
+                      <SidebarMenuButton
+                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        onClick={() => toggleWorkspace(workspace.id)}
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
+                        ) : (
+                          <ChevronRight className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
+                        )}
                         <Hash className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
-                        <span className="truncate">{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
+                        <span className="truncate">{workspace.name}</span>
+                      </SidebarMenuButton>
+
+                      {isExpanded && (
+                        <SidebarMenuSub>
+                          {isLoading ? (
+                            <SidebarMenuSubItem>
+                              <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
+                                Loading projects...
+                              </div>
+                            </SidebarMenuSubItem>
+                          ) : projects.length === 0 ? (
+                            <SidebarMenuSubItem>
+                              <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
+                                No projects yet
+                              </div>
+                            </SidebarMenuSubItem>
+                          ) : (
+                            projects.map((project) => (
+                              <SidebarMenuSubItem key={project.id}>
+                                <SidebarMenuSubButton asChild>
+                                  <Link href={`/workspaces/${workspace.id}?projectId=${project.id}`}>
+                                    <FileText className="h-4 w-4" />
+                                    <span className="truncate">{project.description || `Project ${project.id.slice(0, 8)}`}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))
+                          )}
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  )
+                })
               )}
             </SidebarMenu>
           </SidebarGroupContent>

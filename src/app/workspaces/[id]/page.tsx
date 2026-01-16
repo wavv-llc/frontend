@@ -303,7 +303,7 @@ export default function WorkspaceDetailsPage() {
                 {/* Content */}
                 <div className="flex-1 overflow-auto px-6 pb-6">
                     {view === 'list' ? (
-                        <ProjectListView projects={projects} tasks={filteredTasks} onRefresh={handleSuccess} />
+                        <ProjectListView projects={projects} tasks={filteredTasks} allTasks={tasks} onRefresh={handleSuccess} />
                     ) : (
                         <ProjectCalendarView tasks={filteredTasks} />
                     )}

@@ -1,5 +1,5 @@
 // Use relative URLs so Next.js rewrites can proxy to backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || ''
+const API_BASE_URL = typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '')
 
 // TypeScript Types
 export interface User {
@@ -57,7 +57,7 @@ export interface Task {
   projectId: string
   categoryId?: string
   dueAt?: string
-  status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+  status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
   createdAt: string
   updatedAt: string
   project: {
@@ -133,15 +133,26 @@ export async function apiRequest<T = any>(
     // Handle various error response formats
     let errorMessage = 'An error occurred'
 
-    if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+    if (data && typeof data === 'object') {
+      // Check for nested error.message
       if (data.error && typeof data.error === 'object' && data.error.message) {
         errorMessage = data.error.message
-      } else if (data.error && typeof data.error === 'string') {
+      }
+      // Check for error as string
+      else if (data.error && typeof data.error === 'string') {
         errorMessage = data.error
-      } else if (data.message && typeof data.message === 'string') {
+      }
+      // Check for direct message property
+      else if (data.message && typeof data.message === 'string') {
         errorMessage = data.message
-      } else {
-        errorMessage = `API error (${response.status}): ${response.statusText}`
+      }
+      // If data exists but has no recognizable error format
+      else if (Object.keys(data).length > 0) {
+        errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`
+      }
+      // Empty object
+      else {
+        errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`
       }
     } else {
       errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`
@@ -463,7 +474,7 @@ export const taskApi = {
       description?: string
       categoryId?: string
       dueAt?: string
-      status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+      status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
     }
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks`, {
@@ -500,7 +511,7 @@ export const taskApi = {
     token: string,
     projectId: string,
     id: string,
-    status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'BLOCKED'
+    status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}/status`, {
       method: 'PATCH',

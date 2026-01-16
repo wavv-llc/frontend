@@ -30,8 +30,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
             case 'COMPLETED': return 'bg-emerald-500'
             case 'IN_PROGRESS': return 'bg-blue-600'
             case 'IN_REVIEW': return 'bg-orange-500'
-            case 'BLOCKED': return 'bg-destructive'
-            default: return 'bg-gray-400'
+            default: return 'bg-gray-500'
         }
     }
 
