@@ -22,6 +22,7 @@ export interface Workspace {
 
 export interface Project {
   id: string
+  name: string
   description?: string
   workspaceId: string
   createdAt: string
@@ -69,6 +70,32 @@ export interface Task {
   preparers: User[]
   reviewers: User[]
   linkedFiles: Document[]
+  comments?: Comment[]
+  attachments?: TaskAttachment[]
+}
+
+export interface Comment {
+  id: string
+  content: string
+  comment?: string // For backward compatibility
+  createdAt: string
+  updatedAt: string
+  user: User
+  status: 'OPEN' | 'RESOLVED'
+  resolved?: boolean // For backward compatibility
+  resolvedBy?: User
+  replies?: Comment[]
+  parentId?: string
+}
+
+export interface TaskAttachment {
+  id: string
+  name: string
+  url: string
+  type: string
+  size: number
+  uploadedAt: string
+  uploadedBy: User
 }
 
 export interface ApiResponse<T = any> {
@@ -396,20 +423,25 @@ export const projectApi = {
   createProject: async (
     token: string,
     workspaceId: string,
+    name: string,
     description?: string
   ) => {
     return apiRequest<Project>('/api/v1/projects', {
       method: 'POST',
       token,
-      body: JSON.stringify({ workspaceId, description }),
+      body: JSON.stringify({ workspaceId, name, description }),
     })
   },
 
-  updateProject: async (token: string, id: string, description?: string) => {
+  updateProject: async (
+    token: string,
+    id: string,
+    data: { name?: string; description?: string }
+  ) => {
     return apiRequest<Project>(`/api/v1/projects/${id}`, {
       method: 'PATCH',
       token,
-      body: JSON.stringify({ description }),
+      body: JSON.stringify(data),
     })
   },
 
@@ -598,4 +630,261 @@ export const taskApi = {
       }
     )
   },
+
+  moveTaskToCategory: async (
+    token: string,
+    projectId: string,
+    id: string,
+    categoryId: string | null
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/category`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ categoryId }),
+      }
+    )
+  },
+
+  attachFile: async (
+    token: string,
+    projectId: string,
+    id: string,
+    documentId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/files`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ documentId }),
+      }
+    )
+  },
+
+  removeFile: async (
+    token: string,
+    projectId: string,
+    id: string,
+    documentId: string
+  ) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${id}/files/${documentId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
 }
+
+// Category API functions
+export const categoryApi = {
+  getCategoriesByProject: async (token: string, projectId: string) => {
+    return apiRequest<Category[]>(`/api/v1/projects/${projectId}/categories`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createCategory: async (
+    token: string,
+    projectId: string,
+    data: {
+      name: string
+      description?: string
+      color?: string
+    }
+  ) => {
+    return apiRequest<Category>(`/api/v1/projects/${projectId}/categories`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  updateCategory: async (
+    token: string,
+    projectId: string,
+    id: string,
+    data: {
+      name?: string
+      description?: string
+      color?: string
+    }
+  ) => {
+    return apiRequest<Category>(
+      `/api/v1/projects/${projectId}/categories/${id}`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(data),
+      }
+    )
+  },
+
+  deleteCategory: async (token: string, projectId: string, id: string) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/projects/${projectId}/categories/${id}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+}
+
+// Task Comment API functions
+export const taskCommentApi = {
+  getCommentsByTask: async (
+    token: string,
+    projectId: string,
+    taskId: string
+  ) => {
+    return apiRequest<Comment[]>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments`,
+      {
+        method: 'GET',
+        token,
+      }
+    )
+  },
+
+  createComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    data: {
+      comment: string
+      parentId?: string
+    }
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify(data),
+      }
+    )
+  },
+
+  getComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
+      {
+        method: 'GET',
+        token,
+      }
+    )
+  },
+
+  updateComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string,
+    data: {
+      comment: string
+    }
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify(data),
+      }
+    )
+  },
+
+  deleteComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string
+  ) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+
+  setResolvedStatus: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string,
+    resolved: boolean
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/resolved`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ resolved }),
+      }
+    )
+  },
+
+  resolveComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string
+  ) => {
+    return taskCommentApi.setResolvedStatus(token, projectId, taskId, id, true)
+  },
+
+  reopenComment: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string
+  ) => {
+    return taskCommentApi.setResolvedStatus(token, projectId, taskId, id, false)
+  },
+
+  linkFiles: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string,
+    documentIds: string[]
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/files`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ documentIds }),
+      }
+    )
+  },
+
+  unlinkFile: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    id: string,
+    documentId: string
+  ) => {
+    return apiRequest<Comment>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/files/${documentId}`,
+      {
+        method: 'DELETE',
+        token,
+      }
+    )
+  },
+}
+

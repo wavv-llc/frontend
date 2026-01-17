@@ -69,7 +69,7 @@ export function ProjectListView({ projects, tasks, allTasks }: ProjectListViewPr
                                     </div>
                                     <div>
                                         <div className="font-medium text-foreground group-hover:text-primary transition-colors">
-                                            {project.description || `Project ${project.id.slice(0, 8)}`}
+                                            {project.name || `Project ${project.id.slice(0, 8)}`}
                                         </div>
                                         <div className="text-xs text-muted-foreground mt-0.5">
                                             {completedTasks} of {totalTasks} tasks completed

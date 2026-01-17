@@ -61,16 +61,24 @@ export function CreateTaskDialog({
                 dueAt: dueDate || undefined,
                 status: 'PENDING',
             })
+
             toast.success('Task created successfully')
 
             // Reset form
             setName('')
             setDescription('')
-            setDueDate('')
+            setDueDate(() => {
+                const today = new Date()
+                return today.toISOString().split('T')[0]
+            })
+
+            // Close dialog first
             onOpenChange(false)
 
-            // Call success callback to refresh data
-            onSuccess?.()
+            // Then refresh data after a brief delay to ensure dialog is closed
+            setTimeout(() => {
+                onSuccess?.()
+            }, 100)
         } catch (error) {
             console.error('Failed to create task:', error)
             toast.error(error instanceof Error ? error.message : 'Failed to create task')

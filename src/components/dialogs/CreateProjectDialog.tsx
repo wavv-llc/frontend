@@ -30,11 +30,17 @@ export function CreateProjectDialog({
     onSuccess,
 }: CreateProjectDialogProps) {
     const { getToken } = useAuth()
+    const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (!name.trim()) {
+            toast.error('Project name is required')
+            return
+        }
 
         setIsLoading(true)
         try {
@@ -44,15 +50,20 @@ export function CreateProjectDialog({
                 return
             }
 
-            await projectApi.createProject(token, workspaceId, description || undefined)
+            await projectApi.createProject(token, workspaceId, name, description || undefined)
             toast.success('Project created successfully')
 
             // Reset form
+            setName('')
             setDescription('')
+
+            // Close dialog first
             onOpenChange(false)
 
-            // Call success callback to refresh data
-            onSuccess?.()
+            // Then refresh data after a brief delay to ensure dialog is closed
+            setTimeout(() => {
+                onSuccess?.()
+            }, 100)
         } catch (error) {
             console.error('Failed to create project:', error)
             toast.error(error instanceof Error ? error.message : 'Failed to create project')
@@ -74,6 +85,19 @@ export function CreateProjectDialog({
 
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
+                            <Label htmlFor="name">Project Name *</Label>
+                            <input
+                                id="name"
+                                type="text"
+                                placeholder="Enter project name..."
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                disabled={isLoading}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="grid gap-2">
                             <Label htmlFor="description">Project Description (Optional)</Label>
                             <Textarea
                                 id="description"
@@ -82,7 +106,6 @@ export function CreateProjectDialog({
                                 onChange={(e) => setDescription(e.target.value)}
                                 disabled={isLoading}
                                 rows={3}
-                                autoFocus
                             />
                         </div>
                     </div>

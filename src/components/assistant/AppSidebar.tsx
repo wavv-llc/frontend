@@ -1,258 +1,464 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useUser, UserButton, useAuth } from '@clerk/nextjs'
+import React, { useState, useEffect } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Folder,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  PanelLeft,
   Plus,
-  Search,
-  MessageSquare,
+  Menu,
   Settings,
-  MoreHorizontal,
+  LogOut,
+  User,
+  Search,
   ChevronRight,
   ChevronDown,
-  Clock,
-  Hash,
-  FileText
-} from 'lucide-react'
-import Link from 'next/link'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuAction,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarTrigger,
-  useSidebar,
-} from '@/components/ui/sidebar'
-import { cn } from '@/lib/utils'
-import { workspaceApi, projectApi, type Workspace, type Project } from '@/lib/api'
+  FolderKanban,
+  Briefcase,
+  MessageSquare,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { workspaceApi, projectApi, type Workspace, type Project } from "@/lib/api";
 
-const recents: { id: string; title: string }[] = []
+// Workspace Item Component with expandable projects
+interface WorkspaceItemProps {
+  workspace: Workspace;
+  projects: Project[];
+  isCompressed: boolean;
+  onWorkspaceClick: () => void;
+  onProjectClick: (workspaceId: string, projectId: string) => void;
+}
 
-export function AppSidebar() {
-  const { user } = useUser()
-  const { getToken } = useAuth()
-  const { state } = useSidebar()
-  const isCollapsed = state === 'collapsed'
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true)
-  const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<string>>(new Set())
-  const [workspaceProjects, setWorkspaceProjects] = useState<Record<string, Project[]>>({})
-  const [loadingProjects, setLoadingProjects] = useState<Set<string>>(new Set())
+const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
+  workspace,
+  projects,
+  isCompressed,
+  onWorkspaceClick,
+  onProjectClick,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchWorkspaces = async () => {
-      try {
-        const token = await getToken()
-        if (!token) return
-
-        const response = await workspaceApi.getWorkspaces(token)
-        setWorkspaces(response.data || [])
-      } catch (error) {
-        console.error('Failed to fetch workspaces:', error)
-      } finally {
-        setIsLoadingWorkspaces(false)
-      }
-    }
-
-    fetchWorkspaces()
-  }, [getToken])
-
-  const toggleWorkspace = async (workspaceId: string) => {
-    const newExpanded = new Set(expandedWorkspaces)
-
-    if (newExpanded.has(workspaceId)) {
-      newExpanded.delete(workspaceId)
-    } else {
-      newExpanded.add(workspaceId)
-
-      // Fetch projects if not already loaded
-      if (!workspaceProjects[workspaceId]) {
-        setLoadingProjects(prev => new Set(prev).add(workspaceId))
-        try {
-          const token = await getToken()
-          if (!token) return
-
-          const response = await projectApi.getProjectsByWorkspace(token, workspaceId)
-          setWorkspaceProjects(prev => ({
-            ...prev,
-            [workspaceId]: response.data || []
-          }))
-        } catch (error) {
-          console.error('Failed to fetch projects:', error)
-        } finally {
-          setLoadingProjects(prev => {
-            const newSet = new Set(prev)
-            newSet.delete(workspaceId)
-            return newSet
-          })
-        }
-      }
-    }
-
-    setExpandedWorkspaces(newExpanded)
+  if (isCompressed) {
+    return (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onWorkspaceClick}
+              className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Briefcase className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+            <p>{workspace.name}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   }
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="h-14 flex flex-row items-center justify-between px-4 border-b border-sidebar-border/50">
-        <div className="font-semibold text-lg tracking-tight group-data-[state=collapsed]:hidden">Wavv</div>
-        <SidebarTrigger className="text-sidebar-foreground/50 hover:text-sidebar-foreground ml-auto" />
-      </SidebarHeader>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className="flex items-center gap-1">
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        <Button
+          variant="ghost"
+          onClick={onWorkspaceClick}
+          className="flex-1 justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <Briefcase className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1 truncate text-left">{workspace.name}</span>
+        </Button>
+      </div>
+      <CollapsibleContent className="ml-6 mt-1 space-y-1">
+        {projects.map((project) => (
+          <Button
+            key={project.id}
+            variant="ghost"
+            onClick={() => onProjectClick(workspace.id, project.id)}
+            className="w-full justify-start gap-2 px-2 py-1.5 text-xs font-normal text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          >
+            <FolderKanban className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="flex-1 truncate text-left">
+              {project.name || `Project ${project.id.slice(0, 8)}`}
+            </span>
+          </Button>
+        ))}
+        {projects.length === 0 && (
+          <p className="px-2 py-1.5 text-xs text-muted-foreground italic">
+            No projects yet
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
-      <SidebarContent className="gap-2 p-2">
-        {/* New Chat & Search */}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-sidebar-border/50 shadow-sm"
-            >
-              <div className="flex aspect-square size-6 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <MessageSquare className="size-3.5" />
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none group-data-[state=collapsed]:hidden">
-                <span className="font-semibold">New chat</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-              <Search className="mr-2 h-4 w-4" />
-              <span>Search</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
-        {/* Recent Chats / History */}
-        <SidebarGroup>
-          <div className="px-2 py-1.5 text-xs font-semibold text-sidebar-foreground/50 group-data-[state=collapsed]:hidden">
-            Recents
-          </div>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {recents.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton className="group/item text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-                    <Clock className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Workspaces List */}
-        <SidebarGroup>
-          <div className="px-2 py-1.5 text-xs font-semibold text-sidebar-foreground/50 group-data-[state=collapsed]:hidden flex items-center justify-between">
-            <Link href="/workspaces" className="hover:text-sidebar-foreground transition-colors">Workspaces</Link>
-            <Plus className="h-3 w-3 cursor-pointer hover:text-sidebar-foreground" />
-          </div>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {isLoadingWorkspaces ? (
-                <div className="px-2 py-1 text-xs text-sidebar-foreground/50">Loading...</div>
-              ) : workspaces.length === 0 ? (
-                <div className="px-2 py-1 text-xs text-sidebar-foreground/50 group-data-[state=collapsed]:hidden">
-                  No workspaces yet
-                </div>
-              ) : (
-                workspaces.map((workspace) => {
-                  const isExpanded = expandedWorkspaces.has(workspace.id)
-                  const projects = workspaceProjects[workspace.id] || []
-                  const isLoading = loadingProjects.has(workspace.id)
-
-                  return (
-                    <SidebarMenuItem key={workspace.id}>
-                      <SidebarMenuButton
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                        onClick={() => toggleWorkspace(workspace.id)}
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
-                        ) : (
-                          <ChevronRight className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
-                        )}
-                        <Hash className="mr-2 h-4 w-4 text-sidebar-foreground/50" />
-                        <span className="truncate">{workspace.name}</span>
-                      </SidebarMenuButton>
-
-                      {isExpanded && (
-                        <SidebarMenuSub>
-                          {isLoading ? (
-                            <SidebarMenuSubItem>
-                              <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-                                Loading projects...
-                              </div>
-                            </SidebarMenuSubItem>
-                          ) : projects.length === 0 ? (
-                            <SidebarMenuSubItem>
-                              <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
-                                No projects yet
-                              </div>
-                            </SidebarMenuSubItem>
-                          ) : (
-                            projects.map((project) => (
-                              <SidebarMenuSubItem key={project.id}>
-                                <SidebarMenuSubButton asChild>
-                                  <Link href={`/workspaces/${workspace.id}?projectId=${project.id}`}>
-                                    <FileText className="h-4 w-4" />
-                                    <span className="truncate">{project.description || `Project ${project.id.slice(0, 8)}`}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))
-                          )}
-                        </SidebarMenuSub>
-                      )}
-                    </SidebarMenuItem>
-                  )
-                })
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border/50 p-2">
-        <SidebarMenu>
-          {/* Settings Link */}
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-              <Link href="/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-              <div className="h-8 w-8 rounded-lg overflow-hidden">
-                <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight ml-2 group-data-[state=collapsed]:hidden">
-                <span className="truncate font-semibold">{user?.fullName || 'User'}</span>
-                <span className="truncate text-xs text-sidebar-foreground/60">{user?.primaryEmailAddress?.emailAddress}</span>
-              </div>
-              <MoreHorizontal className="ml-auto size-4 group-data-[state=collapsed]:hidden" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
-  )
+// Sidebar Content Component
+interface SidebarContentProps {
+  showToggle?: boolean;
+  onToggleSidebar?: () => void;
+  isCompressed?: boolean;
 }
+
+const SidebarContent: React.FC<SidebarContentProps> = ({
+  showToggle = true,
+  onToggleSidebar,
+  isCompressed = false,
+}) => {
+  const router = useRouter();
+  const { getToken, signOut } = useAuth();
+  const { user } = useUser();
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [projectsByWorkspace, setProjectsByWorkspace] = useState<Record<string, Project[]>>({});
+  const [loading, setLoading] = useState(true);
+
+  // Fetch workspaces and their projects
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        // Fetch workspaces
+        const workspacesResponse = await workspaceApi.getWorkspaces(token);
+        const workspacesData = workspacesResponse.data || [];
+        setWorkspaces(workspacesData);
+
+        // Fetch projects for each workspace
+        const projectsData: Record<string, Project[]> = {};
+        await Promise.all(
+          workspacesData.map(async (workspace) => {
+            try {
+              const projectsResponse = await projectApi.getProjectsByWorkspace(
+                token,
+                workspace.id
+              );
+              projectsData[workspace.id] = projectsResponse.data || [];
+            } catch (error) {
+              console.error(`Failed to fetch projects for workspace ${workspace.id}:`, error);
+              projectsData[workspace.id] = [];
+            }
+          })
+        );
+        setProjectsByWorkspace(projectsData);
+      } catch (error) {
+        console.error("Failed to fetch workspaces:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [getToken]);
+
+  const handleNewChat = () => {
+    console.log("Creating new chat...");
+    // TODO: Implement when chat API is ready
+  };
+
+  const handleSearch = () => {
+    console.log("Opening search...");
+    // TODO: Implement search
+  };
+
+  const handleSettings = () => {
+    router.push("/settings");
+  };
+
+  const handleWorkspaceClick = (workspaceId: string) => {
+    router.push(`/workspaces/${workspaceId}`);
+  };
+
+  const handleProjectClick = (workspaceId: string, projectId: string) => {
+    router.push(`/workspaces/${workspaceId}/projects/${projectId}`);
+  };
+
+  const handleWorkspacesClick = () => {
+    router.push("/workspaces");
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/");
+  };
+
+  return (
+    <div className="flex h-full flex-col bg-sidebar">
+      {/* Header */}
+      <div className={`flex items-center gap-2 p-2 ${isCompressed ? 'flex-col' : ''}`}>
+        {showToggle && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={onToggleSidebar}
+          >
+            <PanelLeft className="h-5 w-5" />
+          </Button>
+        )}
+        {!isCompressed ? (
+          <>
+            <Button
+              onClick={handleNewChat}
+              className="flex-1 justify-start gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              New Chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSearch}
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSettings}
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={handleNewChat}
+              size="icon"
+              className="h-9 w-9 flex-shrink-0 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+              title="New Chat"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSearch}
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+              title="Search"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSettings}
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </>
+        )}
+      </div>
+
+      <Separator className="bg-sidebar-border" />
+
+      {/* Scrollable Content */}
+      <ScrollArea className="flex-1 px-2">
+        <div className="space-y-6 py-4">
+          {/* Workspaces Section */}
+          <div>
+            {!isCompressed && (
+              <Button
+                variant="ghost"
+                onClick={handleWorkspacesClick}
+                className="w-full justify-start px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-sidebar-accent/50"
+              >
+                Workspaces
+              </Button>
+            )}
+            <div className="space-y-1">
+              {loading ? (
+                !isCompressed && (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">Loading...</p>
+                )
+              ) : workspaces.length > 0 ? (
+                workspaces.map((workspace) => (
+                  <WorkspaceItem
+                    key={workspace.id}
+                    workspace={workspace}
+                    projects={projectsByWorkspace[workspace.id] || []}
+                    isCompressed={isCompressed}
+                    onWorkspaceClick={() => handleWorkspaceClick(workspace.id)}
+                    onProjectClick={handleProjectClick}
+                  />
+                ))
+              ) : (
+                !isCompressed && (
+                  <p className="px-2 py-2 text-xs text-muted-foreground italic">
+                    No workspaces yet
+                  </p>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Recent Chats Section */}
+          <div>
+            {!isCompressed && (
+              <h3 className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Recent Chats
+              </h3>
+            )}
+            <div className="space-y-1">
+              {!isCompressed && (
+                <p className="px-2 py-2 text-xs text-muted-foreground italic">
+                  Chat history coming soon
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+
+      <Separator className="bg-sidebar-border" />
+
+      {/* Footer - Clerk User Profile */}
+      <div className="p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            {!isCompressed ? (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 px-2 py-6 text-sidebar-foreground hover:bg-sidebar-accent"
+              >
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  <AvatarImage src={user?.imageUrl} />
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                    {user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start text-sm overflow-hidden">
+                  <span className="font-medium truncate w-full">
+                    {user?.firstName && user?.lastName
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.firstName || user?.emailAddresses?.[0]?.emailAddress || "User"}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate w-full">
+                    {user?.emailAddresses?.[0]?.emailAddress || ""}
+                  </span>
+                </div>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent"
+                title={user?.firstName || "User"}
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.imageUrl} />
+                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                    {user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 bg-popover border-border text-popover-foreground"
+          >
+            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/settings")}>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={handleSettings}>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+};
+
+// Main AppSidebar Component
+export const AppSidebar: React.FC = () => {
+  const { isOpen, toggle } = useSidebar();
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`hidden md:block fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border transition-all duration-300 ease-in-out ${isOpen ? 'w-[260px]' : 'w-[60px]'
+          }`}
+      >
+        <SidebarContent
+          onToggleSidebar={toggle}
+          isCompressed={!isOpen}
+        />
+      </aside>
+
+      {/* Mobile Sidebar (Sheet) */}
+      <div className="md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed left-4 top-4 z-40 h-9 w-9 text-foreground hover:bg-sidebar-accent"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="w-[260px] p-0 bg-sidebar border-sidebar-border"
+          >
+            <SidebarContent showToggle={false} />
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
+  );
+};

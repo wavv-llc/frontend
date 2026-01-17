@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, notFound } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout'
 import { ProjectDetailView } from '@/components/projects/ProjectDetailView'
 import { Loader2 } from 'lucide-react'
 import { projectApi, taskApi, type Project, type Task } from '@/lib/api'
@@ -64,11 +63,9 @@ export default function ProjectPage() {
 
     if (isLoading) {
         return (
-            <DashboardLayout>
-                <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-            </DashboardLayout>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
         )
     }
 
@@ -78,7 +75,7 @@ export default function ProjectPage() {
     }
 
     return (
-        <DashboardLayout>
+        <>
             <ProjectDetailView
                 project={project}
                 tasks={tasks}
@@ -92,6 +89,6 @@ export default function ProjectPage() {
                 projectId={projectId}
                 onSuccess={handleSuccess}
             />
-        </DashboardLayout>
+        </>
     )
 }

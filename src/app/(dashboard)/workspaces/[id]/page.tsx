@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, notFound } from 'next/navigation'
+import { useParams, notFound, useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout'
 import { ProjectListView } from '@/components/projects/ProjectListView'
 import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView'
 import { Button } from '@/components/ui/button'
@@ -17,7 +16,9 @@ import {
     Loader2,
     Settings,
     Download,
-    Users
+    Users,
+    Edit2,
+    Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -32,10 +33,22 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 export default function WorkspaceDetailsPage() {
     const params = useParams()
+    const router = useRouter()
     const { getToken } = useAuth()
     const [view, setView] = useState<'list' | 'calendar'>('list')
     const [workspace, setWorkspace] = useState<Workspace | null>(null)
@@ -46,6 +59,11 @@ export default function WorkspaceDetailsPage() {
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false)
     const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false)
     const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [editWorkspaceName, setEditWorkspaceName] = useState('')
+    const [editWorkspaceDescription, setEditWorkspaceDescription] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const workspaceId = params.id as string
 
@@ -64,6 +82,8 @@ export default function WorkspaceDetailsPage() {
                 return
             }
             setWorkspace(workspaceResponse.data)
+            setEditWorkspaceName(workspaceResponse.data.name)
+            setEditWorkspaceDescription(workspaceResponse.data.description || '')
 
             // Fetch projects for this workspace
             const projectsResponse = await projectApi.getProjectsByWorkspace(token, workspaceId)
@@ -106,6 +126,52 @@ export default function WorkspaceDetailsPage() {
 
     const handleSuccess = () => {
         fetchData()
+    }
+
+    const handleEditWorkspace = async () => {
+        try {
+            setIsSubmitting(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await workspaceApi.updateWorkspace(token, workspaceId, {
+                name: editWorkspaceName,
+                description: editWorkspaceDescription
+            })
+
+            toast.success('Workspace updated successfully')
+            setEditDialogOpen(false)
+            fetchData()
+        } catch (error) {
+            console.error('Failed to update workspace:', error)
+            toast.error('Failed to update workspace')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleDeleteWorkspace = async () => {
+        try {
+            setIsSubmitting(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await workspaceApi.deleteWorkspace(token, workspaceId)
+            toast.success('Workspace deleted successfully')
+            setDeleteDialogOpen(false)
+            router.push('/workspaces')
+        } catch (error) {
+            console.error('Failed to delete workspace:', error)
+            toast.error('Failed to delete workspace')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const handleFilterChange = (filters: TaskFilters) => {
@@ -169,11 +235,9 @@ export default function WorkspaceDetailsPage() {
 
     if (isLoading) {
         return (
-            <DashboardLayout>
-                <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-            </DashboardLayout>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
         )
     }
 
@@ -183,8 +247,8 @@ export default function WorkspaceDetailsPage() {
     }
 
     return (
-        <DashboardLayout>
-            <div className="flex flex-col h-full bg-background overflow-hidden">
+        <>
+            <div className="flex flex-col h-full bg-background overflow-hidden animate-in fade-in duration-300">
                 {/* Header */}
                 <div className="border-b px-6 py-4 flex items-center justify-between shrink-0 bg-background z-10 px-6">
                     <div className="flex items-center gap-4">
@@ -203,6 +267,10 @@ export default function WorkspaceDetailsPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Edit Workspace
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleWorkspaceSettings}>
                                 <Settings className="mr-2 h-4 w-4" />
                                 Workspace Settings
@@ -215,6 +283,14 @@ export default function WorkspaceDetailsPage() {
                             <DropdownMenuItem className="text-muted-foreground">
                                 <Users className="mr-2 h-4 w-4" />
                                 Manage Members
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => setDeleteDialogOpen(true)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Workspace
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -315,6 +391,67 @@ export default function WorkspaceDetailsPage() {
                 projectId={selectedProjectId}
                 onSuccess={handleSuccess}
             />
-        </DashboardLayout>
+
+            {/* Edit Workspace Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Workspace</DialogTitle>
+                        <DialogDescription>
+                            Update the workspace name and description
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="workspace-name">Workspace Name</Label>
+                            <Input
+                                id="workspace-name"
+                                value={editWorkspaceName}
+                                onChange={(e) => setEditWorkspaceName(e.target.value)}
+                                placeholder="Enter workspace name"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="workspace-description">Description</Label>
+                            <Textarea
+                                id="workspace-description"
+                                value={editWorkspaceDescription}
+                                onChange={(e) => setEditWorkspaceDescription(e.target.value)}
+                                placeholder="Enter workspace description"
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={isSubmitting}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleEditWorkspace} disabled={isSubmitting || !editWorkspaceName.trim()}>
+                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Workspace Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Workspace</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this workspace? This will also delete all projects and tasks in this workspace. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isSubmitting}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDeleteWorkspace} disabled={isSubmitting}>
+                            {isSubmitting ? 'Deleting...' : 'Delete Workspace'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
