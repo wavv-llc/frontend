@@ -8,13 +8,18 @@ import { Loader2 } from 'lucide-react'
 import { projectApi, taskApi, type Project, type Task } from '@/lib/api'
 import { toast } from 'sonner'
 import { CreateTaskDialog } from '@/components/dialogs/CreateTaskDialog'
+import { ProjectDetailSkeleton } from '@/components/skeletons/ProjectDetailSkeleton'
+import { TaskDetailSkeleton } from '@/components/skeletons/TaskDetailSkeleton'
+import { useSearchParams } from 'next/navigation'
 
 export default function ProjectPage() {
     const params = useParams()
+    const searchParams = useSearchParams()
     const { getToken } = useAuth()
     const [project, setProject] = useState<Project | null>(null)
     const [tasks, setTasks] = useState<Task[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [showSkeleton, setShowSkeleton] = useState(false)
     const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false)
 
     const projectId = params.projectId as string
@@ -53,6 +58,11 @@ export default function ProjectPage() {
         }
     }, [projectId])
 
+    useEffect(() => {
+        const timer = setTimeout(() => setShowSkeleton(true), 150)
+        return () => clearTimeout(timer)
+    }, [])
+
     const handleCreateTask = () => {
         setShowCreateTaskDialog(true)
     }
@@ -62,11 +72,11 @@ export default function ProjectPage() {
     }
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        // If we have a taskId in the URL, show the task skeleton
+        if (searchParams.get('taskId')) {
+            return showSkeleton ? <TaskDetailSkeleton onBack={() => { }} /> : null
+        }
+        return showSkeleton ? <ProjectDetailSkeleton /> : null
     }
 
     if (!project) {

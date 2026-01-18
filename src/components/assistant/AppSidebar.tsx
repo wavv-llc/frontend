@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -313,7 +314,14 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <div className="space-y-1">
               {loading ? (
                 !isCompressed && (
-                  <p className="px-2 py-2 text-xs text-muted-foreground">Loading...</p>
+                  <div className="space-y-2 px-2 py-1">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-4 rounded-sm" />
+                        <Skeleton className="h-4 w-32 rounded-sm" />
+                      </div>
+                    ))}
+                  </div>
                 )
               ) : workspaces.length > 0 ? (
                 workspaces.map((workspace) => (

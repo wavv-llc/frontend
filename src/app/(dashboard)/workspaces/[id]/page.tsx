@@ -20,6 +20,7 @@ import {
     Edit2,
     Trash2
 } from 'lucide-react'
+import { WorkspaceDetailSkeleton } from '@/components/skeletons/WorkspaceDetailSkeleton'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { workspaceApi, projectApi, taskApi, type Workspace, type Project, type Task } from '@/lib/api'
@@ -56,6 +57,7 @@ export default function WorkspaceDetailsPage() {
     const [tasks, setTasks] = useState<Task[]>([])
     const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [showSkeleton, setShowSkeleton] = useState(false)
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false)
     const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false)
     const [selectedProjectId, setSelectedProjectId] = useState<string>('')
@@ -109,6 +111,11 @@ export default function WorkspaceDetailsPage() {
     useEffect(() => {
         fetchData()
     }, [workspaceId])
+
+    useEffect(() => {
+        const timer = setTimeout(() => setShowSkeleton(true), 150)
+        return () => clearTimeout(timer)
+    }, [])
 
     const handleCreateProject = () => {
         setShowCreateProjectDialog(true)
@@ -234,11 +241,8 @@ export default function WorkspaceDetailsPage() {
     }
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        if (!showSkeleton) return null
+        return <WorkspaceDetailSkeleton />
     }
 
     if (!workspace) {
@@ -250,14 +254,21 @@ export default function WorkspaceDetailsPage() {
         <>
             <div className="flex flex-col h-full bg-background overflow-hidden animate-in fade-in duration-300">
                 {/* Header */}
-                <div className="border-b px-6 py-4 flex items-center justify-between shrink-0 bg-background z-10 px-6">
-                    <div className="flex items-center gap-4">
-                        <Link href="/workspaces">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <h1 className="text-xl font-semibold tracking-tight">{workspace.name}</h1>
+                <div className="border-b px-6 py-4 flex items-center justify-between shrink-0 bg-background z-10">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                            <Link href="/workspaces">
+                                <Button variant="ghost" size="icon" className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>Workspaces</span>
+                                <span className="text-muted-foreground/40">/</span>
+                                <span>Workspace</span>
+                            </div>
+                        </div>
+                        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{workspace.name}</h1>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

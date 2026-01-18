@@ -315,6 +315,8 @@ export function ProjectDetailView({
                     handleTaskClose()
                     handleRefresh()
                 }}
+                workspaceName={project.workspace?.name}
+                projectName={project.name}
             />
         )
     }
@@ -330,7 +332,7 @@ export function ProjectDetailView({
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() => window.history.back()}
+                                onClick={() => router.push(`/workspaces/${project.workspaceId}`)}
                             >
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>

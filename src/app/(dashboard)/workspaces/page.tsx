@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { Folder, User, FileText, Plus, MoreVertical, Loader2, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { WorkspaceListSkeleton } from '@/components/skeletons/WorkspaceListSkeleton'
 import Link from 'next/link'
 import { workspaceApi, type Workspace } from '@/lib/api'
 import { CreateWorkspaceDialog } from '@/components/dialogs/CreateWorkspaceDialog'
@@ -19,6 +20,7 @@ export default function WorkspacesPage() {
     const { getToken } = useAuth()
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [showSkeleton, setShowSkeleton] = useState(false)
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -42,6 +44,11 @@ export default function WorkspacesPage() {
 
     useEffect(() => {
         fetchWorkspaces()
+    }, [])
+
+    useEffect(() => {
+        const timer = setTimeout(() => setShowSkeleton(true), 150)
+        return () => clearTimeout(timer)
     }, [])
 
     const handleCreateSuccess = () => {
@@ -89,9 +96,7 @@ export default function WorkspacesPage() {
 
                     {/* Loading State */}
                     {isLoading ? (
-                        <div className="flex items-center justify-center h-64">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
+                        showSkeleton ? <WorkspaceListSkeleton /> : null
                     ) : (
                         /* Grid */
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

@@ -49,8 +49,10 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
         const firstDayOfWeek = firstDay.getDay()
 
         // Calculate start date (may be from previous month)
+        // We want Monday as start of week, so if Sunday (0), go back 6 days. Else go back day-1
+        const offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
         const startDate = new Date(firstDay)
-        startDate.setDate(startDate.getDate() - firstDayOfWeek)
+        startDate.setDate(startDate.getDate() - offset)
 
         // Generate 42 days (6 weeks) to ensure full grid
         const dates = Array.from({ length: 42 }, (_, i) => {
@@ -62,15 +64,106 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
         return dates
     }, [currentDate])
 
+    const weeks = useMemo(() => {
+        const chunks = []
+        for (let i = 0; i < monthDates.length; i += 7) {
+            chunks.push(monthDates.slice(i, i + 7))
+        }
+        return chunks
+    }, [monthDates])
+
+    const getWeekLayout = (weekDates: Date[]) => {
+        const weekStart = new Date(weekDates[0])
+        weekStart.setHours(0, 0, 0, 0)
+        const weekEnd = new Date(weekDates[6])
+        weekEnd.setHours(23, 59, 59, 999)
+
+        // Filter tasks visible in this week
+        const weekTasks = tasks.filter(task => {
+            if (!task.dueAt) return false
+            const taskStart = new Date(task.createdAt)
+            const taskEnd = new Date(task.dueAt)
+
+            // Normalize
+            taskStart.setHours(0, 0, 0, 0)
+            taskEnd.setHours(23, 59, 59, 999)
+            if (taskStart > taskEnd) taskStart.setTime(taskEnd.getTime())
+
+            return taskEnd >= weekStart && taskStart <= weekEnd
+        })
+
+        // Sort: earlier start => top, longer => top
+        weekTasks.sort((a, b) => {
+            const startA = new Date(a.createdAt).getTime()
+            const startB = new Date(b.createdAt).getTime()
+            if (startA !== startB) return startA - startB
+            return 0
+        })
+
+        const slots: string[][] = [] // slots[row][col] => taskId
+        const layout: { task: Task; startIdx: number; span: number; rowIndex: number }[] = []
+
+        weekTasks.forEach(task => {
+            const taskStart = new Date(task.createdAt)
+            const taskEnd = new Date(task.dueAt!)
+            taskStart.setHours(0, 0, 0, 0)
+            taskEnd.setHours(23, 59, 59, 999)
+            if (taskStart > taskEnd) taskStart.setTime(taskEnd.getTime())
+
+            // Calculate start/end indices in this week (0-6)
+            let startIdx = 0
+            if (taskStart >= weekStart) {
+                const diff = Math.floor((taskStart.getTime() - weekStart.getTime()) / (24 * 3600 * 1000))
+                startIdx = Math.max(0, diff)
+            }
+
+            let endIdx = 6
+            if (taskEnd <= weekEnd) {
+                const diff = Math.floor((taskEnd.getTime() - weekStart.getTime()) / (24 * 3600 * 1000))
+                endIdx = Math.min(6, diff)
+            }
+
+            // Find first row where columns [startIdx...endIdx] are free
+            let rowIndex = 0
+            while (true) {
+                if (!slots[rowIndex]) slots[rowIndex] = new Array(7).fill(null)
+
+                let collision = false
+                for (let c = startIdx; c <= endIdx; c++) {
+                    if (slots[rowIndex][c]) {
+                        collision = true
+                        break
+                    }
+                }
+
+                if (!collision) {
+                    for (let c = startIdx; c <= endIdx; c++) {
+                        slots[rowIndex][c] = task.id
+                    }
+                    layout.push({
+                        task,
+                        startIdx,
+                        span: endIdx - startIdx + 1,
+                        rowIndex
+                    })
+                    break
+                }
+                rowIndex++
+            }
+        })
+
+        return { layout, maxRows: slots.length }
+    }
+
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const today = new Date()
 
     const getStatusColor = (status: Task['status']) => {
         switch (status) {
-            case 'COMPLETED': return 'bg-emerald-500/90 hover:bg-emerald-500 text-white'
-            case 'IN_PROGRESS': return 'bg-blue-600/90 hover:bg-blue-600 text-white'
-            case 'IN_REVIEW': return 'bg-orange-500/90 hover:bg-orange-500 text-white'
-            default: return 'bg-gray-500/90 hover:bg-gray-500 text-white'
+            case 'COMPLETED': return 'bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600/20 text-white shadow-emerald-500/20'
+            case 'IN_PROGRESS': return 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-600/20 text-white shadow-blue-500/20'
+            case 'IN_REVIEW': return 'bg-gradient-to-r from-orange-400 to-orange-500 border-orange-500/20 text-white shadow-orange-500/20'
+            default: return 'bg-gradient-to-r from-gray-500 to-gray-600 border-gray-600/20 text-white shadow-gray-500/20'
         }
     }
 
@@ -86,28 +179,45 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
     const getTaskPosition = (task: Task) => {
         if (!task.dueAt) return null
 
+        const startDate = new Date(task.createdAt)
         const dueDate = new Date(task.dueAt)
-        const startOfWeek = weekDates[0]
-        const endOfWeek = weekDates[6]
 
-        // Reset times for comparison
-        const d = new Date(dueDate)
-        d.setHours(0, 0, 0, 0)
+        // Normalize times to start of day for accurate day calculation
+        startDate.setHours(0, 0, 0, 0)
+        dueDate.setHours(23, 59, 59, 999)
 
-        const s = new Date(startOfWeek)
-        s.setHours(0, 0, 0, 0)
+        // Helper to ensure start <= due
+        if (startDate > dueDate) {
+            startDate.setTime(dueDate.getTime())
+            startDate.setHours(0, 0, 0, 0)
+        }
 
-        const e = new Date(endOfWeek)
-        e.setHours(23, 59, 59, 999)
+        const startOfWeek = new Date(weekDates[0])
+        startOfWeek.setHours(0, 0, 0, 0)
 
-        // Only show tasks due this week
-        if (d < s || d > e) return null
+        const endOfWeek = new Date(weekDates[6])
+        endOfWeek.setHours(23, 59, 59, 999)
 
-        const dayIndex = d.getDay() === 0 ? 6 : d.getDay() - 1
+        // Check availability in current view
+        if (dueDate < startOfWeek || startDate > endOfWeek) return null
+
+        // Clamp dates to week view
+        const visualStart = startDate < startOfWeek ? startOfWeek : startDate
+        const visualEnd = dueDate > endOfWeek ? endOfWeek : dueDate
+
+        // Normalize visual end for index calculation
+        const visualEndNormalized = new Date(visualEnd)
+        visualEndNormalized.setHours(0, 0, 0, 0)
+
+        const dayMs = 24 * 60 * 60 * 1000
+        const startIdx = Math.max(0, Math.floor((visualStart.getTime() - startOfWeek.getTime()) / dayMs))
+        const endIdx = Math.min(6, Math.floor((visualEndNormalized.getTime() - startOfWeek.getTime()) / dayMs))
+
+        const span = endIdx - startIdx + 1
 
         return {
-            left: `${dayIndex * (100 / 7) + 0.5}%`,
-            width: `${(100 / 7) - 1}%`
+            left: `${(startIdx * 100) / 7 + 0.5}%`,
+            width: `${(span * 100) / 7 - 1}%`
         }
     }
 
@@ -247,7 +357,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                     const today = isToday(date)
                                     return (
                                         <div key={i} className={cn(
-                                            "flex flex-col items-center justify-center py-3 border-r border-border/50 text-sm last:border-0 relative",
+                                            "flex flex-col items-center justify-center py-4 border-r border-border/40 text-sm last:border-0 relative bg-opacity-50",
                                             (i === 5 || i === 6) && "bg-muted/10",
                                             today && "bg-primary/5"
                                         )}>
@@ -298,8 +408,8 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                         if (!position) return null
 
                                         return (
-                                            <div key={task.id} className="grid grid-cols-[250px_1fr] min-h-[60px] relative group hover:bg-muted/30 transition-colors">
-                                                <div className="px-4 py-3 flex flex-col justify-center border-r border-border bg-card/50 backdrop-blur-[1px]">
+                                            <div key={task.id} className="grid grid-cols-[250px_1fr] min-h-[56px] relative group hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0">
+                                                <div className="px-4 py-3 flex flex-col justify-center border-r border-border/40 bg-card/50 backdrop-blur-[1px]">
                                                     <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
                                                     <div className="flex items-center gap-2 mt-1.5">
                                                         <TooltipProvider>
@@ -335,13 +445,13 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                             <TooltipTrigger asChild>
                                                                 <div
                                                                     className={cn(
-                                                                        "absolute top-1/2 -translate-y-1/2 h-10 rounded-lg flex items-center shadow-sm cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ring-1 ring-black/5 group-hover:ring-black/10",
+                                                                        "absolute top-1/2 -translate-y-1/2 h-9 rounded-md flex items-center shadow-sm cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md ring-1 ring-black/5 group-hover:z-10",
                                                                         getStatusColor(task.status)
                                                                     )}
                                                                     style={position}
                                                                 >
-                                                                    <div className="px-3 flex items-center justify-between w-full">
-                                                                        <span className="text-xs font-semibold truncate relative z-10" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                                                                    <div className="px-3 flex items-center justify-between w-full overflow-hidden">
+                                                                        <span className="text-xs font-semibold truncate relative z-10 drop-shadow-md">
                                                                             {task.name}
                                                                         </span>
                                                                     </div>
@@ -380,72 +490,89 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             </div>
 
                             {/* Month View Grid */}
-                            <div className="grid grid-cols-7 auto-rows-fr min-h-[500px]">
-                                {monthDates.map((date, i) => {
-                                    const dayTasks = getTasksForDate(date)
-                                    const isCurrentMonthDay = isCurrentMonth(date)
-                                    const isTodayDate = isToday(date)
-                                    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                            <div className="flex flex-col border-l border-border bg-background">
+                                {weeks.map((week, weekIndex) => {
+                                    const { layout, maxRows } = getWeekLayout(week)
+                                    // Base height (header) + rows height
+                                    const minHeight = Math.max(120, 36 + (maxRows * 28) + 10)
 
                                     return (
                                         <div
-                                            key={i}
-                                            className={cn(
-                                                "min-h-[120px] p-2 border-r border-b border-border/50 last:border-r-0",
-                                                !isCurrentMonthDay && "bg-muted/20",
-                                                isWeekend && isCurrentMonthDay && "bg-muted/5",
-                                                isTodayDate && "bg-primary/5 ring-1 ring-primary/20 ring-inset"
-                                            )}
+                                            key={weekIndex}
+                                            className="relative border-b border-border flex-1 w-full"
+                                            style={{ minHeight: `${minHeight}px` }}
                                         >
-                                            {/* Date Number */}
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className={cn(
-                                                    "h-7 w-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
-                                                    isTodayDate && "bg-primary text-primary-foreground shadow-sm",
-                                                    !isTodayDate && isCurrentMonthDay && "text-foreground",
-                                                    !isTodayDate && !isCurrentMonthDay && "text-muted-foreground/50"
-                                                )}>
-                                                    {date.getDate()}
-                                                </div>
-                                                {dayTasks.length > 0 && (
-                                                    <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                                                        {dayTasks.length}
-                                                    </span>
-                                                )}
+                                            {/* Grid Background (Days) */}
+                                            <div className="absolute inset-0 grid grid-cols-7 z-0 pointer-events-none">
+                                                {week.map((date, i) => {
+                                                    const isCurrentMonthDay = isCurrentMonth(date)
+                                                    const isTodayDate = isToday(date)
+                                                    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className={cn(
+                                                                "border-r border-border/40 h-full p-2 last:border-r-0",
+                                                                !isCurrentMonthDay && "bg-muted/30",
+                                                                isWeekend && isCurrentMonthDay && "bg-muted/5",
+                                                                isTodayDate && "bg-primary/5"
+                                                            )}
+                                                        >
+                                                            <div className="flex justify-end">
+                                                                <div className={cn(
+                                                                    "h-7 w-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
+                                                                    isTodayDate && "bg-primary text-primary-foreground shadow-sm",
+                                                                    !isTodayDate && isCurrentMonthDay && "text-foreground",
+                                                                    !isTodayDate && !isCurrentMonthDay && "text-muted-foreground/50"
+                                                                )}>
+                                                                    {date.getDate()}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
 
-                                            {/* Tasks for this day */}
-                                            <div className="space-y-1">
-                                                {dayTasks.slice(0, 3).map((task) => (
-                                                    <TooltipProvider key={task.id}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <div
-                                                                    className={cn(
-                                                                        "px-2 py-1 rounded text-[10px] font-medium truncate cursor-pointer transition-all hover:scale-[1.02] hover:shadow-sm",
-                                                                        getStatusColor(task.status)
-                                                                    )}
-                                                                >
-                                                                    {task.name}
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <div className="text-xs">
-                                                                    <p className="font-semibold mb-1">{task.name}</p>
-                                                                    <p className="text-muted-foreground">Status: {getStatusLabel(task.status)}</p>
-                                                                    <p className="text-muted-foreground">
-                                                                        Assigned: {(task.preparers || []).map(u => u.firstName).join(', ') || 'Unassigned'}
-                                                                    </p>
-                                                                </div>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                ))}
-                                                {dayTasks.length > 3 && (
-                                                    <div className="text-[10px] text-muted-foreground px-2 py-0.5">
-                                                        +{dayTasks.length - 3} more
+                                            {/* Tasks Layer */}
+                                            <div className="relative z-10 w-full mt-9 pb-2">
+                                                {layout.map(({ task, startIdx, span, rowIndex }) => (
+                                                    <div
+                                                        key={`${task.id}-${weekIndex}`}
+                                                        className="absolute h-6 transition-all hover:z-20 group"
+                                                        style={{
+                                                            left: `${(startIdx * 100) / 7}%`,
+                                                            width: `${(span * 100) / 7}%`,
+                                                            top: `${rowIndex * 28}px`,
+                                                        }}
+                                                    >
+                                                        <div className="px-1 h-full w-full">
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <div
+                                                                            className={cn(
+                                                                                "h-full w-full rounded px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border border-black/5 overflow-hidden",
+                                                                                getStatusColor(task.status)
+                                                                            )}
+                                                                        >
+                                                                            <span className="text-[10px] font-semibold truncate text-white drop-shadow-sm">
+                                                                                {task.name}
+                                                                            </span>
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <div className="text-xs">
+                                                                            <p className="font-semibold mb-1">{task.name}</p>
+                                                                            <p className="text-muted-foreground">Status: {getStatusLabel(task.status)}</p>
+                                                                            <p className="text-muted-foreground">Due: {new Date(task.dueAt!).toLocaleDateString()}</p>
+                                                                        </div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        </div>
                                                     </div>
-                                                )}
+                                                ))}
                                             </div>
                                         </div>
                                     )
@@ -455,6 +582,6 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                     </>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

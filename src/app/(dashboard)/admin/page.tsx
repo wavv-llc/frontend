@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { signupRequestApi } from '@/lib/api'
+import { AdminSkeleton } from '@/components/skeletons/AdminSkeleton'
 
 interface SignUpRequest {
   id: string
@@ -106,11 +107,7 @@ export default function AdminPage() {
   }
 
   if (!isLoaded || isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <AdminSkeleton />
   }
 
   if (!isSignedIn) {

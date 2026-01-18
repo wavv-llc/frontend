@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw } from 'lucide-react'
 import { sharepointApi } from '@/lib/api'
+import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
 
 interface SharePointSite {
   id: string
@@ -112,11 +113,7 @@ export default function SettingsPage() {
   }
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <SettingsSkeleton />
   }
 
   return (

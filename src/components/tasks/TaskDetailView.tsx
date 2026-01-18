@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
     ArrowLeft,
-    MoreHorizontal,
+    MoreVertical,
     Upload,
     MessageSquare,
     ChevronDown,
@@ -28,6 +28,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { cn } from '@/lib/utils'
 import { type Task, type Comment, taskApi, taskCommentApi } from '@/lib/api'
 import { format } from 'date-fns'
@@ -64,9 +65,11 @@ interface TaskDetailViewProps {
     onBack: () => void
     onUpdate?: () => void
     onDelete?: () => void
+    workspaceName?: string
+    projectName?: string
 }
 
-export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailViewProps) {
+export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName, projectName }: TaskDetailViewProps) {
     const { getToken } = useAuth()
     const { user: currentUser } = useUser()
     const [comments, setComments] = useState<Comment[]>([])
@@ -75,10 +78,12 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [newCommentContent, setNewCommentContent] = useState('')
-    const [editTaskName, setEditTaskName] = useState(task.name)
-    const [editTaskDescription, setEditTaskDescription] = useState(task.description || '')
+
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isComposing, setIsComposing] = useState(false)
+
+    const openCommentsCount = comments.filter(c => c.status !== 'RESOLVED').length
+
 
     const loadComments = async (showLoading = false) => {
         try {
@@ -149,30 +154,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
         }
     }
 
-    const handleEditTask = async () => {
-        try {
-            setIsSubmitting(true)
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
 
-            await taskApi.updateTask(token, task.projectId, task.id, {
-                name: editTaskName,
-                description: editTaskDescription
-            })
-
-            toast.success('Task updated successfully')
-            setEditDialogOpen(false)
-            onUpdate?.()
-        } catch (error) {
-            console.error('Failed to update task:', error)
-            toast.error('Failed to update task')
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
 
     const handleDeleteTask = async () => {
         try {
@@ -247,9 +229,11 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <span>{task.project?.description || 'Project'}</span>
-                        <span>/</span>
-                        <span>Task</span>
+                        <span>{workspaceName || 'Workspace'}</span>
+                        <span className="text-muted-foreground/40">/</span>
+                        <span>{projectName || task.project?.description || 'Project'}</span>
+                        <span className="text-muted-foreground/40">/</span>
+                        <span className="font-medium text-foreground">Task</span>
                     </div>
                 </div>
 
@@ -257,6 +241,18 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                 <div className="flex items-start justify-between">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">{task.name}</h1>
                     <div className="flex items-center gap-3">
+                        {/* Category Card */}
+                        {task.category && (
+                            <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px]">
+                                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">Category</span>
+                                <div className="flex items-center gap-2">
+                                    {task.category.color && (
+                                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: task.category.color }} />
+                                    )}
+                                    <span className="font-semibold text-sm">{task.category.name}</span>
+                                </div>
+                            </div>
+                        )}
                         {/* Due Date Card */}
                         <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px] cursor-pointer hover:border-primary/20 transition-colors">
                             <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">Due Date</span>
@@ -264,11 +260,20 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                                 {task.dueAt ? format(new Date(task.dueAt), 'MMM d, yyyy') : 'No Due Date'}
                             </span>
                         </div>
+
+                        {/* Open Comments Card */}
+                        <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px]">
+                            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">To Resolve</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{openCommentsCount} {openCommentsCount === 1 ? 'Thread' : 'Threads'}</span>
+                            </div>
+                        </div>
+
                         {/* 3-Dot Menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 ml-2 border border-border rounded-xl cursor-pointer">
-                                    <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+                                <Button variant="ghost" size="icon" className="h-8 w-8 ml-2 cursor-pointer">
+                                    <MoreVertical className="h-5 w-5 text-muted-foreground" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -398,7 +403,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                     {/* New Comment Input */}
                     {isComposing && (
                         <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                            <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
                                 <Textarea
                                     value={newCommentContent}
                                     onChange={(e) => setNewCommentContent(e.target.value)}
@@ -406,7 +411,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                                     className="min-h-[100px] border-none focus-visible:ring-0 resize-none p-4 text-sm"
                                     autoFocus
                                 />
-                                <div className="flex items-center justify-end gap-2 p-2 bg-muted/30 border-t border-border">
+                                <div className="flex items-center justify-end gap-2 p-2 bg-muted/30 border-t border-border/50">
                                     <Button
                                         size="sm"
                                         variant="ghost"
@@ -487,46 +492,12 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Task Dialog */}
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Task</DialogTitle>
-                        <DialogDescription>
-                            Update the task name and description
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="task-name">Task Name</Label>
-                            <Input
-                                id="task-name"
-                                value={editTaskName}
-                                onChange={(e) => setEditTaskName(e.target.value)}
-                                placeholder="Enter task name"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="task-description">Description</Label>
-                            <Textarea
-                                id="task-description"
-                                value={editTaskDescription}
-                                onChange={(e) => setEditTaskDescription(e.target.value)}
-                                placeholder="Enter task description"
-                                rows={4}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={isSubmitting}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleEditTask} disabled={isSubmitting || !editTaskName.trim()}>
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <EditTaskDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                task={task}
+                onSuccess={onUpdate || (() => { })}
+            />
 
             {/* Delete Task Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -729,15 +700,15 @@ function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId, isLast }
                         {/* Reply Input */}
                         {isReplying && (
                             <div className="mt-3 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="flex flex-col gap-2">
+                                <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
                                     <Textarea
                                         value={replyContent}
                                         onChange={(e) => setReplyContent(e.target.value)}
                                         placeholder={`Replying to ${comment.user.firstName}...`}
-                                        className="min-h-[60px] text-sm resize-none"
+                                        className="min-h-[60px] text-sm resize-none border-none focus-visible:ring-0 p-3"
                                         autoFocus
                                     />
-                                    <div className="flex justify-end gap-2">
+                                    <div className="flex justify-end gap-2 p-2 bg-muted/30 border-t border-border/30">
                                         <Button
                                             size="sm"
                                             variant="ghost"
@@ -960,7 +931,7 @@ function CommentThread({ comment, index, onUpdate, taskId, projectId }: {
                                 {!isResolved ? (
                                     <Button
                                         size="sm"
-                                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                                        className="bg-primary text-primary-foreground hover:bg-primary/50 shadow-sm"
                                         onClick={handleResolve}
                                         disabled={isSubmitting}
                                     >
@@ -997,19 +968,17 @@ function CommentThread({ comment, index, onUpdate, taskId, projectId }: {
                         {/* Footer Reply Input Area (If triggered from footer) */}
                         {isReplying && (
                             <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="flex gap-3">
-                                    <div className="flex-1">
-                                        <Textarea
-                                            value={replyContent}
-                                            onChange={(e) => setReplyContent(e.target.value)}
-                                            placeholder="Write a reply to the thread..."
-                                            className="min-h-[80px] text-sm mb-2"
-                                            autoFocus
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <Button size="sm" variant="ghost" onClick={() => setIsReplying(false)}>Cancel</Button>
-                                            <Button size="sm" onClick={handleReply} disabled={!replyContent.trim() || isSubmitting}>Reply</Button>
-                                        </div>
+                                <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
+                                    <Textarea
+                                        value={replyContent}
+                                        onChange={(e) => setReplyContent(e.target.value)}
+                                        placeholder="Write a reply to the thread..."
+                                        className="min-h-[80px] text-sm border-none focus-visible:ring-0 p-3 resize-none"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2 p-2 bg-muted/30 border-t border-border/30">
+                                        <Button size="sm" variant="ghost" onClick={() => setIsReplying(false)}>Cancel</Button>
+                                        <Button size="sm" onClick={handleReply} disabled={!replyContent.trim() || isSubmitting}>Reply</Button>
                                     </div>
                                 </div>
                             </div>
