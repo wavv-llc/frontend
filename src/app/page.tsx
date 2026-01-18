@@ -1,9 +1,8 @@
 'use client'
 
 import { useAuth } from '@clerk/nextjs'
+import { redirect } from 'next/navigation'
 import { LandingPage } from '@/components/landing/LandingPage'
-import { AssistantSection } from '@/components/assistant/AssistantSection'
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout'
 
 export default function Home() {
   const { isSignedIn, isLoaded } = useAuth()
@@ -16,13 +15,9 @@ export default function Home() {
     )
   }
 
-  if (!isSignedIn) {
-    return <LandingPage />
+  if (isSignedIn) {
+    redirect('/home')
   }
 
-  return (
-    <DashboardLayout>
-      <AssistantSection />
-    </DashboardLayout>
-  )
+  return <LandingPage />
 }

@@ -41,6 +41,7 @@ import {
   Briefcase,
   MessageSquare,
   GripVertical,
+  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/SidebarContext";
@@ -313,8 +314,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   }, [getToken, refreshTrigger]); // Added refreshTrigger to dependencies
 
   const handleNewChat = () => {
-    console.log("Creating new chat...");
-    // TODO: Implement when chat API is ready
+    router.push("/chat");
   };
 
   const handleSearch = () => {
@@ -336,6 +336,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
   const handleWorkspacesClick = () => {
     router.push("/workspaces");
+  };
+
+  const handleHomeClick = () => {
+    router.push("/home");
   };
 
   const handleSignOut = async () => {
@@ -654,6 +658,38 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Scrollable Content */}
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-6 py-4">
+          {/* Home Link */}
+          <div>
+            {!isCompressed ? (
+              <Button
+                variant="ghost"
+                onClick={handleHomeClick}
+                className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <Home className="h-4 w-4 flex-shrink-0" />
+                <span>Home</span>
+              </Button>
+            ) : (
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleHomeClick}
+                      className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    >
+                      <Home className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                    <p>Home</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+
           {/* Workspaces Section */}
           <div>
             {!isCompressed && (

@@ -938,3 +938,80 @@ export const taskCommentApi = {
   },
 }
 
+// Dashboard types
+export interface RecentItem {
+  id: string
+  type: 'task' | 'project' | 'workspace'
+  name: string
+  description?: string
+  parentName: string | null
+  parentId: string | null
+  workspaceName: string
+  workspaceId: string
+  status: string | null
+  updatedAt: string
+  icon: string
+}
+
+export interface DashboardTask extends Task {
+  project: {
+    id: string
+    name: string
+    description?: string
+    workspace: {
+      id: string
+      name: string
+    }
+  }
+}
+
+export interface DashboardStats {
+  totalTasks: number
+  pendingTasks: number
+  inProgressTasks: number
+  completedTasks: number
+  overdueTasks: number
+}
+
+// Dashboard API functions
+export const dashboardApi = {
+  getMyTasks: async (token: string) => {
+    return apiRequest<DashboardTask[]>('/api/v1/dashboard/my-tasks', {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getAssignedTasks: async (token: string) => {
+    return apiRequest<DashboardTask[]>('/api/v1/dashboard/assigned', {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getRecentItems: async (token: string, limit?: number) => {
+    const params = limit ? `?limit=${limit}` : ''
+    return apiRequest<RecentItem[]>(`/api/v1/dashboard/recent${params}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getCalendarTasks: async (token: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams()
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    return apiRequest<DashboardTask[]>(`/api/v1/dashboard/calendar${queryString}`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  getDashboardStats: async (token: string) => {
+    return apiRequest<DashboardStats>('/api/v1/dashboard/stats', {
+      method: 'GET',
+      token,
+    })
+  },
+}

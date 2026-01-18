@@ -10,7 +10,15 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutList } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
 interface ProjectCalendarViewProps {
     tasks: Task[]
@@ -249,97 +257,91 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
     }
 
     return (
-        <div className="w-full border border-border rounded-xl bg-card shadow-sm overflow-hidden flex flex-col h-full">
+        <div className="w-full border border-border rounded-xl bg-white shadow-sm overflow-hidden flex flex-col h-full">
             {/* Header Controls */}
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-card shrank-0">
-                <div className="flex items-center gap-4">
-                    <h2 className="font-semibold text-lg text-foreground tracking-tight">Calendar View</h2>
-                    <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border/50">
-                        <button
-                            onClick={() => setViewMode('week')}
-                            className={cn(
-                                "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                viewMode === 'week'
-                                    ? "bg-background shadow-sm text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Week
-                        </button>
-                        <button
-                            onClick={() => setViewMode('month')}
-                            className={cn(
-                                "px-3 py-1 text-xs font-medium rounded-md transition-all",
-                                viewMode === 'month'
-                                    ? "bg-background shadow-sm text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Month
-                        </button>
+            {/* Header Controls */}
+            <div className="px-6 py-4 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            const newDate = new Date(currentDate)
+                            if (viewMode === 'week') {
+                                newDate.setDate(newDate.getDate() - 7)
+                            } else {
+                                newDate.setMonth(newDate.getMonth() - 1)
+                            }
+                            setCurrentDate(newDate)
+                        }}
+                        className="h-8 w-8 hover:bg-muted"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <div className="flex items-center gap-2 px-2">
+                        <span className="font-semibold text-lg text-foreground min-w-[140px] text-center">
+                            {viewMode === 'week'
+                                ? weekDates[0].toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                                : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                            }
+                        </span>
+                        {isToday(currentDate) && (
+                            <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
+                        )}
                     </div>
 
-                    <div className="w-px h-6 bg-border mx-2" />
-
-                    <div className="flex items-center gap-4 text-xs font-medium">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span className="text-muted-foreground">Complete</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-blue-600" />
-                            <span className="text-muted-foreground">In Progress</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-orange-500" />
-                            <span className="text-muted-foreground">In Review</span>
-                        </div>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            const newDate = new Date(currentDate)
+                            if (viewMode === 'week') {
+                                newDate.setDate(newDate.getDate() + 7)
+                            } else {
+                                newDate.setMonth(newDate.getMonth() + 1)
+                            }
+                            setCurrentDate(newDate)
+                        }}
+                        className="h-8 w-8 hover:bg-muted"
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => {
-                                const newDate = new Date(currentDate)
-                                if (viewMode === 'week') {
-                                    newDate.setDate(newDate.getDate() - 7)
-                                } else {
-                                    newDate.setMonth(newDate.getMonth() - 1)
-                                }
-                                setCurrentDate(newDate)
-                            }}
-                            className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                    <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/20">
+                        <Select
+                            value={viewMode}
+                            onValueChange={(v) => setViewMode(v as ViewMode)}
                         >
-                            <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        <button
-                            onClick={() => setCurrentDate(new Date())}
-                            className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                        >
-                            Today
-                        </button>
-                        <button
-                            onClick={() => {
-                                const newDate = new Date(currentDate)
-                                if (viewMode === 'week') {
-                                    newDate.setDate(newDate.getDate() + 7)
-                                } else {
-                                    newDate.setMonth(newDate.getMonth() + 1)
-                                }
-                                setCurrentDate(newDate)
-                            }}
-                            className="p-1.5 hover:bg-muted rounded-md transition-colors"
-                        >
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </button>
+                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="month">Monthly</SelectItem>
+                                <SelectItem value="week">Weekly</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="text-sm font-medium text-muted-foreground">
-                        {viewMode === 'week'
-                            ? weekDates[0].toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                            : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                        }
+
+                    <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border/20">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                            <LayoutList className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-white shadow-sm text-foreground">
+                            <CalendarIcon className="h-4 w-4" />
+                        </Button>
                     </div>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentDate(new Date())}
+                        className="ml-2 h-9"
+                    >
+                        Today
+                    </Button>
                 </div>
             </div>
 
@@ -477,12 +479,12 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                 ) : (
                     <>
                         {/* Month View */}
-                        <div className="bg-card">
+                        <div className="bg-background h-full">
                             {/* Month View Header - Days of Week */}
-                            <div className="grid grid-cols-7 border-b border-border sticky top-0 z-20 bg-card shadow-sm">
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                                    <div key={i} className="p-3 text-center border-r border-border/50 last:border-0 bg-muted/5">
-                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <div className="grid grid-cols-7 border-b border-border/50 sticky top-0 z-20 bg-muted/5 shadow-sm">
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+                                    <div key={i} className="py-3 px-4 text-left">
+                                        <span className="text-xs font-medium text-muted-foreground">
                                             {day}
                                         </span>
                                     </div>
@@ -490,16 +492,17 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             </div>
 
                             {/* Month View Grid */}
-                            <div className="flex flex-col border-l border-border bg-background">
+                            <div className="flex flex-col bg-background">
                                 {weeks.map((week, weekIndex) => {
                                     const { layout, maxRows } = getWeekLayout(week)
-                                    // Base height (header) + rows height
-                                    const minHeight = Math.max(120, 36 + (maxRows * 28) + 10)
+                                    // Calculate responsive height: Base cell height (e.g. 150px) or content based
+                                    // The image shows spacious cells. Let's enforce a minimum height.
+                                    const minHeight = Math.max(160, 48 + (maxRows * 30) + 10)
 
                                     return (
                                         <div
                                             key={weekIndex}
-                                            className="relative border-b border-border flex-1 w-full"
+                                            className="relative border-b border-border/30 flex-1 w-full"
                                             style={{ minHeight: `${minHeight}px` }}
                                         >
                                             {/* Grid Background (Days) */}
@@ -513,37 +516,46 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                         <div
                                                             key={i}
                                                             className={cn(
-                                                                "border-r border-border/40 h-full p-2 last:border-r-0",
-                                                                !isCurrentMonthDay && "bg-muted/30",
+                                                                "border-r border-border/30 h-full p-3 last:border-r-0 transition-colors",
+                                                                !isCurrentMonthDay ? "bg-muted/5 opacity-50 text-muted-foreground" : "bg-card",
                                                                 isWeekend && isCurrentMonthDay && "bg-muted/5",
-                                                                isTodayDate && "bg-primary/5"
                                                             )}
+                                                            style={
+                                                                isWeekend && isCurrentMonthDay
+                                                                    ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px)' }
+                                                                    : {}
+                                                            }
                                                         >
-                                                            <div className="flex justify-end">
+                                                            <div className="flex justify-start">
                                                                 <div className={cn(
-                                                                    "h-7 w-7 rounded-full flex items-center justify-center text-sm font-semibold transition-colors",
-                                                                    isTodayDate && "bg-primary text-primary-foreground shadow-sm",
+                                                                    "h-7 w-7 rounded-sm flex items-center justify-start pl-1 text-sm font-medium transition-colors date-number",
+                                                                    isTodayDate && "text-primary font-bold",
                                                                     !isTodayDate && isCurrentMonthDay && "text-foreground",
-                                                                    !isTodayDate && !isCurrentMonthDay && "text-muted-foreground/50"
+                                                                    !isTodayDate && !isCurrentMonthDay && "text-muted-foreground/50",
+                                                                    isTodayDate && "relative after:content-[''] after:absolute after:-bottom-1 after:left-1 after:w-full after:h-0.5 after:bg-primary"
                                                                 )}>
                                                                     {date.getDate()}
                                                                 </div>
                                                             </div>
+                                                            {/* Highlight box for active selected or special days if needed */}
+                                                            {isTodayDate && (
+                                                                <div className="absolute inset-0 border-2 border-primary/50 pointer-events-none rounded-sm" />
+                                                            )}
                                                         </div>
                                                     )
                                                 })}
                                             </div>
 
                                             {/* Tasks Layer */}
-                                            <div className="relative z-10 w-full mt-9 pb-2">
+                                            <div className="relative z-10 w-full mt-10 pb-2">
                                                 {layout.map(({ task, startIdx, span, rowIndex }) => (
                                                     <div
                                                         key={`${task.id}-${weekIndex}`}
-                                                        className="absolute h-6 transition-all hover:z-20 group"
+                                                        className="absolute h-[26px] transition-all hover:z-20 group"
                                                         style={{
                                                             left: `${(startIdx * 100) / 7}%`,
                                                             width: `${(span * 100) / 7}%`,
-                                                            top: `${rowIndex * 28}px`,
+                                                            top: `${rowIndex * 30}px`,
                                                         }}
                                                     >
                                                         <div className="px-1 h-full w-full">
@@ -552,11 +564,29 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                                     <TooltipTrigger asChild>
                                                                         <div
                                                                             className={cn(
-                                                                                "h-full w-full rounded px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border border-black/5 overflow-hidden",
-                                                                                getStatusColor(task.status)
+                                                                                "h-full w-full rounded-[4px] px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border overflow-hidden hover:bg-muted/50",
+                                                                                getStatusColor(task.status).replace('text-white', 'text-foreground').replace('bg-gradient-to-r', '').replace('from-', '').replace('to-', ''),
+                                                                                "bg-card border-l-4" // Use clean card with colored border styling
                                                                             )}
+                                                                            style={{
+                                                                                // Override the gradient background from getStatusColor to be cleaner
+                                                                                borderLeftColor:
+                                                                                    task.status === 'COMPLETED' ? '#10b981' :
+                                                                                        task.status === 'IN_PROGRESS' ? '#3b82f6' :
+                                                                                            task.status === 'IN_REVIEW' ? '#f97316' : '#6b7280'
+                                                                            }}
                                                                         >
-                                                                            <span className="text-[10px] font-semibold truncate text-white drop-shadow-sm">
+                                                                            <span className="text-[11px] font-medium truncate text-foreground/90 flex items-center gap-1.5">
+                                                                                {/* Status Indicator Dot */}
+                                                                                <div
+                                                                                    className="w-1.5 h-1.5 rounded-full shrank-0"
+                                                                                    style={{
+                                                                                        backgroundColor:
+                                                                                            task.status === 'COMPLETED' ? '#10b981' :
+                                                                                                task.status === 'IN_PROGRESS' ? '#3b82f6' :
+                                                                                                    task.status === 'IN_REVIEW' ? '#f97316' : '#6b7280'
+                                                                                    }}
+                                                                                />
                                                                                 {task.name}
                                                                             </span>
                                                                         </div>
