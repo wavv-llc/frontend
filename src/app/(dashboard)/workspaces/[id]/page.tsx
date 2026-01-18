@@ -339,33 +339,9 @@ export default function WorkspaceDetailsPage() {
                                     <Plus className="h-3.5 w-3.5" />
                                     New Project
                                 </Button>
-
-                                <FilterSortControls
-                                    onFilterChange={handleFilterChange}
-                                    onSortChange={handleSortChange}
-                                />
                             </>
                         )}
                     </div>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted">
-                                <MoreHorizontal className="h-4 w-4" />
-                                View Options
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => toast.info('Customize columns coming soon!')}>
-                                <Settings className="mr-2 h-4 w-4" />
-                                Customize Columns
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast.info('Export view coming soon!')}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Export View
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
                 </div>
 
                 {/* Content */}

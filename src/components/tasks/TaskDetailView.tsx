@@ -12,15 +12,26 @@ import {
     X,
     Check,
     Edit2,
-    Trash2
+    Trash2,
+
+    AlignLeft,
+    Paperclip,
+    Send,
+    CornerUpLeft,
+    SmilePlus,
 } from 'lucide-react'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { type Task, type Comment, taskApi, taskCommentApi } from '@/lib/api'
 import { format } from 'date-fns'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useUser } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import {
     DropdownMenu,
@@ -57,20 +68,23 @@ interface TaskDetailViewProps {
 
 export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailViewProps) {
     const { getToken } = useAuth()
+    const { user: currentUser } = useUser()
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoadingComments, setIsLoadingComments] = useState(false)
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-    const [newCommentDialogOpen, setNewCommentDialogOpen] = useState(false)
     const [newCommentContent, setNewCommentContent] = useState('')
     const [editTaskName, setEditTaskName] = useState(task.name)
     const [editTaskDescription, setEditTaskDescription] = useState(task.description || '')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isComposing, setIsComposing] = useState(false)
 
-    const loadComments = async () => {
+    const loadComments = async (showLoading = false) => {
         try {
-            setIsLoadingComments(true)
+            if (showLoading) {
+                setIsLoadingComments(true)
+            }
             const token = await getToken()
             if (!token) return
 
@@ -78,7 +92,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
             const commentsData = (response as any).data || (response as unknown as any[])
 
             // Transform backend format to frontend format
-            const transformedComments: Comment[] = Array.isArray(commentsData) ? commentsData.map((c: any) => ({
+            const transformComment = (c: any): Comment => ({
                 id: c.id,
                 content: c.comment || c.content,
                 comment: c.comment || c.content,
@@ -88,31 +102,34 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                 status: (c.resolved ? 'RESOLVED' : 'OPEN') as 'OPEN' | 'RESOLVED',
                 resolved: c.resolved,
                 resolvedBy: c.resolvedBy,
-                replies: c.replies?.map((r: any) => ({
+                reactions: c.reactions?.map((r: any) => ({
                     id: r.id,
-                    content: r.comment || r.content,
-                    comment: r.comment || r.content,
-                    createdAt: r.postedAt || r.createdAt,
-                    updatedAt: r.updatedAt,
-                    user: r.postedByUser || r.user,
-                    status: (r.resolved ? 'RESOLVED' : 'OPEN') as 'OPEN' | 'RESOLVED',
-                    resolved: r.resolved,
+                    emoji: r.emoji,
+                    userId: r.userId,
+                    user: r.user,
+                    commentId: r.commentId,
+                    createdAt: r.createdAt
                 })) || [],
+                replies: c.replies?.map(transformComment) || [],
                 parentId: c.parentCommentId,
-            })) : []
+            })
+
+            const transformedComments: Comment[] = Array.isArray(commentsData) ? commentsData.map(transformComment) : []
 
             setComments(transformedComments)
         } catch (error) {
             console.error('Failed to load comments:', error)
             // Silently fail - comments are optional
         } finally {
-            setIsLoadingComments(false)
+            if (showLoading) {
+                setIsLoadingComments(false)
+            }
         }
     }
 
     // Load comments on mount
     useEffect(() => {
-        loadComments()
+        loadComments(true)
     }, [task.id])
 
     const handleStatusChange = async (newStatus: Task['status']) => {
@@ -199,7 +216,6 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
 
             toast.success('Comment added')
             setNewCommentContent('')
-            setNewCommentDialogOpen(false)
             loadComments()
         } catch (error) {
             console.error('Failed to create comment:', error)
@@ -248,30 +264,6 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                                 {task.dueAt ? format(new Date(task.dueAt), 'MMM d, yyyy') : 'No Due Date'}
                             </span>
                         </div>
-
-                        {/* Status Card with Dropdown */}
-                        <Select value={task.status} onValueChange={handleStatusChange}>
-                            <SelectTrigger className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm min-w-[200px] h-auto hover:border-primary/20 transition-colors">
-                                <div className="flex flex-col items-start w-full">
-                                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">Status</span>
-                                    <div className="flex items-center gap-2 w-full">
-                                        <span className={cn("font-semibold text-sm", statusColor)}>{statusLabel}</span>
-                                    </div>
-                                    {unresolvedComments > 0 && (
-                                        <span className="text-xs text-muted-foreground font-medium mt-0.5">
-                                            • {unresolvedComments} comment{unresolvedComments !== 1 ? 's' : ''} to be resolved
-                                        </span>
-                                    )}
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="PENDING">Pending</SelectItem>
-                                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                                <SelectItem value="IN_REVIEW">In Review</SelectItem>
-                                <SelectItem value="COMPLETED">Completed</SelectItem>
-                            </SelectContent>
-                        </Select>
-
                         {/* 3-Dot Menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -332,88 +324,137 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                 </div>
             </div>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-                {/* Left Column: Description */}
-                <div className="space-y-8">
-                    {/* Description Card */}
-                    <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-                        <h3 className="font-semibold text-lg mb-4">Description</h3>
-                        <p className="text-muted-foreground leading-relaxed">
+            {/* Main Content */}
+            <div className="flex flex-col gap-8 mt-8 pb-20">
+                {/* Description and Files Split Card */}
+                <div className="bg-card rounded-xl border border-border shadow-sm grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border overflow-hidden">
+                    {/* Left Column: Description */}
+                    <div className="p-8">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100">
+                                <AlignLeft className="h-4 w-4" />
+                            </div>
+                            <h3 className="font-semibold text-lg">Description</h3>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-sm lg:text-base">
                             {task.description || "No description provided."}
                         </p>
                     </div>
 
-                    {/* Files Card */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-lg">Files</h3>
-                        </div>
-                        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-                            {task.linkedFiles && task.linkedFiles.length > 0 ? (
-                                <div className="divide-y divide-border">
-                                    {task.linkedFiles.map((file) => (
-                                        <div key={file.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                                                    <FileText className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm text-foreground">{file.originalName}</p>
-                                                    <p className="text-xs text-muted-foreground">{(file.filesize / 1024).toFixed(0)} KB</p>
-                                                </div>
-                                            </div>
-                                            <Button variant="ghost" size="sm" className="h-8 cursor-pointer">View</Button>
-                                        </div>
-                                    ))}
+                    {/* Right Column: Files */}
+                    <div className="p-8 bg-muted/5 lg:bg-transparent">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                                    <Paperclip className="h-4 w-4" />
                                 </div>
+                                <h3 className="font-semibold text-lg">Attachments</h3>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => setUploadDialogOpen(true)} className="h-8">
+                                <Upload className="h-3.5 w-3.5 mr-2" />
+                                Upload
+                            </Button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {task.linkedFiles && task.linkedFiles.length > 0 ? (
+                                task.linkedFiles.map((file) => (
+                                    <div key={file.id} className="group flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                                                <FileText className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{file.originalName}</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{(file.filesize / 1024).toFixed(0)} KB</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
                             ) : (
-                                <div className="p-8 text-center text-muted-foreground">
-                                    <p className="text-sm">No files attached</p>
+                                <div className="p-12 text-center border border-dashed border-border rounded-xl bg-muted/30">
+                                    <p className="text-sm text-muted-foreground">No files attached yet</p>
                                 </div>
                             )}
-                            <div className="p-4 bg-muted/20 border-t border-border">
-                                <Button
-                                    variant="outline"
-                                    className="w-full gap-2 bg-background hover:bg-muted/50 cursor-pointer"
-                                    onClick={() => setUploadDialogOpen(true)}
-                                >
-                                    <Upload className="h-4 w-4" />
-                                    Upload File
-                                </Button>
-                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Right Column: Comments */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-lg">Comments</h3>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2 cursor-pointer"
-                            onClick={() => setNewCommentDialogOpen(true)}
-                        >
+                {/* Comments Section */}
+                <div className="w-full">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                            <span>Comments</span>
+                            <Badge variant="secondary" className="rounded-full px-2 h-5 text-xs">
+                                {comments.length}
+                            </Badge>
+                        </h3>
+                        <Button onClick={() => setIsComposing(!isComposing)} size="sm" variant="outline" className="gap-2">
                             <PlusIcon className="h-4 w-4" />
                             New Comment
                         </Button>
                     </div>
 
-                    <div className="space-y-4">
-                        {isLoadingComments ? (
-                            <div className="text-center text-muted-foreground py-8">
-                                <p className="text-sm">Loading comments...</p>
+                    {/* New Comment Input */}
+                    {isComposing && (
+                        <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                                <Textarea
+                                    value={newCommentContent}
+                                    onChange={(e) => setNewCommentContent(e.target.value)}
+                                    placeholder="Write a new comment..."
+                                    className="min-h-[100px] border-none focus-visible:ring-0 resize-none p-4 text-sm"
+                                    autoFocus
+                                />
+                                <div className="flex items-center justify-end gap-2 p-2 bg-muted/30 border-t border-border">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setIsComposing(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                            await handleCreateComment()
+                                            setIsComposing(false)
+                                        }}
+                                        disabled={!newCommentContent.trim() || isSubmitting}
+                                        className="gap-2"
+                                    >
+                                        <Send className="h-3.5 w-3.5" />
+                                        Post Comment
+                                    </Button>
+                                </div>
                             </div>
-                        ) : comments.length === 0 ? (
-                            <div className="text-center text-muted-foreground py-8">
-                                <p className="text-sm">No comments yet</p>
+                        </div>
+                    )}
+
+                    {/* Thread View */}
+                    <div className="space-y-6">
+                        {isLoadingComments ? (
+                            <div className="space-y-4">
+                                {[1, 2].map(i => (
+                                    <div key={i} className="flex gap-4 animate-pulse">
+                                        <div className="h-10 w-10 bg-muted rounded-full" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 bg-muted rounded w-1/4" />
+                                            <div className="h-20 bg-muted rounded-xl" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : comments.length === 0 && !isComposing ? (
+                            <div className="text-center text-muted-foreground py-12 border border-dashed border-border rounded-xl">
+                                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                                <p className="text-sm">No comments yet. Start the conversation!</p>
                             </div>
                         ) : (
-                            comments.map((comment) => (
+                            comments.map((comment, index) => (
                                 <CommentThread
                                     key={comment.id}
+                                    index={index + 1}
                                     comment={comment}
                                     onUpdate={loadComments}
                                     taskId={task.id}
@@ -507,46 +548,253 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete }: TaskDetailV
                 </DialogContent>
             </Dialog>
 
-            {/* New Comment Dialog */}
-            <Dialog open={newCommentDialogOpen} onOpenChange={setNewCommentDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>New Comment</DialogTitle>
-                        <DialogDescription>
-                            Add a comment to this task
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <Textarea
-                            value={newCommentContent}
-                            onChange={(e) => setNewCommentContent(e.target.value)}
-                            placeholder="Enter your comment..."
-                            rows={4}
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setNewCommentDialogOpen(false)} disabled={isSubmitting}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCreateComment} disabled={isSubmitting || !newCommentContent.trim()}>
-                            {isSubmitting ? 'Adding...' : 'Add Comment'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+
         </div>
     )
 }
 
-function CommentThread({ comment, onUpdate, taskId, projectId }: {
+// Define recursive CommentItem component
+function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId, isLast }: {
     comment: Comment
+    depth?: number
+    onUpdate: () => void
+    taskId: string
+    projectId: string
+    isLast?: boolean
+}) {
+    const { getToken, userId } = useAuth()
+    const { user } = useUser()
+    const [isReplying, setIsReplying] = useState(false)
+    const [replyContent, setReplyContent] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Group reactions by emoji
+    const reactionGroups = comment.reactions?.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+            acc[reaction.emoji] = []
+        }
+        acc[reaction.emoji].push(reaction)
+        return acc
+    }, {} as Record<string, typeof comment.reactions>) || {}
+
+    const handleReaction = async (emoji: string) => {
+        try {
+            const token = await getToken()
+            if (!token) return
+
+            await taskCommentApi.toggleReaction(token, projectId, taskId, comment.id, emoji)
+            onUpdate()
+        } catch (error) {
+            console.error('Failed to toggle reaction:', error)
+            toast.error('Failed to update reaction')
+        }
+    }
+
+    const handleReply = async () => {
+        if (!replyContent.trim()) return
+
+        try {
+            setIsSubmitting(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await taskCommentApi.createComment(token, projectId, taskId, {
+                comment: replyContent,
+                parentId: comment.id
+            })
+
+            toast.success('Reply added')
+            setReplyContent('')
+            setIsReplying(false)
+            onUpdate()
+        } catch (error) {
+            console.error('Failed to reply:', error)
+            toast.error('Failed to add reply')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const commentContent = comment.content || comment.comment || ''
+
+    // Different styling for root vs nested comments
+    const isRoot = depth === 0
+
+    return (
+        <div className={cn(
+            "relative",
+            !isRoot && "pl-4 ml-2 border-l-2 border-border/50"
+        )}>
+            {/* Thread line visual connector if not root */}
+            {!isRoot && <div className="absolute top-4 left-[-2px] w-4 h-[2px] bg-border/50"></div>}
+
+            <div className={cn(
+                "group relative animate-in fade-in slide-in-from-top-1 duration-200",
+                !isRoot && "py-3"
+            )}>
+                <div className="flex gap-4">
+                    <Avatar className={cn(
+                        "border border-border shrink-0 cursor-default",
+                        isRoot ? "h-10 w-10" : "h-8 w-8"
+                    )}>
+                        <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
+                            {comment.user.firstName?.[0]}{comment.user.lastName?.[0]}
+                        </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                        {/* Header */}
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-sm truncate">
+                                {comment.user.firstName} {comment.user.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {format(new Date(comment.createdAt), 'MMM d, h:mm a')}
+                            </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                            {commentContent}
+                        </div>
+
+                        {/* Actions (Reactions + Reply) */}
+                        <div className="flex items-center flex-wrap gap-2 mt-2">
+                            {/* Reactions Logic */}
+                            {Object.entries(reactionGroups).map(([emoji, reactions]) => {
+                                const hasReacted = reactions?.some(r => r.userId === userId)
+                                return (
+                                    <Button
+                                        key={emoji}
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(
+                                            "h-5 px-1.5 text-[10px] gap-1 rounded-full border bg-transparent hover:bg-muted/50 transition-colors",
+                                            hasReacted && "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                        )}
+                                        onClick={() => handleReaction(emoji)}
+                                    >
+                                        <span>{emoji}</span>
+                                        <span className={cn("font-medium", hasReacted ? "text-blue-600" : "text-muted-foreground")}>
+                                            {reactions?.length}
+                                        </span>
+                                    </Button>
+                                )
+                            })}
+
+                            {/* Add Reaction Button */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn(
+                                            "h-6 w-6 rounded-full p-0 text-muted-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100 focus:opacity-100",
+                                            Object.keys(reactionGroups).length > 0 && "opacity-100"
+                                        )}
+                                        title="Add reaction"
+                                    >
+                                        <SmilePlus className="h-3.5 w-3.5" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-1" align="start" side="top">
+                                    <div className="flex gap-0.5">
+                                        {['👍', '👎', '😄', '🎉', '😕', '❤️', '🚀', '👀'].map(emoji => (
+                                            <button
+                                                key={emoji}
+                                                className="p-1.5 hover:bg-muted rounded-md text-lg transition-colors leading-none"
+                                                onClick={() => handleReaction(emoji)}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Reply Button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1"
+                                onClick={() => setIsReplying(!isReplying)}
+                            >
+                                Reply
+                            </Button>
+                        </div>
+
+                        {/* Reply Input */}
+                        {isReplying && (
+                            <div className="mt-3 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="flex flex-col gap-2">
+                                    <Textarea
+                                        value={replyContent}
+                                        onChange={(e) => setReplyContent(e.target.value)}
+                                        placeholder={`Replying to ${comment.user.firstName}...`}
+                                        className="min-h-[60px] text-sm resize-none"
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setIsReplying(false)
+                                                setReplyContent('')
+                                            }}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            onClick={handleReply}
+                                            disabled={!replyContent.trim() || isSubmitting}
+                                        >
+                                            Reply
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Recursively render children */}
+            {comment.replies && comment.replies.length > 0 && (
+                <div className="mt-1">
+                    {comment.replies.map((reply, idx) => (
+                        <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            depth={depth + 1}
+                            onUpdate={onUpdate}
+                            taskId={taskId}
+                            projectId={projectId}
+                            isLast={idx === (comment.replies?.length ?? 0) - 1} // Safely access length or default to 0
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function CommentThread({ comment, index, onUpdate, taskId, projectId }: {
+    comment: Comment
+    index: number
     onUpdate: () => void
     taskId: string
     projectId: string
 }) {
-    const { getToken } = useAuth()
+    const { getToken, userId } = useAuth()
     const [isOpen, setIsOpen] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isReplying, setIsReplying] = useState(false) // Keep for main thread reply if needed
+    const [replyContent, setReplyContent] = useState('')
 
     const isResolved = comment.status === 'RESOLVED'
 
@@ -590,177 +838,185 @@ function CommentThread({ comment, onUpdate, taskId, projectId }: {
         }
     }
 
-    const commentContent = comment.content || comment.comment || ''
+    // Main thread reply (can be triggered from footer or header)
+    const handleReply = async () => {
+        if (!replyContent.trim()) return
 
-    if (isResolved) {
+        try {
+            setIsSubmitting(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await taskCommentApi.createComment(token, projectId, taskId, {
+                comment: replyContent,
+                parentId: comment.id // Becomes a child of this thread root
+            })
+
+            toast.success('Reply added')
+            setReplyContent('')
+            setIsReplying(false)
+            onUpdate()
+        } catch (error) {
+            console.error('Failed to reply:', error)
+            toast.error('Failed to add reply')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+
+    // If resolved, show collapsed view by default
+    if (isResolved && !isOpen) {
         return (
-            <div className="rounded-xl border border-emerald-200 bg-card shadow-sm overflow-hidden group">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 overflow-hidden">
                 <div
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-emerald-50/30 transition-colors"
-                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-emerald-50 transition-colors"
+                    onClick={() => setIsOpen(true)}
                 >
                     <div className="flex items-center gap-3">
-                        <div className="h-6 w-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                        {/* ... existing resolved header content ... */}
+                        <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-200">
                             <Check className="h-3.5 w-3.5" />
                         </div>
                         <div>
-                            <p className="font-semibold text-foreground text-sm">{commentContent}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                <span className="font-medium text-emerald-600">{comment.resolvedBy?.firstName}</span> resolved this comment
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-emerald-900">Comment #{index} - Resolved</h4>
+                            </div>
+                            <p className="text-xs text-emerald-700">
+                                {comment.resolvedBy?.firstName ? `${comment.resolvedBy.firstName} resolved this comment` : 'Resolved'}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                handleReopen()
-                            }}
-                            disabled={isSubmitting}
-                        >
-                            <X className="h-3 w-3" />
-                            Unresolve
-                        </Button>
-                        {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
+                        <ChevronDown className="h-4 w-4" />
+                    </Button>
                 </div>
-
-                {isOpen && (
-                    <div className="p-6 bg-card border-t border-emerald-100">
-                        <div className="flex gap-4">
-                            <Avatar className="h-9 w-9 border border-border">
-                                <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
-                                    {comment.user.firstName?.[0]}{comment.user.lastName?.[0]}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-sm">{comment.user.firstName} {comment.user.lastName}</span>
-                                    <span className="text-xs text-muted-foreground">{format(new Date(comment.createdAt), 'h:mm a')}</span>
-                                </div>
-                                <p className="text-sm text-foreground leading-relaxed">{commentContent}</p>
-                            </div>
-                        </div>
-
-                        {/* Replies */}
-                        {comment.replies && comment.replies.length > 0 && (
-                            <div className="mt-6 pl-4 border-l-2 border-muted space-y-6">
-                                {comment.replies.map((reply) => {
-                                    const replyContent = reply.content || reply.comment || ''
-                                    return (
-                                        <div key={reply.id} className="flex gap-4">
-                                            <Avatar className="h-8 w-8 border border-border">
-                                                <AvatarFallback className="bg-muted text-muted-foreground text-[10px]">
-                                                    {reply.user.firstName?.[0]}{reply.user.lastName?.[0]}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-semibold text-sm">{reply.user.firstName} {reply.user.lastName}</span>
-                                                    <span className="text-xs text-muted-foreground">{format(new Date(reply.createdAt), 'h:mm a')}</span>
-                                                </div>
-                                                <p className="text-sm text-foreground leading-relaxed">{replyContent}</p>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
         )
     }
 
     return (
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-            {/* Thread Header */}
-            <div className="p-4 border-b border-border bg-muted/20 flex items-center gap-3">
-                <div className="h-6 w-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                </div>
-                <span className="font-semibold text-foreground text-sm">Comment #{comment.id.slice(0, 8)}</span>
-                <Badge variant="secondary" className="text-xs font-normal">Open</Badge>
-
-                <span className="text-xs text-muted-foreground ml-auto font-medium">
-                    {comment.replies?.length || 0} responses • Needs resolution
-                </span>
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-
-            {/* Main Comment */}
-            <div className="p-6 bg-card">
-                <div className="flex gap-4">
-                    <Avatar className="h-9 w-9 border border-border">
-                        <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
-                            {comment.user.firstName?.[0]}{comment.user.lastName?.[0]}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm">{comment.user.firstName} {comment.user.lastName}</span>
-                            <span className="text-xs text-muted-foreground">{format(new Date(comment.createdAt), 'h:mm a')}</span>
-                        </div>
-                        <p className="text-sm text-foreground leading-relaxed">{commentContent}</p>
-                    </div>
-                </div>
-
-                {/* Replies */}
-                {comment.replies && comment.replies.length > 0 && (
-                    <div className="mt-6 pl-4 border-l-2 border-muted space-y-6">
-                        {comment.replies.map((reply) => {
-                            const replyContent = reply.content || reply.comment || ''
-                            return (
-                                <div key={reply.id} className="flex gap-4">
-                                    <Avatar className="h-8 w-8 border border-border">
-                                        <AvatarFallback className="bg-muted text-muted-foreground text-[10px]">
-                                            {reply.user.firstName?.[0]}{reply.user.lastName?.[0]}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-semibold text-sm">{reply.user.firstName} {reply.user.lastName}</span>
-                                            <span className="text-xs text-muted-foreground">{format(new Date(reply.createdAt), 'h:mm a')}</span>
-                                        </div>
-                                        <p className="text-sm text-foreground leading-relaxed">{replyContent}</p>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
+        <div className={cn(
+            "rounded-xl border overflow-hidden transition-all duration-300",
+            isResolved ? "border-emerald-200 bg-emerald-50/30" : "border-blue-200 bg-card"
+        )}>
+            {/* Header */}
+            <div
+                className={cn(
+                    "flex items-center justify-between px-4 py-3 border-b cursor-pointer transition-colors",
+                    isResolved
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-blue-50/50 border-blue-100 hover:bg-blue-50"
                 )}
-            </div>
-
-            {/* Footer Actions */}
-            <div className="p-3 bg-muted/20 border-t border-border flex items-center justify-between">
-                <div className="flex gap-2">
-                    <Button
-                        size="sm"
-                        className="h-8 bg-foreground text-background hover:bg-foreground/90 gap-2 text-xs cursor-pointer"
-                        onClick={handleResolve}
-                        disabled={isSubmitting}
-                    >
-                        <Check className="h-3.5 w-3.5" />
-                        {isSubmitting ? 'Resolving...' : 'Approve & Resolve'}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-2 text-xs bg-background cursor-pointer"
-                        onClick={handleReopen}
-                        disabled={isSubmitting}
-                    >
-                        <X className="h-3.5 w-3.5" />
-                        Reopen
-                    </Button>
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <div className="flex items-center gap-3">
+                    {/* Icon */}
+                    {isResolved ? (
+                        <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                            <Check className="h-3.5 w-3.5" />
+                        </div>
+                    ) : (
+                        <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center border border-blue-200">
+                            <MessageSquare className="h-3.5 w-3.5" />
+                        </div>
+                    )}
+                    {/* Text */}
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h4 className={cn("text-sm font-semibold", isResolved ? "text-emerald-900" : "text-blue-900")}>
+                                Comment #{index} - {isResolved ? "Resolved" : "Open"}
+                            </h4>
+                        </div>
+                        <p className={cn("text-xs", isResolved ? "text-emerald-700" : "text-blue-700/80")}>
+                            {comment.replies?.length || 0} responses • {isResolved ? "Resolved" : "Needs resolution"}
+                        </p>
+                    </div>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
-                    Reply
+                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-50 hover:opacity-100">
+                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
             </div>
+
+            {/* Content Body */}
+            {isOpen && (
+                <div className="bg-card/50">
+                    <div className="p-6 pb-2">
+                        {/* Render Root Comment Item (which handles its own content and replies recursively) */}
+                        <CommentItem
+                            comment={comment}
+                            depth={0}
+                            onUpdate={onUpdate}
+                            taskId={taskId}
+                            projectId={projectId}
+                        />
+
+                        {/* Thread Footer Actions (Resolve/Reopen) */}
+                        <div className="flex items-center justify-between pt-4 border-t border-border mt-2 mb-2">
+                            <div className="flex items-center gap-3">
+                                {!isResolved ? (
+                                    <Button
+                                        size="sm"
+                                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                                        onClick={handleResolve}
+                                        disabled={isSubmitting}
+                                    >
+                                        <Check className="h-3.5 w-3.5 mr-2" />
+                                        Approve & Resolve
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                        onClick={handleReopen}
+                                        disabled={isSubmitting}
+                                    >
+                                        <X className="h-3.5 w-3.5 mr-2" />
+                                        Reopen
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* Main Reply Button (Alternative to inline) */}
+                            {!isReplying && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-foreground"
+                                    onClick={() => setIsReplying(true)}
+                                >
+                                    Reply to Thread
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Footer Reply Input Area (If triggered from footer) */}
+                        {isReplying && (
+                            <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="flex gap-3">
+                                    <div className="flex-1">
+                                        <Textarea
+                                            value={replyContent}
+                                            onChange={(e) => setReplyContent(e.target.value)}
+                                            placeholder="Write a reply to the thread..."
+                                            className="min-h-[80px] text-sm mb-2"
+                                            autoFocus
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <Button size="sm" variant="ghost" onClick={() => setIsReplying(false)}>Cancel</Button>
+                                            <Button size="sm" onClick={handleReply} disabled={!replyContent.trim() || isSubmitting}>Reply</Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -782,3 +1038,5 @@ function PlusIcon({ className }: { className?: string }) {
         </svg>
     )
 }
+
+

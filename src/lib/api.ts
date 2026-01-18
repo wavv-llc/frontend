@@ -24,6 +24,7 @@ export interface Project {
   id: string
   name: string
   description?: string
+  dueDate: string
   workspaceId: string
   createdAt: string
   updatedAt: string
@@ -41,6 +42,7 @@ export interface Category {
   name: string
   description?: string
   color?: string
+  order?: number
 }
 
 export interface Document {
@@ -74,6 +76,15 @@ export interface Task {
   attachments?: TaskAttachment[]
 }
 
+export interface TaskCommentReaction {
+  id: string
+  emoji: string
+  userId: string
+  user: User
+  commentId: string
+  createdAt: string
+}
+
 export interface Comment {
   id: string
   content: string
@@ -85,6 +96,7 @@ export interface Comment {
   resolved?: boolean // For backward compatibility
   resolvedBy?: User
   replies?: Comment[]
+  reactions?: TaskCommentReaction[]
   parentId?: string
 }
 
@@ -424,12 +436,13 @@ export const projectApi = {
     token: string,
     workspaceId: string,
     name: string,
+    dueDate: string,
     description?: string
   ) => {
     return apiRequest<Project>('/api/v1/projects', {
       method: 'POST',
       token,
-      body: JSON.stringify({ workspaceId, name, description }),
+      body: JSON.stringify({ workspaceId, name, dueDate, description }),
     })
   },
 
@@ -521,7 +534,7 @@ export const taskApi = {
     token: string,
     projectId: string,
     id: string,
-    data: { name?: string; description?: string }
+    data: { name?: string; description?: string; categoryId?: string; dueAt?: string }
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
       method: 'PATCH',
@@ -733,6 +746,21 @@ export const categoryApi = {
       }
     )
   },
+
+  reorderCategories: async (
+    token: string,
+    projectId: string,
+    categoryIds: string[]
+  ) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/projects/${projectId}/categories/reorder`,
+      {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ categoryIds }),
+      }
+    )
+  },
 }
 
 // Task Comment API functions
@@ -765,7 +793,10 @@ export const taskCommentApi = {
       {
         method: 'POST',
         token,
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          comment: data.comment,
+          parentCommentId: data.parentId
+        }),
       }
     )
   },
@@ -781,6 +812,25 @@ export const taskCommentApi = {
       {
         method: 'GET',
         token,
+      }
+    )
+  },
+
+  toggleReaction: async (
+    token: string,
+    projectId: string,
+    taskId: string,
+    commentId: string,
+    emoji: string
+  ) => {
+    return apiRequest<{
+      action: 'added' | 'removed'
+    }>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${commentId}/reactions`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ emoji }),
       }
     )
   },

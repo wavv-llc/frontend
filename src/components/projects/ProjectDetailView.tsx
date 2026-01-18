@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
     Calendar as CalendarIcon,
     List as ListIcon,
@@ -18,13 +19,18 @@ import {
     ArrowLeft,
     Edit2,
     Trash2,
-    X
+    X,
+    ArrowUp,
+    ArrowDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type Project, type Task, projectApi, taskApi } from '@/lib/api'
+import { type Project, type Task, type Category, projectApi, taskApi, categoryApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { ProjectCalendarView } from './ProjectCalendarView'
 import { TaskDetailView } from '@/components/tasks/TaskDetailView'
+import { TaskRow } from './TaskRow'
+import { CreateCategoryDialog } from '@/components/dialogs/CreateCategoryDialog'
+import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import {
@@ -58,6 +64,7 @@ interface ProjectDetailViewProps {
 
 type ViewMode = 'list' | 'calendar'
 type StatusFilter = 'ALL' | 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
+type CategoryFilter = 'ALL' | string // Category ID or 'ALL'
 
 export function ProjectDetailView({
     project,
@@ -70,11 +77,47 @@ export function ProjectDetailView({
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+    const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('ALL')
+    const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [editTaskOpen, setEditTaskOpen] = useState(false)
+    const [taskToEdit, setTaskToEdit] = useState<Task | null>(null)
     const [editProjectName, setEditProjectName] = useState(project.name || project.description || '')
     const [editProjectDescription, setEditProjectDescription] = useState(project.description || '')
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Categories state
+    const [categories, setCategories] = useState<Category[]>([])
+    const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+
+    const refreshCategories = async () => {
+        try {
+            setIsLoadingCategories(true)
+            const token = await getToken()
+            if (token) {
+                const response = await categoryApi.getCategoriesByProject(token, project.id)
+                if (response.data && Array.isArray(response.data)) {
+                    setCategories(response.data)
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories:', error)
+            toast.error('Failed to load categories')
+        } finally {
+            setIsLoadingCategories(false)
+        }
+    }
+
+    // Fetch categories on mount
+    useEffect(() => {
+        refreshCategories()
+    }, [project.id, getToken])
+
+    const handleCategoryCreated = () => {
+        refreshCategories()
+    }
+
 
     const handleEditProject = async () => {
         try {
@@ -98,6 +141,34 @@ export function ProjectDetailView({
             toast.error('Failed to update project')
         } finally {
             setIsSubmitting(false)
+        }
+    }
+
+    const handleMoveCategory = async (categoryId: string, direction: 'up' | 'down') => {
+        const index = categories.findIndex(c => c.id === categoryId)
+        if (index === -1) return
+
+        const newCategories = [...categories]
+        const targetIndex = direction === 'up' ? index - 1 : index + 1
+
+        if (targetIndex < 0 || targetIndex >= categories.length) return
+
+        // Swap
+        const temp = newCategories[index]
+        newCategories[index] = newCategories[targetIndex]
+        newCategories[targetIndex] = temp
+
+        // Optimistic update
+        setCategories(newCategories)
+
+        try {
+            const token = await getToken()
+            if (!token) return
+            await categoryApi.reorderCategories(token, project.id, newCategories.map(c => c.id))
+        } catch (error) {
+            console.error('Failed to reorder', error)
+            toast.error('Failed to reorder categories')
+            refreshCategories() // Revert
         }
     }
 
@@ -161,8 +232,33 @@ export function ProjectDetailView({
     const filteredTasks = tasks.filter(task => {
         const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === 'ALL' || task.status === statusFilter
-        return matchesSearch && matchesStatus
+        const matchesCategory = categoryFilter === 'ALL' || (categoryFilter === 'uncategorized' ? !task.categoryId : task.categoryId === categoryFilter)
+        return matchesSearch && matchesStatus && matchesCategory
     })
+
+    // Group tasks by category
+    const tasksByCategory = useMemo(() => {
+        const grouped: Record<string, Task[]> = {}
+
+        // Initialize with all fetched categories
+        categories.forEach(cat => {
+            grouped[cat.id] = []
+        })
+
+        // Always add uncategorized
+        grouped['uncategorized'] = []
+
+        filteredTasks.forEach(task => {
+            const catId = task.categoryId || 'uncategorized'
+            if (!grouped[catId]) {
+                // This might happen if a task has a categoryId that is not in the fetched categories list (e.g. deleted category)
+                grouped[catId] = []
+            }
+            grouped[catId].push(task)
+        })
+
+        return grouped
+    }, [filteredTasks, categories])
 
     // Calculate stats
     const totalTasks = tasks.length
@@ -170,15 +266,54 @@ export function ProjectDetailView({
     const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length
     const reviewTasks = tasks.filter(t => t.status === 'IN_REVIEW').length
 
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    // Sync URL with selected task
+    useEffect(() => {
+        const taskId = searchParams.get('taskId')
+        if (taskId && tasks.length > 0) {
+            const task = tasks.find(t => t.id === taskId)
+            if (task) {
+                setSelectedTask(task)
+            } else {
+                // Task in URL not found in current list (maybe separate fetch needed if pagination, but likely just wait for tasks)
+                // If tasks are loaded and task not found, maybe clear param?
+                // For now, let's trust tasks list is complete for the project
+            }
+        } else if (!taskId) {
+            setSelectedTask(null)
+        }
+    }, [searchParams, tasks])
+
+    const handleTaskSelect = (task: Task) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('taskId', task.id)
+        router.push(`?${params.toString()}`, { scroll: false })
+    }
+
+    const handleTaskClose = () => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.delete('taskId')
+        router.push(`?${params.toString()}`, { scroll: false })
+    }
+
+    // Refresh handler that keeps task selected
+    const handleRefresh = async () => {
+        await onRefresh()
+        // If selected task exists, checking for updates is handled by task list update
+        // But if we need to update the detail view specifically, that's done inside TaskDetailView via its own refresh
+    }
+
     if (selectedTask) {
         return (
             <TaskDetailView
                 task={selectedTask}
-                onBack={() => setSelectedTask(null)}
-                onUpdate={onRefresh}
+                onBack={handleTaskClose}
+                onUpdate={handleRefresh}
                 onDelete={() => {
-                    setSelectedTask(null)
-                    onRefresh()
+                    handleTaskClose()
+                    handleRefresh()
                 }}
             />
         )
@@ -207,31 +342,10 @@ export function ProjectDetailView({
                         </div>
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-semibold tracking-tight text-foreground">{project.description || project.name || 'Project Details'}</h1>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
-                                    <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-                                        <Edit2 className="h-4 w-4 mr-2" />
-                                        Edit Project
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => setDeleteDialogOpen(true)}
-                                        className="text-destructive focus:text-destructive"
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete Project
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-white p-1 rounded-lg border border-border shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-white p-1 rounded-lg border border-border shadow-sm mr-2">
                             <button
                                 onClick={() => setView('list')}
                                 className={cn(
@@ -258,7 +372,35 @@ export function ProjectDetailView({
                             </button>
                         </div>
 
-                        <Button onClick={onCreateTask} className="gap-2 ml-2 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 bg-white border-border hover:bg-muted shadow-sm cursor-pointer"
+                            onClick={() => setCreateCategoryOpen(true)}
+                            title="Add Category"
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 bg-white border-border hover:bg-muted shadow-sm cursor-pointer"
+                            onClick={() => setEditDialogOpen(true)}
+                            title="Edit Project"
+                        >
+                            <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 bg-white border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 shadow-sm cursor-pointer"
+                            onClick={() => setDeleteDialogOpen(true)}
+                            title="Delete Project"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <div className="w-px h-6 bg-border mx-1" />
+                        <Button onClick={onCreateTask} className="gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer">
                             <Plus className="h-4 w-4" />
                             New Task
                         </Button>
@@ -287,6 +429,51 @@ export function ProjectDetailView({
                         />
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Category Filter */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2 text-muted-foreground hover:text-foreground bg-white cursor-pointer">
+                                    <Filter className="h-3.5 w-3.5" />
+                                    Category
+                                    {categoryFilter !== 'ALL' && (
+                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs">
+                                            1
+                                        </span>
+                                    )}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={categoryFilter === 'ALL'}
+                                    onCheckedChange={() => setCategoryFilter('ALL')}
+                                >
+                                    All Categories
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuCheckboxItem
+                                    checked={categoryFilter === 'uncategorized'}
+                                    onCheckedChange={() => setCategoryFilter('uncategorized')}
+                                >
+                                    Uncategorized
+                                </DropdownMenuCheckboxItem>
+                                {categories.map(category => (
+                                    <DropdownMenuCheckboxItem
+                                        key={category.id}
+                                        checked={categoryFilter === category.id}
+                                        onCheckedChange={() => setCategoryFilter(category.id)}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {category.color && (
+                                                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: category.color }} />
+                                            )}
+                                            {category.name}
+                                        </div>
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
                         {statusFilter !== 'ALL' && (
                             <Button
                                 variant="ghost"
@@ -302,7 +489,7 @@ export function ProjectDetailView({
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm" className="gap-2 text-muted-foreground hover:text-foreground bg-white cursor-pointer">
                                     <Filter className="h-3.5 w-3.5" />
-                                    Filter
+                                    Status
                                     {statusFilter !== 'ALL' && (
                                         <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs">
                                             1
@@ -365,7 +552,7 @@ export function ProjectDetailView({
                         </div>
 
                         {/* Table Body */}
-                        <div className="overflow-y-auto flex-1">
+                        <div className="overflow-y-auto flex-1 pb-10">
                             {filteredTasks.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-64 text-center">
                                     <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
@@ -373,9 +560,9 @@ export function ProjectDetailView({
                                     </div>
                                     <h3 className="font-medium text-lg mb-1">No tasks found</h3>
                                     <p className="text-muted-foreground mb-4 max-w-sm text-sm">
-                                        {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
+                                        {searchQuery || statusFilter !== 'ALL' || categoryFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
                                     </p>
-                                    {!searchQuery && statusFilter === 'ALL' && (
+                                    {!searchQuery && statusFilter === 'ALL' && categoryFilter === 'ALL' && (
                                         <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
                                             Create Task
                                         </Button>
@@ -383,89 +570,97 @@ export function ProjectDetailView({
                                 </div>
                             ) : (
                                 <div className="divide-y divide-border/60">
-                                    {filteredTasks.map((task) => (
-                                        <div
-                                            key={task.id}
-                                            onClick={() => setSelectedTask(task)}
-                                            className="grid grid-cols-12 gap-4 px-8 py-5 items-center hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
-                                        >
-                                            <div className="col-span-5">
-                                                <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-3">
-                                                    {task.name}
-                                                    <ArrowUpRight className="h-3.5 w-3.5 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all text-muted-foreground" />
-                                                </div>
-                                            </div>
-                                            <div className="col-span-2">
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    {getStatusIcon(task.status)}
-                                                    <span className="text-sm text-muted-foreground">{getStatusLabel(task.status)}</span>
-                                                </div>
-                                            </div>
-                                            <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-2">
-                                                {task.dueAt ? (
-                                                    <div className={cn(
-                                                        "flex items-center gap-1.5",
-                                                        new Date(task.dueAt) < new Date() && task.status !== 'COMPLETED' ? "text-destructive font-medium" : ""
-                                                    )}>
-                                                        <Calendar className="h-3.5 w-3.5" />
-                                                        {new Date(task.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground/40 text-xs">-</span>
-                                                )}
-                                            </div>
-                                            <div className="col-span-2 flex items-center -space-x-2 pl-2">
-                                                {(task.preparers || []).length > 0 ? (
-                                                    (task.preparers || []).slice(0, 3).map((user, i) => (
-                                                        <Avatar key={i} className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white">
-                                                            <AvatarFallback className="text-[10px] bg-muted text-foreground font-medium">
-                                                                {user.firstName?.[0] || user.email[0].toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground/40 italic">Unassigned</span>
-                                                )}
-                                            </div>
-                                            <div className="col-span-1 flex justify-end">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                    {/* Render categories */}
+                                    {categories.map((category, index) => {
+                                        const tasks = tasksByCategory[category.id] || []
+                                        if (tasks.length === 0 && categoryFilter !== 'ALL' && categoryFilter !== category.id) return null
+                                        if (categoryFilter !== 'ALL' && categoryFilter !== category.id) return null
+
+                                        return (
+                                            <div key={category.id} className="bg-white group/category">
+                                                <div className="px-8 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/20 border-y border-border/20 sticky top-0 backdrop-blur-sm z-10 flex items-center gap-2">
+                                                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: category.color || '#94a3b8' }}></div>
+                                                    {category.name}
+                                                    <span className="ml-2 px-1.5 py-0.5 bg-muted rounded text-[10px]">{tasks.length}</span>
+
+                                                    {/* Reorder buttons */}
+                                                    <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/category:opacity-100 transition-opacity">
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setSelectedTask(task)
-                                                        }}>
-                                                            <Edit2 className="h-4 w-4 mr-2" />
-                                                            Edit Task
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
+                                                            className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer"
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
-                                                                handleDeleteTask(task.id)
+                                                                handleMoveCategory(category.id, 'up')
                                                             }}
-                                                            className="text-destructive focus:text-destructive"
+                                                            disabled={index === 0}
+                                                            title="Move Up"
                                                         >
-                                                            <Trash2 className="h-4 w-4 mr-2" />
-                                                            Delete Task
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                            <ArrowUp className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleMoveCategory(category.id, 'down')
+                                                            }}
+                                                            disabled={index === categories.length - 1}
+                                                            title="Move Down"
+                                                        >
+                                                            <ArrowDown className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                {tasks.length > 0 ? (
+                                                    tasks.map(task => (
+                                                        <TaskRow
+                                                            key={task.id}
+                                                            task={task}
+                                                            onClick={() => handleTaskSelect(task)}
+                                                            onEdit={(task) => {
+                                                                setTaskToEdit(task)
+                                                                setEditTaskOpen(true)
+                                                            }}
+                                                            onDelete={handleDeleteTask}
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <div className="px-8 py-6 text-center text-sm text-muted-foreground italic border-b border-border/60">
+                                                        No tasks in this category
+                                                    </div>
+                                                )}
                                             </div>
+                                        )
+                                    })}
+
+                                    {/* Render uncategorized tasks LAST */}
+                                    {tasksByCategory['uncategorized'] && tasksByCategory['uncategorized'].length > 0 && (categoryFilter === 'ALL' || categoryFilter === 'uncategorized') && (
+                                        <div className="bg-muted/10">
+                                            <div className="px-8 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/20 border-y border-border/20 sticky top-0 backdrop-blur-sm z-10 flex items-center gap-2">
+                                                <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                                                Uncategorized
+                                                <span className="ml-2 px-1.5 py-0.5 bg-muted rounded text-[10px]">{tasksByCategory['uncategorized'].length}</span>
+                                            </div>
+                                            {tasksByCategory['uncategorized'].map(task => (
+                                                <TaskRow
+                                                    key={task.id}
+                                                    task={task}
+                                                    onClick={() => handleTaskSelect(task)}
+                                                    onEdit={(task) => {
+                                                        setTaskToEdit(task)
+                                                        setEditTaskOpen(true)
+                                                    }}
+                                                    onDelete={handleDeleteTask}
+                                                />
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             )}
                         </div>
+
                     </div>
                 )}
             </div>
@@ -530,7 +725,25 @@ export function ProjectDetailView({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            <CreateCategoryDialog
+                open={createCategoryOpen}
+                onOpenChange={setCreateCategoryOpen}
+                projectId={project.id}
+                onSuccess={refreshCategories}
+            />
+
+            {
+                taskToEdit && (
+                    <EditTaskDialog
+                        open={editTaskOpen}
+                        onOpenChange={setEditTaskOpen}
+                        task={taskToEdit}
+                        onSuccess={onRefresh}
+                    />
+                )
+            }
+        </div >
     )
 }
 
@@ -547,3 +760,6 @@ function StatCard({ label, value, icon: Icon }: { label: string, value: number, 
         </div>
     )
 }
+
+
+
