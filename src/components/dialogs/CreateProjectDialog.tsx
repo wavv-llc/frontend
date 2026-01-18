@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DatePicker } from '@/components/ui/date-picker'
 import { projectApi } from '@/lib/api'
 import { toast } from 'sonner'
+import { useSidebar } from '@/contexts/SidebarContext'
 
 interface CreateProjectDialogProps {
     open: boolean
@@ -31,6 +32,7 @@ export function CreateProjectDialog({
     onSuccess,
 }: CreateProjectDialogProps) {
     const { getToken } = useAuth()
+    const { triggerRefresh } = useSidebar()
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
@@ -67,6 +69,9 @@ export function CreateProjectDialog({
 
             // Close dialog first
             onOpenChange(false)
+
+            // Trigger sidebar refresh to show new project
+            triggerRefresh()
 
             // Then refresh data after a brief delay to ensure dialog is closed
             setTimeout(() => {

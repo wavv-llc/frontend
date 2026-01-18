@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { workspaceApi } from '@/lib/api'
 import { toast } from 'sonner'
+import { useSidebar } from '@/contexts/SidebarContext'
 
 interface CreateWorkspaceDialogProps {
     open: boolean
@@ -29,6 +30,7 @@ export function CreateWorkspaceDialog({
     onSuccess,
 }: CreateWorkspaceDialogProps) {
     const { getToken } = useAuth()
+    const { triggerRefresh } = useSidebar()
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -56,6 +58,9 @@ export function CreateWorkspaceDialog({
             setName('')
             setDescription('')
             onOpenChange(false)
+
+            // Trigger sidebar refresh to show new workspace
+            triggerRefresh()
 
             // Call success callback to refresh data
             onSuccess?.()

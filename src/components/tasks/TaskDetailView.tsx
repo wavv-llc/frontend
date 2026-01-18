@@ -780,6 +780,7 @@ function CommentThread({ comment, index, onUpdate, taskId, projectId }: {
 
             await taskCommentApi.resolveComment(token, projectId, taskId, comment.id)
             toast.success('Comment resolved')
+            setIsOpen(false) // Auto-collapse on approval
             onUpdate()
         } catch (error) {
             console.error('Failed to resolve comment:', error)

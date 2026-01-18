@@ -449,7 +449,7 @@ export const projectApi = {
   updateProject: async (
     token: string,
     id: string,
-    data: { name?: string; description?: string }
+    data: { name?: string; description?: string; workspaceId?: string }
   ) => {
     return apiRequest<Project>(`/api/v1/projects/${id}`, {
       method: 'PATCH',
