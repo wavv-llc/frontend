@@ -188,7 +188,7 @@ export default function WorkspacesPage() {
                             {/* Create New Card */}
                             <button
                                 onClick={() => setShowCreateDialog(true)}
-                                className="flex flex-col items-center justify-center h-full min-h-[280px] rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all group"
+                                className="cursor-pointer flex flex-col items-center justify-center h-full min-h-[280px] rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all group"
                             >
                                 <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
                                     <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
