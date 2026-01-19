@@ -15,15 +15,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DatePicker } from '@/components/ui/date-picker'
-import { taskApi, categoryApi, type Category } from '@/lib/api'
+import { taskApi } from '@/lib/api'
 import { toast } from 'sonner'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
 
 interface CreateTaskDialogProps {
     open: boolean
@@ -43,37 +36,6 @@ export function CreateTaskDialog({
     const [description, setDescription] = useState('')
     const [dueDate, setDueDate] = useState<Date | undefined>(new Date())
     const [isLoading, setIsLoading] = useState(false)
-    const [categories, setCategories] = useState<Category[]>([])
-    const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
-    const [isLoadingCategories, setIsLoadingCategories] = useState(false)
-
-    // Fetch categories when dialog opens
-    useEffect(() => {
-        if (open && projectId) {
-            const fetchCategories = async () => {
-                try {
-                    setIsLoadingCategories(true)
-                    const token = await getToken()
-                    if (token) {
-                        const response = await categoryApi.getCategoriesByProject(token, projectId)
-                        if (response.data && Array.isArray(response.data)) {
-                            setCategories(response.data)
-                            // Auto-select first category if available and none selected
-                            if (response.data.length > 0 && !selectedCategoryId) {
-                                setSelectedCategoryId(response.data[0].id)
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch categories:', error)
-                    toast.error('Failed to load categories')
-                } finally {
-                    setIsLoadingCategories(false)
-                }
-            }
-            fetchCategories()
-        }
-    }, [open, projectId, getToken])
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -81,11 +43,6 @@ export function CreateTaskDialog({
 
         if (!name.trim()) {
             toast.error('Please enter a task name')
-            return
-        }
-
-        if (!selectedCategoryId) {
-            toast.error('Please select a category')
             return
         }
 
@@ -102,7 +59,6 @@ export function CreateTaskDialog({
                 description: description || undefined,
                 dueAt: dueDate ? dueDate.toISOString() : undefined,
                 status: 'PENDING',
-                categoryId: selectedCategoryId,
             })
 
             toast.success('Task created successfully')
@@ -111,9 +67,6 @@ export function CreateTaskDialog({
             setName('')
             setDescription('')
             setDueDate(new Date())
-            // Keep selected category or reset? Resetting might be annoying if creating multiple.
-            // Let's keep it. 
-            // setCategoryId('')
 
             // Close dialog first
             onOpenChange(false)
@@ -166,39 +119,6 @@ export function CreateTaskDialog({
                                 disabled={isLoading}
                                 rows={3}
                             />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="category">
-                                Category <span className="text-destructive">*</span>
-                            </Label>
-                            <Select
-                                value={selectedCategoryId}
-                                onValueChange={setSelectedCategoryId}
-                                disabled={isLoading || isLoadingCategories}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.length === 0 ? (
-                                        <div className="p-2 text-sm text-muted-foreground text-center">
-                                            No categories found. Please create one in the project settings.
-                                        </div>
-                                    ) : (
-                                        categories.map((category) => (
-                                            <SelectItem key={category.id} value={category.id}>
-                                                <div className="flex items-center gap-2">
-                                                    {category.color && (
-                                                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: category.color }} />
-                                                    )}
-                                                    {category.name}
-                                                </div>
-                                            </SelectItem>
-                                        ))
-                                    )}
-                                </SelectContent>
-                            </Select>
                         </div>
 
                         <div className="grid gap-2">

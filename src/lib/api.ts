@@ -37,14 +37,6 @@ export interface Project {
   members: User[]
 }
 
-export interface Category {
-  id: string
-  name: string
-  description?: string
-  color?: string
-  order?: number
-}
-
 export interface Document {
   id: string
   filename: string
@@ -59,7 +51,6 @@ export interface Task {
   name: string
   description?: string
   projectId: string
-  categoryId?: string
   dueAt?: string
   status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
   createdAt: string
@@ -68,7 +59,6 @@ export interface Task {
     id: string
     description?: string
   }
-  category?: Category
   preparers: User[]
   reviewers: User[]
   linkedFiles: Document[]
@@ -544,7 +534,6 @@ export const taskApi = {
     data: {
       name: string
       description?: string
-      categoryId?: string
       dueAt?: string
       status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
     }
@@ -560,7 +549,7 @@ export const taskApi = {
     token: string,
     projectId: string,
     id: string,
-    data: { name?: string; description?: string; categoryId?: string; dueAt?: string }
+    data: { name?: string; description?: string; dueAt?: string }
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
       method: 'PATCH',
@@ -670,22 +659,6 @@ export const taskApi = {
     )
   },
 
-  moveTaskToCategory: async (
-    token: string,
-    projectId: string,
-    id: string,
-    categoryId: string | null
-  ) => {
-    return apiRequest<Task>(
-      `/api/v1/projects/${projectId}/tasks/${id}/category`,
-      {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ categoryId }),
-      }
-    )
-  },
-
   attachFile: async (
     token: string,
     projectId: string,
@@ -713,77 +686,6 @@ export const taskApi = {
       {
         method: 'DELETE',
         token,
-      }
-    )
-  },
-}
-
-// Category API functions
-export const categoryApi = {
-  getCategoriesByProject: async (token: string, projectId: string) => {
-    return apiRequest<Category[]>(`/api/v1/projects/${projectId}/categories`, {
-      method: 'GET',
-      token,
-    })
-  },
-
-  createCategory: async (
-    token: string,
-    projectId: string,
-    data: {
-      name: string
-      description?: string
-      color?: string
-    }
-  ) => {
-    return apiRequest<Category>(`/api/v1/projects/${projectId}/categories`, {
-      method: 'POST',
-      token,
-      body: JSON.stringify(data),
-    })
-  },
-
-  updateCategory: async (
-    token: string,
-    projectId: string,
-    id: string,
-    data: {
-      name?: string
-      description?: string
-      color?: string
-    }
-  ) => {
-    return apiRequest<Category>(
-      `/api/v1/projects/${projectId}/categories/${id}`,
-      {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify(data),
-      }
-    )
-  },
-
-  deleteCategory: async (token: string, projectId: string, id: string) => {
-    return apiRequest<{ message: string }>(
-      `/api/v1/projects/${projectId}/categories/${id}`,
-      {
-        method: 'DELETE',
-        token,
-      }
-    )
-  },
-
-  reorderCategories: async (
-    token: string,
-    projectId: string,
-    categoryIds: string[]
-  ) => {
-    return apiRequest<{ message: string }>(
-      `/api/v1/projects/${projectId}/categories/reorder`,
-      {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ categoryIds }),
       }
     )
   },

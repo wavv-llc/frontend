@@ -241,18 +241,6 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
                 <div className="flex items-start justify-between">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">{task.name}</h1>
                     <div className="flex items-center gap-3">
-                        {/* Category Card */}
-                        {task.category && (
-                            <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px]">
-                                <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">Category</span>
-                                <div className="flex items-center gap-2">
-                                    {task.category.color && (
-                                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: task.category.color }} />
-                                    )}
-                                    <span className="font-semibold text-sm">{task.category.name}</span>
-                                </div>
-                            </div>
-                        )}
                         {/* Due Date Card */}
                         <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px] cursor-pointer hover:border-primary/20 transition-colors">
                             <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">Due Date</span>
