@@ -73,8 +73,8 @@ export function AppBar({
             <span className="text-muted-foreground/50">|</span>
           )}
           {showContactButton && (
-            <Link href="/contact" className="font-serif text-lg font-medium text-muted-foreground hover:text-[#1e293b] transition-colors">
-              Contact us
+            <Link href="/sign-up" className="font-serif text-lg font-medium text-muted-foreground hover:text-[#1e293b] transition-colors">
+              Signup
             </Link>
           )}
         </div>

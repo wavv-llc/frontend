@@ -243,11 +243,12 @@ div[class*="dev-mode"] {
   display: none !important;
 }
 
+/* TODO: What is this */
 /* Hide any links to sign-up in footer */
-a[href*="sign-up"],
+/* a[href*="sign-up"],
 a[href*="signUp"] {
   display: none !important;
-}
+} */
 
 /* Fix social button backgrounds */
 .cl-socialButtonsBlockButton {

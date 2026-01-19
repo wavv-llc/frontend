@@ -206,6 +206,21 @@ export async function apiRequest<T = any>(
 
 // User API functions
 export const userApi = {
+  createUser: async (token: string, clerkId: string) => {
+    return apiRequest<{
+      id: string
+      clerkId: string
+      email: string
+      firstName?: string
+      lastName?: string
+      hasCompletedOnboarding: boolean
+    }>('/api/v1/users/', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ clerkId }),
+    })
+  },
+
   getMe: async (token: string) => {
     return apiRequest<{
       id: string
@@ -232,6 +247,17 @@ export const userApi = {
     return apiRequest('/api/v1/users/me/complete-onboarding', {
       method: 'POST',
       token,
+    })
+  },
+}
+
+// Organization API functions
+export const organizationApi = {
+  createOrganization: async (token: string, name: string) => {
+    return apiRequest('/api/v1/organizations', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ name }),
     })
   },
 }
