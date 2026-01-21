@@ -331,7 +331,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   };
 
   const handleSettings = () => {
-    router.push("/settings");
+    router.push("/organization/settings");
   };
 
   const handleWorkspaceClick = (workspaceId: string) => {
@@ -873,7 +873,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             align="end"
             className="w-56 bg-popover border-border text-popover-foreground"
           >
-            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/settings")}>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/user/settings")}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>

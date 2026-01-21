@@ -233,6 +233,7 @@ export const userApi = {
       firstName?: string
       lastName?: string
       hasCompletedOnboarding: boolean
+      organizationId?: string
     }>('/api/v1/users/me', {
       method: 'GET',
       token,
@@ -263,6 +264,17 @@ export const organizationApi = {
       token,
       body: JSON.stringify({ name }),
     })
+  },
+
+  inviteMember: async (token: string, organizationId: string, email: string) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/${organizationId}/access-links/member`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ email }),
+      }
+    )
   },
 }
 
@@ -968,6 +980,34 @@ export interface DashboardStats {
   inProgressTasks: number
   completedTasks: number
   overdueTasks: number
+}
+
+// Access Link API functions
+export interface AccessLink {
+  id: string
+  type: string
+  active: boolean
+  expiresAt: string | null
+  email: string
+  project: {
+    id: string
+    name: string
+  } | null
+}
+
+export const accessLinkApi = {
+  getAccessLink: async (linkId: string) => {
+    return apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
+      method: 'GET',
+    })
+  },
+
+  acceptAccessLink: async (token: string, linkId: string) => {
+    return apiRequest<{ message: string }>(`/api/v1/access-links/${linkId}/accept`, {
+      method: 'POST',
+      token,
+    })
+  },
 }
 
 // Dashboard API functions
