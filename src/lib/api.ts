@@ -65,6 +65,21 @@ export interface Task {
   attachments?: TaskAttachment[]
 }
 
+export type DataType = 'STRING' | 'NUMBER' | 'TASK' | 'USER' | 'DATE' | 'DOCUMENT'
+
+export interface CustomField {
+  id: string
+  name: string
+  description?: string
+  defaultValue: string
+  dataType: DataType
+  color?: string
+  required: boolean
+  projectId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface TaskCommentReaction {
   id: string
   emoji: string
@@ -218,6 +233,7 @@ export const userApi = {
       firstName?: string
       lastName?: string
       hasCompletedOnboarding: boolean
+      organizationId?: string
     }>('/api/v1/users/me', {
       method: 'GET',
       token,
@@ -248,6 +264,17 @@ export const organizationApi = {
       token,
       body: JSON.stringify({ name }),
     })
+  },
+
+  inviteMember: async (token: string, organizationId: string, email: string) => {
+    return apiRequest<{ message: string }>(
+      `/api/v1/${organizationId}/access-links/member`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ email }),
+      }
+    )
   },
 }
 
@@ -504,6 +531,62 @@ export const projectApi = {
 
   removeOwner: async (token: string, projectId: string, userId: string) => {
     return apiRequest<Project>(`/api/v1/projects/${projectId}/owners/${userId}`, {
+      method: 'DELETE',
+      token,
+    })
+  },
+}
+
+// Custom Field API functions
+export const customFieldApi = {
+  getCustomFields: async (token: string, projectId: string) => {
+    return apiRequest<CustomField[]>(`/api/v1/projects/${projectId}/custom-fields`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createCustomField: async (
+    token: string,
+    projectId: string,
+    data: {
+      name: string
+      description?: string
+      defaultValue?: string
+      dataType: DataType
+      color?: string
+      required?: boolean
+    }
+  ) => {
+    return apiRequest<CustomField>(`/api/v1/projects/${projectId}/custom-fields`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  updateCustomField: async (
+    token: string,
+    projectId: string,
+    fieldId: string,
+    data: {
+      name?: string
+      description?: string
+      defaultValue?: string
+      dataType?: DataType
+      color?: string
+      required?: boolean
+    }
+  ) => {
+    return apiRequest<CustomField>(`/api/v1/projects/${projectId}/custom-fields/${fieldId}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  deleteCustomField: async (token: string, projectId: string, fieldId: string) => {
+    return apiRequest<{ message: string }>(`/api/v1/projects/${projectId}/custom-fields/${fieldId}`, {
       method: 'DELETE',
       token,
     })
@@ -897,6 +980,34 @@ export interface DashboardStats {
   inProgressTasks: number
   completedTasks: number
   overdueTasks: number
+}
+
+// Access Link API functions
+export interface AccessLink {
+  id: string
+  type: string
+  active: boolean
+  expiresAt: string | null
+  email: string
+  project: {
+    id: string
+    name: string
+  } | null
+}
+
+export const accessLinkApi = {
+  getAccessLink: async (linkId: string) => {
+    return apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
+      method: 'GET',
+    })
+  },
+
+  acceptAccessLink: async (token: string, linkId: string) => {
+    return apiRequest<{ message: string }>(`/api/v1/access-links/${linkId}/accept`, {
+      method: 'POST',
+      token,
+    })
+  },
 }
 
 // Dashboard API functions
