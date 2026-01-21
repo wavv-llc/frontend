@@ -260,8 +260,11 @@ export function ProjectDetailView({
                                 <span className="font-medium text-foreground">{project.name}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{project.description || project.name || 'Project Details'}</h1>
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{project.name || 'Project Details'}</h1>
+                            {project.description && (
+                                <p className="text-sm text-muted-foreground">{project.description}</p>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
