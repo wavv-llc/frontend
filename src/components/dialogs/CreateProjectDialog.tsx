@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { DatePicker } from '@/components/ui/date-picker'
 import { projectApi } from '@/lib/api'
 import { toast } from 'sonner'
 import { useSidebar } from '@/contexts/SidebarContext'
@@ -35,7 +34,6 @@ export function CreateProjectDialog({
     const { triggerRefresh } = useSidebar()
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
-    const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -46,10 +44,6 @@ export function CreateProjectDialog({
             return
         }
 
-        if (!dueDate) {
-            toast.error('Due date is required')
-            return
-        }
 
         setIsLoading(true)
         try {
@@ -59,13 +53,12 @@ export function CreateProjectDialog({
                 return
             }
 
-            await projectApi.createProject(token, workspaceId, name, dueDate.toISOString(), description || undefined)
+            await projectApi.createProject(token, workspaceId, name, description || undefined)
             toast.success('Project created successfully')
 
             // Reset form
             setName('')
             setDescription('')
-            setDueDate(undefined)
 
             // Close dialog first
             onOpenChange(false)
@@ -110,15 +103,7 @@ export function CreateProjectDialog({
                                 autoFocus
                             />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="dueDate">Due Date *</Label>
-                            <DatePicker
-                                date={dueDate}
-                                setDate={setDueDate}
-                                disabled={isLoading}
-                                placeholder="Select a due date"
-                            />
-                        </div>
+
                         <div className="grid gap-2">
                             <Label htmlFor="description">Project Description (Optional)</Label>
                             <Textarea

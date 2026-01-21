@@ -65,6 +65,7 @@ export default function WorkspaceDetailsPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [editWorkspaceName, setEditWorkspaceName] = useState('')
     const [editWorkspaceDescription, setEditWorkspaceDescription] = useState('')
+    const [deleteConfirmation, setDeleteConfirmation] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const workspaceId = params.id as string
@@ -161,6 +162,18 @@ export default function WorkspaceDetailsPage() {
     }
 
     const handleDeleteWorkspace = async () => {
+        if (!workspace) return
+
+        if (workspace.name === 'My Workspace') {
+            toast.error("Cannot delete 'My Workspace'")
+            return
+        }
+
+        if (deleteConfirmation !== workspace.name) {
+            toast.error('Please type the workspace name exactly to confirm')
+            return
+        }
+
         try {
             setIsSubmitting(true)
             const token = await getToken()
@@ -175,9 +188,10 @@ export default function WorkspaceDetailsPage() {
             router.push('/workspaces')
         } catch (error) {
             console.error('Failed to delete workspace:', error)
-            toast.error('Failed to delete workspace')
+            toast.error(error instanceof Error ? error.message : 'Failed to delete workspace')
         } finally {
             setIsSubmitting(false)
+            setDeleteConfirmation('')
         }
     }
 
@@ -263,9 +277,10 @@ export default function WorkspaceDetailsPage() {
                                 </Button>
                             </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>Workspaces</span>
+                                <Link href={`/workspaces/${workspaceId}`} className="hover:text-foreground hover:underline transition-colors cursor-pointer">
+                                    {workspace.name}
+                                </Link>
                                 <span className="text-muted-foreground/40">/</span>
-                                <span>Workspace</span>
                             </div>
                         </div>
                         <h1 className="text-2xl font-semibold tracking-tight text-foreground">{workspace.name}</h1>
@@ -426,14 +441,30 @@ export default function WorkspaceDetailsPage() {
                     <DialogHeader>
                         <DialogTitle>Delete Workspace</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this workspace? This will also delete all projects and tasks in this workspace. This action cannot be undone.
+                            Are you sure you want to delete this workspace? All projects in this workspace will be moved to your &quot;My Workspace&quot;. This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Label>Type <span className="font-bold">{workspace?.name}</span> to confirm</Label>
+                        <Input
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="Enter workspace name"
+                            autoFocus
+                        />
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isSubmitting}>
+                        <Button variant="outline" onClick={() => {
+                            setDeleteDialogOpen(false)
+                            setDeleteConfirmation('')
+                        }} disabled={isSubmitting}>
                             Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleDeleteWorkspace} disabled={isSubmitting}>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteWorkspace}
+                            disabled={isSubmitting || deleteConfirmation !== workspace?.name}
+                        >
                             {isSubmitting ? 'Deleting...' : 'Delete Workspace'}
                         </Button>
                     </DialogFooter>

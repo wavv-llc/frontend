@@ -24,7 +24,6 @@ export interface Project {
   id: string
   name: string
   description?: string
-  dueDate: string
   workspaceId: string
   createdAt: string
   updatedAt: string
@@ -376,7 +375,7 @@ export const workspaceApi = {
   updateWorkspace: async (
     token: string,
     id: string,
-    data: { name?: string; description?: string }
+    data: { name?: string; description?: string; order?: number }
   ) => {
     return apiRequest<Workspace>(`/api/v1/workspaces/${id}`, {
       method: 'PATCH',
@@ -450,22 +449,21 @@ export const projectApi = {
 
   createProject: async (
     token: string,
-    workspaceId: string,
+    workspaceId: string | undefined,
     name: string,
-    dueDate: string,
     description?: string
   ) => {
     return apiRequest<Project>('/api/v1/projects', {
       method: 'POST',
       token,
-      body: JSON.stringify({ workspaceId, name, dueDate, description }),
+      body: JSON.stringify({ workspaceId, name, description }),
     })
   },
 
   updateProject: async (
     token: string,
     id: string,
-    data: { name?: string; description?: string; workspaceId?: string }
+    data: { name?: string; description?: string; workspaceId?: string; order?: number }
   ) => {
     return apiRequest<Project>(`/api/v1/projects/${id}`, {
       method: 'PATCH',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
-import { Folder, User, FileText, Plus, MoreVertical, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Folder, User, FileText, Plus, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { WorkspaceListSkeleton } from '@/components/skeletons/WorkspaceListSkeleton'
 import Link from 'next/link'
@@ -15,6 +15,16 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export default function WorkspacesPage() {
     const { getToken } = useAuth()
@@ -22,7 +32,9 @@ export default function WorkspacesPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [showSkeleton, setShowSkeleton] = useState(false)
     const [showCreateDialog, setShowCreateDialog] = useState(false)
-    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null)
+    const [deleteConfirmation, setDeleteConfirmation] = useState('')
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const fetchWorkspaces = async () => {
         try {
@@ -55,30 +67,48 @@ export default function WorkspacesPage() {
         fetchWorkspaces()
     }
 
-    const handleDelete = async (workspaceId: string, e: React.MouseEvent) => {
+    const handleDeleteClick = (workspace: Workspace, e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
+        if (workspace.name === 'My Workspace') {
+            toast.error("Cannot delete 'My Workspace'")
+            return
+        }
+        setDeleteConfirmation('')
+        setWorkspaceToDelete(workspace)
+    }
 
-        if (!confirm('Are you sure you want to delete this workspace? This action cannot be undone.')) {
+    const handleConfirmDelete = async () => {
+        if (!workspaceToDelete) return
+
+        if (workspaceToDelete.name === 'My Workspace') {
+            toast.error("Cannot delete 'My Workspace'")
             return
         }
 
-        setDeletingId(workspaceId)
+        if (deleteConfirmation !== workspaceToDelete.name) {
+            toast.error('Please type the workspace name exactly to confirm')
+            return
+        }
+
         try {
+            setIsDeleting(true)
             const token = await getToken()
             if (!token) {
-                toast.error('You must be logged in')
+                toast.error('Authentication required')
                 return
             }
 
-            await workspaceApi.deleteWorkspace(token, workspaceId)
+            await workspaceApi.deleteWorkspace(token, workspaceToDelete.id)
             toast.success('Workspace deleted successfully')
+            setWorkspaceToDelete(null)
             fetchWorkspaces()
         } catch (error) {
             console.error('Failed to delete workspace:', error)
-            toast.error('Failed to delete workspace')
+            toast.error(error instanceof Error ? error.message : 'Failed to delete workspace')
         } finally {
-            setDeletingId(null)
+            setIsDeleting(false)
+            setDeleteConfirmation('')
         }
     }
 
@@ -134,20 +164,10 @@ export default function WorkspacesPage() {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="text-destructive focus:text-destructive"
-                                                        onClick={(e) => handleDelete(workspace.id, e)}
-                                                        disabled={deletingId === workspace.id}
+                                                        onClick={(e) => handleDeleteClick(workspace, e)}
                                                     >
-                                                        {deletingId === workspace.id ? (
-                                                            <>
-                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                                Deleting...
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </>
-                                                        )}
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -205,6 +225,38 @@ export default function WorkspacesPage() {
                 onOpenChange={setShowCreateDialog}
                 onSuccess={handleCreateSuccess}
             />
+
+            <Dialog open={!!workspaceToDelete} onOpenChange={(open) => !open && setWorkspaceToDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Workspace</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this workspace? All projects in this workspace will be moved to your &quot;My Workspace&quot;. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Label>Type <span className="font-bold">{workspaceToDelete?.name}</span> to confirm</Label>
+                        <Input
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="Enter workspace name"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setWorkspaceToDelete(null)} disabled={isDeleting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isDeleting || deleteConfirmation !== workspaceToDelete?.name}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete Workspace'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }

@@ -30,6 +30,8 @@ import { TaskRow } from './TaskRow'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
+import Link from 'next/link'
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -227,7 +229,9 @@ export function ProjectDetailView({
                     handleRefresh()
                 }}
                 workspaceName={project.workspace?.name}
+                workspaceId={project.workspaceId}
                 projectName={project.name}
+                projectId={project.id}
             />
         )
     }
@@ -239,18 +243,21 @@ export function ProjectDetailView({
                 <div className="flex items-start justify-between">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() => router.push(`/workspaces/${project.workspaceId}`)}
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
+                            <Link href={`/workspaces/${project.workspaceId}`}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            </Link>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>{project.workspace.name}</span>
+                                <Link href={`/workspaces/${project.workspaceId}`} className="hover:text-foreground hover:underline transition-colors cursor-pointer">
+                                    {project.workspace.name}
+                                </Link>
                                 <span className="text-muted-foreground/40">/</span>
-                                <span>Project</span>
+                                <span className="font-medium text-foreground">{project.name}</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -403,9 +410,8 @@ export function ProjectDetailView({
                     <div className="flex flex-col h-full">
                         {/* Table Header */}
                         <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white">
-                            <div className="col-span-5">Task Name</div>
+                            <div className="col-span-7">Task Name</div>
                             <div className="col-span-2">Status</div>
-                            <div className="col-span-2">Due Date</div>
                             <div className="col-span-2">Assigned To</div>
                             <div className="col-span-1 text-right"></div>
                         </div>

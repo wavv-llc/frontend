@@ -56,7 +56,7 @@ export function TaskRow({
             onClick={onClick}
             className="grid grid-cols-12 gap-4 px-8 py-5 items-center hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
         >
-            <div className="col-span-5">
+            <div className="col-span-7">
                 <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-3">
                     {task.name}
                     <ArrowUpRight className="h-3.5 w-3.5 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all text-muted-foreground" />
@@ -68,19 +68,7 @@ export function TaskRow({
                     <span className="text-sm text-muted-foreground">{getStatusLabel(task.status)}</span>
                 </div>
             </div>
-            <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-2">
-                {task.dueAt ? (
-                    <div className={cn(
-                        "flex items-center gap-1.5",
-                        new Date(task.dueAt) < new Date() && task.status !== 'COMPLETED' ? "text-destructive font-medium" : ""
-                    )}>
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(task.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </div>
-                ) : (
-                    <span className="text-muted-foreground/40 text-xs">-</span>
-                )}
-            </div>
+
             <div className="col-span-2 flex items-center -space-x-2 pl-2">
                 {(task.preparers || []).length > 0 ? (
                     (task.preparers || []).slice(0, 3).map((user, i) => (
