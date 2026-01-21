@@ -65,6 +65,21 @@ export interface Task {
   attachments?: TaskAttachment[]
 }
 
+export type DataType = 'STRING' | 'NUMBER' | 'TASK' | 'USER' | 'DATE' | 'DOCUMENT'
+
+export interface CustomField {
+  id: string
+  name: string
+  description?: string
+  defaultValue: string
+  dataType: DataType
+  color?: string
+  required: boolean
+  projectId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface TaskCommentReaction {
   id: string
   emoji: string
@@ -504,6 +519,62 @@ export const projectApi = {
 
   removeOwner: async (token: string, projectId: string, userId: string) => {
     return apiRequest<Project>(`/api/v1/projects/${projectId}/owners/${userId}`, {
+      method: 'DELETE',
+      token,
+    })
+  },
+}
+
+// Custom Field API functions
+export const customFieldApi = {
+  getCustomFields: async (token: string, projectId: string) => {
+    return apiRequest<CustomField[]>(`/api/v1/projects/${projectId}/custom-fields`, {
+      method: 'GET',
+      token,
+    })
+  },
+
+  createCustomField: async (
+    token: string,
+    projectId: string,
+    data: {
+      name: string
+      description?: string
+      defaultValue?: string
+      dataType: DataType
+      color?: string
+      required?: boolean
+    }
+  ) => {
+    return apiRequest<CustomField>(`/api/v1/projects/${projectId}/custom-fields`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  updateCustomField: async (
+    token: string,
+    projectId: string,
+    fieldId: string,
+    data: {
+      name?: string
+      description?: string
+      defaultValue?: string
+      dataType?: DataType
+      color?: string
+      required?: boolean
+    }
+  ) => {
+    return apiRequest<CustomField>(`/api/v1/projects/${projectId}/custom-fields/${fieldId}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    })
+  },
+
+  deleteCustomField: async (token: string, projectId: string, fieldId: string) => {
+    return apiRequest<{ message: string }>(`/api/v1/projects/${projectId}/custom-fields/${fieldId}`, {
       method: 'DELETE',
       token,
     })
