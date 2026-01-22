@@ -8,11 +8,9 @@ import {
     ArrowUpRight,
     Edit2,
     Trash2,
-    Calendar,
     Copy,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { type Task } from '@/lib/api'
+import { type Task, type CustomField } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -25,12 +23,14 @@ import {
 
 export function TaskRow({
     task,
+    customFields = [],
     onClick,
     onEdit,
     onDelete,
     onCopy
 }: {
     task: Task,
+    customFields?: CustomField[],
     onClick: () => void,
     onEdit: (task: Task) => void
     onDelete: (id: string) => void
@@ -54,25 +54,32 @@ export function TaskRow({
         }
     }
 
+    // Get custom field value for this task (placeholder - would need task.customFieldValues from API)
+    const getCustomFieldValue = (fieldId: string) => {
+        // TODO: Once Task type includes customFieldValues, access it here
+        // For now return empty/placeholder
+        return '-'
+    }
+
     return (
         <div
             onClick={onClick}
-            className="grid grid-cols-12 gap-4 px-8 py-5 items-center hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
+            className="flex items-center gap-4 px-8 py-5 hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
         >
-            <div className="col-span-7">
+            <div className="flex-[3] min-w-[200px]">
                 <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-3">
                     {task.name}
                     <ArrowUpRight className="h-3.5 w-3.5 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all text-muted-foreground" />
                 </div>
             </div>
-            <div className="col-span-2">
+            <div className="flex-1 min-w-[100px]">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {getStatusIcon(task.status)}
                     <span className="text-sm text-muted-foreground">{getStatusLabel(task.status)}</span>
                 </div>
             </div>
 
-            <div className="col-span-2 flex items-center -space-x-2 pl-2">
+            <div className="flex-1 min-w-[100px] flex items-center -space-x-2">
                 {(task.preparers || []).length > 0 ? (
                     (task.preparers || []).slice(0, 3).map((user, i) => (
                         <Avatar key={i} className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white">
@@ -85,7 +92,18 @@ export function TaskRow({
                     <span className="text-xs text-muted-foreground/40 italic">Unassigned</span>
                 )}
             </div>
-            <div className="col-span-1 flex justify-end">
+
+            {/* Custom Field Values */}
+            {customFields.map((field) => (
+                <div key={field.id} className="flex-1 min-w-[100px] text-sm text-muted-foreground truncate">
+                    {getCustomFieldValue(field.id)}
+                </div>
+            ))}
+
+            {/* Spacer for add column button */}
+            <div className="w-[120px] flex-shrink-0"></div>
+
+            <div className="w-10 flex-shrink-0 flex justify-end">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button

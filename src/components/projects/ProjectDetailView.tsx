@@ -16,7 +16,8 @@ import {
     Trash2,
     X,
     Loader2,
-    Copy
+    Copy,
+    Check
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Project, type Task, type CustomField, type DataType, projectApi, taskApi, customFieldApi } from '@/lib/api'
@@ -357,6 +358,44 @@ export function ProjectDetailView({
         setSettingsModalPage('settings')
     }
 
+    const handleCreateInlineField = async () => {
+        if (!inlineFieldName.trim()) {
+            toast.error('Field name is required')
+            return
+        }
+
+        try {
+            setIsCreatingInlineField(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await customFieldApi.createCustomField(token, project.id, {
+                name: inlineFieldName.trim(),
+                dataType: inlineFieldDataType,
+            })
+
+            toast.success('Custom field created successfully')
+            setInlineFieldName('')
+            setInlineFieldDataType('STRING')
+            setIsAddingColumn(false)
+            fetchCustomFields()
+        } catch (error) {
+            console.error('Failed to create custom field:', error)
+            toast.error('Failed to create custom field')
+        } finally {
+            setIsCreatingInlineField(false)
+        }
+    }
+
+    const cancelInlineFieldCreation = () => {
+        setIsAddingColumn(false)
+        setInlineFieldName('')
+        setInlineFieldDataType('STRING')
+    }
+
     const handleOpenSettings = () => {
         setEditProjectName(project.name || '')
         setEditProjectDescription(project.description || '')
@@ -392,6 +431,17 @@ export function ProjectDetailView({
 
     const router = useRouter()
     const searchParams = useSearchParams()
+
+    // Inline field creation state
+    const [isAddingColumn, setIsAddingColumn] = useState(false)
+    const [inlineFieldName, setInlineFieldName] = useState('')
+    const [inlineFieldDataType, setInlineFieldDataType] = useState<DataType>('STRING')
+    const [isCreatingInlineField, setIsCreatingInlineField] = useState(false)
+
+    // Fetch custom fields on mount
+    useEffect(() => {
+        fetchCustomFields()
+    }, [project.id])
 
     // Sync URL with selected task
     useEffect(() => {
@@ -615,12 +665,96 @@ export function ProjectDetailView({
                 ) : (
                     <div className="flex flex-col h-full">
                         {/* Table Header */}
-                        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white">
-                            <div className="col-span-7">Task Name</div>
-                            <div className="col-span-2">Status</div>
-                            <div className="col-span-2">Assigned To</div>
-                            <div className="col-span-1 text-right"></div>
+                        <div className="flex items-center gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white">
+                            <div className="flex-[3] min-w-[200px]">Task Name</div>
+                            <div className="flex-1 min-w-[100px]">Status</div>
+                            <div className="flex-1 min-w-[100px]">Assigned To</div>
+                            {/* Dynamic Custom Field Columns */}
+                            {customFields.map((field) => (
+                                <div key={field.id} className="flex-1 min-w-[100px] truncate" title={field.name}>
+                                    {field.name}
+                                </div>
+                            ))}
+                            {/* Add Column Button */}
+                            <div className="w-[120px] flex-shrink-0">
+                                {isAddingColumn ? (
+                                    <div className="flex items-center gap-1">
+                                        <Input
+                                            value={inlineFieldName}
+                                            onChange={(e) => setInlineFieldName(e.target.value)}
+                                            placeholder="Field name"
+                                            className="h-7 text-xs w-full"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleCreateInlineField()
+                                                if (e.key === 'Escape') cancelInlineFieldCreation()
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-muted"
+                                        onClick={() => setIsAddingColumn(true)}
+                                        title="Add custom field"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="w-10 flex-shrink-0"></div>
                         </div>
+                        {/* Type selector row when adding column */}
+                        {isAddingColumn && (
+                            <div className="flex items-center gap-4 px-8 py-2 border-b border-border/60 bg-muted/30">
+                                <div className="flex-[3] min-w-[200px]"></div>
+                                <div className="flex-1 min-w-[100px]"></div>
+                                <div className="flex-1 min-w-[100px]"></div>
+                                {customFields.map((field) => (
+                                    <div key={field.id} className="flex-1 min-w-[100px]"></div>
+                                ))}
+                                <div className="w-[120px] flex-shrink-0">
+                                    <div className="flex items-center gap-1">
+                                        <Select value={inlineFieldDataType} onValueChange={(value: DataType) => setInlineFieldDataType(value)}>
+                                            <SelectTrigger className="h-7 text-xs w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {DATA_TYPES.map((type) => (
+                                                    <SelectItem key={type.value} value={type.value} className="text-xs">
+                                                        {type.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-green-100 hover:text-green-600"
+                                            onClick={handleCreateInlineField}
+                                            disabled={isCreatingInlineField || !inlineFieldName.trim()}
+                                        >
+                                            {isCreatingInlineField ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                                <Check className="h-3 w-3" />
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
+                                            onClick={cancelInlineFieldCreation}
+                                            disabled={isCreatingInlineField}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="w-10 flex-shrink-0"></div>
+                            </div>
+                        )}
 
                         {/* Table Body */}
                         <div className="overflow-y-auto flex-1 pb-10">
@@ -645,6 +779,7 @@ export function ProjectDetailView({
                                         <TaskRow
                                             key={task.id}
                                             task={task}
+                                            customFields={customFields}
                                             onClick={() => handleTaskSelect(task)}
                                             onEdit={(task) => {
                                                 setTaskToEdit(task)

@@ -48,16 +48,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 
 interface TaskDetailViewProps {
@@ -139,25 +130,6 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
         loadComments(true)
     }, [task.id])
 
-    const handleStatusChange = async (newStatus: Task['status']) => {
-        try {
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
-
-            await taskApi.changeStatus(token, task.projectId, task.id, newStatus)
-            toast.success('Task status updated')
-            onUpdate?.()
-        } catch (error) {
-            console.error('Failed to update status:', error)
-            toast.error('Failed to update task status')
-        }
-    }
-
-
-
     const handleDeleteTask = async () => {
         try {
             setIsSubmitting(true)
@@ -235,8 +207,6 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
     const statusLabel = task.status === 'COMPLETED' ? 'Completed' :
         task.status === 'IN_REVIEW' ? 'In Review' :
             task.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending'
-
-    const unresolvedComments = comments.filter(c => c.status === 'OPEN').length
 
     return (
         <div className="flex flex-col h-full bg-background animate-in fade-in slide-in-from-bottom-4 duration-300 p-8">
