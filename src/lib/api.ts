@@ -65,7 +65,7 @@ export interface Task {
   attachments?: TaskAttachment[]
 }
 
-export type DataType = 'STRING' | 'NUMBER' | 'TASK' | 'USER' | 'DATE' | 'DOCUMENT'
+export type DataType = 'STRING' | 'NUMBER' | 'TASK' | 'USER' | 'DATE' | 'DOCUMENT' | 'CUSTOM'
 
 export interface CustomField {
   id: string
@@ -75,6 +75,7 @@ export interface CustomField {
   dataType: DataType
   color?: string
   required: boolean
+  customOptions?: string[]
   projectId: string
   createdAt: string
   updatedAt: string
@@ -535,6 +536,13 @@ export const projectApi = {
       token,
     })
   },
+
+  copyProject: async (token: string, projectId: string) => {
+    return apiRequest<Project>(`/api/v1/projects/${projectId}/copy`, {
+      method: 'POST',
+      token,
+    })
+  },
 }
 
 // Custom Field API functions
@@ -617,6 +625,7 @@ export const taskApi = {
       description?: string
       dueAt?: string
       status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
+      customFields?: Record<string, string | number | null>
     }
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks`, {
@@ -767,6 +776,17 @@ export const taskApi = {
       {
         method: 'DELETE',
         token,
+      }
+    )
+  },
+
+  copyTask: async (token: string, projectId: string, taskId: string) => {
+    return apiRequest<Task>(
+      `/api/v1/projects/${projectId}/tasks/${taskId}/copy`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ projectId, id: taskId }),
       }
     )
   },

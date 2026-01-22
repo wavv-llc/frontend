@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, notFound, useRouter } from 'next/navigation'
+import { useParams, notFound, useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { ProjectListView } from '@/components/projects/ProjectListView'
 import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView'
@@ -10,10 +10,6 @@ import {
     ArrowLeft,
     MoreHorizontal,
     Plus,
-    Filter,
-    ArrowUpDown,
-    ChevronDown,
-    Loader2,
     Settings,
     Download,
     Users,
@@ -26,7 +22,6 @@ import { cn } from '@/lib/utils'
 import { workspaceApi, projectApi, taskApi, type Workspace, type Project, type Task } from '@/lib/api'
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog'
 import { CreateTaskDialog } from '@/components/dialogs/CreateTaskDialog'
-import { FilterSortControls, type TaskFilters, type TaskSort } from '@/components/workspace/FilterSortControls'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -50,6 +45,7 @@ import { toast } from 'sonner'
 export default function WorkspaceDetailsPage() {
     const params = useParams()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { getToken } = useAuth()
     const [view, setView] = useState<'list' | 'calendar'>('list')
     const [workspace, setWorkspace] = useState<Workspace | null>(null)
@@ -58,7 +54,7 @@ export default function WorkspaceDetailsPage() {
     const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showSkeleton, setShowSkeleton] = useState(false)
-    const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false)
+    const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(searchParams.get('createProject') === 'true')
     const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false)
     const [selectedProjectId, setSelectedProjectId] = useState<string>('')
     const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -193,57 +189,6 @@ export default function WorkspaceDetailsPage() {
             setIsSubmitting(false)
             setDeleteConfirmation('')
         }
-    }
-
-    const handleFilterChange = (filters: TaskFilters) => {
-        let filtered = [...tasks]
-
-        // Filter by status
-        if (filters.status.length > 0) {
-            filtered = filtered.filter(task => filters.status.includes(task.status))
-        }
-
-        // Filter by overdue
-        if (filters.showOverdue) {
-            filtered = filtered.filter(task => {
-                if (!task.dueAt) return false
-                return new Date(task.dueAt) < new Date() && task.status !== 'COMPLETED'
-            })
-        }
-
-        // Filter by completed
-        if (!filters.showCompleted) {
-            filtered = filtered.filter(task => task.status !== 'COMPLETED')
-        }
-
-        setFilteredTasks(filtered)
-    }
-
-    const handleSortChange = (sort: TaskSort) => {
-        const sorted = [...filteredTasks].sort((a, b) => {
-            let comparison = 0
-
-            switch (sort.field) {
-                case 'name':
-                    comparison = a.name.localeCompare(b.name)
-                    break
-                case 'dueDate':
-                    const aDate = a.dueAt ? new Date(a.dueAt).getTime() : 0
-                    const bDate = b.dueAt ? new Date(b.dueAt).getTime() : 0
-                    comparison = aDate - bDate
-                    break
-                case 'status':
-                    comparison = a.status.localeCompare(b.status)
-                    break
-                case 'createdAt':
-                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    break
-            }
-
-            return sort.direction === 'asc' ? comparison : -comparison
-        })
-
-        setFilteredTasks(sorted)
     }
 
     const handleExportWorkspace = () => {

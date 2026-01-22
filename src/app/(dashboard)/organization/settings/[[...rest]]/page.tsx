@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
-import { UserProfile } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,7 +27,6 @@ interface SelectedSite {
 
 export default function SettingsPage() {
   const { isLoaded, getToken } = useAuth()
-  const [showUserProfile, setShowUserProfile] = useState(false)
   const [sites, setSites] = useState<SharePointSite[]>([])
   const [, setSelectedSites] = useState<SelectedSite[]>([])
   const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set())
@@ -172,45 +170,12 @@ export default function SettingsPage() {
         <div>
           <h1 className="text-3xl font-semibold flex items-center gap-2">
             <SettingsIcon className="h-8 w-8" />
-            Settings
+            Organization Settings
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your account settings
+            Manage your organization settings
           </p>
         </div>
-
-        {/* Account Settings with Clerk UserProfile */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>
-              Manage your account information and preferences
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Profile Management</p>
-                  <p className="text-sm text-muted-foreground">
-                    Update your name, email, and account settings
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setShowUserProfile(!showUserProfile)}
-                  variant={showUserProfile ? 'outline' : 'default'}
-                >
-                  {showUserProfile ? 'Hide Profile' : 'Manage Profile'}
-                </Button>
-              </div>
-              {showUserProfile && (
-                <div className="border rounded-lg p-4">
-                  <UserProfile />
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* SharePoint Sites Management */}
         <Card>

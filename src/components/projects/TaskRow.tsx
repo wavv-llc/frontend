@@ -9,6 +9,7 @@ import {
     Edit2,
     Trash2,
     Calendar,
+    Copy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Task } from '@/lib/api'
@@ -26,12 +27,14 @@ export function TaskRow({
     task,
     onClick,
     onEdit,
-    onDelete
+    onDelete,
+    onCopy
 }: {
     task: Task,
     onClick: () => void,
     onEdit: (task: Task) => void
     onDelete: (id: string) => void
+    onCopy: (task: Task) => void
 }) {
     const getStatusIcon = (status: Task['status']) => {
         switch (status) {
@@ -101,6 +104,13 @@ export function TaskRow({
                         }}>
                             <Edit2 className="h-4 w-4 mr-2" />
                             Edit Task
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation()
+                            onCopy(task)
+                        }}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Task
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

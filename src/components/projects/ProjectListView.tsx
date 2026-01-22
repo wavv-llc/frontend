@@ -8,7 +8,6 @@ import {
     MoreVertical,
     FolderInput,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { type Project, type Task, type Workspace, workspaceApi, projectApi } from '@/lib/api'
 import {
     DropdownMenu,
@@ -96,20 +95,15 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
         <div className="w-full">
             {/* Projects Table Header */}
             <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/20 rounded-t-lg">
-                <div className="col-span-5 pl-2">Project Name</div>
-                <div className="col-span-3">Progress</div>
-                <div className="col-span-2">Due Date</div>
-                <div className="col-span-2">Owner</div>
+                <div className="col-span-6 pl-2">Project Name</div>
+                <div className="col-span-3">Due Date</div>
+                <div className="col-span-3">Owner</div>
             </div>
 
             <div className="border-x border-b border-border rounded-b-lg divide-y divide-border bg-card">
                 {projects.map((project) => {
                     // Use allTasks for stats if available, otherwise use displayed tasks
                     const statsTasks = (allTasks || tasks).filter(task => task.projectId === project.id)
-
-                    const totalTasks = statsTasks.length
-                    const completedTasks = statsTasks.filter(t => t.status === 'COMPLETED').length
-                    const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100)
 
                     // Derive due date (latest task due date)
                     const dueDates = statsTasks
@@ -132,42 +126,24 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                             <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center hover:bg-muted/50 transition-colors">
                                 {/* Project Name */}
                                 <div
-                                    className="col-span-5 flex items-center gap-3 cursor-pointer"
+                                    className="col-span-6 flex items-center gap-3 cursor-pointer"
                                     onClick={() => router.push(`/workspaces/${project.workspaceId}/projects/${project.id}`)}
                                 >
                                     <div className="transition-transform duration-200 text-muted-foreground group-hover:translate-x-1">
                                         <ChevronRight className="h-4 w-4" />
                                     </div>
-                                    <div>
-                                        <div className="font-medium text-foreground group-hover:text-primary transition-colors">
-                                            {project.name || `Project ${project.id.slice(0, 8)}`}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground mt-0.5">
-                                            {completedTasks} of {totalTasks} tasks completed
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Progress */}
-                                <div className="col-span-3 pr-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-primary transition-all duration-500 rounded-full"
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-sm text-muted-foreground w-9 text-right">{progress}%</span>
+                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors">
+                                        {project.name || `Project ${project.id.slice(0, 8)}`}
                                     </div>
                                 </div>
 
                                 {/* Due Date */}
-                                <div className="col-span-2 text-sm text-muted-foreground">
+                                <div className="col-span-3 text-sm text-muted-foreground">
                                     {latestDueDate ? latestDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
                                 </div>
 
                                 {/* Owner & Options */}
-                                <div className="col-span-2 flex items-center justify-between gap-2">
+                                <div className="col-span-3 flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         {owner ? (
                                             <>

@@ -13,11 +13,10 @@ import {
     Check,
     Edit2,
     Trash2,
-
+    Copy,
     AlignLeft,
     Paperclip,
     Send,
-    CornerUpLeft,
     SmilePlus,
 } from 'lucide-react'
 import {
@@ -181,6 +180,23 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
         }
     }
 
+    const handleCopyTask = async () => {
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await taskApi.copyTask(token, task.projectId, task.id)
+            toast.success('Task copied successfully')
+            onUpdate?.()
+        } catch (error) {
+            console.error('Failed to copy task:', error)
+            toast.error('Failed to copy task')
+        }
+    }
+
     const handleCreateComment = async () => {
         if (!newCommentContent.trim()) {
             toast.error('Comment cannot be empty')
@@ -286,6 +302,10 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
                                 <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
                                     <Edit2 className="h-4 w-4 mr-2" />
                                     Edit Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleCopyTask}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copy Task
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
