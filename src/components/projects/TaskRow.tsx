@@ -64,22 +64,22 @@ export function TaskRow({
     return (
         <div
             onClick={onClick}
-            className="flex items-center gap-4 px-8 py-5 hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary"
+            className="flex items-center gap-4 px-8 py-5 hover:bg-muted/30 transition-all duration-200 group cursor-pointer border-l-2 border-l-transparent hover:border-l-primary min-w-max"
         >
-            <div className="flex-[3] min-w-[200px]">
+            <div className="w-[300px] flex-shrink-0">
                 <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-3">
                     {task.name}
                     <ArrowUpRight className="h-3.5 w-3.5 opacity-0 -translate-y-1 translate-x-1 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all text-muted-foreground" />
                 </div>
             </div>
-            <div className="flex-1 min-w-[100px]">
+            <div className="w-[120px] flex-shrink-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {getStatusIcon(task.status)}
                     <span className="text-sm text-muted-foreground">{getStatusLabel(task.status)}</span>
                 </div>
             </div>
 
-            <div className="flex-1 min-w-[100px] flex items-center -space-x-2">
+            <div className="w-[120px] flex-shrink-0 flex items-center -space-x-2">
                 {(task.preparers || []).length > 0 ? (
                     (task.preparers || []).slice(0, 3).map((user, i) => (
                         <Avatar key={i} className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white">
@@ -95,7 +95,7 @@ export function TaskRow({
 
             {/* Custom Field Values */}
             {customFields.map((field) => (
-                <div key={field.id} className="flex-1 min-w-[100px] text-sm text-muted-foreground truncate">
+                <div key={field.id} className="w-[120px] flex-shrink-0 text-sm text-muted-foreground truncate">
                     {getCustomFieldValue(field.id)}
                 </div>
             ))}

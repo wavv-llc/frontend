@@ -663,136 +663,141 @@ export function ProjectDetailView({
                 {view === 'calendar' ? (
                     <ProjectCalendarView tasks={tasks} />
                 ) : (
-                    <div className="flex flex-col h-full">
-                        {/* Table Header */}
-                        <div className="flex items-center gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white">
-                            <div className="flex-[3] min-w-[200px]">Task Name</div>
-                            <div className="flex-1 min-w-[100px]">Status</div>
-                            <div className="flex-1 min-w-[100px]">Assigned To</div>
-                            {/* Dynamic Custom Field Columns */}
-                            {customFields.map((field) => (
-                                <div key={field.id} className="flex-1 min-w-[100px] truncate" title={field.name}>
-                                    {field.name}
-                                </div>
-                            ))}
-                            {/* Add Column Button */}
-                            <div className="w-[120px] flex-shrink-0">
-                                {isAddingColumn ? (
-                                    <div className="flex items-center gap-1">
-                                        <Input
-                                            value={inlineFieldName}
-                                            onChange={(e) => setInlineFieldName(e.target.value)}
-                                            placeholder="Field name"
-                                            className="h-7 text-xs w-full"
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleCreateInlineField()
-                                                if (e.key === 'Escape') cancelInlineFieldCreation()
-                                            }}
-                                        />
+                    <div className="flex flex-col h-full w-full max-w-full overflow-x-auto">
+                        {/* Loading state */}
+                        {isLoadingCustomFields ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : (
+                            <>
+                                {/* Table Header */}
+                                <div className="flex items-center gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white min-w-max">
+                                    {/* Dynamic Custom Field Columns */}
+                                    {customFields.map((field) => (
+                                        <div key={field.id} className="w-[120px] flex-shrink-0 truncate" title={field.name}>
+                                            {field.name}
+                                        </div>
+                                    ))}
+                                    {/* Add Column Button */}
+                                    <div className="w-[120px] flex-shrink-0">
+                                        {isAddingColumn ? (
+                                            <div className="flex items-center gap-1">
+                                                <Input
+                                                    value={inlineFieldName}
+                                                    onChange={(e) => setInlineFieldName(e.target.value)}
+                                                    placeholder="Field name"
+                                                    className="h-7 text-xs w-full"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleCreateInlineField()
+                                                        if (e.key === 'Escape') cancelInlineFieldCreation()
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-muted"
+                                                onClick={() => setIsAddingColumn(true)}
+                                                title="Add custom field"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </div>
-                                ) : (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 hover:bg-muted"
-                                        onClick={() => setIsAddingColumn(true)}
-                                        title="Add custom field"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
+                                    <div className="w-10 flex-shrink-0"></div>
+                                </div>
+                                {/* Type selector row when adding column */}
+                                {isAddingColumn && (
+                                    <div className="flex items-center gap-4 px-8 py-2 border-b border-border/60 bg-muted/30 min-w-max">
+                                        <div className="w-[300px] flex-shrink-0"></div>
+                                        <div className="w-[120px] flex-shrink-0"></div>
+                                        <div className="w-[120px] flex-shrink-0"></div>
+                                        {customFields.map((field) => (
+                                            <div key={field.id} className="w-[120px] flex-shrink-0"></div>
+                                        ))}
+                                        <div className="w-[120px] flex-shrink-0">
+                                            <div className="flex items-center gap-1">
+                                                <Select value={inlineFieldDataType} onValueChange={(value: DataType) => setInlineFieldDataType(value)}>
+                                                    <SelectTrigger className="h-7 text-xs w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {DATA_TYPES.map((type) => (
+                                                            <SelectItem key={type.value} value={type.value} className="text-xs">
+                                                                {type.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-green-100 hover:text-green-600"
+                                                    onClick={handleCreateInlineField}
+                                                    disabled={isCreatingInlineField || !inlineFieldName.trim()}
+                                                >
+                                                    {isCreatingInlineField ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3 w-3" />
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
+                                                    onClick={cancelInlineFieldCreation}
+                                                    disabled={isCreatingInlineField}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="w-10 flex-shrink-0"></div>
+                                    </div>
                                 )}
-                            </div>
-                            <div className="w-10 flex-shrink-0"></div>
-                        </div>
-                        {/* Type selector row when adding column */}
-                        {isAddingColumn && (
-                            <div className="flex items-center gap-4 px-8 py-2 border-b border-border/60 bg-muted/30">
-                                <div className="flex-[3] min-w-[200px]"></div>
-                                <div className="flex-1 min-w-[100px]"></div>
-                                <div className="flex-1 min-w-[100px]"></div>
-                                {customFields.map((field) => (
-                                    <div key={field.id} className="flex-1 min-w-[100px]"></div>
-                                ))}
-                                <div className="w-[120px] flex-shrink-0">
-                                    <div className="flex items-center gap-1">
-                                        <Select value={inlineFieldDataType} onValueChange={(value: DataType) => setInlineFieldDataType(value)}>
-                                            <SelectTrigger className="h-7 text-xs w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DATA_TYPES.map((type) => (
-                                                    <SelectItem key={type.value} value={type.value} className="text-xs">
-                                                        {type.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 hover:bg-green-100 hover:text-green-600"
-                                            onClick={handleCreateInlineField}
-                                            disabled={isCreatingInlineField || !inlineFieldName.trim()}
-                                        >
-                                            {isCreatingInlineField ? (
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                            ) : (
-                                                <Check className="h-3 w-3" />
-                                            )}
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
-                                            onClick={cancelInlineFieldCreation}
-                                            disabled={isCreatingInlineField}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="w-10 flex-shrink-0"></div>
-                            </div>
-                        )}
 
-                        {/* Table Body */}
-                        <div className="overflow-y-auto flex-1 pb-10">
-                            {filteredTasks.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 text-center">
-                                    <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                                        <Search className="h-8 w-8 text-muted-foreground/50" />
-                                    </div>
-                                    <h3 className="font-medium text-lg mb-1">No tasks found</h3>
-                                    <p className="text-muted-foreground mb-4 max-w-sm text-sm">
-                                        {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
-                                    </p>
-                                    {!searchQuery && statusFilter === 'ALL' && (
-                                        <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
-                                            Create Task
-                                        </Button>
+                                {/* Table Body */}
+                                <div className="overflow-y-auto flex-1 pb-10 min-w-max">
+                                    {filteredTasks.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-64 text-center">
+                                            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+                                                <Search className="h-8 w-8 text-muted-foreground/50" />
+                                            </div>
+                                            <h3 className="font-medium text-lg mb-1">No tasks found</h3>
+                                            <p className="text-muted-foreground mb-4 max-w-sm text-sm">
+                                                {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
+                                            </p>
+                                            {!searchQuery && statusFilter === 'ALL' && (
+                                                <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
+                                                    Create Task
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-border/60">
+                                            {filteredTasks.map(task => (
+                                                <TaskRow
+                                                    key={task.id}
+                                                    task={task}
+                                                    customFields={customFields}
+                                                    onClick={() => handleTaskSelect(task)}
+                                                    onEdit={(task) => {
+                                                        setTaskToEdit(task)
+                                                        setEditTaskOpen(true)
+                                                    }}
+                                                    onDelete={handleDeleteTask}
+                                                    onCopy={handleCopyTask}
+                                                />
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="divide-y divide-border/60">
-                                    {filteredTasks.map(task => (
-                                        <TaskRow
-                                            key={task.id}
-                                            task={task}
-                                            customFields={customFields}
-                                            onClick={() => handleTaskSelect(task)}
-                                            onEdit={(task) => {
-                                                setTaskToEdit(task)
-                                                setEditTaskOpen(true)
-                                            }}
-                                            onDelete={handleDeleteTask}
-                                            onCopy={handleCopyTask}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
+                            </>
+                        )}
                     </div>
                 )}
             </div>
