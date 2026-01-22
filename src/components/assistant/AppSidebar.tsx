@@ -142,6 +142,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   isDraggingProject = false,
   dragOverWorkspaceId = null,
 }) => {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const {
     attributes,
@@ -197,16 +198,16 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div
           className={cn(
-            "flex items-center gap-1 group/workspace rounded-md transition-all duration-200",
+            "flex items-center group/workspace rounded-md transition-all duration-200",
             isOver && isDraggingProject && "bg-blue-50 border-2 border-blue-400 px-1 -mx-1"
           )}
         >
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing opacity-0 group-hover/workspace:opacity-100 transition-opacity"
+            className="cursor-grab active:cursor-grabbing w-0 overflow-hidden opacity-0 group-hover/workspace:w-4 group-hover/workspace:opacity-100 transition-all duration-200"
           >
-            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
           </div>
           <CollapsibleTrigger asChild>
             <Button
@@ -249,6 +250,14 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
               No projects yet
             </p>
           )}
+          <Button
+            variant="ghost"
+            onClick={() => router.push(`/workspaces/${workspace.id}?createProject=true`)}
+            className="w-full justify-start gap-2 px-2 py-1.5 text-xs font-normal text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+          >
+            <Plus className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>Add project</span>
+          </Button>
         </CollapsibleContent>
       </Collapsible>
     </div>
@@ -876,10 +885,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/user/settings")}>
               <User className="mr-2 h-4 w-4" />
               Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={handleSettings}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleSignOut}>

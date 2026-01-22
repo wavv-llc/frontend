@@ -6,21 +6,18 @@ import {
     Calendar as CalendarIcon,
     List as ListIcon,
     Plus,
-    Calendar,
-    Clock,
-    MoreVertical,
     CheckCircle2,
     Circle,
     AlertCircle,
-    LayoutGrid,
     Search,
     Filter,
-    ArrowUpRight,
     ArrowLeft,
     Settings,
     Trash2,
     X,
-    Loader2
+    Loader2,
+    Copy,
+    Check
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Project, type Task, type CustomField, type DataType, projectApi, taskApi, customFieldApi } from '@/lib/api'
@@ -29,14 +26,12 @@ import { ProjectCalendarView } from './ProjectCalendarView'
 import { TaskDetailView } from '@/components/tasks/TaskDetailView'
 import { TaskRow } from './TaskRow'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
     DropdownMenuCheckboxItem,
@@ -64,6 +59,7 @@ const DATA_TYPES: { value: DataType; label: string }[] = [
     { value: 'USER', label: 'User' },
     { value: 'TASK', label: 'Task' },
     { value: 'DOCUMENT', label: 'Document' },
+    { value: 'CUSTOM', label: 'Custom' },
 ]
 
 interface ProjectDetailViewProps {
@@ -117,6 +113,7 @@ export function ProjectDetailView({
     const [editFieldRequired, setEditFieldRequired] = useState(false)
     const [isUpdatingField, setIsUpdatingField] = useState(false)
     const [isDeletingField, setIsDeletingField] = useState(false)
+    const [isCopyingProject, setIsCopyingProject] = useState(false)
 
 
     const handleEditProject = async () => {
@@ -164,6 +161,27 @@ export function ProjectDetailView({
         }
     }
 
+    const handleCopyProject = async () => {
+        try {
+            setIsCopyingProject(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await projectApi.copyProject(token, project.id)
+            toast.success('Project copied successfully')
+            setSettingsDialogOpen(false)
+            onRefresh()
+        } catch (error) {
+            console.error('Failed to copy project:', error)
+            toast.error('Failed to copy project')
+        } finally {
+            setIsCopyingProject(false)
+        }
+    }
+
     const handleDeleteTask = async (taskId: string) => {
         try {
             const token = await getToken()
@@ -178,6 +196,23 @@ export function ProjectDetailView({
         } catch (error) {
             console.error('Failed to delete task:', error)
             toast.error('Failed to delete task')
+        }
+    }
+
+    const handleCopyTask = async (task: Task) => {
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await taskApi.copyTask(token, project.id, task.id)
+            toast.success('Task copied successfully')
+            onRefresh()
+        } catch (error) {
+            console.error('Failed to copy task:', error)
+            toast.error('Failed to copy task')
         }
     }
 
@@ -323,6 +358,44 @@ export function ProjectDetailView({
         setSettingsModalPage('settings')
     }
 
+    const handleCreateInlineField = async () => {
+        if (!inlineFieldName.trim()) {
+            toast.error('Field name is required')
+            return
+        }
+
+        try {
+            setIsCreatingInlineField(true)
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await customFieldApi.createCustomField(token, project.id, {
+                name: inlineFieldName.trim(),
+                dataType: inlineFieldDataType,
+            })
+
+            toast.success('Custom field created successfully')
+            setInlineFieldName('')
+            setInlineFieldDataType('STRING')
+            setIsAddingColumn(false)
+            fetchCustomFields()
+        } catch (error) {
+            console.error('Failed to create custom field:', error)
+            toast.error('Failed to create custom field')
+        } finally {
+            setIsCreatingInlineField(false)
+        }
+    }
+
+    const cancelInlineFieldCreation = () => {
+        setIsAddingColumn(false)
+        setInlineFieldName('')
+        setInlineFieldDataType('STRING')
+    }
+
     const handleOpenSettings = () => {
         setEditProjectName(project.name || '')
         setEditProjectDescription(project.description || '')
@@ -356,14 +429,19 @@ export function ProjectDetailView({
     })
 
 
-    // Calculate stats
-    const totalTasks = tasks.length
-    const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length
-    const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length
-    const reviewTasks = tasks.filter(t => t.status === 'IN_REVIEW').length
-
     const router = useRouter()
     const searchParams = useSearchParams()
+
+    // Inline field creation state
+    const [isAddingColumn, setIsAddingColumn] = useState(false)
+    const [inlineFieldName, setInlineFieldName] = useState('')
+    const [inlineFieldDataType, setInlineFieldDataType] = useState<DataType>('STRING')
+    const [isCreatingInlineField, setIsCreatingInlineField] = useState(false)
+
+    // Fetch custom fields on mount
+    useEffect(() => {
+        fetchCustomFields()
+    }, [project.id])
 
     // Sync URL with selected task
     useEffect(() => {
@@ -503,14 +581,6 @@ export function ProjectDetailView({
                         </Button>
                     </div>
                 </div>
-
-                {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-6">
-                    <StatCard label="Total Tasks" value={totalTasks} icon={LayoutGrid} />
-                    <StatCard label="Completed" value={completedTasks} icon={CheckCircle2} />
-                    <StatCard label="In Progress" value={inProgressTasks} icon={Clock} />
-                    <StatCard label="In Review" value={reviewTasks} icon={AlertCircle} />
-                </div>
             </div>
 
             {/* Content Controls */}
@@ -593,50 +663,141 @@ export function ProjectDetailView({
                 {view === 'calendar' ? (
                     <ProjectCalendarView tasks={tasks} />
                 ) : (
-                    <div className="flex flex-col h-full">
-                        {/* Table Header */}
-                        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white">
-                            <div className="col-span-7">Task Name</div>
-                            <div className="col-span-2">Status</div>
-                            <div className="col-span-2">Assigned To</div>
-                            <div className="col-span-1 text-right"></div>
-                        </div>
-
-                        {/* Table Body */}
-                        <div className="overflow-y-auto flex-1 pb-10">
-                            {filteredTasks.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 text-center">
-                                    <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                                        <Search className="h-8 w-8 text-muted-foreground/50" />
+                    <div className="flex flex-col h-full w-full max-w-full overflow-x-auto">
+                        {/* Loading state */}
+                        {isLoadingCustomFields ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : (
+                            <>
+                                {/* Table Header */}
+                                <div className="flex items-center gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white min-w-max">
+                                    {/* Dynamic Custom Field Columns */}
+                                    {customFields.map((field) => (
+                                        <div key={field.id} className="w-[120px] flex-shrink-0 truncate" title={field.name}>
+                                            {field.name}
+                                        </div>
+                                    ))}
+                                    {/* Add Column Button */}
+                                    <div className="w-[120px] flex-shrink-0">
+                                        {isAddingColumn ? (
+                                            <div className="flex items-center gap-1">
+                                                <Input
+                                                    value={inlineFieldName}
+                                                    onChange={(e) => setInlineFieldName(e.target.value)}
+                                                    placeholder="Field name"
+                                                    className="h-7 text-xs w-full"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleCreateInlineField()
+                                                        if (e.key === 'Escape') cancelInlineFieldCreation()
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-muted"
+                                                onClick={() => setIsAddingColumn(true)}
+                                                title="Add custom field"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </div>
-                                    <h3 className="font-medium text-lg mb-1">No tasks found</h3>
-                                    <p className="text-muted-foreground mb-4 max-w-sm text-sm">
-                                        {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
-                                    </p>
-                                    {!searchQuery && statusFilter === 'ALL' && (
-                                        <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
-                                            Create Task
-                                        </Button>
+                                    <div className="w-10 flex-shrink-0"></div>
+                                </div>
+                                {/* Type selector row when adding column */}
+                                {isAddingColumn && (
+                                    <div className="flex items-center gap-4 px-8 py-2 border-b border-border/60 bg-muted/30 min-w-max">
+                                        <div className="w-[300px] flex-shrink-0"></div>
+                                        <div className="w-[120px] flex-shrink-0"></div>
+                                        <div className="w-[120px] flex-shrink-0"></div>
+                                        {customFields.map((field) => (
+                                            <div key={field.id} className="w-[120px] flex-shrink-0"></div>
+                                        ))}
+                                        <div className="w-[120px] flex-shrink-0">
+                                            <div className="flex items-center gap-1">
+                                                <Select value={inlineFieldDataType} onValueChange={(value: DataType) => setInlineFieldDataType(value)}>
+                                                    <SelectTrigger className="h-7 text-xs w-full">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {DATA_TYPES.map((type) => (
+                                                            <SelectItem key={type.value} value={type.value} className="text-xs">
+                                                                {type.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-green-100 hover:text-green-600"
+                                                    onClick={handleCreateInlineField}
+                                                    disabled={isCreatingInlineField || !inlineFieldName.trim()}
+                                                >
+                                                    {isCreatingInlineField ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-3 w-3" />
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
+                                                    onClick={cancelInlineFieldCreation}
+                                                    disabled={isCreatingInlineField}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="w-10 flex-shrink-0"></div>
+                                    </div>
+                                )}
+
+                                {/* Table Body */}
+                                <div className="overflow-y-auto flex-1 pb-10 min-w-max">
+                                    {filteredTasks.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-64 text-center">
+                                            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
+                                                <Search className="h-8 w-8 text-muted-foreground/50" />
+                                            </div>
+                                            <h3 className="font-medium text-lg mb-1">No tasks found</h3>
+                                            <p className="text-muted-foreground mb-4 max-w-sm text-sm">
+                                                {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
+                                            </p>
+                                            {!searchQuery && statusFilter === 'ALL' && (
+                                                <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
+                                                    Create Task
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-border/60">
+                                            {filteredTasks.map(task => (
+                                                <TaskRow
+                                                    key={task.id}
+                                                    task={task}
+                                                    customFields={customFields}
+                                                    onClick={() => handleTaskSelect(task)}
+                                                    onEdit={(task) => {
+                                                        setTaskToEdit(task)
+                                                        setEditTaskOpen(true)
+                                                    }}
+                                                    onDelete={handleDeleteTask}
+                                                    onCopy={handleCopyTask}
+                                                />
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="divide-y divide-border/60">
-                                    {filteredTasks.map(task => (
-                                        <TaskRow
-                                            key={task.id}
-                                            task={task}
-                                            onClick={() => handleTaskSelect(task)}
-                                            onEdit={(task) => {
-                                                setTaskToEdit(task)
-                                                setEditTaskOpen(true)
-                                            }}
-                                            onDelete={handleDeleteTask}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -681,13 +842,34 @@ export function ProjectDetailView({
                                             rows={3}
                                         />
                                     </div>
-                                    <Button
-                                        onClick={handleEditProject}
-                                        disabled={isSubmitting || !editProjectName.trim()}
-                                        size="sm"
-                                    >
-                                        {isSubmitting ? 'Saving...' : 'Update Project'}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={handleEditProject}
+                                            disabled={isSubmitting || !editProjectName.trim()}
+                                            size="sm"
+                                        >
+                                            {isSubmitting ? 'Saving...' : 'Update Project'}
+                                        </Button>
+                                        <Button
+                                            onClick={handleCopyProject}
+                                            disabled={isCopyingProject}
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-1"
+                                        >
+                                            {isCopyingProject ? (
+                                                <>
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    Copying...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                    Copy Project
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 <div className="border-t border-border my-6" />
@@ -1037,20 +1219,6 @@ export function ProjectDetailView({
                 )
             }
         </div >
-    )
-}
-
-function StatCard({ label, value, icon: Icon }: { label: string, value: number, icon: any }) {
-    return (
-        <div className="bg-white border border-border rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-all cursor-pointer group">
-            <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">{label}</p>
-                <p className="text-3xl font-semibold mt-2 text-foreground">{value}</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary transition-colors">
-                <Icon className="h-5 w-5" />
-            </div>
-        </div>
     )
 }
 
