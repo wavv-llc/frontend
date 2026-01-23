@@ -47,7 +47,7 @@ export default function WorkspaceDetailsPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { getToken } = useAuth()
-    const [view, setView] = useState<'list' | 'calendar'>('list')
+
     const [workspace, setWorkspace] = useState<Workspace | null>(null)
     const [projects, setProjects] = useState<Project[]>([])
     const [tasks, setTasks] = useState<Task[]>([])
@@ -270,58 +270,23 @@ export default function WorkspaceDetailsPage() {
                 {/* Toolbar */}
                 <div className="px-6 py-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center p-1 bg-muted rounded-lg border border-border/10 mr-2">
-                            <Button
-                                onClick={() => setView('list')}
-                                variant="ghost"
-                                size="sm"
-                                className={cn(
-                                    "h-7 px-3 text-xs font-medium rounded-md transition-all",
-                                    view === 'list'
-                                        ? "bg-background text-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-transparent"
-                                )}
-                            >
-                                List
-                            </Button>
-                            <Button
-                                onClick={() => setView('calendar')}
-                                variant="ghost"
-                                size="sm"
-                                className={cn(
-                                    "h-7 px-3 text-xs font-medium rounded-md transition-all",
-                                    view === 'calendar'
-                                        ? "bg-background text-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-transparent"
-                                )}
-                            >
-                                Calendar
-                            </Button>
-                        </div>
 
-                        {view === 'list' && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 h-8 bg-background hover:bg-muted font-medium transition-all"
-                                    onClick={handleCreateProject}
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                    New Project
-                                </Button>
-                            </>
-                        )}
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 h-8 bg-background hover:bg-muted font-medium transition-all"
+                            onClick={handleCreateProject}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            New Project
+                        </Button>
                     </div>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto px-6 pb-6">
-                    {view === 'list' ? (
-                        <ProjectListView projects={projects} tasks={filteredTasks} allTasks={tasks} onRefresh={handleSuccess} />
-                    ) : (
-                        <ProjectCalendarView tasks={filteredTasks} />
-                    )}
+                    <ProjectListView projects={projects} tasks={filteredTasks} allTasks={tasks} onRefresh={handleSuccess} />
                 </div>
             </div>
 

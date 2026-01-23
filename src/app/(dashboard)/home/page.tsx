@@ -82,7 +82,7 @@ function RecentsSection({ items, isLoading, onItemClick }: {
                         <button
                             key={`${item.type}-${item.id}`}
                             onClick={() => onItemClick(item)}
-                            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+                            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left group cursor-pointer"
                         >
                             <ItemIcon type={item.type} icon={item.icon} />
                             <div className="flex-1 min-w-0">
@@ -210,7 +210,7 @@ function MyWorkSection({ tasks, isLoading, onTaskClick }: {
             <div className="mb-2">
                 <button
                     onClick={() => toggleSection(sectionKey)}
-                    className="w-full flex items-center gap-2 py-2 hover:bg-muted/30 rounded-lg px-2 transition-colors"
+                    className="w-full flex items-center gap-2 py-2 hover:bg-muted/30 rounded-lg px-2 transition-colors cursor-pointer"
                 >
                     {isExpanded ? (
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -254,7 +254,7 @@ function MyWorkSection({ tasks, isLoading, onTaskClick }: {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as typeof activeTab)}
                         className={cn(
-                            "text-sm font-medium transition-colors",
+                            "text-sm font-medium transition-colors cursor-pointer",
                             activeTab === tab.id
                                 ? "text-foreground"
                                 : "text-muted-foreground hover:text-foreground"
@@ -387,9 +387,10 @@ export default function HomePage() {
                     </div>
 
                     {/* Bottom Row: Calendar */}
-                    <div className="h-[700px] w-full">
+                    <div className="w-full">
+                        <h2 className="text-sm font-semibold text-foreground mb-4 cursor-pointer">My Task Calendar</h2>
                         {isLoadingCalendar ? (
-                            <Skeleton className="h-full w-full rounded-xl" />
+                            <Skeleton className="h-[600px] w-full rounded-xl" />
                         ) : (
                             <ProjectCalendarView tasks={calendarTasks} />
                         )}

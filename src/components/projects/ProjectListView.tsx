@@ -95,21 +95,19 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
         <div className="w-full">
             {/* Projects Table Header */}
             <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/20 rounded-t-lg">
-                <div className="col-span-6 pl-2">Project Name</div>
-                <div className="col-span-3">Due Date</div>
-                <div className="col-span-3">Owner</div>
+                <div className="col-span-3 pl-2">Project Name</div>
+                <div className="col-span-4">Description</div>
+                <div className="col-span-2">Owner</div>
+                <div className="col-span-1 text-center">Members</div>
+                <div className="col-span-2 text-center">Tasks</div>
             </div>
 
             <div className="border-x border-b border-border rounded-b-lg divide-y divide-border bg-card">
                 {projects.map((project) => {
                     // Use allTasks for stats if available, otherwise use displayed tasks
                     const statsTasks = (allTasks || tasks).filter(task => task.projectId === project.id)
-
-                    // Derive due date (latest task due date)
-                    const dueDates = statsTasks
-                        .map(t => t.dueAt ? new Date(t.dueAt).getTime() : 0)
-                        .filter(d => d > 0)
-                    const latestDueDate = dueDates.length > 0 ? new Date(Math.max(...dueDates)) : null
+                    const taskCount = statsTasks.length
+                    const memberCount = project.members.length
 
                     // Get owner
                     const owner = project.owners[0]
@@ -126,38 +124,46 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                             <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center hover:bg-muted/50 transition-colors">
                                 {/* Project Name */}
                                 <div
-                                    className="col-span-6 flex items-center gap-3 cursor-pointer"
+                                    className="col-span-3 flex items-center gap-3 cursor-pointer"
                                     onClick={() => router.push(`/workspaces/${project.workspaceId}/projects/${project.id}`)}
                                 >
                                     <div className="transition-transform duration-200 text-muted-foreground group-hover:translate-x-1">
                                         <ChevronRight className="h-4 w-4" />
                                     </div>
-                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors">
+                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
                                         {project.name || `Project ${project.id.slice(0, 8)}`}
                                     </div>
                                 </div>
 
-                                {/* Due Date */}
-                                <div className="col-span-3 text-sm text-muted-foreground">
-                                    {latestDueDate ? latestDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                                {/* Description */}
+                                <div className="col-span-4 text-sm text-muted-foreground truncate">
+                                    {project.description || '-'}
                                 </div>
 
-                                {/* Owner & Options */}
-                                <div className="col-span-3 flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                        {owner ? (
-                                            <>
-                                                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary ring-1 ring-background">
-                                                    {owner.firstName?.[0] || owner.email[0].toUpperCase()}
-                                                </div>
-                                                <span className="text-sm text-muted-foreground truncate">
-                                                    {owner.firstName ? `${owner.firstName} ${owner.lastName || ''}` : owner.email}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">-</span>
-                                        )}
-                                    </div>
+                                {/* Owner */}
+                                <div className="col-span-2 flex items-center gap-2">
+                                    {owner ? (
+                                        <>
+                                            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary ring-1 ring-background shrink-0">
+                                                {owner.firstName?.[0] || owner.email[0].toUpperCase()}
+                                            </div>
+                                            <span className="text-sm text-muted-foreground truncate">
+                                                {owner.firstName ? `${owner.firstName} ${owner.lastName || ''}` : owner.email}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground">-</span>
+                                    )}
+                                </div>
+
+                                {/* Members Count */}
+                                <div className="col-span-1 text-sm text-muted-foreground text-center">
+                                    {memberCount}
+                                </div>
+
+                                {/* Tasks Count & Options */}
+                                <div className="col-span-2 flex items-center justify-between gap-2">
+                                    <span className="text-sm text-muted-foreground flex-1 text-center">{taskCount}</span>
 
                                     {/* Options Menu */}
                                     <DropdownMenu>
