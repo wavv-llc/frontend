@@ -676,14 +676,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             >
               <Search className="h-5 w-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSettings}
-              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
           </>
         ) : (
           <>
@@ -704,17 +696,9 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             >
               <Search className="h-5 w-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSettings}
-              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-              title="Settings"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
           </>
         )}
+
       </div>
 
       <Separator className="bg-sidebar-border" />
@@ -722,36 +706,71 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       {/* Scrollable Content */}
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-6 py-4">
-          {/* Home Link */}
-          <div>
-            {!isCompressed ? (
-              <Button
-                variant="ghost"
-                onClick={handleHomeClick}
-                className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <Home className="h-4 w-4 flex-shrink-0" />
-                <span>Home</span>
-              </Button>
-            ) : (
-              <TooltipProvider delayDuration={300}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleHomeClick}
-                      className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    >
-                      <Home className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
-                    <p>Home</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+          {/* Navigation Group */}
+          <div className="space-y-1">
+            {/* Home Link */}
+            <div>
+              {!isCompressed ? (
+                <Button
+                  variant="ghost"
+                  onClick={handleHomeClick}
+                  className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <Home className="h-4 w-4 flex-shrink-0" />
+                  <span>Home</span>
+                </Button>
+              ) : (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleHomeClick}
+                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <Home className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                      <p>Home</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Organization Settings Link */}
+            <div>
+              {!isCompressed ? (
+                <Button
+                  variant="ghost"
+                  onClick={handleSettings}
+                  className="w-full justify-start gap-2 px-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <Settings className="h-4 w-4 flex-shrink-0" />
+                  <span>Organization Settings</span>
+                </Button>
+              ) : (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleSettings}
+                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <Settings className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                      <p>Organization Settings</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </div>
 
           {/* Workspaces Section */}
@@ -897,7 +916,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
 
 
-    </div>
+    </div >
   );
 };
 
