@@ -257,7 +257,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
     }
 
     return (
-        <div className="w-full border border-border rounded-xl bg-white shadow-sm overflow-hidden flex flex-col h-full">
+        <div className="w-full h-full border border-border rounded-xl bg-white shadow-sm overflow-hidden flex flex-col">
             {/* Header Controls */}
             {/* Header Controls */}
             <div className="px-6 py-4 flex items-center justify-between bg-white shrink-0">
