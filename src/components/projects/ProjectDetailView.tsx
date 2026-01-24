@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import type { TaskListRef } from './TaskList'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
     Calendar as CalendarIcon,
@@ -17,7 +18,8 @@ import {
     X,
     Loader2,
     Copy,
-    Check
+    Check,
+    Pencil
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Project, type Task, type CustomField, type DataType, projectApi, taskApi, customFieldApi } from '@/lib/api'
@@ -25,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { ProjectCalendarView } from './ProjectCalendarView'
 import { TaskDetailView } from '@/components/tasks/TaskDetailView'
 import { TaskRow } from './TaskRow'
+import { TaskList } from './TaskList'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
@@ -72,6 +75,161 @@ interface ProjectDetailViewProps {
 type ViewMode = 'list' | 'calendar'
 type StatusFilter = 'ALL' | 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
 
+interface EditableContentProps {
+    value: string
+    onSave: (value: string) => void
+    placeholder?: string
+    className?: string
+    inputClassName?: string
+    isTextarea?: boolean
+    textStyle?: string
+}
+
+/** Notion-style inline editable: single contentEditable div, no visible box. */
+const EditableContent = ({
+    value,
+    onSave,
+    placeholder = 'Click to edit',
+    className = '',
+    inputClassName = '',
+    isTextarea = false,
+    textStyle = ''
+}: EditableContentProps) => {
+    const [isEditing, setIsEditing] = useState(false)
+    const [displayValue, setDisplayValue] = useState(value)
+    const [editEmpty, setEditEmpty] = useState(false)
+    const ref = useRef<HTMLDivElement>(null)
+    const discardOnBlurRef = useRef(false)
+
+    useEffect(() => {
+        if (!isEditing) setDisplayValue(value)
+    }, [value, isEditing])
+
+    useLayoutEffect(() => {
+        if (!isEditing || !ref.current) return
+        const el = ref.current
+        el.focus()
+        // Clear first to avoid appending to any residual content (e.g. <br> from browser)
+        el.textContent = ''
+        el.textContent = displayValue
+        placeCaretAtEnd(el)
+        setEditEmpty(!displayValue.trim())
+    }, [isEditing, displayValue])
+
+    const handleBlur = () => {
+        if (discardOnBlurRef.current) {
+            discardOnBlurRef.current = false
+            setDisplayValue(value)
+            setIsEditing(false)
+            return
+        }
+        const el = ref.current
+        const raw = el?.textContent ?? ''
+        const trimmed = raw.trim()
+        if (trimmed !== value) onSave(trimmed)
+        setDisplayValue(trimmed || value)
+        setIsEditing(false)
+    }
+
+    const handleInput = () => {
+        const raw = ref.current?.textContent ?? ''
+        setEditEmpty(!raw.trim())
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' && !isTextarea) {
+            e.preventDefault()
+            ;(e.target as HTMLDivElement).blur()
+        }
+        if (e.key === 'Escape') {
+            discardOnBlurRef.current = true
+            if (ref.current) ref.current.textContent = displayValue
+            ;(e.target as HTMLDivElement).blur()
+        }
+    }
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        const text = e.clipboardData.getData('text/plain')
+        document.execCommand('insertText', false, text)
+        // Update empty state after paste (execCommand is sync but DOM updates after)
+        queueMicrotask(handleInput)
+    }
+
+    const handleClick = () => {
+        if (!isEditing) setIsEditing(true)
+    }
+
+    if (isEditing) {
+        return (
+            <div className={cn('relative', className)}>
+                <div
+                    ref={ref}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={handleBlur}
+                    onInput={handleInput}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    className={cn(
+                        'outline-none cursor-text rounded px-1 -mx-1 py-0.5 -my-0.5 break-words',
+                        'bg-muted/30 focus:bg-muted/40 transition-colors duration-150',
+                        'min-h-[1.5em]',
+                        isTextarea && 'min-h-[80px] whitespace-pre-wrap',
+                        textStyle,
+                        inputClassName
+                    )}
+                />
+                {/* Placeholder overlay when empty – avoid ::before on contentEditable (causes duplicate text) */}
+                {editEmpty && (
+                    <div
+                        className={cn(
+                            'pointer-events-none absolute left-0 top-0 px-1 py-0.5 text-muted-foreground/50 italic',
+                            'min-h-[1.5em]',
+                            textStyle,
+                            isTextarea && 'min-h-[80px]'
+                        )}
+                        aria-hidden
+                    >
+                        {placeholder}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() } }}
+            className={cn(
+                'group cursor-pointer rounded -ml-1 pl-1 pr-1 border border-transparent',
+                'hover:bg-muted/30 active:bg-muted/40 transition-colors duration-150',
+                'flex items-start gap-2',
+                className
+            )}
+            title="Click to edit"
+        >
+            <div className={cn('flex-1 break-words min-h-[1.5em]', textStyle)}>
+                {displayValue || <span className="text-muted-foreground/50 italic">{placeholder}</span>}
+            </div>
+            <Pencil className="h-3.5 w-3.5 mt-1.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+        </div>
+    )
+}
+
+function placeCaretAtEnd(el: HTMLElement) {
+    el.focus()
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    range.collapse(false)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+}
+
 export function ProjectDetailView({
     project,
     tasks,
@@ -86,9 +244,16 @@ export function ProjectDetailView({
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [editTaskOpen, setEditTaskOpen] = useState(false)
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null)
+
+    // Local project state for optimistic updates
+    const [localProject, setLocalProject] = useState(project)
     const [editProjectName, setEditProjectName] = useState(project.name || project.description || '')
     const [editProjectDescription, setEditProjectDescription] = useState(project.description || '')
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    useEffect(() => {
+        setLocalProject(project)
+    }, [project])
 
     // Settings modal state
     const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
@@ -114,7 +279,27 @@ export function ProjectDetailView({
     const [isUpdatingField, setIsUpdatingField] = useState(false)
     const [isDeletingField, setIsDeletingField] = useState(false)
     const [isCopyingProject, setIsCopyingProject] = useState(false)
+    const taskListRef = useRef<TaskListRef>(null)
 
+
+    const handleUpdateProjectField = async (updates: Partial<Project>) => {
+        // Optimistic update
+        setLocalProject(prev => ({ ...prev, ...updates }))
+
+        try {
+            const token = await getToken()
+            if (!token) return
+
+            await projectApi.updateProject(token, project.id, updates)
+            toast.success('Project updated')
+            onRefresh()
+        } catch (error) {
+            console.error('Failed to update project:', error)
+            toast.error('Failed to update project')
+            // Revert on error
+            setLocalProject(project)
+        }
+    }
 
     const handleEditProject = async () => {
         try {
@@ -358,43 +543,6 @@ export function ProjectDetailView({
         setSettingsModalPage('settings')
     }
 
-    const handleCreateInlineField = async () => {
-        if (!inlineFieldName.trim()) {
-            toast.error('Field name is required')
-            return
-        }
-
-        try {
-            setIsCreatingInlineField(true)
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
-
-            await customFieldApi.createCustomField(token, project.id, {
-                name: inlineFieldName.trim(),
-                dataType: inlineFieldDataType,
-            })
-
-            toast.success('Custom field created successfully')
-            setInlineFieldName('')
-            setInlineFieldDataType('STRING')
-            setIsAddingColumn(false)
-            fetchCustomFields()
-        } catch (error) {
-            console.error('Failed to create custom field:', error)
-            toast.error('Failed to create custom field')
-        } finally {
-            setIsCreatingInlineField(false)
-        }
-    }
-
-    const cancelInlineFieldCreation = () => {
-        setIsAddingColumn(false)
-        setInlineFieldName('')
-        setInlineFieldDataType('STRING')
-    }
 
     const handleOpenSettings = () => {
         setEditProjectName(project.name || '')
@@ -431,12 +579,6 @@ export function ProjectDetailView({
 
     const router = useRouter()
     const searchParams = useSearchParams()
-
-    // Inline field creation state
-    const [isAddingColumn, setIsAddingColumn] = useState(false)
-    const [inlineFieldName, setInlineFieldName] = useState('')
-    const [inlineFieldDataType, setInlineFieldDataType] = useState<DataType>('STRING')
-    const [isCreatingInlineField, setIsCreatingInlineField] = useState(false)
 
     // Fetch custom fields on mount
     useEffect(() => {
@@ -521,11 +663,24 @@ export function ProjectDetailView({
                                 <span className="font-medium text-foreground">{project.name}</span>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{project.name || 'Project Details'}</h1>
-                            {project.description && (
-                                <p className="text-sm text-muted-foreground">{project.description}</p>
-                            )}
+                        <div className="flex flex-col gap-1 max-w-2xl">
+                            <EditableContent
+                                value={localProject.name}
+                                onSave={(val) => handleUpdateProjectField({ name: val })}
+                                className="w-fit"
+                                textStyle="text-3xl font-semibold tracking-tight text-foreground"
+                                inputClassName="text-3xl font-semibold h-auto py-1 px-2"
+                                placeholder="Project Name"
+                            />
+                            <EditableContent
+                                value={localProject.description || ''}
+                                onSave={(val) => handleUpdateProjectField({ description: val })}
+                                className="w-full mt-1"
+                                textStyle="text-sm text-muted-foreground"
+                                inputClassName="text-sm min-h-[80px]"
+                                isTextarea
+                                placeholder="Add a description..."
+                            />
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -575,7 +730,14 @@ export function ProjectDetailView({
                             <Trash2 className="h-4 w-4" />
                         </Button>
                         <div className="w-px h-6 bg-border mx-1" />
-                        <Button onClick={onCreateTask} className="gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                        <Button 
+                            onClick={() => {
+                                if (taskListRef.current) {
+                                    taskListRef.current.startCreatingTask()
+                                }
+                            }} 
+                            className="gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                        >
                             <Plus className="h-4 w-4" />
                             New Task
                         </Button>
@@ -659,144 +821,36 @@ export function ProjectDetailView({
             )}
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="flex-1 min-h-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
-                    <ProjectCalendarView tasks={tasks} />
+                    <div className="flex-1 min-h-0">
+                        <ProjectCalendarView tasks={tasks} />
+                    </div>
                 ) : (
-                    <div className="flex flex-col h-full w-full max-w-full overflow-x-auto">
+                    <div className="flex flex-col h-full w-full max-w-full">
                         {/* Loading state */}
                         {isLoadingCustomFields ? (
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                             </div>
                         ) : (
-                            <>
-                                {/* Table Header */}
-                                <div className="flex items-center gap-4 px-8 py-5 border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-white min-w-max">
-                                    {/* Dynamic Custom Field Columns */}
-                                    {customFields.map((field) => (
-                                        <div key={field.id} className="w-[120px] flex-shrink-0 truncate" title={field.name}>
-                                            {field.name}
-                                        </div>
-                                    ))}
-                                    {/* Add Column Button */}
-                                    <div className="w-[120px] flex-shrink-0">
-                                        {isAddingColumn ? (
-                                            <div className="flex items-center gap-1">
-                                                <Input
-                                                    value={inlineFieldName}
-                                                    onChange={(e) => setInlineFieldName(e.target.value)}
-                                                    placeholder="Field name"
-                                                    className="h-7 text-xs w-full"
-                                                    autoFocus
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') handleCreateInlineField()
-                                                        if (e.key === 'Escape') cancelInlineFieldCreation()
-                                                    }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-muted"
-                                                onClick={() => setIsAddingColumn(true)}
-                                                title="Add custom field"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div className="w-10 flex-shrink-0"></div>
-                                </div>
-                                {/* Type selector row when adding column */}
-                                {isAddingColumn && (
-                                    <div className="flex items-center gap-4 px-8 py-2 border-b border-border/60 bg-muted/30 min-w-max">
-                                        <div className="w-[300px] flex-shrink-0"></div>
-                                        <div className="w-[120px] flex-shrink-0"></div>
-                                        <div className="w-[120px] flex-shrink-0"></div>
-                                        {customFields.map((field) => (
-                                            <div key={field.id} className="w-[120px] flex-shrink-0"></div>
-                                        ))}
-                                        <div className="w-[120px] flex-shrink-0">
-                                            <div className="flex items-center gap-1">
-                                                <Select value={inlineFieldDataType} onValueChange={(value: DataType) => setInlineFieldDataType(value)}>
-                                                    <SelectTrigger className="h-7 text-xs w-full">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {DATA_TYPES.map((type) => (
-                                                            <SelectItem key={type.value} value={type.value} className="text-xs">
-                                                                {type.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-green-100 hover:text-green-600"
-                                                    onClick={handleCreateInlineField}
-                                                    disabled={isCreatingInlineField || !inlineFieldName.trim()}
-                                                >
-                                                    {isCreatingInlineField ? (
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Check className="h-3 w-3" />
-                                                    )}
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
-                                                    onClick={cancelInlineFieldCreation}
-                                                    disabled={isCreatingInlineField}
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <div className="w-10 flex-shrink-0"></div>
-                                    </div>
-                                )}
-
-                                {/* Table Body */}
-                                <div className="overflow-y-auto flex-1 pb-10 min-w-max">
-                                    {filteredTasks.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center h-64 text-center">
-                                            <div className="h-16 w-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                                                <Search className="h-8 w-8 text-muted-foreground/50" />
-                                            </div>
-                                            <h3 className="font-medium text-lg mb-1">No tasks found</h3>
-                                            <p className="text-muted-foreground mb-4 max-w-sm text-sm">
-                                                {searchQuery || statusFilter !== 'ALL' ? "Try adjusting your search or filters" : "Get started by creating your first task"}
-                                            </p>
-                                            {!searchQuery && statusFilter === 'ALL' && (
-                                                <Button variant="outline" onClick={onCreateTask} className="cursor-pointer">
-                                                    Create Task
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-border/60">
-                                            {filteredTasks.map(task => (
-                                                <TaskRow
-                                                    key={task.id}
-                                                    task={task}
-                                                    customFields={customFields}
-                                                    onClick={() => handleTaskSelect(task)}
-                                                    onEdit={(task) => {
-                                                        setTaskToEdit(task)
-                                                        setEditTaskOpen(true)
-                                                    }}
-                                                    onDelete={handleDeleteTask}
-                                                    onCopy={handleCopyTask}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </>
+                            <div className="flex-1 overflow-hidden">
+                                <TaskList
+                                    ref={taskListRef}
+                                    tasks={filteredTasks}
+                                    customFields={customFields}
+                                    onTaskClick={handleTaskSelect}
+                                    onTaskEdit={(task) => {
+                                        setTaskToEdit(task)
+                                        setEditTaskOpen(true)
+                                    }}
+                                    onTaskDelete={handleDeleteTask}
+                                    onTaskCopy={handleCopyTask}
+                                    onCustomFieldCreated={fetchCustomFields}
+                                    onTaskCreated={onRefresh}
+                                    projectId={project.id}
+                                />
+                            </div>
                         )}
                     </div>
                 )}
@@ -1221,6 +1275,3 @@ export function ProjectDetailView({
         </div >
     )
 }
-
-
-

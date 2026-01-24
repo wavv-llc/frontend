@@ -7,7 +7,6 @@ import { ProjectDetailView } from '@/components/projects/ProjectDetailView'
 import { Loader2 } from 'lucide-react'
 import { projectApi, taskApi, type Project, type Task } from '@/lib/api'
 import { toast } from 'sonner'
-import { CreateTaskDialog } from '@/components/dialogs/CreateTaskDialog'
 import { ProjectDetailSkeleton } from '@/components/skeletons/ProjectDetailSkeleton'
 import { TaskDetailSkeleton } from '@/components/skeletons/TaskDetailSkeleton'
 import { useSearchParams } from 'next/navigation'
@@ -20,8 +19,6 @@ export default function ProjectPage() {
     const [tasks, setTasks] = useState<Task[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showSkeleton, setShowSkeleton] = useState(false)
-    const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false)
-
     const projectId = params.projectId as string
 
     const fetchData = async () => {
@@ -63,14 +60,6 @@ export default function ProjectPage() {
         return () => clearTimeout(timer)
     }, [])
 
-    const handleCreateTask = () => {
-        setShowCreateTaskDialog(true)
-    }
-
-    const handleSuccess = () => {
-        fetchData()
-    }
-
     if (isLoading) {
         // If we have a taskId in the URL, show the task skeleton
         if (searchParams.get('taskId')) {
@@ -85,20 +74,11 @@ export default function ProjectPage() {
     }
 
     return (
-        <>
-            <ProjectDetailView
-                project={project}
-                tasks={tasks}
-                onRefresh={fetchData}
-                onCreateTask={handleCreateTask}
-            />
-
-            <CreateTaskDialog
-                open={showCreateTaskDialog}
-                onOpenChange={setShowCreateTaskDialog}
-                projectId={projectId}
-                onSuccess={handleSuccess}
-            />
-        </>
+        <ProjectDetailView
+            project={project}
+            tasks={tasks}
+            onRefresh={fetchData}
+            onCreateTask={() => {}} // No longer used, but keeping for interface compatibility
+        />
     )
 }
