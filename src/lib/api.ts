@@ -564,6 +564,7 @@ export const customFieldApi = {
       dataType: DataType
       color?: string
       required?: boolean
+      customOptions?: string[]
     }
   ) => {
     return apiRequest<CustomField>(`/api/v1/projects/${projectId}/custom-fields`, {
