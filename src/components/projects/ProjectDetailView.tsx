@@ -1,15 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import type { TaskListRef } from './TaskList'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
     Calendar as CalendarIcon,
     List as ListIcon,
     Plus,
-    CheckCircle2,
-    Circle,
-    AlertCircle,
     Search,
     Filter,
     ArrowLeft,
@@ -18,15 +15,14 @@ import {
     X,
     Loader2,
     Copy,
-    Check,
-    Pencil
+    Pencil,
+    Layers
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { type Project, type Task, type CustomField, type DataType, projectApi, taskApi, customFieldApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { ProjectCalendarView } from './ProjectCalendarView'
 import { TaskDetailView } from '@/components/tasks/TaskDetailView'
-import { TaskRow } from './TaskRow'
 import { TaskList } from './TaskList'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Input } from '@/components/ui/input'
@@ -54,6 +50,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const DATA_TYPES: { value: DataType; label: string }[] = [
     { value: 'STRING', label: 'Text' },
@@ -97,13 +94,16 @@ const EditableContent = ({
 }: EditableContentProps) => {
     const [isEditing, setIsEditing] = useState(false)
     const [displayValue, setDisplayValue] = useState(value)
+    const [prevValue, setPrevValue] = useState(value)
+    // Derived state pattern
+    if (value !== prevValue && !isEditing) {
+        setPrevValue(value)
+        setDisplayValue(value)
+    }
+
     const [editEmpty, setEditEmpty] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
     const discardOnBlurRef = useRef(false)
-
-    useEffect(() => {
-        if (!isEditing) setDisplayValue(value)
-    }, [value, isEditing])
 
     useLayoutEffect(() => {
         if (!isEditing || !ref.current) return
@@ -113,7 +113,6 @@ const EditableContent = ({
         el.textContent = ''
         el.textContent = displayValue
         placeCaretAtEnd(el)
-        setEditEmpty(!displayValue.trim())
     }, [isEditing, displayValue])
 
     const handleBlur = () => {
@@ -139,12 +138,12 @@ const EditableContent = ({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'Enter' && !isTextarea) {
             e.preventDefault()
-            ;(e.target as HTMLDivElement).blur()
+                ; (e.target as HTMLDivElement).blur()
         }
         if (e.key === 'Escape') {
             discardOnBlurRef.current = true
             if (ref.current) ref.current.textContent = displayValue
-            ;(e.target as HTMLDivElement).blur()
+                ; (e.target as HTMLDivElement).blur()
         }
     }
 
@@ -157,7 +156,10 @@ const EditableContent = ({
     }
 
     const handleClick = () => {
-        if (!isEditing) setIsEditing(true)
+        if (!isEditing) {
+            setIsEditing(true)
+            setEditEmpty(!displayValue.trim())
+        }
     }
 
     if (isEditing) {
@@ -234,7 +236,8 @@ export function ProjectDetailView({
     project,
     tasks,
     onRefresh,
-    onCreateTask
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onCreateTask: _onCreateTask
 }: ProjectDetailViewProps) {
     const { getToken } = useAuth()
     const [view, setView] = useState<ViewMode>('list')
@@ -280,6 +283,22 @@ export function ProjectDetailView({
     const [isDeletingField, setIsDeletingField] = useState(false)
     const [isCopyingProject, setIsCopyingProject] = useState(false)
     const taskListRef = useRef<TaskListRef>(null)
+
+    // Grouping & Deep Filtering
+    const [groupByField, setGroupByField] = useState<string | null>(null)
+    const [columnFilters, setColumnFilters] = useState<Record<string, { value: string, type: 'text' | 'date' }>>({})
+
+    const handleColumnFilterChange = (fieldId: string, value: string, type: 'text' | 'date' = 'text') => {
+        setColumnFilters(prev => {
+            const next = { ...prev }
+            if (!value) {
+                delete next[fieldId]
+            } else {
+                next[fieldId] = { value, type }
+            }
+            return next
+        })
+    }
 
 
     const handleUpdateProjectField = async (updates: Partial<Project>) => {
@@ -401,7 +420,7 @@ export function ProjectDetailView({
         }
     }
 
-    const fetchCustomFields = async () => {
+    const fetchCustomFields = useCallback(async () => {
         try {
             setIsLoadingCustomFields(true)
             const token = await getToken()
@@ -418,7 +437,7 @@ export function ProjectDetailView({
         } finally {
             setIsLoadingCustomFields(false)
         }
-    }
+    }, [getToken, project.id])
 
     const handleCreateCustomField = async () => {
         if (!newFieldName.trim()) {
@@ -551,29 +570,40 @@ export function ProjectDetailView({
         fetchCustomFields()
     }
 
-    const getStatusIcon = (status: Task['status']) => {
-        switch (status) {
-            case 'COMPLETED': return <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            case 'IN_PROGRESS': return <Circle className="h-4 w-4 text-blue-600" />
-            case 'IN_REVIEW': return <AlertCircle className="h-4 w-4 text-amber-600" />
-            default: return <Circle className="h-4 w-4 text-muted-foreground/30" />
-        }
-    }
-
-    const getStatusLabel = (status: Task['status']) => {
-        switch (status) {
-            case 'COMPLETED': return 'Completed'
-            case 'IN_PROGRESS': return 'In Progress'
-            case 'IN_REVIEW': return 'In Review'
-            default: return 'Pending'
-        }
-    }
+    // getStatusIcon and getStatusLabel removed
 
     // Filter tasks
+    // Filter tasks
     const filteredTasks = tasks.filter(task => {
+        // 1. Search Query
         const matchesSearch = task.name.toLowerCase().includes(searchQuery.toLowerCase())
+
+        // 2. Status FilterButton (Legacy/High-level)
         const matchesStatus = statusFilter === 'ALL' || task.status === statusFilter
-        return matchesSearch && matchesStatus
+
+        // 3. Column Filters
+        const matchesColumnFilters = Object.entries(columnFilters).every(([fieldId, filter]) => {
+            if (!filter.value) return true
+
+            let cellValue = ''
+            if (fieldId === 'name') {
+                cellValue = task.name
+            } else {
+                // Find custom field value
+                const cv = task.customFieldValues?.find(v => v.customFieldId === fieldId)
+                cellValue = cv?.value || ''
+            }
+
+            if (filter.type === 'date') {
+                // simple substring match for now, or exact match? User asked for "filters by keywords or dates"
+                // For date fields, usually stored as ISO strings or YYYY-MM-DD. 
+                return cellValue.includes(filter.value)
+            }
+
+            return cellValue.toLowerCase().includes(filter.value.toLowerCase())
+        })
+
+        return matchesSearch && matchesStatus && matchesColumnFilters
     })
 
 
@@ -583,7 +613,7 @@ export function ProjectDetailView({
     // Fetch custom fields on mount
     useEffect(() => {
         fetchCustomFields()
-    }, [project.id])
+    }, [fetchCustomFields])
 
     // Sync URL with selected task
     useEffect(() => {
@@ -651,6 +681,7 @@ export function ProjectDetailView({
                                     variant="ghost"
                                     size="icon"
                                     className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                                    onClick={() => window.history.back()}
                                 >
                                     <ArrowLeft className="h-4 w-4" />
                                 </Button>
@@ -730,12 +761,12 @@ export function ProjectDetailView({
                             <Trash2 className="h-4 w-4" />
                         </Button>
                         <div className="w-px h-6 bg-border mx-1" />
-                        <Button 
+                        <Button
                             onClick={() => {
                                 if (taskListRef.current) {
                                     taskListRef.current.startCreatingTask()
                                 }
-                            }} 
+                            }}
                             className="gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
                         >
                             <Plus className="h-4 w-4" />
@@ -816,12 +847,54 @@ export function ProjectDetailView({
                                 </DropdownMenuCheckboxItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className={cn("gap-2 text-muted-foreground hover:text-foreground bg-white cursor-pointer", groupByField && "text-primary border-primary/50 bg-primary/5")}>
+                                    <Layers className="h-3.5 w-3.5" />
+                                    Group
+                                    {groupByField && (
+                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-normal">
+                                            1
+                                        </span>
+                                    )}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Group by</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={groupByField === null}
+                                    onCheckedChange={() => setGroupByField(null)}
+                                >
+                                    None
+                                </DropdownMenuCheckboxItem>
+                                <DropdownMenuSeparator />
+                                {/* Internal fields */}
+                                <DropdownMenuCheckboxItem
+                                    checked={groupByField === 'status'}
+                                    onCheckedChange={() => setGroupByField('status')}
+                                >
+                                    Status
+                                </DropdownMenuCheckboxItem>
+                                {/* Custom fields */}
+                                {customFields.map(field => (
+                                    <DropdownMenuCheckboxItem
+                                        key={field.id}
+                                        checked={groupByField === field.id}
+                                        onCheckedChange={() => setGroupByField(field.id)}
+                                    >
+                                        {field.name}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             )}
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 min-w-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
                     <div className="flex-1 min-h-0">
                         <ProjectCalendarView tasks={tasks} />
@@ -849,6 +922,11 @@ export function ProjectDetailView({
                                     onCustomFieldCreated={fetchCustomFields}
                                     onTaskCreated={onRefresh}
                                     projectId={project.id}
+                                    members={Array.from(new Map([...project.owners, ...project.members].map(m => [m.id, m])).values())}
+                                    // New Props
+                                    groupByField={groupByField}
+                                    columnFilters={columnFilters}
+                                    onColumnFilterChange={handleColumnFilterChange}
                                 />
                             </div>
                         )}
@@ -864,381 +942,117 @@ export function ProjectDetailView({
                 }
             }}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    {settingsModalPage === 'settings' ? (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>Project Settings</DialogTitle>
-                                <DialogDescription>
-                                    Manage project details and custom fields
-                                </DialogDescription>
-                            </DialogHeader>
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Project Settings</DialogTitle>
+                            <DialogDescription>
+                                Manage project details and custom fields
+                            </DialogDescription>
+                        </DialogHeader>
 
-                            {/* Project Details Section */}
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-4">
-                                    <h3 className="text-sm font-semibold text-foreground">Project Details</h3>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="settings-project-name">Project Name</Label>
-                                        <Input
-                                            id="settings-project-name"
-                                            value={editProjectName}
-                                            onChange={(e) => setEditProjectName(e.target.value)}
-                                            placeholder="Enter project name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="settings-project-description">Description</Label>
-                                        <Textarea
-                                            id="settings-project-description"
-                                            value={editProjectDescription}
-                                            onChange={(e) => setEditProjectDescription(e.target.value)}
-                                            placeholder="Enter project description"
-                                            rows={3}
-                                        />
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={handleEditProject}
-                                            disabled={isSubmitting || !editProjectName.trim()}
-                                            size="sm"
-                                        >
-                                            {isSubmitting ? 'Saving...' : 'Update Project'}
-                                        </Button>
-                                        <Button
-                                            onClick={handleCopyProject}
-                                            disabled={isCopyingProject}
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-1"
-                                        >
-                                            {isCopyingProject ? (
-                                                <>
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    Copying...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy className="h-3.5 w-3.5" />
-                                                    Copy Project
-                                                </>
-                                            )}
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-border my-6" />
-
-                                {/* Custom Fields Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-semibold text-foreground">Custom Fields</h3>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSettingsModalPage('createField')}
-                                            className="gap-1"
-                                        >
-                                            <Plus className="h-3.5 w-3.5" />
-                                            Add Field
-                                        </Button>
-                                    </div>
-
-                                    {/* Custom Fields List */}
-                                    {isLoadingCustomFields ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                        </div>
-                                    ) : customFields.length === 0 ? (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            <p className="text-sm">No custom fields defined yet.</p>
-                                            <p className="text-xs mt-1">Click "Add Field" to create your first custom field.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {customFields.map((field) => (
-                                                <div
-                                                    key={field.id}
-                                                    onClick={() => handleOpenEditField(field)}
-                                                    className="flex items-center justify-between p-3 border border-border rounded-lg bg-white hover:bg-muted/30 transition-colors cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        {field.color && (
-                                                            <div
-                                                                className="h-3 w-3 rounded-full"
-                                                                style={{ backgroundColor: field.color }}
-                                                            />
-                                                        )}
-                                                        <div>
-                                                            <p className="text-sm font-medium">{field.name}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {DATA_TYPES.find(t => t.value === field.dataType)?.label || field.dataType}
-                                                                {field.required && ' • Required'}
-                                                                {field.description && ` • ${field.description}`}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Default: {field.defaultValue}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setSettingsDialogOpen(false)}>
-                                    Close
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    ) : settingsModalPage === 'createField' ? (
-                        <>
-                            {/* Create Custom Field Page */}
-                            <DialogHeader>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 -ml-2"
-                                        onClick={resetNewFieldForm}
-                                    >
-                                        <ArrowLeft className="h-4 w-4" />
-                                    </Button>
-                                    <div>
-                                        <DialogTitle>Create Custom Field</DialogTitle>
-                                        <DialogDescription>
-                                            Add a new custom field to this project
-                                        </DialogDescription>
-                                    </div>
-                                </div>
-                            </DialogHeader>
-
-                            <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="field-name">Name *</Label>
-                                        <Input
-                                            id="field-name"
-                                            value={newFieldName}
-                                            onChange={(e) => setNewFieldName(e.target.value)}
-                                            placeholder="Field name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="field-type">Data Type *</Label>
-                                        <Select value={newFieldDataType} onValueChange={(value: DataType) => setNewFieldDataType(value)}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DATA_TYPES.map((type) => (
-                                                    <SelectItem key={type.value} value={type.value}>
-                                                        {type.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                        {/* Project Details Section */}
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold text-foreground">Project Details</h3>
+                                <div className="space-y-2">
+                                    <Label htmlFor="settings-project-name">Project Name</Label>
+                                    <Input
+                                        id="settings-project-name"
+                                        value={editProjectName}
+                                        onChange={(e) => setEditProjectName(e.target.value)}
+                                        placeholder="Enter project name"
+                                    />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="field-description">Description</Label>
-                                    <Input
-                                        id="field-description"
-                                        value={newFieldDescription}
-                                        onChange={(e) => setNewFieldDescription(e.target.value)}
-                                        placeholder="Optional description"
+                                    <Label htmlFor="settings-project-description">Description</Label>
+                                    <Textarea
+                                        id="settings-project-description"
+                                        value={editProjectDescription}
+                                        onChange={(e) => setEditProjectDescription(e.target.value)}
+                                        placeholder="Enter project description"
+                                        rows={3}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="field-default">Default Value</Label>
-                                        <Input
-                                            id="field-default"
-                                            value={newFieldDefaultValue}
-                                            onChange={(e) => setNewFieldDefaultValue(e.target.value)}
-                                            placeholder="Default value"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="field-color">Color</Label>
-                                        <Input
-                                            id="field-color"
-                                            value={newFieldColor}
-                                            onChange={(e) => setNewFieldColor(e.target.value)}
-                                            placeholder="#000000"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="field-required"
-                                        checked={newFieldRequired}
-                                        onCheckedChange={(checked) => setNewFieldRequired(checked === true)}
-                                    />
-                                    <Label htmlFor="field-required" className="text-sm font-normal cursor-pointer">
-                                        Required field
-                                    </Label>
-                                </div>
-                            </div>
-
-                            <DialogFooter>
-                                <Button
-                                    variant="outline"
-                                    onClick={resetNewFieldForm}
-                                    disabled={isCreatingField}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    onClick={handleCreateCustomField}
-                                    disabled={isCreatingField || !newFieldName.trim()}
-                                >
-                                    {isCreatingField ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Creating...
-                                        </>
-                                    ) : (
-                                        'Create Field'
-                                    )}
-                                </Button>
-                            </DialogFooter>
-                        </>
-                    ) : (
-                        <>
-                            {/* Edit Custom Field Page */}
-                            <DialogHeader>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 -ml-2"
-                                        onClick={resetEditFieldForm}
-                                    >
-                                        <ArrowLeft className="h-4 w-4" />
-                                    </Button>
-                                    <div>
-                                        <DialogTitle>Edit Custom Field</DialogTitle>
-                                        <DialogDescription>
-                                            Update or delete this custom field
-                                        </DialogDescription>
-                                    </div>
-                                </div>
-                            </DialogHeader>
-
-                            <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit-field-name">Name *</Label>
-                                        <Input
-                                            id="edit-field-name"
-                                            value={editFieldName}
-                                            onChange={(e) => setEditFieldName(e.target.value)}
-                                            placeholder="Field name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit-field-type">Data Type *</Label>
-                                        <Select value={editFieldDataType} onValueChange={(value: DataType) => setEditFieldDataType(value)}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {DATA_TYPES.map((type) => (
-                                                    <SelectItem key={type.value} value={type.value}>
-                                                        {type.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-field-description">Description</Label>
-                                    <Input
-                                        id="edit-field-description"
-                                        value={editFieldDescription}
-                                        onChange={(e) => setEditFieldDescription(e.target.value)}
-                                        placeholder="Optional description"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit-field-default">Default Value</Label>
-                                        <Input
-                                            id="edit-field-default"
-                                            value={editFieldDefaultValue}
-                                            onChange={(e) => setEditFieldDefaultValue(e.target.value)}
-                                            placeholder="Default value"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit-field-color">Color</Label>
-                                        <Input
-                                            id="edit-field-color"
-                                            value={editFieldColor}
-                                            onChange={(e) => setEditFieldColor(e.target.value)}
-                                            placeholder="#000000"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id="edit-field-required"
-                                        checked={editFieldRequired}
-                                        onCheckedChange={(checked) => setEditFieldRequired(checked === true)}
-                                    />
-                                    <Label htmlFor="edit-field-required" className="text-sm font-normal cursor-pointer">
-                                        Required field
-                                    </Label>
-                                </div>
-                            </div>
-
-                            <DialogFooter className="flex justify-between sm:justify-between">
-                                <Button
-                                    variant="destructive"
-                                    onClick={handleDeleteCustomField}
-                                    disabled={isUpdatingField || isDeletingField}
-                                >
-                                    {isDeletingField ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Deleting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
-                                        </>
-                                    )}
-                                </Button>
                                 <div className="flex gap-2">
                                     <Button
-                                        variant="outline"
-                                        onClick={resetEditFieldForm}
-                                        disabled={isUpdatingField || isDeletingField}
+                                        onClick={handleEditProject}
+                                        disabled={isSubmitting || !editProjectName.trim()}
+                                        size="sm"
                                     >
-                                        Cancel
+                                        {isSubmitting ? 'Saving...' : 'Update Project'}
                                     </Button>
                                     <Button
-                                        onClick={handleUpdateCustomField}
-                                        disabled={isUpdatingField || isDeletingField || !editFieldName.trim()}
+                                        onClick={handleCopyProject}
+                                        disabled={isCopyingProject}
+                                        size="sm"
+                                        variant="outline"
+                                        className="gap-1"
                                     >
-                                        {isUpdatingField ? (
+                                        {isCopyingProject ? (
                                             <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Saving...
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                Copying...
                                             </>
                                         ) : (
-                                            'Save Changes'
+                                            <>
+                                                <Copy className="h-3.5 w-3.5" />
+                                                Copy Project
+                                            </>
                                         )}
                                     </Button>
                                 </div>
-                            </DialogFooter>
-                        </>
-                    )}
+                            </div>
+
+                            <div className="border-t border-border my-6" />
+
+                            {/* Members Section */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold text-foreground">Members</h3>
+
+                                <div className="space-y-2">
+                                    {[...project.owners.map(u => ({ ...u, role: 'Owner' })), ...project.members.map(u => ({ ...u, role: 'Member' }))].map((member) => (
+                                        <div
+                                            key={`${member.role}-${member.id}`}
+                                            className="flex items-center justify-between p-3 border border-border rounded-lg bg-white"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarFallback>
+                                                        {(member.firstName?.[0] || member.email[0]).toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="text-sm font-medium">
+                                                        {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                                                </div>
+                                            </div>
+                                            <span className={cn(
+                                                "text-xs px-2 py-1 rounded-full font-medium",
+                                                member.role === 'Owner' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                            )}>
+                                                {member.role}
+                                            </span>
+                                        </div>
+                                    ))}
+
+                                    {project.owners.length === 0 && project.members.length === 0 && (
+                                        <div className="text-center py-4 text-muted-foreground text-sm">
+                                            No members found
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </>
+
                 </DialogContent>
             </Dialog>
 

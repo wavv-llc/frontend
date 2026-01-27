@@ -1,11 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useLayoutEffect } from 'react'
+import { useState, useRef, useImperativeHandle, forwardRef, useLayoutEffect, useMemo } from 'react'
 import {
     Plus,
     CheckCircle2,
-    Circle,
-    AlertCircle,
     MoreVertical,
     Edit2,
     Trash2,
@@ -13,10 +11,13 @@ import {
     Calendar,
     Type,
     Hash,
-    User,
-    FileText,
+    User as UserIcon,
+    ChevronRight,
+    ChevronDown,
+    Filter,
+    X,
 } from 'lucide-react'
-import { type Task, type CustomField, type DataType, customFieldApi, taskApi, userApi } from '@/lib/api'
+import { type Task, type CustomField, type DataType, type User as ApiUser, customFieldApi, taskApi, userApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -31,8 +32,15 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { useAuth, useUser } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Pencil } from 'lucide-react'
@@ -51,6 +59,10 @@ interface TaskListProps {
     onCustomFieldCreated: () => void
     onTaskCreated: () => void
     projectId: string
+    members: ApiUser[]
+    groupByField: string | null
+    columnFilters: Record<string, { value: string, type: 'text' | 'date' }>
+    onColumnFilterChange: (fieldId: string, value: string, type?: 'text' | 'date') => void
 }
 
 // Concise field types per CPA feedback
@@ -58,7 +70,7 @@ const FIELD_TYPES = [
     { value: 'STRING' as DataType, label: 'Text', icon: Type, description: 'Plain text field' },
     { value: 'NUMBER' as DataType, label: 'Number', icon: Hash, description: 'Numeric value' },
     { value: 'DATE' as DataType, label: 'Date', icon: Calendar, description: 'Date picker' },
-    { value: 'USER' as DataType, label: 'Person', icon: User, description: 'Assign a person' },
+    { value: 'USER' as DataType, label: 'Person', icon: UserIcon, description: 'Assign a person' },
     { value: 'CUSTOM' as DataType, label: 'Status', icon: CheckCircle2, description: 'Task status' },
 ] as const
 
@@ -90,13 +102,16 @@ const EditableContent = ({
 }: EditableContentProps) => {
     const [isEditing, setIsEditing] = useState(false)
     const [displayValue, setDisplayValue] = useState(value)
+    const [prevValue, setPrevValue] = useState(value)
+    // Derived state pattern to sync value from props when not editing
+    if (value !== prevValue && !isEditing) {
+        setPrevValue(value)
+        setDisplayValue(value)
+    }
+
     const [editEmpty, setEditEmpty] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
     const discardOnBlurRef = useRef(false)
-
-    useEffect(() => {
-        if (!isEditing) setDisplayValue(value)
-    }, [value, isEditing])
 
     useLayoutEffect(() => {
         if (!isEditing || !ref.current) return
@@ -108,7 +123,6 @@ const EditableContent = ({
         el.textContent = ''
         el.textContent = displayValue
         placeCaretAtEnd(el)
-        setEditEmpty(!displayValue.trim())
     }, [isEditing, displayValue, autoFocus])
 
     const handleBlur = () => {
@@ -134,12 +148,12 @@ const EditableContent = ({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            ;(e.target as HTMLDivElement).blur()
+                ; (e.target as HTMLDivElement).blur()
         }
         if (e.key === 'Escape') {
             discardOnBlurRef.current = true
             if (ref.current) ref.current.textContent = displayValue
-            ;(e.target as HTMLDivElement).blur()
+                ; (e.target as HTMLDivElement).blur()
         }
     }
 
@@ -152,7 +166,10 @@ const EditableContent = ({
     }
 
     const handleClick = () => {
-        if (!isEditing) setIsEditing(true)
+        if (!isEditing) {
+            setIsEditing(true)
+            setEditEmpty(!displayValue.trim())
+        }
     }
 
     if (isEditing) {
@@ -223,6 +240,8 @@ function placeCaretAtEnd(el: HTMLElement) {
     sel?.addRange(range)
 }
 
+
+
 export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
     tasks,
     customFields,
@@ -233,20 +252,36 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
     onCustomFieldCreated,
     onTaskCreated,
     projectId,
+    members,
+    groupByField,
+    columnFilters,
+    onColumnFilterChange,
 }, ref) => {
     const { getToken } = useAuth()
-    const { user } = useUser()
     const [isCreatingField, setIsCreatingField] = useState(false)
     const [fieldName, setFieldName] = useState('')
     const [fieldType, setFieldType] = useState<DataType>('STRING')
     const [showRoleSelection, setShowRoleSelection] = useState(false)
     const [selectedRole, setSelectedRole] = useState<string>('')
     const [isSubmitting, setIsSubmitting] = useState(false)
-    
+
+    // Deduplicate members to avoid key collision errors
+    const uniqueMembers = useMemo(() => {
+        return Array.from(new Map(members.map(m => [m.id, m])).values())
+    }, [members])
+
     // Inline task creation
     const [isCreatingTask, setIsCreatingTask] = useState(false)
     const [newTaskName, setNewTaskName] = useState('')
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+
+    const toggleGroup = (groupValue: string) => {
+        setCollapsedGroups(prev => ({
+            ...prev,
+            [groupValue]: !prev[groupValue]
+        }))
+    }
 
     // Expose method to start creating task from parent
     useImperativeHandle(ref, () => ({
@@ -255,6 +290,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
             setNewTaskName('')
         }
     }))
+
+    // Sort fields by creation date (oldest first) so new fields appear at the end
+    // Then limit to 5
+    const displayedFields = [...customFields]
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
 
     const handleCreateTask = async (name: string) => {
         if (!name.trim()) {
@@ -281,7 +322,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
 
             // Build customFields object with default values for required fields
             const customFieldsPayload: Record<string, string | number | null> = {}
-            
+
             for (const field of customFields) {
                 if (field.required) {
                     if (field.dataType === 'CUSTOM' && field.customOptions && field.customOptions.length > 0) {
@@ -295,9 +336,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                         customFieldsPayload[field.id] = field.defaultValue
                     } else {
                         // For other required fields, we need a value
-                        // This shouldn't happen for required fields, but handle it
                         if (field.dataType === 'NUMBER') {
-                            customFieldsPayload[field.id] = 0
+                            customFieldsPayload[field.id] = '0'
                         } else {
                             customFieldsPayload[field.id] = ''
                         }
@@ -354,16 +394,34 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
         }
     }
 
+    const handleUpdateCustomField = async (task: Task, fieldId: string, value: string) => {
+        // Optimistic check - prevent unnecessary updates
+        const currentValue = task.customFieldValues?.find(v => v.customFieldId === fieldId)?.value
+        if (currentValue === value) return
+
+        try {
+            const token = await getToken()
+            if (!token) return
+
+            await taskApi.updateTask(token, projectId, task.id, {
+                customFields: { [fieldId]: value }
+            })
+            onTaskCreated() // Refresh list
+        } catch (error) {
+            console.error('Failed to update field:', error)
+            toast.error('Failed to update field')
+        }
+    }
+
     const getCustomFieldValue = (task: Task, field: CustomField) => {
-        // TODO: Once Task type includes customFieldValues, access it here
-        // For now return empty/placeholder
-        return '-'
+        const val = task.customFieldValues?.find(v => v.customFieldId === field.id)?.value
+        if (!val) return null
+        return val
     }
 
     const handleFieldTypeSelect = (type: DataType) => {
         setFieldType(type)
         if (type === 'USER') {
-            // Show role selection for Person field
             setShowRoleSelection(true)
         } else {
             setShowRoleSelection(false)
@@ -390,10 +448,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                 return
             }
 
-            // For Person fields, store the role in customOptions
             const customOptions = fieldType === 'USER' && selectedRole ? [selectedRole] : undefined
-            
-            // For Status fields, set default options
             const statusOptions = fieldType === 'CUSTOM' ? ['ToDo', 'In Progress', 'Done'] : undefined
 
             await customFieldApi.createCustomField(token, projectId, {
@@ -425,291 +480,595 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
         setIsCreatingField(false)
     }
 
-    return (
-        <div className="w-full border border-border rounded-lg overflow-hidden bg-card">
-            {/* Table Header */}
-            <div className="flex border-b border-border bg-muted/30 min-w-max">
-                {/* Task Name Column */}
-                <div className="w-[300px] shrink-0 px-4 py-3 border-r border-border">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Type className="h-4 w-4" />
-                        Task name
-                    </div>
-                </div>
+    const renderCustomFieldCell = (task: Task, field: CustomField) => {
+        const value = getCustomFieldValue(task, field)
 
-                {/* Custom Field Columns */}
-                {customFields.map((field) => (
-                    <div key={field.id} className="w-[150px] shrink-0 px-4 py-3 border-r border-border">
-                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            {field.dataType === 'DATE' && <Calendar className="h-4 w-4" />}
-                            {field.dataType === 'NUMBER' && <Hash className="h-4 w-4" />}
-                            {field.dataType === 'USER' && <User className="h-4 w-4" />}
-                            {field.dataType === 'STRING' && <Type className="h-4 w-4" />}
-                            {field.dataType === 'CUSTOM' && <CheckCircle2 className="h-4 w-4" />}
-                            {field.name}
+        if (field.dataType === 'CUSTOM') {
+            // Status dropdown
+            return (
+                <Select
+                    value={value || ''}
+                    onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
+                >
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
+                        <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {(field.customOptions || []).map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                                {opt}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )
+        }
+
+        if (field.dataType === 'USER') {
+            // User dropdown
+            const selectedMember = uniqueMembers.find(m => m.id === value)
+            return (
+                <Select
+                    value={value || ''}
+                    onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
+                >
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {selectedMember ? (
+                                <>
+                                    <Avatar className="h-4 w-4">
+                                        <AvatarFallback className="text-[10px]">
+                                            {(selectedMember.firstName?.[0] || selectedMember.email[0]).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="truncate text-xs">
+                                        {selectedMember.firstName ? `${selectedMember.firstName} ${selectedMember.lastName || ''}` : selectedMember.email}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-muted-foreground">-</span>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    </SelectTrigger>
+                    <SelectContent>
+                        {uniqueMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                                <div className="flex items-center gap-2">
+                                    <Avatar className="h-4 w-4">
+                                        <AvatarFallback className="text-[10px]">
+                                            {(member.firstName?.[0] || member.email[0]).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span>
+                                        {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
+                                    </span>
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )
+        }
 
-                {/* Add Column Button */}
-                <div className="w-[150px] shrink-0 px-4 py-3">
-                    <Popover open={isCreatingField} onOpenChange={setIsCreatingField}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start text-muted-foreground hover:text-foreground"
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                New field
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                            <div className="space-y-4">
-                                <div>
-                                    <Label htmlFor="field-name">Type property name</Label>
-                                    <div className="mt-2">
+        // Text/Number/Date/String fallback
+        return (
+            <EditableContent
+                value={value || ''}
+                onSave={(val) => handleUpdateCustomField(task, field.id, val)}
+                placeholder="-"
+                textStyle="text-sm text-muted-foreground truncate"
+            />
+        )
+    }
+
+    return (
+        <div className="w-full h-full border border-border rounded-lg bg-card overflow-hidden flex flex-col min-w-0">
+            <div className="flex-1 overflow-auto relative scroll-smooth">
+                <div className="min-w-max h-full">
+                    {/* Table Header - Sticky Top */}
+                    <div className="sticky top-0 z-30 flex border-b border-border bg-muted">
+                        {/* Task Name Column Header - Sticky Left & Top */}
+                        <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-muted flex items-center justify-between text-sm font-medium text-muted-foreground shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] group">
+                            <div className="flex items-center gap-2">
+                                <Type className="h-4 w-4" />
+                                Task name
+                            </div>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn("h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10", columnFilters['name'] && "opacity-100 text-primary")}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Filter className="h-3 w-3" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-2">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-medium text-xs text-muted-foreground">Filter Task Name</h4>
+                                            {columnFilters['name'] && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-4 w-4"
+                                                    onClick={() => onColumnFilterChange('name', '')}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            )}
+                                        </div>
                                         <input
-                                            type="text"
-                                            value={fieldName}
-                                            onChange={(e) => setFieldName(e.target.value)}
-                                            placeholder="Field name..."
-                                            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
+                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                            placeholder="Contains..."
+                                            value={columnFilters['name']?.value || ''}
+                                            onChange={(e) => onColumnFilterChange('name', e.target.value)}
                                             autoFocus
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && fieldName.trim() && !showRoleSelection) {
-                                                    if (fieldType === 'USER') {
-                                                        setShowRoleSelection(true)
-                                                    } else {
-                                                        handleCreateField()
-                                                    }
-                                                }
-                                            }}
                                         />
                                     </div>
-                                </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
 
-                                {!showRoleSelection ? (
-                                    <>
+                        {/* Custom Field Columns Headers */}
+                        {displayedFields.map((field) => (
+                            <div key={field.id} className="w-[150px] shrink-0 px-4 py-3 border-r border-border flex items-center justify-between text-sm font-medium text-muted-foreground bg-muted group">
+                                <div className="flex items-center gap-2 truncate">
+                                    {field.dataType === 'DATE' && <Calendar className="h-4 w-4" />}
+                                    {field.dataType === 'NUMBER' && <Hash className="h-4 w-4" />}
+                                    {field.dataType === 'USER' && <UserIcon className="h-4 w-4" />}
+                                    {field.dataType === 'STRING' && <Type className="h-4 w-4" />}
+                                    {field.dataType === 'CUSTOM' && <CheckCircle2 className="h-4 w-4" />}
+                                    <span className="truncate">{field.name}</span>
+                                </div>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn("h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10", columnFilters[field.id] && "opacity-100 text-primary")}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Filter className="h-3 w-3" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-2">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-medium text-xs text-muted-foreground">Filter {field.name}</h4>
+                                                {columnFilters[field.id] && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-4 w-4"
+                                                        onClick={() => onColumnFilterChange(field.id, '')}
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <input
+                                                className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                placeholder={field.dataType === 'DATE' ? 'YYYY-MM-DD' : "Contains..."}
+                                                value={columnFilters[field.id]?.value || ''}
+                                                onChange={(e) => onColumnFilterChange(field.id, e.target.value, field.dataType === 'DATE' ? 'date' : 'text')}
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        ))}
+
+                        {/* Add Column Button */}
+                        <div className="w-[150px] shrink-0 px-4 py-3 bg-muted">
+                            <Popover open={isCreatingField} onOpenChange={setIsCreatingField}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start text-muted-foreground hover:text-foreground"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        New field
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                    <div className="space-y-4">
                                         <div>
-                                            <Label>Select type</Label>
-                                            <div className="mt-2 space-y-1">
-                                                {FIELD_TYPES.map((type) => {
-                                                    const Icon = type.icon
-                                                    return (
-                                                        <button
-                                                            key={type.value}
-                                                            onClick={() => handleFieldTypeSelect(type.value)}
-                                                            className={cn(
-                                                                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors",
-                                                                fieldType === type.value && "bg-muted"
-                                                            )}
-                                                        >
-                                                            <Icon className="h-4 w-4 text-muted-foreground" />
-                                                            <div className="flex-1">
-                                                                <div className="text-sm font-medium">{type.label}</div>
-                                                                <div className="text-xs text-muted-foreground">{type.description}</div>
-                                                            </div>
-                                                        </button>
-                                                    )
-                                                })}
+                                            <Label htmlFor="field-name">Type property name</Label>
+                                            <div className="mt-2">
+                                                <input
+                                                    type="text"
+                                                    value={fieldName}
+                                                    onChange={(e) => setFieldName(e.target.value)}
+                                                    placeholder="Field name..."
+                                                    className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && fieldName.trim() && !showRoleSelection) {
+                                                            if (fieldType === 'USER') {
+                                                                setShowRoleSelection(true)
+                                                            } else {
+                                                                handleCreateField()
+                                                            }
+                                                        }
+                                                    }}
+                                                />
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2 pt-2">
-                                            <Button
-                                                onClick={() => {
-                                                    if (fieldType === 'USER') {
-                                                        setShowRoleSelection(true)
-                                                    } else {
-                                                        handleCreateField()
-                                                    }
-                                                }}
-                                                disabled={!fieldName.trim() || isSubmitting}
-                                                className="flex-1"
-                                            >
-                                                {isSubmitting ? 'Creating...' : fieldType === 'USER' ? 'Next' : 'Create'}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={handleCancelFieldCreation}
-                                                disabled={isSubmitting}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div>
-                                        <Label>Select role</Label>
-                                        <div className="mt-2 space-y-1">
-                                            {PERSON_ROLES.map((role) => (
+                                        {!showRoleSelection ? (
+                                            <>
+                                                <div>
+                                                    <Label>Select type</Label>
+                                                    <div className="mt-2 space-y-1">
+                                                        {FIELD_TYPES.map((type) => {
+                                                            const Icon = type.icon
+                                                            return (
+                                                                <button
+                                                                    key={type.value}
+                                                                    onClick={() => handleFieldTypeSelect(type.value)}
+                                                                    className={cn(
+                                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors",
+                                                                        fieldType === type.value && "bg-muted"
+                                                                    )}
+                                                                >
+                                                                    <Icon className="h-4 w-4 text-muted-foreground" />
+                                                                    <div className="flex-1">
+                                                                        <div className="text-sm font-medium">{type.label}</div>
+                                                                        <div className="text-xs text-muted-foreground">{type.description}</div>
+                                                                    </div>
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-2 pt-2">
+                                                    <Button
+                                                        onClick={() => {
+                                                            if (fieldType === 'USER') {
+                                                                setShowRoleSelection(true)
+                                                            } else {
+                                                                handleCreateField()
+                                                            }
+                                                        }}
+                                                        disabled={!fieldName.trim() || isSubmitting}
+                                                        className="flex-1"
+                                                    >
+                                                        {isSubmitting ? 'Creating...' : fieldType === 'USER' ? 'Next' : 'Create'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={handleCancelFieldCreation}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div>
+                                                <Label>Select role</Label>
+                                                <div className="mt-2 space-y-1">
+                                                    {PERSON_ROLES.map((role) => (
+                                                        <button
+                                                            key={role}
+                                                            onClick={() => setSelectedRole(role)}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors",
+                                                                selectedRole === role && "bg-muted"
+                                                            )}
+                                                        >
+                                                            <div className="text-sm font-medium">{role}</div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="flex gap-2 pt-4">
+                                                    <Button
+                                                        onClick={handleCreateField}
+                                                        disabled={!fieldName.trim() || !selectedRole || isSubmitting}
+                                                        className="flex-1"
+                                                    >
+                                                        {isSubmitting ? 'Creating...' : 'Create'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setShowRoleSelection(false)
+                                                            setSelectedRole('')
+                                                        }}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        Back
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={handleCancelFieldCreation}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div className="min-w-max pb-20">
+                        {tasks.length === 0 && !isCreatingTask && (
+                            <div className="flex flex-col items-center justify-center h-32 text-center px-8 sticky left-0 w-full min-w-[300px]">
+                                <p className="text-muted-foreground text-sm">
+                                    No tasks found
+                                </p>
+                            </div>
+                        )}
+
+                        {groupByField ? (
+                            // Render Grouped Tasks
+                            (() => {
+                                // Group tasks
+                                const groups: Record<string, Task[]> = {}
+                                tasks.forEach(task => {
+                                    let key = 'Unassigned'
+                                    if (groupByField === 'status') {
+                                        key = task.status || 'Unassigned'
+                                    } else {
+                                        const field = customFields.find(f => f.id === groupByField)
+                                        if (field) {
+                                            const val = task.customFieldValues?.find(v => v.customFieldId === groupByField)?.value
+
+                                            if (field.dataType === 'USER') {
+                                                const u = uniqueMembers.find(m => m.id === val)
+                                                key = u ? (u.firstName ? `${u.firstName} ${u.lastName || ''}` : u.email) : 'Unassigned'
+                                            } else {
+                                                key = val || 'Empty'
+                                            }
+                                        }
+                                    }
+                                    if (!groups[key]) groups[key] = []
+                                    groups[key].push(task)
+                                })
+
+                                return Object.entries(groups).map(([groupName, groupTasks]) => {
+                                    const isCollapsed = collapsedGroups[groupName]
+
+                                    return (
+                                        <div key={groupName}>
+                                            {/* Group Header */}
+                                            <div className="sticky left-0 min-w-full bg-secondary/30 border-y border-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-foreground">
                                                 <button
-                                                    key={role}
-                                                    onClick={() => setSelectedRole(role)}
-                                                    className={cn(
-                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors",
-                                                        selectedRole === role && "bg-muted"
-                                                    )}
+                                                    onClick={() => toggleGroup(groupName)}
+                                                    className="p-0.5 hover:bg-muted rounded cursor-pointer"
                                                 >
-                                                    <div className="text-sm font-medium">{role}</div>
+                                                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                 </button>
+                                                <span className="truncate">{groupName}</span>
+                                                <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full">
+                                                    {groupTasks.length}
+                                                </span>
+                                            </div>
+
+                                            {/* Tasks in Group */}
+                                            {!isCollapsed && groupTasks.map(task => (
+                                                <div
+                                                    key={task.id}
+                                                    className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max relative"
+                                                >
+                                                    {/* Same Task Row Content as below, duplicate logic or extract component? 
+                                                        For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
+                                                        Let's just duplicate the row markup for now to access closures.
+                                                    */}
+                                                    {/* Task Name - Sticky */}
+                                                    <div
+                                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]"
+                                                        onClick={() => {
+                                                            if (editingTaskId !== task.id) {
+                                                                onTaskClick(task)
+                                                            }
+                                                        }}
+                                                    >
+                                                        {editingTaskId === task.id ? (
+                                                            <EditableContent
+                                                                value={task.name}
+                                                                onSave={(name) => handleSaveTaskName(task.id, name)}
+                                                                placeholder="Task name..."
+                                                                textStyle="text-sm font-medium"
+                                                                autoFocus
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                className="font-medium text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer"
+                                                                onDoubleClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setEditingTaskId(task.id)
+                                                                }}
+                                                            >
+                                                                {task.name}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Custom Field Values */}
+                                                    {displayedFields.map((field) => (
+                                                        <div
+                                                            key={field.id}
+                                                            className="w-[150px] shrink-0 px-4 py-4 border-r border-border flex items-center"
+                                                        >
+                                                            <div className="w-full">
+                                                                {renderCustomFieldCell(task, field)}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Actions Column */}
+                                                    <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    onTaskEdit(task)
+                                                                }}>
+                                                                    <Edit2 className="h-4 w-4 mr-2" />
+                                                                    Edit Task
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    onTaskCopy(task)
+                                                                }}>
+                                                                    <Copy className="h-4 w-4 mr-2" />
+                                                                    Copy Task
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        onTaskDelete(task.id)
+                                                                    }}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete Task
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
-                                        <div className="flex gap-2 pt-4">
-                                            <Button
-                                                onClick={handleCreateField}
-                                                disabled={!fieldName.trim() || !selectedRole || isSubmitting}
-                                                className="flex-1"
-                                            >
-                                                {isSubmitting ? 'Creating...' : 'Create'}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setShowRoleSelection(false)
-                                                    setSelectedRole('')
-                                                }}
-                                                disabled={isSubmitting}
-                                            >
-                                                Back
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={handleCancelFieldCreation}
-                                                disabled={isSubmitting}
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-            </div>
-
-            {/* Table Body with Horizontal Scroll */}
-            <div className="overflow-x-auto">
-                <div className="min-w-max">
-                    {tasks.length === 0 && !isCreatingTask && (
-                        <div className="flex flex-col items-center justify-center h-32 text-center px-8">
-                            <p className="text-muted-foreground text-sm">
-                                No tasks yet
-                            </p>
-                        </div>
-                    )}
-                    {tasks.map((task) => (
-                            <div
-                                key={task.id}
-                                className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max"
-                            >
-                                {/* Task Name */}
+                                    )
+                                })
+                            })()
+                        ) : (
+                            // Render Flat List
+                            tasks.map((task) => (
                                 <div
-                                    className="w-[300px] shrink-0 px-4 py-4 border-r border-border"
-                                    onClick={(e) => {
-                                        if (editingTaskId !== task.id) {
-                                            onTaskClick(task)
-                                        }
-                                    }}
+                                    key={task.id}
+                                    className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max"
                                 >
-                                    {editingTaskId === task.id ? (
-                                        <EditableContent
-                                            value={task.name}
-                                            onSave={(name) => handleSaveTaskName(task.id, name)}
-                                            placeholder="Task name..."
-                                            textStyle="text-sm font-medium"
-                                            autoFocus
-                                        />
-                                    ) : (
-                                        <div
-                                            className="font-medium text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer"
-                                            onDoubleClick={(e) => {
-                                                e.stopPropagation()
-                                                setEditingTaskId(task.id)
-                                            }}
-                                        >
-                                            {task.name}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Custom Field Values */}
-                                {customFields.map((field) => (
+                                    {/* Task Name - Sticky */}
                                     <div
-                                        key={field.id}
-                                        className="w-[150px] shrink-0 px-4 py-4 border-r border-border flex items-center"
+                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]"
+                                        onClick={() => {
+                                            if (editingTaskId !== task.id) {
+                                                onTaskClick(task)
+                                            }
+                                        }}
                                     >
-                                        <span className="text-sm text-muted-foreground truncate w-full">
-                                            {getCustomFieldValue(task, field)}
-                                        </span>
-                                    </div>
-                                ))}
-
-                                {/* Actions Column */}
-                                <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation()
-                                                onTaskEdit(task)
-                                            }}>
-                                                <Edit2 className="h-4 w-4 mr-2" />
-                                                Edit Task
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={(e) => {
-                                                e.stopPropagation()
-                                                onTaskCopy(task)
-                                            }}>
-                                                <Copy className="h-4 w-4 mr-2" />
-                                                Copy Task
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                onClick={(e) => {
+                                        {editingTaskId === task.id ? (
+                                            <EditableContent
+                                                value={task.name}
+                                                onSave={(name) => handleSaveTaskName(task.id, name)}
+                                                placeholder="Task name..."
+                                                textStyle="text-sm font-medium"
+                                                autoFocus
+                                            />
+                                        ) : (
+                                            <div
+                                                className="font-medium text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer"
+                                                onDoubleClick={(e) => {
                                                     e.stopPropagation()
-                                                    onTaskDelete(task.id)
+                                                    setEditingTaskId(task.id)
                                                 }}
-                                                className="text-destructive focus:text-destructive"
                                             >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete Task
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </div>
-                    ))}
+                                                {task.name}
+                                            </div>
+                                        )}
+                                    </div>
 
-                    {/* New Task Row - Only shown when creating */}
-                    {isCreatingTask && (
-                        <div className="flex border-b border-border bg-muted/20 min-w-max">
-                            <div className="w-[300px] shrink-0 px-4 py-4 border-r border-border">
-                                <EditableContent
-                                    value={newTaskName}
-                                    onSave={(name) => handleCreateTask(name)}
-                                    placeholder="Task name..."
-                                    textStyle="text-sm font-medium"
-                                    autoFocus
-                                />
+                                    {/* Custom Field Values */}
+                                    {displayedFields.map((field) => (
+                                        <div
+                                            key={field.id}
+                                            className="w-[150px] shrink-0 px-4 py-4 border-r border-border flex items-center"
+                                        >
+                                            <div className="w-full">
+                                                {renderCustomFieldCell(task, field)}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Actions Column */}
+                                    <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onTaskEdit(task)
+                                                }}>
+                                                    <Edit2 className="h-4 w-4 mr-2" />
+                                                    Edit Task
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onTaskCopy(task)
+                                                }}>
+                                                    <Copy className="h-4 w-4 mr-2" />
+                                                    Copy Task
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        onTaskDelete(task.id)
+                                                    }}
+                                                    className="text-destructive focus:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete Task
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+
+                        {/* New Task Row - Only shown when creating */}
+                        {isCreatingTask && (
+                            <div className="flex border-b border-border bg-muted/20 min-w-max">
+                                <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-muted shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]">
+                                    <EditableContent
+                                        value={newTaskName}
+                                        onSave={(name) => handleCreateTask(name)}
+                                        placeholder="Task name..."
+                                        textStyle="text-sm font-medium"
+                                        autoFocus
+                                    />
+                                </div>
+                                {displayedFields.map((field) => (
+                                    <div key={field.id} className="w-[150px] shrink-0 px-4 py-4 border-r border-border" />
+                                ))}
+                                <div className="w-[150px] shrink-0 px-4 py-4" />
                             </div>
-                            {customFields.map((field) => (
-                                <div key={field.id} className="w-[150px] shrink-0 px-4 py-4 border-r border-border" />
-                            ))}
-                            <div className="w-[150px] shrink-0 px-4 py-4" />
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

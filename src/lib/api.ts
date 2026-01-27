@@ -61,8 +61,21 @@ export interface Task {
   preparers: User[]
   reviewers: User[]
   linkedFiles: Document[]
+  customFieldValues?: CustomFieldValue[]
   comments?: Comment[]
   attachments?: TaskAttachment[]
+}
+
+export interface CustomFieldValue {
+  id: string
+  value: string
+  customFieldId: string
+  customField: {
+    id: string
+    name: string
+    dataType: DataType
+    required: boolean
+  }
 }
 
 export type DataType = 'STRING' | 'NUMBER' | 'TASK' | 'USER' | 'DATE' | 'DOCUMENT' | 'CUSTOM'
@@ -115,12 +128,14 @@ export interface TaskAttachment {
   uploadedBy: User
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
   error?: {
     message: string
     code?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     details?: any
   }
   meta?: {
@@ -130,6 +145,7 @@ export interface ApiResponse<T = any> {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit & { token?: string } = {}
@@ -640,7 +656,7 @@ export const taskApi = {
     token: string,
     projectId: string,
     id: string,
-    data: { name?: string; description?: string; dueAt?: string }
+    data: { name?: string; description?: string; dueAt?: string; customFields?: Record<string, string> }
   ) => {
     return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
       method: 'PATCH',

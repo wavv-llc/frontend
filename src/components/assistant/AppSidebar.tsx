@@ -65,6 +65,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 // Sortable Project Item
 interface SortableProjectItemProps {
@@ -676,6 +677,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             >
               <Search className="h-5 w-5" />
             </Button>
+            <NotificationBell />
           </>
         ) : (
           <>
@@ -696,6 +698,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             >
               <Search className="h-5 w-5" />
             </Button>
+            <NotificationBell />
           </>
         )}
 

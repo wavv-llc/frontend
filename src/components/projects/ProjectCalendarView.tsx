@@ -257,10 +257,10 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
     }
 
     return (
-        <div className="w-full h-full border border-border rounded-xl bg-white shadow-sm overflow-hidden flex flex-col">
+        <div className="w-full h-full border-none rounded-none bg-transparent shadow-none overflow-hidden flex flex-col">
             {/* Header Controls */}
             {/* Header Controls */}
-            <div className="px-6 py-4 flex items-center justify-between bg-white shrink-0">
+            <div className="px-0 py-4 flex items-center justify-between bg-transparent shrink-0">
                 <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
@@ -274,20 +274,20 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             }
                             setCurrentDate(newDate)
                         }}
-                        className="h-8 w-8 hover:bg-muted"
+                        className="h-8 w-8 hover:bg-muted/50"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
 
                     <div className="flex items-center gap-2 px-2">
-                        <span className="font-semibold text-lg text-foreground min-w-[140px] text-center">
+                        <span className="font-semibold text-lg text-foreground min-w-[140px] text-center font-serif">
                             {viewMode === 'week'
                                 ? weekDates[0].toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                                 : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                             }
                         </span>
                         {isToday(currentDate) && (
-                            <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">Today</span>
+                            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">Today</span>
                         )}
                     </div>
 
@@ -303,7 +303,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             }
                             setCurrentDate(newDate)
                         }}
-                        className="h-8 w-8 hover:bg-muted"
+                        className="h-8 w-8 hover:bg-muted/50"
                     >
                         <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -315,7 +315,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             value={viewMode}
                             onValueChange={(v) => setViewMode(v as ViewMode)}
                         >
-                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium">
+                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium focus:outline-none">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -325,20 +325,11 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                         </Select>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border/20">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                            <LayoutList className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-white shadow-sm text-foreground">
-                            <CalendarIcon className="h-4 w-4" />
-                        </Button>
-                    </div>
-
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentDate(new Date())}
-                        className="ml-2 h-9"
+                        className="ml-2 h-9 bg-transparent hover:bg-muted/50"
                     >
                         Today
                     </Button>
@@ -350,17 +341,17 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                 {viewMode === 'week' ? (
                     <>
                         {/* Week View - Timeline Header */}
-                        <div className="grid grid-cols-[250px_1fr] border-b border-border sticky top-0 z-20 bg-card shadow-sm">
-                            <div className="p-4 flex items-end font-medium text-xs text-muted-foreground uppercase tracking-wider border-r border-border bg-muted/5">
+                        <div className="grid grid-cols-[250px_1fr] border-b border-border/40 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm">
+                            <div className="p-4 flex items-end font-medium text-xs text-muted-foreground uppercase tracking-wider border-r border-border/40">
                                 Task Name
                             </div>
-                            <div className="grid grid-cols-7 bg-muted/5">
+                            <div className="grid grid-cols-7">
                                 {weekDates.map((date, i) => {
                                     const today = isToday(date)
                                     return (
                                         <div key={i} className={cn(
-                                            "flex flex-col items-center justify-center py-4 border-r border-border/40 text-sm last:border-0 relative bg-opacity-50",
-                                            (i === 5 || i === 6) && "bg-muted/10",
+                                            "flex flex-col items-center justify-center py-4 border-r border-border/40 text-sm last:border-0 relative",
+                                            (i === 5 || i === 6) && "bg-muted/5",
                                             today && "bg-primary/5"
                                         )}>
                                             {today && (
@@ -383,10 +374,10 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                         </div>
 
                         {/* Week View - Task Rows */}
-                        <div className="divide-y divide-border relative bg-card min-h-[300px]">
+                        <div className="divide-y divide-border/40 relative bg-background/30 min-h-[300px]">
                             {/* Background Grid Lines */}
                             <div className="absolute inset-0 grid grid-cols-[250px_1fr] pointer-events-none z-0">
-                                <div className="border-r border-border h-full bg-background/50" />
+                                <div className="border-r border-border/40 h-full bg-muted/5" />
                                 <div className="grid grid-cols-7 h-full">
                                     {weekDates.map((date, i) => (
                                         <div key={i} className={cn(
@@ -411,7 +402,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
 
                                         return (
                                             <div key={task.id} className="grid grid-cols-[250px_1fr] min-h-[56px] relative group hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0">
-                                                <div className="px-4 py-3 flex flex-col justify-center border-r border-border/40 bg-card/50 backdrop-blur-[1px]">
+                                                <div className="px-4 py-3 flex flex-col justify-center border-r border-border/40 bg-background/40 backdrop-blur-[1px]">
                                                     <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
                                                     <div className="flex items-center gap-2 mt-1.5">
                                                         <TooltipProvider>
@@ -419,7 +410,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                                 <TooltipTrigger>
                                                                     <div className="flex -space-x-2">
                                                                         {(task.preparers || []).slice(0, 3).map((user, i) => (
-                                                                            <Avatar key={i} className="h-5 w-5 border-2 border-background ring-1 ring-border">
+                                                                            <Avatar key={i} className="h-5 w-5 border-2 border-background ring-1 ring-border/50">
                                                                                 <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
                                                                                     {user.firstName?.[0] || user.email[0].toUpperCase()}
                                                                                 </AvatarFallback>
@@ -479,9 +470,9 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                 ) : (
                     <>
                         {/* Month View */}
-                        <div className="bg-background h-full">
+                        <div className="h-full">
                             {/* Month View Header - Days of Week */}
-                            <div className="grid grid-cols-7 border-b border-border/50 sticky top-0 z-20 bg-muted/5 shadow-sm">
+                            <div className="grid grid-cols-7 border-b border-border/50 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm">
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
                                     <div key={i} className="py-3 px-4 text-left">
                                         <span className="text-xs font-medium text-muted-foreground">
@@ -492,7 +483,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             </div>
 
                             {/* Month View Grid */}
-                            <div className="flex flex-col bg-background">
+                            <div className="flex flex-col">
                                 {weeks.map((week, weekIndex) => {
                                     const { layout, maxRows } = getWeekLayout(week)
                                     // Calculate responsive height: Base cell height (e.g. 150px) or content based
@@ -517,7 +508,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                             key={i}
                                                             className={cn(
                                                                 "border-r border-border/30 h-full p-3 last:border-r-0 transition-colors",
-                                                                !isCurrentMonthDay ? "bg-muted/5 opacity-50 text-muted-foreground" : "bg-card",
+                                                                !isCurrentMonthDay ? "bg-muted/5 opacity-50 text-muted-foreground" : "bg-transparent",
                                                                 isWeekend && isCurrentMonthDay && "bg-muted/5",
                                                             )}
                                                             style={
@@ -539,7 +530,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                             </div>
                                                             {/* Highlight box for active selected or special days if needed */}
                                                             {isTodayDate && (
-                                                                <div className="absolute inset-0 border-2 border-primary/50 pointer-events-none rounded-sm" />
+                                                                <div className="absolute inset-0 border-2 border-primary/20 pointer-events-none rounded-sm" />
                                                             )}
                                                         </div>
                                                     )
@@ -566,7 +557,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                                             className={cn(
                                                                                 "h-full w-full rounded-[4px] px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border overflow-hidden hover:bg-muted/50",
                                                                                 getStatusColor(task.status).replace('text-white', 'text-foreground').replace('bg-gradient-to-r', '').replace('from-', '').replace('to-', ''),
-                                                                                "bg-card border-l-4" // Use clean card with colored border styling
+                                                                                "bg-card/80 backdrop-blur-sm border-l-4" // Use clean card with colored border styling
                                                                             )}
                                                                             style={{
                                                                                 // Override the gradient background from getStatusColor to be cleaner
@@ -612,6 +603,6 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                     </>
                 )}
             </div>
-        </div >
+        </div>
     )
 }

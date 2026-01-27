@@ -1,948 +1,527 @@
 'use client'
 
+import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
+import { ArrowRight, Check, Search, FileText, Database, Lock, Menu, X, Brain, Layers, Users, Sparkles, Zap, Command } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, FileText, Shield, Zap, Search, Database, MessageSquare, Lock, Key, Eye, EyeOff } from 'lucide-react'
-import { DotLottieReact } from '@lottiefiles/dotlottie-react'
-import { AppBar } from '@/components/AppBar'
 
 const NAV_ITEMS = [
-  { name: 'Home', href: '#home' },
-  { name: 'Problem', href: '#problem' },
-  { name: 'Solution', href: '#solution' },
-  { name: 'Vision', href: '#vision' },
+  { name: 'Product', href: '#product' },
+  { name: 'Solutions', href: '#solutions' },
   { name: 'Security', href: '#security' },
+  { name: 'Company', href: '#company' },
 ]
 
 export function LandingPage() {
-  const lottieContainerRef = useRef<HTMLDivElement>(null)
-  const [isLottieLoaded, setIsLottieLoaded] = useState(false)
-  const hasDetectedLoadRef = useRef(false)
-
-  // Preload Lottie file immediately when component mounts
-  useEffect(() => {
-    const lottieUrl = "https://lottie.host/ee632d9e-027f-407c-be17-e58327b074b8/CZ1LlQhAQd.lottie"
-    
-    // Add preload link to head for instant loading
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.href = lottieUrl
-    link.as = 'fetch'
-    link.crossOrigin = 'anonymous'
-    document.head.appendChild(link)
-    
-    // Also start fetching immediately to warm up the cache
-    fetch(lottieUrl, {
-      method: 'GET',
-      cache: 'force-cache',
-    }).catch(() => {
-      // Silently fail - the DotLottieReact component will handle loading
-    })
-    
-    return () => {
-      // Cleanup: remove preload link when component unmounts
-      const existingLink = document.querySelector(`link[href="${lottieUrl}"]`)
-      if (existingLink) {
-        document.head.removeChild(existingLink)
-      }
-    }
-  }, [])
-
-  // Detect when Lottie animation has loaded
-  useEffect(() => {
-    if (!lottieContainerRef.current || hasDetectedLoadRef.current) return
-
-    const checkLottieLoaded = () => {
-      if (!lottieContainerRef.current || hasDetectedLoadRef.current) return
-      
-      const container = lottieContainerRef.current
-      
-      // Check for SVG elements (Lottie can render as SVG)
-      const svgElements = container.querySelectorAll('svg')
-      const hasValidSvg = svgElements.length > 0 && Array.from(svgElements).some(svg => {
-        // Check if SVG has any meaningful content (paths, groups, etc.)
-        return svg.children.length > 0 || svg.querySelector('path, g, circle, rect, polygon') !== null
-      })
-      
-      // Check for canvas elements (Lottie can also render as canvas)
-      const canvasElements = container.querySelectorAll('canvas')
-      const hasValidCanvas = canvasElements.length > 0 && Array.from(canvasElements).some(canvas => {
-        return canvas.width > 0 && canvas.height > 0
-      })
-      
-      // Check for any visible content with dimensions
-      const hasAnyContent = container.children.length > 0 && Array.from(container.children).some(child => {
-        const el = child as HTMLElement
-        const rect = el.getBoundingClientRect()
-        return rect.width > 0 && rect.height > 0
-      })
-      
-      if ((hasValidSvg || hasValidCanvas || hasAnyContent) && !hasDetectedLoadRef.current) {
-        hasDetectedLoadRef.current = true
-        // Small delay to ensure animation is fully rendered
-        setTimeout(() => {
-          setIsLottieLoaded(true)
-        }, 150)
-        return true
-      }
-      return false
-    }
-
-    // Check immediately
-    if (checkLottieLoaded()) return
-
-    // Then check periodically
-    const interval = setInterval(() => {
-      if (checkLottieLoaded()) {
-        clearInterval(interval)
-      }
-    }, 100)
-
-    // Also use MutationObserver to detect when content is added
-    const observer = new MutationObserver(() => {
-      if (checkLottieLoaded()) {
-        observer.disconnect()
-        clearInterval(interval)
-      }
-    })
-
-    if (lottieContainerRef.current) {
-      observer.observe(lottieContainerRef.current, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-      })
-    }
-
-    // Fallback timeout - show animation after 2 seconds even if detection fails
-    const timeout = setTimeout(() => {
-      if (!hasDetectedLoadRef.current) {
-        hasDetectedLoadRef.current = true
-        setIsLottieLoaded(true)
-      }
-      clearInterval(interval)
-      observer.disconnect()
-    }, 2000)
-
-    return () => {
-      clearInterval(interval)
-      clearTimeout(timeout)
-      observer.disconnect()
-    }
-  }, [])
-
-  // Modify purple colors in Lottie animation to slate blue
-  useEffect(() => {
-    const modifyLottieColors = () => {
-      if (!lottieContainerRef.current) return
-
-      const slateBlue = '#1e293b'
-      
-      // Function to check if a color is purple-like
-      const isPurpleColor = (color: string): boolean => {
-        if (!color || color === 'none' || color === 'transparent') return false
-        
-        // Convert to lowercase for comparison
-        const lowerColor = color.toLowerCase().trim()
-        
-        // Check for common purple hex codes
-        const purpleHexes = [
-          '#8b5cf6', '#a78bfa', '#c4b5fd', '#7c3aed', '#6d28d9',
-          '#9333ea', '#a855f7', '#ba68c8', '#9c27b0', '#8e24aa',
-          '#ab47bc', '#ce93d8', '#f3e5f5', '#e1bee7', '#d1c4e9'
-        ]
-        
-        if (purpleHexes.some(hex => lowerColor.includes(hex))) return true
-        
-        // Check for rgb/rgba purple colors
-        const rgbMatch = lowerColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
-        if (rgbMatch) {
-          const r = parseInt(rgbMatch[1])
-          const g = parseInt(rgbMatch[2])
-          const b = parseInt(rgbMatch[3])
-          
-          // Purple colors typically have high red and blue, medium green
-          // Check if it's in the purple range
-          if (r > 100 && b > 100 && r > g && b > g && (r + b) > (g * 2)) {
-            return true
-          }
-        }
-        
-        return false
-      }
-
-      // Find all SVG elements and paths - be very aggressive
-      const allElements = lottieContainerRef.current.querySelectorAll('*')
-      let modifiedCount = 0
-      
-      // Process all elements
-      allElements.forEach((element) => {
-        const el = element as HTMLElement | SVGElement
-        
-        // Check fill attribute
-        const fill = el.getAttribute('fill')
-        if (fill && isPurpleColor(fill)) {
-          el.setAttribute('fill', slateBlue)
-          modifiedCount++
-        }
-        
-        // Check stroke attribute
-        const stroke = el.getAttribute('stroke')
-        if (stroke && isPurpleColor(stroke)) {
-          el.setAttribute('stroke', slateBlue)
-          modifiedCount++
-        }
-        
-        // Check computed style (for dynamically set colors)
-        if (el instanceof SVGElement || el instanceof HTMLElement) {
-          try {
-            const computedStyle = window.getComputedStyle(el)
-            const computedFill = computedStyle.fill
-            if (computedFill && isPurpleColor(computedFill) && computedFill !== 'none' && computedFill !== 'rgb(0, 0, 0)') {
-              el.setAttribute('fill', slateBlue)
-              modifiedCount++
-            }
-            
-            const computedStroke = computedStyle.stroke
-            if (computedStroke && isPurpleColor(computedStroke) && computedStroke !== 'none') {
-              el.setAttribute('stroke', slateBlue)
-              modifiedCount++
-            }
-            
-            // Also check backgroundColor for any elements
-            const bgColor = computedStyle.backgroundColor
-            if (bgColor && isPurpleColor(bgColor) && bgColor !== 'rgba(0, 0, 0, 0)') {
-              el.style.backgroundColor = slateBlue
-              modifiedCount++
-            }
-          } catch (e) {
-            // Ignore errors
-          }
-        }
-        
-        // Check style attribute and replace any purple references
-        const style = el.getAttribute('style')
-        if (style) {
-          let newStyle = style
-          let changed = false
-          
-          // Replace fill in style
-          const fillMatch = style.match(/fill:\s*([^;]+)/i)
-          if (fillMatch && isPurpleColor(fillMatch[1].trim())) {
-            newStyle = newStyle.replace(/fill:\s*[^;]+/gi, `fill: ${slateBlue}`)
-            changed = true
-          }
-          
-          // Replace stroke in style
-          const strokeMatch = style.match(/stroke:\s*([^;]+)/i)
-          if (strokeMatch && isPurpleColor(strokeMatch[1].trim())) {
-            newStyle = newStyle.replace(/stroke:\s*[^;]+/gi, `stroke: ${slateBlue}`)
-            changed = true
-          }
-          
-          // Replace background-color in style
-          const bgMatch = style.match(/background-color:\s*([^;]+)/i)
-          if (bgMatch && isPurpleColor(bgMatch[1].trim())) {
-            newStyle = newStyle.replace(/background-color:\s*[^;]+/gi, `background-color: ${slateBlue}`)
-            changed = true
-          }
-          
-          if (changed) {
-            el.setAttribute('style', newStyle)
-            modifiedCount++
-          }
-        }
-      })
-      
-      // Also try to find and replace in SVG defs and styles
-      const svgElements = lottieContainerRef.current.querySelectorAll('svg')
-      svgElements.forEach((svg) => {
-        // Check for style elements
-        const styleElements = svg.querySelectorAll('style')
-        styleElements.forEach((styleEl) => {
-          if (styleEl.textContent) {
-            let newContent = styleEl.textContent
-            // Replace purple colors in CSS
-            const purpleRegex = /#[8-9a-f][0-9a-f]{5}|rgb\(1(3[9-9]|4[0-7]|5[0-5]),\s*(9[2-9]|1[0-5][0-9]),\s*(2[4-9][0-6]|2[5-9][0-9]|3[0-5][0-9])\)/gi
-            if (purpleRegex.test(newContent)) {
-              newContent = newContent.replace(purpleRegex, slateBlue)
-              styleEl.textContent = newContent
-              modifiedCount++
-            }
-          }
-        })
-      })
-      
-      if (modifiedCount > 0) {
-        console.log(`Modified ${modifiedCount} purple color(s) to slate blue`)
-      }
-    }
-
-    // Run multiple times to catch animation as it loads
-    const runModifications = () => {
-      modifyLottieColors()
-      setTimeout(modifyLottieColors, 100)
-      setTimeout(modifyLottieColors, 300)
-      setTimeout(modifyLottieColors, 500)
-      setTimeout(modifyLottieColors, 1000)
-      setTimeout(modifyLottieColors, 2000)
-    }
-
-    // Set up observer for when animation loads
-    const observer = new MutationObserver(() => {
-      modifyLottieColors()
-    })
-
-    if (lottieContainerRef.current) {
-      observer.observe(lottieContainerRef.current, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['fill', 'stroke', 'style']
-      })
-      
-      // Initial modifications
-      runModifications()
-      
-      // Also run on animation frame for dynamic updates
-      const interval = setInterval(() => {
-        modifyLottieColors()
-      }, 500)
-      
-      // Clear interval after 10 seconds
-      setTimeout(() => clearInterval(interval), 10000)
-    }
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className="bg-background text-foreground selection:bg-primary/20 selection:text-primary-foreground" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
-      {/* HEADER / NAV - Sticky, solid opaque background */}
-      <AppBar navItems={NAV_ITEMS} />
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 font-sans overflow-x-hidden">
+      {/* Dynamic Background Mesh */}
+      <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary/30 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
+        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-muted/20 rounded-full blur-[100px] animate-pulse-slow delay-700" />
+      </div>
 
-      {/* HERO SECTION - Warm Paper, Min-Height Screen (minus header) */}
-      <section className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center border-b border-border bg-background" style={{ backgroundColor: 'hsl(42, 50%, 88%)' }}>
-        <div className="max-w-6xl mx-auto px-4 w-full py-12">
-          <div className="flex flex-col md:flex-row md:items-center gap-12 lg:gap-20">
-            {/* Left column */}
-            <div className="flex-1 space-y-6">
-
-              <h1 className="font-serif text-5xl md:text-7xl leading-[1.05] text-foreground tracking-tight">
-                Your trusted AI colleague, <span className="text-muted-foreground italic block">always by your side.</span>
-              </h1>
-
-              <p className="max-w-xl font-sans text-lg text-muted-foreground leading-relaxed">
-                An AI-powered integrated workspace designed for tax professionals.
-                Unify essential workflows, automate repetitive tasks, and access internal knowledge in one centralized hub.
-              </p>
-
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center pt-2">
-                <Link href="/contact">
-                  <Button size="lg" className="font-serif h-12 px-8 text-lg bg-[#3b4a5f] text-white hover:bg-[#3b4a5f]/90 shadow-md hover:shadow-lg transition-all">Get Started</Button>
-                </Link>
-              </div>
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-serif italic text-lg pr-0.5">w</span>
             </div>
+            wavv
+          </Link>
 
-            {/* Right column - Lottie / Visual */}
-            <div className="flex-1">
-              <div className="relative w-full aspect-square max-w-lg mx-auto">
-                <div className="relative h-full w-full bg-background rounded-2xl flex items-center justify-center p-8 shadow-lg border border-border/50 overflow-hidden">
-                  {/* Loading placeholder with Lottie outline skeleton */}
-                  <AnimatePresence mode="wait">
-                    {!isLottieLoaded && (
-                      <motion.div
-                        key="loading"
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.5 }}
-                        className="absolute inset-0 flex items-center justify-center"
-                      >
-                        <div className="relative w-full h-full flex items-center justify-center">
-                          {/* Animated gradient background */}
-                          <motion.div
-                            className="absolute inset-0 bg-gradient-to-br from-muted/20 via-background to-muted/10"
-                            animate={{
-                              backgroundPosition: ['0% 0%', '100% 100%'],
-                            }}
-                            transition={{
-                              duration: 4,
-                              repeat: Infinity,
-                              repeatType: 'reverse',
-                              ease: 'easeInOut',
-                            }}
-                          />
-                          {/* Lottie outline skeleton - generic character/figure shape */}
-                          <svg
-                            className="w-full h-full max-w-md max-h-md"
-                            viewBox="0 0 400 400"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            {/* Head outline */}
-                            <motion.circle
-                              cx="200"
-                              cy="120"
-                              r="45"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeDasharray="283"
-                              className="text-[#1e293b]/30"
-                              initial={{ strokeDashoffset: 283, opacity: 0.3 }}
-                              animate={{ 
-                                strokeDashoffset: [283, 0, 283],
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                strokeDashoffset: { duration: 1.5, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-                              }}
-                            />
-                            {/* Body outline */}
-                            <motion.path
-                              d="M 200 165 L 200 280"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              className="text-[#1e293b]/30"
-                              initial={{ pathLength: 0, opacity: 0.3 }}
-                              animate={{ 
-                                pathLength: 1,
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                pathLength: { duration: 1.5, delay: 0.2, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }
-                              }}
-                            />
-                            {/* Left arm */}
-                            <motion.path
-                              d="M 200 200 L 140 240 L 130 280"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              className="text-[#1e293b]/30"
-                              initial={{ pathLength: 0, opacity: 0.3 }}
-                              animate={{ 
-                                pathLength: 1,
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                pathLength: { duration: 1.5, delay: 0.4, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }
-                              }}
-                            />
-                            {/* Right arm */}
-                            <motion.path
-                              d="M 200 200 L 260 240 L 270 280"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              className="text-[#1e293b]/30"
-                              initial={{ pathLength: 0, opacity: 0.3 }}
-                              animate={{ 
-                                pathLength: 1,
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                pathLength: { duration: 1.5, delay: 0.6, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }
-                              }}
-                            />
-                            {/* Left leg */}
-                            <motion.path
-                              d="M 200 280 L 180 340 L 170 380"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              className="text-[#1e293b]/30"
-                              initial={{ pathLength: 0, opacity: 0.3 }}
-                              animate={{ 
-                                pathLength: 1,
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                pathLength: { duration: 1.5, delay: 0.8, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }
-                              }}
-                            />
-                            {/* Right leg */}
-                            <motion.path
-                              d="M 200 280 L 220 340 L 230 380"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              className="text-[#1e293b]/30"
-                              initial={{ pathLength: 0, opacity: 0.3 }}
-                              animate={{ 
-                                pathLength: 1,
-                                opacity: [0.3, 0.6, 0.3],
-                              }}
-                              transition={{
-                                pathLength: { duration: 1.5, delay: 1, ease: "easeInOut" },
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }
-                              }}
-                            />
-                            {/* Shimmer effect overlay */}
-                            <motion.rect
-                              x="0"
-                              y="0"
-                              width="200"
-                              height="400"
-                              fill="url(#shimmer)"
-                              opacity={0}
-                              animate={{
-                                opacity: [0, 0.2, 0],
-                                x: [-200, 400],
-                              }}
-                              transition={{
-                                opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" },
-                                x: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
-                              }}
-                            />
-                            <defs>
-                              <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="transparent" />
-                                <stop offset="50%" stopColor="#1e293b" stopOpacity="0.3" />
-                                <stop offset="100%" stopColor="transparent" />
-                              </linearGradient>
-                            </defs>
-                          </svg>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Lottie Animation - Colors modified programmatically */}
-                  <motion.div
-                    ref={lottieContainerRef}
-                    className="w-full h-full lottie-match-theme opacity-95"
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ 
-                      opacity: isLottieLoaded ? 1 : 0,
-                      scale: isLottieLoaded ? 1 : 0.98
-                    }}
-                    transition={{ duration: 0.4, ease: 'easeOut' }}
-                  >
-                    <DotLottieReact
-                      src="https://lottie.host/ee632d9e-027f-407c-be17-e58327b074b8/CZ1LlQhAQd.lottie"
-                      loop
-                      autoplay
-                    />
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PROBLEM SECTION - Stone at 40% */}
-      <section id="problem" className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center border-b border-border bg-muted/40 scroll-mt-14" style={{ backgroundColor: 'hsl(42, 40%, 86%)' }}>
-        <div className="max-w-6xl mx-auto px-4 w-full py-24">
-          <div className="mb-16 md:mb-24 text-center max-w-3xl mx-auto">
-            <h2 className="font-serif text-4xl md:text-5xl text-foreground mb-6">
-              The complexity gap.
-            </h2>
-            <p className="font-sans text-lg text-muted-foreground">
-              Tax professionals work in a challenging environment defined by manual work, complexity, and institutional fragility.
-            </p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {[
-              { title: 'Fragmented Workflows', desc: 'Professionals spend too much time switching between tools and performing repetitive manual tasks just to get the job done.' },
-              { title: 'Information Silos', desc: 'Significant time is wasted searching for internal documents and external tax codes, especially in remote environments.' },
-              { title: 'Knowledge Loss', desc: 'High turnover leads to the loss of critical institutional knowledge and increased training costs for new staff.' }
-            ].map((item, i) => {
-              const accentColors = [
-                'border-[#1e293b]/40 hover:border-[#1e293b]/60',
-                'border-secondary/40 hover:border-secondary/60',
-                'border-[hsl(32,25%,40%)]/40 hover:border-[hsl(32,25%,40%)]/60'
-              ];
-              return (
-                <Card key={i} className={`bg-background border-border ${accentColors[i]} hover:shadow-md transition-all duration-300 shadow-sm`}>
-                  <CardHeader>
-                    <CardTitle className="font-serif text-2xl text-foreground">{item.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* SOLUTION / MVP FEATURES - Warm Paper Background */}
-      <section id="solution" className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center scroll-mt-14 bg-background" style={{ backgroundColor: 'hsl(42, 50%, 88%)' }}>
-        <div className="max-w-6xl mx-auto px-4 w-full py-24">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-            <div className="max-w-2xl">
-              <div className="font-sans text-xs font-bold uppercase tracking-widest text-[#1e293b] mb-3">
-                The Solution
-              </div>
-              <h2 className="font-serif text-4xl md:text-5xl text-foreground mb-6">
-                One unified workspace.
-              </h2>
-              <p className="font-sans text-lg text-muted-foreground">
-                We are building the single hub where tax teams access knowledge, automate work, and collaborate—regardless of location.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: Search,
-                title: 'Unified Search',
-                desc: 'Single search bar across internal documents (SharePoint) and authoritative external tax sources. Get relevance-ranked results with citations instantly.'
-              },
-              {
-                icon: Database,
-                title: 'Knowledge Integration',
-                desc: 'Secure ingestion of firm documents with semantic embedding. Preserve the "Why" behind past decisions and make it accessible to the whole team.'
-              },
-              {
-                icon: MessageSquare,
-                title: 'AI Assistant',
-                desc: 'Natural-language Q&A over your internal documents. Ask for summaries, comparisons, and quick explanations as if asking a colleague.'
-              }
-            ].map((feature, i) => {
-              const iconColors = [
-                { bg: 'bg-[#1e293b]/15', text: 'text-[#1e293b]', hover: 'group-hover:bg-[#1e293b]/20' },
-                { bg: 'bg-secondary/15', text: 'text-secondary', hover: 'group-hover:bg-secondary/20' },
-                { bg: 'bg-[hsl(32,25%,40%)]/15', text: 'text-[hsl(32,25%,40%)]', hover: 'group-hover:bg-[hsl(32,25%,40%)]/20' }
-              ];
-              const borderColors = [
-                'hover:border-[#1e293b]/40',
-                'hover:border-secondary/40',
-                'hover:border-[hsl(32,25%,40%)]/40'
-              ];
-              const color = iconColors[i];
-              return (
-                <div key={i} className={`group p-10 rounded-2xl border border-border bg-background hover:bg-muted/30 ${borderColors[i]} transition-all duration-300 shadow-sm hover:shadow-md`}>
-                  <div className={`mb-6 w-12 h-12 rounded-xl ${color.bg} flex items-center justify-center ${color.text} group-hover:scale-110 ${color.hover} transition-all duration-300`}>
-                    <feature.icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="font-serif text-2xl text-foreground mb-4">{feature.title}</h3>
-                  <p className="font-sans text-base text-muted-foreground leading-relaxed">
-                    {feature.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* VISION SECTION - Subtle Muted Background with Earthy Tones */}
-      <section id="vision" className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center border-y border-border bg-muted/50 scroll-mt-14" style={{ backgroundColor: 'hsl(42, 40%, 86%)' }}>
-        <div className="max-w-4xl mx-auto px-4 text-center w-full py-24">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary border border-secondary/30 text-xs font-bold tracking-wide mb-8">
-            <Zap className="w-3 h-3 text-secondary" />
-            <span>Future Roadmap</span>
-          </div>
-          <h2 className="font-serif text-4xl md:text-6xl text-foreground mb-8">
-            Beyond Search
-          </h2>
-          <p className="font-sans text-xl text-muted-foreground mb-16 max-w-2xl mx-auto">
-            Our mission is evolving. Soon, Wavv will handle complex tax reviews, automate notice responses,
-            and provide embedded training modules to foster professional growth.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm font-semibold text-foreground">
-            {['Auto-Reviews', 'Task Management', 'Training Modules', 'Collaboration'].map((item, i) => (
-              <div key={i} className="p-6 rounded-xl bg-background border border-border shadow-sm flex items-center justify-center hover:border-[#1e293b]/40 hover:shadow-md transition-all duration-300">
-                {item}
-              </div>
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {item.name}
+              </Link>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* SECURITY SECTION - Cream Background with Earthy Accents */}
-      <section id="security" className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-muted/40 text-foreground scroll-mt-14 py-8 md:py-12" style={{ backgroundColor: 'hsl(42, 40%, 86%)' }}>
-        <div className="max-w-6xl mx-auto px-4 w-full">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-14 items-center">
-            <div>
-              <div className="font-sans text-xs font-bold uppercase tracking-widest text-[#1e293b] mb-4">
-                Security First
-              </div>
-              <h2 className="font-serif text-4xl md:text-6xl mb-8 text-foreground">
-                Enterprise-grade protection.
-              </h2>
-              <p className="font-sans text-xl text-muted-foreground mb-8 leading-relaxed">
-                Your firm's data is sensitive. We treat it that way. Wavv is built on a foundation of rigorous security standards and modern infrastructure.
-              </p>
-
-              <div className="space-y-6">
-                {[
-                  { title: 'Identity Management', desc: 'Secure authentication powered by Clerk (Enterprise).', icon: Shield },
-                  { title: 'Encryption Standard', desc: 'AES-256 encryption for data at rest (S3) and TLS 1.3 in transit.', icon: Lock },
-                  { title: 'Network Security', desc: 'DDoS protection, Rate Limiting, and Security Headers via Helmet.', icon: Shield },
-                  { title: 'Infrastructure', desc: 'Hosted on scalable, secure AWS cloud infrastructure.', icon: Database }
-                ].map((item, i) => (
-                  <motion.div 
-                    key={i} 
-                    className="flex gap-5 group"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: i * 0.1 }}
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                      <item.icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-serif text-lg font-medium text-foreground mb-1">{item.title}</h3>
-                      <p className="font-sans text-sm text-muted-foreground leading-normal">{item.desc}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative h-full flex items-center justify-center py-6 md:py-10">
-              <motion.div 
-                className="relative w-full max-w-md aspect-square bg-gradient-to-br from-background via-muted/30 to-background border-2 border-[#1e293b]/20 p-8 rounded-3xl flex flex-col justify-between shadow-2xl"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-              >
-                {/* Top section - Encryption indicators */}
-                  <div className="space-y-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      className="w-3 h-3 rounded-full bg-[hsl(140,40%,35%)]"
-                      animate={{ opacity: [1, 0.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    <span className="text-xs font-semibold text-[hsl(140,25%,25%)] uppercase tracking-wider">Encryption Active</span>
-                  </div>
-                  <div className="space-y-3">
-                    <motion.div 
-                      className="h-2 rounded-full bg-[#1e293b]/20"
-                      initial={{ width: 0 }}
-                      whileInView={{ width: "30%" }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.2 }}
-                    />
-                    <motion.div 
-                      className="h-2 rounded-full bg-[#1e293b]/30"
-                      initial={{ width: 0 }}
-                      whileInView={{ width: "65%" }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.4 }}
-                    />
-                  </div>
-                </div>
-
-                {/* Center section - Enhanced encryption visualization */}
-                <div className="w-full flex-1 flex items-center justify-center relative">
-                  <motion.div 
-                    className="w-full h-48 bg-gradient-to-br from-[#1e293b]/10 via-background to-[hsl(140,25%,25%)]/10 rounded-2xl border-2 border-dashed border-[#1e293b]/30 flex flex-col items-center justify-center gap-4 p-6 relative overflow-hidden"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {/* Animated lock icon */}
-                    <motion.div
-                      animate={{ 
-                        y: [0, -5, 0],
-                        rotate: [0, 5, -5, 0]
-                      }}
-                      transition={{ 
-                        duration: 3,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    >
-                      <Lock className="w-12 h-12 text-[#1e293b]" />
-                    </motion.div>
-                    
-                    {/* Encryption text with animation */}
-                    <div className="flex flex-col items-center gap-2">
-                      <motion.span 
-                        className="text-foreground font-serif text-lg font-semibold"
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        End-to-End Encrypted
-                      </motion.span>
-                      <motion.span 
-                        className="text-xs text-muted-foreground font-sans"
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.7 }}
-                      >
-                        AES-256 • TLS 1.3
-                      </motion.span>
-                    </div>
-
-                    {/* Floating security icons */}
-                    <div className="absolute top-4 left-4">
-                      <motion.div
-                        animate={{ 
-                          opacity: [0.3, 0.7, 0.3],
-                          scale: [1, 1.1, 1]
-                        }}
-                        transition={{ 
-                          duration: 2,
-                          repeat: Infinity,
-                          delay: 0
-                        }}
-                      >
-                        <Key className="w-4 h-4 text-[#1e293b]/60" />
-                      </motion.div>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <motion.div
-                        animate={{ 
-                          opacity: [0.3, 0.7, 0.3],
-                          scale: [1, 1.1, 1]
-                        }}
-                        transition={{ 
-                          duration: 2,
-                          repeat: Infinity,
-                          delay: 0.5
-                        }}
-                      >
-                        <Shield className="w-4 h-4 text-[hsl(140,25%,25%)]/60" />
-                      </motion.div>
-                    </div>
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                      <motion.div
-                        animate={{ 
-                          opacity: [0.3, 0.7, 0.3],
-                          scale: [1, 1.1, 1]
-                        }}
-                        transition={{ 
-                          duration: 2,
-                          repeat: Infinity,
-                          delay: 1
-                        }}
-                      >
-                        <EyeOff className="w-4 h-4 text-[hsl(32,25%,40%)]/60" />
-                      </motion.div>
-                    </div>
-                  </motion.div>
-                </div>
-
-                {/* Bottom section - Security status indicators */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground font-medium">Security Status</span>
-                    <motion.span 
-                      className="text-[hsl(140,40%,35%)] font-semibold"
-                      animate={{ opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      Secure
-                    </motion.span>
-                  </div>
-                  <div className="flex gap-2">
-                    <motion.div 
-                      className="h-2 flex-1 rounded-full bg-[hsl(140,40%,35%)]"
-                      initial={{ scaleX: 0 }}
-                      whileInView={{ scaleX: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.6 }}
-                      style={{ transformOrigin: "left" }}
-                    />
-                    <motion.div 
-                      className="h-2 w-12 rounded-full bg-[#1e293b]/40"
-                      initial={{ scaleX: 0 }}
-                      whileInView={{ scaleX: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.8 }}
-                      style={{ transformOrigin: "left" }}
-                    />
-                    <motion.div 
-                      className="h-2 w-12 rounded-full bg-[hsl(32,25%,40%)]/40"
-                      initial={{ scaleX: 0 }}
-                      whileInView={{ scaleX: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 1.0 }}
-                      style={{ transformOrigin: "left" }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FINAL CTA BAND - Cream with Blue Accent */}
-      <section className="relative w-full py-24 bg-gradient-to-b from-muted/50 to-background border-t border-border" style={{ backgroundColor: 'hsl(42, 45%, 87%)' }}>
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="font-serif text-4xl md:text-5xl text-foreground mb-6">
-            Ready to unify your tax workspace?
-          </h2>
-          <p className="max-w-2xl mx-auto font-sans text-lg text-muted-foreground mb-10">
-            Join the firms using Wavv to reduce manual work, find answers instantly, and empower their teams.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/contact">
-              <Button size="lg" className="font-serif h-14 px-8 text-lg shadow-xl bg-[#3b4a5f] text-white hover:bg-[#3b4a5f]/90 hover:shadow-2xl transition-all">
+          <div className="hidden md:flex items-center gap-4">
+            <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Login
+            </Link>
+            <Link href="/sign-up">
+              <Button variant="default" className="rounded-full h-9 px-5 shadow-lg">
                 Get Started
               </Button>
             </Link>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden p-2 text-muted-foreground hover:text-foreground"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-xl px-6 py-4 space-y-4">
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="block text-sm font-medium text-muted-foreground hover:text-foreground"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                {item.name}
+              </Link>
+            ))}
+            <div className="pt-4 border-t border-border space-y-4">
+              <Link href="/sign-in" className="block text-sm font-medium text-muted-foreground">Login</Link>
+              <Link href="/sign-up" className="block">
+                <Button className="w-full">Request Demo</Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden z-10">
+        <div className="max-w-7xl mx-auto px-6 relative">
+          <div className="flex flex-col items-center text-center">
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border text-xs font-medium text-foreground mb-8 backdrop-blur-sm"
+            >
+              <Sparkles className="w-3 h-3 text-primary" />
+              <span>The Intelligent Knowledge Hub for Tax</span>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+              className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 text-foreground"
+            >
+              Tax Intelligence, <br />
+              <span className="text-muted-foreground">Unleashed.</span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+              className="text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed mb-10"
+            >
+              Wavv orchestrates your firm's knowledge. Unify internal documents with external tax code,
+              automate defensible reviews, and empower your team with a trusted AI partner.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+              className="flex flex-col sm:flex-row items-center gap-4"
+            >
+              <Link href="/sign-up">
+                <Button size="lg" className="h-12 px-8 text-lg rounded-full">
+                  Start Free Trial
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button variant="outline" className="h-12 px-8 text-lg rounded-full">
+                  Book a Demo <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* FOOTER - Background */}
-      <footer className="bg-background border-t border-border" style={{ backgroundColor: 'hsl(42, 50%, 88%)' }}>
-        <div className="max-w-6xl mx-auto px-4 py-16 md:py-20">
-          <div className="flex flex-col md:flex-row justify-between gap-12">
-            <div className="space-y-4">
-              <div className="font-sans text-2xl font-bold text-foreground tracking-tighter">Wavv</div>
-              <div className="font-sans text-sm text-muted-foreground max-w-xs leading-relaxed">
-                © 2025 Wavv, Inc.<br />
-                Austin, Texas
-              </div>
-            </div>
+      {/* Floating Holographic Dashboard */}
+      <DashboardScrollReveal />
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-12 md:gap-24">
+      {/* Solutions Grid */}
+      <section id="solutions" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            <GlassCard
+              icon={<Search className="w-6 h-6 text-foreground" />}
+              title="Unified Search"
+              description="One search bar for everything. Query your internal SharePoint and the IRC simultaneously with citation-backed results."
+            />
+            <GlassCard
+              icon={<Zap className="w-6 h-6 text-foreground" />}
+              title="Automated Reviews"
+              description="Let AI handle the grunt work. Automated cross-checks for returns, K-1s, and notices with audit-ready trails."
+            />
+            <GlassCard
+              icon={<Brain className="w-6 h-6 text-foreground" />}
+              title="Institutional Brain"
+              description="Stop knowledge bleeding. Semantic embedding preserves your firm's expertise regardless of staff turnover."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Deep Dive: The Core */}
+      <section className="py-32 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="bg-muted/30 border border-border rounded-3xl p-8 md:p-16 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2 -translate-y-1/2" />
+
+            <div className="grid lg:grid-cols-2 gap-16 items-center relative z-10">
               <div>
-                <h3 className="font-serif font-bold text-[#1e293b] mb-6">Product</h3>
-                <ul className="space-y-4 font-sans text-sm text-muted-foreground">
-                  <li><Link href="#solution" className="hover:text-[#1e293b] transition-colors">Features</Link></li>
-                  <li><Link href="#security" className="hover:text-[#1e293b] transition-colors">Security</Link></li>
-                </ul>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs font-medium text-foreground mb-6">
+                  <Command className="w-3 h-3" />
+                  <span>The Wavv Engine</span>
+                </div>
+                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+                  Intelligent Context.<br />
+                  <span className="text-muted-foreground">Instant Clarity.</span>
+                </h2>
+                <div className="space-y-6">
+                  <p className="text-lg text-muted-foreground">
+                    Wavv doesn't just search keywords; it understands tax concepts. It connects a client's
+                    past memos with current year workpapers and authoritative guidance to provide a complete picture.
+                  </p>
+
+                  <ul className="space-y-4">
+                    {[
+                      'Semantically indexes PDF, Excel, and Email',
+                      'Maps entities across different file structures',
+                      'Generates summaries with clickable source links'
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 text-muted-foreground">
+                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                          <Check className="w-3 h-3" />
+                        </div>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h3 className="font-serif font-bold text-[#1e293b] mb-6">Company</h3>
-                <ul className="space-y-4 font-sans text-sm text-muted-foreground">
-                  <li><Link href="#" className="hover:text-[#1e293b] transition-colors">About</Link></li>
-                  <li><Link href="/contact" className="hover:text-[#1e293b] transition-colors">Contact</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-serif font-bold text-[#1e293b] mb-6">Legal</h3>
-                <ul className="space-y-4 font-sans text-sm text-muted-foreground">
-                  <li><Link href="#" className="hover:text-[#1e293b] transition-colors">Privacy</Link></li>
-                  <li><Link href="#" className="hover:text-[#1e293b] transition-colors">Terms</Link></li>
-                </ul>
+
+              <div className="relative">
+                {/* Abstract Visualization of Knowledge Graph */}
+                <div className="aspect-square relative">
+                  <div className="absolute inset-0 bg-background/50 rounded-2xl border border-border backdrop-blur-md p-6 flex items-center justify-center">
+                    {/* Center Node */}
+                    <div className="relative z-10 w-24 h-24 bg-primary rounded-2xl shadow-xl flex items-center justify-center">
+                      <Brain className="w-10 h-10 text-primary-foreground" />
+                    </div>
+
+                    {/* Orbiting Nodes */}
+                    <OrbitNode angle={0} distance={120} delay={0} icon={<FileText className="w-4 h-4 text-foreground" />} label="10-K" />
+                    <OrbitNode angle={72} distance={120} delay={1} icon={<Database className="w-4 h-4 text-foreground" />} label="SharePoint" />
+                    <OrbitNode angle={144} distance={120} delay={2} icon={<Search className="w-4 h-4 text-foreground" />} label="IRC Code" />
+                    <OrbitNode angle={216} distance={120} delay={3} icon={<Lock className="w-4 h-4 text-foreground" />} label="Security" />
+                    <OrbitNode angle={288} distance={120} delay={4} icon={<Layers className="w-4 h-4 text-foreground" />} label="Workflows" />
+
+                    {/* Connection Lines (SVG) */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30">
+                      <circle cx="50%" cy="50%" r="120" fill="none" stroke="currentColor" strokeWidth="1" className="text-muted-foreground" strokeDasharray="4 4" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Feature Deep Dive: Workflow Automation */}
+      <section className="py-32 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-16 items-center lg:flex-row-reverse">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs font-medium text-foreground mb-6">
+                <Zap className="w-3 h-3" />
+                <span>Active Intelligence</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+                Defensible Work,<br />
+                <span className="text-muted-foreground">On Autopilot.</span>
+              </h2>
+              <p className="text-lg text-muted-foreground mb-8">
+                Turn static checklists into dynamic, AI-executed workflows. Wavv validates data integrity across documents,
+                flagging inconsistencies before they become finding issues.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-card border border-border">
+                  <div className="text-2xl font-bold text-foreground mb-1">90%</div>
+                  <div className="text-sm text-muted-foreground">Faster Document Review</div>
+                </div>
+                <div className="p-4 rounded-xl bg-card border border-border">
+                  <div className="text-2xl font-bold text-foreground mb-1">0</div>
+                  <div className="text-sm text-muted-foreground">Hallucinations (Referenced)</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
+                <div className="bg-muted/50 border-b border-border p-4 flex items-center justify-between">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
+                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
+                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">automated_review_log.txt</div>
+                </div>
+                <div className="p-6 font-mono text-sm space-y-4 h-[400px] overflow-hidden relative">
+                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background to-transparent z-10" />
+
+                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
+                    <span className="text-muted-foreground select-none">01</span>
+                    <span>[SUCCESS] Entity Structure mapped to K-1s</span>
+                  </div>
+                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
+                    <span className="text-muted-foreground select-none">02</span>
+                    <span>[SUCCESS] FEIN verified against master record</span>
+                  </div>
+                  <div className="flex gap-3 text-amber-600 dark:text-amber-400 items-start">
+                    <span className="text-muted-foreground select-none">03</span>
+                    <span>[WARNING] Depreciation method variance detected in Asset #4022</span>
+                  </div>
+                  <div className="pl-12 text-muted-foreground text-xs border-l border-border ml-5">
+                    &gt; Reference: "2024 Depreciation Schedule.xlsx" Row 45<br />
+                    &gt; Expected: MACRS 200DB<br />
+                    &gt; Found: Straight Line
+                  </div>
+                  <div className="flex gap-3 text-sky-600 dark:text-sky-400 items-start">
+                    <span className="text-muted-foreground select-none">04</span>
+                    <span>[INFO] Generating review comment for Manager...</span>
+                  </div>
+                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
+                    <span className="text-muted-foreground select-none">05</span>
+                    <span>[SUCCESS] Cash reconciliation tied to bank statements</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-32 relative z-10 overflow-hidden">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="relative"
+          >
+            <div className="absolute inset-0 bg-primary/20 blur-[80px] rounded-full" />
+            <div className="relative bg-card/50 backdrop-blur-xl border border-border rounded-3xl p-12 md:p-20">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">Ready for the future of tax?</h2>
+              <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+                Join the top firms using Wavv to modernize their practice and empower their professionals.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link href="/sign-up">
+                  <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl">
+                    Get Started Now
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 border-t border-border bg-background text-muted-foreground text-sm relative z-10">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-serif italic text-xs">w</span>
+            </div>
+            <span className="font-bold text-foreground">wavv</span>
+          </div>
+          <div className="flex gap-8">
+            <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link href="#" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link href="#" className="hover:text-foreground transition-colors">Security</Link>
+          </div>
+          <div>© 2026 Wavv AI Inc.</div>
         </div>
       </footer>
     </div>
   )
 }
 
+// ---------------- Support Components ----------------
+
+function GlassCard({ title, description, icon }: { title: string, description: string, icon: React.ReactNode }) {
+  return (
+    <div className="group p-8 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 shadow-sm hover:shadow-md">
+      <div className="mb-6 w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center group-hover:scale-110 transition-all">
+        {icon}
+      </div>
+      <h3 className="text-xl font-bold text-foreground mb-3">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed text-sm">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function OrbitNode({ angle, distance, delay, icon, label }: { angle: number, distance: number, delay: number, icon: React.ReactNode, label: string }) {
+  return (
+    <motion.div
+      className="absolute flex flex-col items-center gap-2"
+      animate={{ rotate: 360 }}
+      style={{
+        width: 40,
+        height: 40,
+        transformOrigin: `50% 50%`
+      }}
+    >
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center shadow-lg"
+        style={{
+          transform: `rotate(${angle}deg) translate(${distance}px) rotate(-${angle}deg)`
+        }}
+      >
+        {icon}
+        <div className="absolute top-full mt-2 text-[10px] font-mono whitespace-nowrap text-muted-foreground bg-popover border border-border px-1 rounded shadow-sm">
+          {label}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+
+function DashboardScrollReveal() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"]
+  })
+
+  const y = useTransform(scrollYProgress, [0, 0.5], [100, 0])
+  const opacity = useTransform(scrollYProgress, [0, 0.3], [0, 1])
+  const rotateX = useTransform(scrollYProgress, [0, 0.5], [20, 0])
+  const scale = useTransform(scrollYProgress, [0, 0.5], [0.9, 1])
+
+  return (
+    <div ref={containerRef} className="min-h-[80vh] w-full flex items-center justify-center perspective-[2000px] px-6 py-20 relative z-10">
+      <motion.div
+        style={{ y, opacity, rotateX, scale, transformPerspective: 2000 }}
+        className="w-full max-w-6xl relative"
+      >
+        {/* Glow behind dashboard */}
+        <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full z-0" />
+
+        <div className="relative z-10 bg-background/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
+          {/* Header Bar */}
+          <div className="h-14 border-b border-border bg-muted/30 flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-border" />
+                <div className="w-3 h-3 rounded-full bg-border" />
+                <div className="w-3 h-3 rounded-full bg-border" />
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-2 py-1 rounded-md border border-border">
+                <Users className="w-3 h-3" />
+                <span>Project: Q4 Returns</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                <Sparkles className="w-3 h-3 text-primary-foreground" />
+              </div>
+              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground">Export</Button>
+            </div>
+          </div>
+
+          {/* Dashboard Content */}
+          <div className="grid grid-cols-12 min-h-[500px] bg-background">
+            {/* Text Sidebar */}
+            <div className="hidden md:flex col-span-3 border-r border-border flex-col p-4 bg-muted/10">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Knowledge Sources</div>
+              <div className="space-y-2">
+                {['Prior Year Returns', 'K-1 Support', 'Brokerage Stmts', 'Emails: Client', 'IRC Section 163', 'Rev. Proc. 2023-1'].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">AI Assistant</div>
+              <div className="flex-1 bg-muted/20 rounded-xl p-3 border border-border relative overflow-hidden">
+                <div className="space-y-3">
+                  <div className="bg-primary/10 p-2 rounded-lg rounded-tl-none border border-primary/20">
+                    <p className="text-xs text-foreground">I've analyzed the K-1s. There is a discrepancy in the Partner Capital Account on line L.</p>
+                  </div>
+                </div>
+                <div className="absolute inset-x-3 bottom-3 h-8 bg-background rounded border border-border flex items-center px-2">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                </div>
+              </div>
+            </div>
+
+            {/* Main View */}
+            <div className="col-span-12 md:col-span-9 p-6 md:p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-semibold text-foreground">Review Summary</h2>
+                  <p className="text-muted-foreground text-sm">Automated analysis of 45 documents</p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-medium">98% Confidence</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <div className="p-5 rounded-xl bg-card border border-border">
+                  <div className="text-sm text-muted-foreground mb-2">Total Adjustments Found</div>
+                  <div className="text-3xl font-mono text-foreground">12</div>
+                </div>
+                <div className="p-5 rounded-xl bg-card border border-border">
+                  <div className="text-sm text-muted-foreground mb-2">Time Saved</div>
+                  <div className="text-3xl font-mono text-foreground">4.5 hrs</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">High Priority Flag</div>
+                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex gap-4">
+                  <div className="mt-1">
+                    <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center text-destructive font-bold text-xs">!</div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground">Passive Activity Loss Limitation</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Current calculation of $45,000 conflicts with prior year carryover data extracted from 2023 return ($32,000).
+                      <span className="text-primary hover:underline cursor-pointer ml-1">View Calculation &gt;</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}

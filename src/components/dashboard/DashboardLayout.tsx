@@ -7,6 +7,7 @@ import { userApi } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
 import { AppSidebar } from '@/components/assistant/AppSidebar'
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext'
+import { KnockClientProvider } from '@/components/providers/KnockClientProvider'
 
 interface DashboardLayoutProps {
     children: React.ReactNode
@@ -19,7 +20,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="flex h-screen w-full bg-background">
             <AppSidebar />
             <main
-                className={`flex-1 transition-all duration-300 ${isOpen ? 'md:ml-[260px]' : 'md:ml-[60px]'
+                className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${isOpen ? 'md:ml-[260px]' : 'md:ml-[60px]'
                     }`}
             >
                 {children}
@@ -80,8 +81,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     return (
-        <SidebarProvider>
-            <DashboardContent>{children}</DashboardContent>
-        </SidebarProvider>
+        <KnockClientProvider>
+            <SidebarProvider>
+                <DashboardContent>{children}</DashboardContent>
+            </SidebarProvider>
+        </KnockClientProvider>
     )
 }

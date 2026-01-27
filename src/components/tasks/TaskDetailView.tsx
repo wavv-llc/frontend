@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
     ArrowLeft,
     MoreVertical,
@@ -31,7 +31,7 @@ import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { cn } from '@/lib/utils'
 import { type Task, type Comment, taskApi, taskCommentApi } from '@/lib/api'
 import { format } from 'date-fns'
-import { useAuth, useUser } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import {
     DropdownMenu,
@@ -64,7 +64,7 @@ interface TaskDetailViewProps {
 
 export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName, workspaceId, projectName, projectId }: TaskDetailViewProps) {
     const { getToken } = useAuth()
-    const { user: currentUser } = useUser()
+    // const { user: currentUser } = useUser() - unused
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoadingComments, setIsLoadingComments] = useState(false)
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
@@ -78,7 +78,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
     const openCommentsCount = comments.filter(c => c.status !== 'RESOLVED').length
 
 
-    const loadComments = async (showLoading = false) => {
+    const loadComments = useCallback(async (showLoading = false) => {
         try {
             if (showLoading) {
                 setIsLoadingComments(true)
@@ -87,9 +87,11 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
             if (!token) return
 
             const response = await taskCommentApi.getCommentsByTask(token, task.projectId, task.id)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const commentsData = (response as any).data || (response as unknown as any[])
 
             // Transform backend format to frontend format
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const transformComment = (c: any): Comment => ({
                 id: c.id,
                 content: c.comment || c.content,
@@ -100,6 +102,7 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
                 status: (c.resolved ? 'RESOLVED' : 'OPEN') as 'OPEN' | 'RESOLVED',
                 resolved: c.resolved,
                 resolvedBy: c.resolvedBy,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 reactions: c.reactions?.map((r: any) => ({
                     id: r.id,
                     emoji: r.emoji,
@@ -123,12 +126,12 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
                 setIsLoadingComments(false)
             }
         }
-    }
+    }, [getToken, task.projectId, task.id])
 
     // Load comments on mount
     useEffect(() => {
         loadComments(true)
-    }, [task.id])
+    }, [loadComments])
 
     const handleDeleteTask = async () => {
         try {
@@ -521,16 +524,14 @@ export function TaskDetailView({ task, onBack, onUpdate, onDelete, workspaceName
 }
 
 // Define recursive CommentItem component
-function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId, isLast }: {
+function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId }: {
     comment: Comment
     depth?: number
     onUpdate: () => void
     taskId: string
     projectId: string
-    isLast?: boolean
 }) {
     const { getToken, userId } = useAuth()
-    const { user } = useUser()
     const [isReplying, setIsReplying] = useState(false)
     const [replyContent, setReplyContent] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -733,7 +734,7 @@ function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId, isLast }
             {/* Recursively render children */}
             {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-1">
-                    {comment.replies.map((reply, idx) => (
+                    {comment.replies.map((reply) => (
                         <CommentItem
                             key={reply.id}
                             comment={reply}
@@ -741,7 +742,6 @@ function CommentItem({ comment, depth = 0, onUpdate, taskId, projectId, isLast }
                             onUpdate={onUpdate}
                             taskId={taskId}
                             projectId={projectId}
-                            isLast={idx === (comment.replies?.length ?? 0) - 1} // Safely access length or default to 0
                         />
                     ))}
                 </div>
@@ -757,7 +757,7 @@ function CommentThread({ comment, index, onUpdate, taskId, projectId }: {
     taskId: string
     projectId: string
 }) {
-    const { getToken, userId } = useAuth()
+    const { getToken } = useAuth()
     const [isOpen, setIsOpen] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isReplying, setIsReplying] = useState(false) // Keep for main thread reply if needed
