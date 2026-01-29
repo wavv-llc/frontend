@@ -62,8 +62,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 }
             } catch (error) {
                 console.error('Error checking onboarding status:', error)
-                // If error (e.g. network), we probably shouldn't block access indefinitely, 
-                // or maybe we should? For now, let's allow access but log error.
+                // If user doesn't exist in Core API, redirect to onboarding
+                router.push('/onboarding')
+                return
             } finally {
                 setIsChecking(false)
             }

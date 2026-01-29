@@ -26,7 +26,7 @@ const STEPS = [
 ]
 
 export default function OnboardingPage() {
-  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { isLoaded, isSignedIn, getToken, userId } = useAuth()
   const router = useRouter()
 
   // Multi-step state
@@ -71,12 +71,24 @@ export default function OnboardingPage() {
         setIsLoading(false)
       } catch (err) {
         console.error('Error checking onboarding status:', err)
+        // User doesn't exist in Core API, try to create them
+        if (userId) {
+          try {
+            const token = await getToken()
+            if (token) {
+              await userApi.createUser(token, userId)
+              console.log('User created in Core API')
+            }
+          } catch (createErr) {
+            console.error('Error creating user in Core API:', createErr)
+          }
+        }
         setIsLoading(false)
       }
     }
 
     checkOnboardingStatus()
-  }, [isLoaded, isSignedIn, router, getToken])
+  }, [isLoaded, isSignedIn, router, getToken, userId])
 
   const loadSites = async () => {
     try {
