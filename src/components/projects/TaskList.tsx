@@ -507,6 +507,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
         if (field.dataType === 'USER') {
             // User dropdown
             const selectedMember = uniqueMembers.find(m => m.id === value)
+
+            console.log(uniqueMembers);
+
             return (
                 <Select
                     value={value || ''}
@@ -530,9 +533,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                             )}
                         </div>
                     </SelectTrigger>
+
                     <SelectContent>
                         {uniqueMembers.map((member) => (
                             <SelectItem key={member.id} value={member.id}>
+                                djaslkjdklasjdlkas
                                 <div className="flex items-center gap-2">
                                     <Avatar className="h-4 w-4">
                                         <AvatarFallback className="text-[10px]">
