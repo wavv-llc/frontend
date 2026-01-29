@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactCompiler: true,
+  // reactCompiler: true, // Temporarily disabled - causing hook ordering issues with Clerk
   async rewrites() {
     return [
       {

@@ -1,36 +1,40 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { userApi, accessLinkApi } from '@/lib/api'
 import { toast } from 'sonner'
 
 export default function SignupCallbackPage() {
+  // All hooks must be called unconditionally at the top
   const { isLoaded, isSignedIn, getToken, userId } = useAuth()
   const { user } = useUser()
-  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string>('Setting up your account...')
   const hasCalledApi = useRef(false)
+  const isRedirecting = useRef(false)
+
+  const redirect = useCallback((path: string) => {
+    if (isRedirecting.current) return
+    isRedirecting.current = true
+    window.location.href = path
+  }, [])
 
   useEffect(() => {
-    // Only proceed when Clerk is loaded and user is signed in
+    // Guard conditions - but all hooks are already called above
     if (!isLoaded || !isSignedIn || !userId || !user) {
       return
     }
 
-    // Prevent multiple calls using ref (survives re-renders and strict mode)
     if (hasCalledApi.current) {
       return
     }
 
-    const createUserInCoreAPI = async () => {
-      try {
-        hasCalledApi.current = true
+    hasCalledApi.current = true
 
-        // Get the authentication token
+    const handleAuthCallback = async () => {
+      try {
         const token = await getToken()
         if (!token) {
           throw new Error('Failed to get authentication token')
@@ -46,7 +50,6 @@ export default function SignupCallbackPage() {
           const inviteEmail = pendingAccessLinkEmail.toLowerCase()
 
           if (userEmail !== inviteEmail) {
-            // Email mismatch - clear the pending invite and show error
             sessionStorage.removeItem('pendingAccessLinkId')
             sessionStorage.removeItem('pendingAccessLinkEmail')
 
@@ -54,89 +57,91 @@ export default function SignupCallbackPage() {
             setError(errorMsg)
             toast.error(errorMsg)
 
-            // Redirect to sign-in after delay
-            setTimeout(() => {
-              router.push('/sign-in')
-            }, 5000)
+            setTimeout(() => redirect('/sign-in'), 5000)
             return
           }
         }
 
-        // Create user in Core API with Clerk ID
-        setStatusMessage('Creating your account...')
-        console.log('Creating user in Core API with Clerk ID:', userId)
-        await userApi.createUser(token, userId)
-        console.log('User created successfully')
+        setStatusMessage('Checking your account...')
+        let userExists = false
+        let hasCompletedOnboarding = false
 
-        // If there's a pending invite, accept it
+        try {
+          const existingUser = await userApi.getMe(token)
+          if (existingUser.data) {
+            userExists = true
+            hasCompletedOnboarding = existingUser.data.hasCompletedOnboarding
+          }
+        } catch {
+          console.log('User not found in Core API, will create new user')
+        }
+
+        if (!userExists) {
+          setStatusMessage('Creating your account...')
+          await userApi.createUser(token, userId)
+        }
+
         if (pendingAccessLinkId) {
           setStatusMessage('Accepting invitation...')
           try {
             await accessLinkApi.acceptAccessLink(token, pendingAccessLinkId)
-            console.log('Invite accepted successfully')
             toast.success('Invitation accepted!')
-
-            // Clear the pending invite
             sessionStorage.removeItem('pendingAccessLinkId')
             sessionStorage.removeItem('pendingAccessLinkEmail')
-
-            // Redirect to dashboard since they're joining an existing org
-            router.push('/dashboard')
+            redirect('/dashboard')
             return
           } catch (inviteErr) {
             console.error('Error accepting invite:', inviteErr)
-            toast.error('Account created, but failed to accept invitation. Please contact support.')
-            // Still redirect to onboarding
+            toast.error('Account created, but failed to accept invitation.')
           }
         }
 
-        // Redirect to onboarding page for regular sign-ups
-        router.push('/onboarding')
+        // Verify user object exists in database before redirecting to home
+        if (userExists && hasCompletedOnboarding) {
+          setStatusMessage('Verifying your account...')
+          try {
+            const verifiedUser = await userApi.getMe(token)
+            if (!verifiedUser.data) {
+              throw new Error('User verification failed')
+            }
+            redirect('/dashboard')
+          } catch (verifyErr) {
+            console.error('Error verifying user:', verifyErr)
+            setError('Failed to verify your account. Please try again.')
+            setTimeout(() => redirect('/sign-in'), 3000)
+          }
+        } else {
+          redirect('/onboarding')
+        }
       } catch (err) {
-        console.error('Error creating user in Core API:', err)
-        const errorMessage = err instanceof Error ? err.message : 'Failed to create user account'
+        console.error('Error in auth callback:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to process authentication'
         setError(errorMessage)
         toast.error(errorMessage)
-
-        // If user creation fails, still redirect to onboarding after a delay
-        // The onboarding page will retry fetching user info
-        setTimeout(() => {
-          router.push('/onboarding')
-        }, 3000)
+        setTimeout(() => redirect('/onboarding'), 3000)
       }
     }
 
-    createUserInCoreAPI()
-  }, [isLoaded, isSignedIn, userId, user, getToken, router])
+    handleAuthCallback()
+  }, [isLoaded, isSignedIn, userId, user, getToken, redirect])
 
-  // Show loading state while waiting for Clerk or creating user
-  if (!isLoaded || !isSignedIn) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
+  // Always render the same JSX structure
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       {error ? (
-        <>
-          <div className="text-destructive text-center">
+        <div className="text-center">
+          <div className="text-destructive">
             <p className="font-semibold">Error creating account</p>
             <p className="text-sm mt-2">{error}</p>
           </div>
-          <p className="text-sm text-muted-foreground">Redirecting...</p>
-        </>
+          <p className="text-sm text-muted-foreground mt-4">Redirecting...</p>
+        </div>
       ) : (
-        <>
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <div className="text-center">
-            <p className="font-medium">{statusMessage}</p>
-            <p className="text-sm text-muted-foreground mt-1">Please wait while we create your profile</p>
-          </div>
-        </>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="font-medium mt-4">{statusMessage}</p>
+          <p className="text-sm text-muted-foreground mt-1">Please wait while we set up your profile</p>
+        </div>
       )}
     </div>
   )

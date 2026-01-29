@@ -9,8 +9,6 @@ import { Button } from '@/components/ui/button'
 const NAV_ITEMS = [
   { name: 'Product', href: '#product' },
   { name: 'Solutions', href: '#solutions' },
-  { name: 'Security', href: '#security' },
-  { name: 'Company', href: '#company' },
 ]
 
 export function LandingPage() {
@@ -152,7 +150,7 @@ export function LandingPage() {
       <DashboardScrollReveal />
 
       {/* Solutions Grid */}
-      <section id="solutions" className="py-24 relative z-10">
+      <section id="product" className="py-24 relative z-10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-6">
             <GlassCard
@@ -175,7 +173,7 @@ export function LandingPage() {
       </section>
 
       {/* Feature Deep Dive: The Core */}
-      <section className="py-32 relative z-10">
+      <section id="solutions" className="py-32 relative z-10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="bg-muted/30 border border-border rounded-3xl p-8 md:p-16 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2 -translate-y-1/2" />
@@ -241,81 +239,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Feature Deep Dive: Workflow Automation */}
-      <section className="py-32 relative z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center lg:flex-row-reverse">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs font-medium text-foreground mb-6">
-                <Zap className="w-3 h-3" />
-                <span>Active Intelligence</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-                Defensible Work,<br />
-                <span className="text-muted-foreground">On Autopilot.</span>
-              </h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Turn static checklists into dynamic, AI-executed workflows. Wavv validates data integrity across documents,
-                flagging inconsistencies before they become finding issues.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-card border border-border">
-                  <div className="text-2xl font-bold text-foreground mb-1">90%</div>
-                  <div className="text-sm text-muted-foreground">Faster Document Review</div>
-                </div>
-                <div className="p-4 rounded-xl bg-card border border-border">
-                  <div className="text-2xl font-bold text-foreground mb-1">0</div>
-                  <div className="text-sm text-muted-foreground">Hallucinations (Referenced)</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
-                <div className="bg-muted/50 border-b border-border p-4 flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
-                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
-                    <div className="w-3 h-3 rounded-full bg-foreground/20" />
-                  </div>
-                  <div className="text-xs text-muted-foreground font-mono">automated_review_log.txt</div>
-                </div>
-                <div className="p-6 font-mono text-sm space-y-4 h-[400px] overflow-hidden relative">
-                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background to-transparent z-10" />
-
-                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
-                    <span className="text-muted-foreground select-none">01</span>
-                    <span>[SUCCESS] Entity Structure mapped to K-1s</span>
-                  </div>
-                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
-                    <span className="text-muted-foreground select-none">02</span>
-                    <span>[SUCCESS] FEIN verified against master record</span>
-                  </div>
-                  <div className="flex gap-3 text-amber-600 dark:text-amber-400 items-start">
-                    <span className="text-muted-foreground select-none">03</span>
-                    <span>[WARNING] Depreciation method variance detected in Asset #4022</span>
-                  </div>
-                  <div className="pl-12 text-muted-foreground text-xs border-l border-border ml-5">
-                    &gt; Reference: "2024 Depreciation Schedule.xlsx" Row 45<br />
-                    &gt; Expected: MACRS 200DB<br />
-                    &gt; Found: Straight Line
-                  </div>
-                  <div className="flex gap-3 text-sky-600 dark:text-sky-400 items-start">
-                    <span className="text-muted-foreground select-none">04</span>
-                    <span>[INFO] Generating review comment for Manager...</span>
-                  </div>
-                  <div className="flex gap-3 text-emerald-600 dark:text-emerald-400 items-start">
-                    <span className="text-muted-foreground select-none">05</span>
-                    <span>[SUCCESS] Cash reconciliation tied to bank statements</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-32 relative z-10 overflow-hidden">
         <div className="max-w-4xl mx-auto px-6 text-center">
@@ -353,8 +276,8 @@ export function LandingPage() {
             <span className="font-bold text-foreground">wavv</span>
           </div>
           <div className="flex gap-8">
-            <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Security</Link>
           </div>
           <div>© 2026 Wavv AI Inc.</div>

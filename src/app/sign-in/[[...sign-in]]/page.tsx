@@ -25,7 +25,8 @@ export default function SignInPage() {
                 </p>
               </div>
               <div className="flex justify-center">
-                <SignIn 
+                <SignIn
+                  forceRedirectUrl="/signup-callback"
                   appearance={{
                     elements: {
                       rootBox: "w-full flex justify-center",
