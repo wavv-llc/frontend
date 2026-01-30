@@ -48,7 +48,7 @@ export interface MeResponse {
   firstName?: string
   lastName?: string
   clerkId?: string
-  hasCompletedOnboarding?: boolean
+  hasCompletedOnboarding: boolean
   organization: Organization
   permissions: UserPermissions
 }
