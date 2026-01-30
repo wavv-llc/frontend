@@ -6,12 +6,11 @@ import { Loader2 } from 'lucide-react'
 import { userApi, accessLinkApi } from '@/lib/api'
 import { toast } from 'sonner'
 
-export default function SignupCallbackPage() {
-  // All hooks must be called unconditionally at the top
+export default function InviteAcceptCallbackPage() {
   const { isLoaded, isSignedIn, getToken, userId } = useAuth()
   const { user } = useUser()
   const [error, setError] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState<string>('Setting up your account...')
+  const [statusMessage, setStatusMessage] = useState<string>('Processing invitation...')
   const hasCalledApi = useRef(false)
   const isRedirecting = useRef(false)
 
@@ -22,7 +21,6 @@ export default function SignupCallbackPage() {
   }, [])
 
   useEffect(() => {
-    // Guard conditions - but all hooks are already called above
     if (!isLoaded || !isSignedIn || !userId || !user) {
       return
     }
@@ -33,19 +31,25 @@ export default function SignupCallbackPage() {
 
     hasCalledApi.current = true
 
-    const handleAuthCallback = async () => {
+    const handleInviteAccept = async () => {
       try {
         const token = await getToken()
         if (!token) {
           throw new Error('Failed to get authentication token')
         }
 
-        // Check for pending access link invitation
         const pendingAccessLinkId = sessionStorage.getItem('pendingAccessLinkId')
         const pendingAccessLinkEmail = sessionStorage.getItem('pendingAccessLinkEmail')
 
-        // If there's a pending invite, validate the email matches
-        if (pendingAccessLinkId && pendingAccessLinkEmail) {
+        if (!pendingAccessLinkId) {
+          setError('No pending invitation found.')
+          toast.error('No pending invitation found.')
+          setTimeout(() => redirect('/home'), 3000)
+          return
+        }
+
+        // Validate email matches
+        if (pendingAccessLinkEmail) {
           const userEmail = user.primaryEmailAddress?.emailAddress?.toLowerCase()
           const inviteEmail = pendingAccessLinkEmail.toLowerCase()
 
@@ -53,7 +57,7 @@ export default function SignupCallbackPage() {
             sessionStorage.removeItem('pendingAccessLinkId')
             sessionStorage.removeItem('pendingAccessLinkEmail')
 
-            const errorMsg = `You signed up with ${userEmail}, but the invite was sent to ${inviteEmail}. Please sign up with the correct email address.`
+            const errorMsg = `You signed in with ${userEmail}, but the invite was sent to ${inviteEmail}. Please sign in with the correct email address.`
             setError(errorMsg)
             toast.error(errorMsg)
 
@@ -62,15 +66,14 @@ export default function SignupCallbackPage() {
           }
         }
 
-        setStatusMessage('Checking your account...')
+        // Check if user exists, create if not
+        setStatusMessage('Setting up your account...')
         let userExists = false
-        let hasCompletedOnboarding = false
 
         try {
           const existingUser = await userApi.getMe(token)
           if (existingUser.data) {
             userExists = true
-            hasCompletedOnboarding = existingUser.data.hasCompletedOnboarding
           }
         } catch {
           console.log('User not found in Core API, will create new user')
@@ -81,57 +84,39 @@ export default function SignupCallbackPage() {
           await userApi.createUser(token, userId)
         }
 
-        if (pendingAccessLinkId) {
-          setStatusMessage('Accepting invitation...')
-          try {
-            await accessLinkApi.acceptAccessLink(token, pendingAccessLinkId)
-            toast.success('Invitation accepted!')
-            sessionStorage.removeItem('pendingAccessLinkId')
-            sessionStorage.removeItem('pendingAccessLinkEmail')
-            redirect('/home')
-            return
-          } catch (inviteErr) {
-            console.error('Error accepting invite:', inviteErr)
-            toast.error('Account created, but failed to accept invitation.')
-          }
-        }
+        // Accept the invitation
+        setStatusMessage('Accepting invitation...')
+        await accessLinkApi.acceptAccessLink(token, pendingAccessLinkId, {
+          email: user.primaryEmailAddress?.emailAddress || '',
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          clerkId: userId,
+        })
 
-        // Verify user object exists in database before redirecting to home
-        if (userExists && hasCompletedOnboarding) {
-          setStatusMessage('Verifying your account...')
-          try {
-            const verifiedUser = await userApi.getMe(token)
-            if (!verifiedUser.data) {
-              throw new Error('User verification failed')
-            }
-            redirect('/home')
-          } catch (verifyErr) {
-            console.error('Error verifying user:', verifyErr)
-            setError('Failed to verify your account. Please try again.')
-            setTimeout(() => redirect('/sign-in'), 3000)
-          }
-        } else {
-          redirect('/onboarding')
-        }
+        // Clear session storage
+        sessionStorage.removeItem('pendingAccessLinkId')
+        sessionStorage.removeItem('pendingAccessLinkEmail')
+
+        toast.success('Invitation accepted successfully!')
+        redirect('/home')
       } catch (err) {
-        console.error('Error in auth callback:', err)
-        const errorMessage = err instanceof Error ? err.message : 'Failed to process authentication'
+        console.error('Error accepting invitation:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to accept invitation'
         setError(errorMessage)
         toast.error(errorMessage)
-        setTimeout(() => redirect('/onboarding'), 3000)
+        setTimeout(() => redirect('/home'), 3000)
       }
     }
 
-    handleAuthCallback()
+    handleInviteAccept()
   }, [isLoaded, isSignedIn, userId, user, getToken, redirect])
 
-  // Always render the same JSX structure
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       {error ? (
         <div className="text-center">
           <div className="text-destructive">
-            <p className="font-semibold">Error creating account</p>
+            <p className="font-semibold">Error accepting invitation</p>
             <p className="text-sm mt-2">{error}</p>
           </div>
           <p className="text-sm text-muted-foreground mt-4">Redirecting...</p>
@@ -140,7 +125,7 @@ export default function SignupCallbackPage() {
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
           <p className="font-medium mt-4">{statusMessage}</p>
-          <p className="text-sm text-muted-foreground mt-1">Please wait while we set up your profile</p>
+          <p className="text-sm text-muted-foreground mt-1">Please wait while we process your invitation</p>
         </div>
       )}
     </div>

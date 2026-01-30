@@ -9,6 +9,50 @@ export interface User {
   lastName?: string
 }
 
+// Permission types
+export type Permission =
+  | 'TASK_VIEW'
+  | 'TASK_CREATE'
+  | 'TASK_EDIT'
+  | 'TASK_DELETE'
+  | 'PROJECT_VIEW'
+  | 'PROJECT_CREATE'
+  | 'PROJECT_EDIT'
+  | 'PROJECT_DELETE'
+  | 'WORKSPACE_VIEW'
+  | 'WORKSPACE_CREATE'
+  | 'WORKSPACE_EDIT'
+  | 'WORKSPACE_DELETE'
+  | 'MEMBER_VIEW'
+  | 'MEMBER_INVITE'
+  | 'MEMBER_REMOVE'
+  | 'SETTINGS_VIEW'
+  | 'SETTINGS_EDIT'
+  | 'ORG_EDIT'
+  | 'ORG_DELETE'
+  | 'ORG_MANAGE_MEMBERS'
+
+export interface UserPermissions {
+  organizations: Record<string, Permission[]>
+  projects: Record<string, Permission[]>
+}
+
+export interface Organization {
+  id: string
+  name: string
+}
+
+export interface MeResponse {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  clerkId?: string
+  hasCompletedOnboarding?: boolean
+  organization: Organization
+  permissions: UserPermissions
+}
+
 export interface Workspace {
   id: string
   name: string
@@ -243,15 +287,7 @@ export const userApi = {
   },
 
   getMe: async (token: string) => {
-    return apiRequest<{
-      id: string
-      clerkId: string
-      email: string
-      firstName?: string
-      lastName?: string
-      hasCompletedOnboarding: boolean
-      organizationId?: string
-    }>('/api/v1/users/me', {
+    return apiRequest<MeResponse>('/api/v1/users/me', {
       method: 'GET',
       token,
     })
@@ -285,7 +321,7 @@ export const organizationApi = {
 
   inviteMember: async (token: string, organizationId: string, email: string) => {
     return apiRequest<{ message: string }>(
-      `/api/v1/${organizationId}/access-links/member`,
+      `/api/v1/organizations/${organizationId}/access-links/member`,
       {
         method: 'POST',
         token,
@@ -1039,10 +1075,15 @@ export const accessLinkApi = {
     })
   },
 
-  acceptAccessLink: async (token: string, linkId: string) => {
+  acceptAccessLink: async (
+    token: string,
+    linkId: string,
+    data: { email: string; firstName: string; lastName: string; clerkId: string }
+  ) => {
     return apiRequest<{ message: string }>(`/api/v1/access-links/${linkId}/accept`, {
       method: 'POST',
       token,
+      body: JSON.stringify(data),
     })
   },
 }
@@ -1087,5 +1128,86 @@ export const dashboardApi = {
       method: 'GET',
       token,
     })
+  },
+}
+
+// Permission utilities
+export const permissionUtils = {
+  hasOrgPermission: (
+    permissions: UserPermissions | undefined,
+    orgId: string,
+    permission: Permission
+  ): boolean => {
+    if (!permissions?.organizations) return false
+    const orgPermissions = permissions.organizations[orgId]
+    return orgPermissions?.includes(permission) ?? false
+  },
+
+  hasProjectPermission: (
+    permissions: UserPermissions | undefined,
+    projectId: string,
+    permission: Permission
+  ): boolean => {
+    if (!permissions?.projects) return false
+    const projectPermissions = permissions.projects[projectId]
+    return projectPermissions?.includes(permission) ?? false
+  },
+
+  hasAnyOrgPermission: (
+    permissions: UserPermissions | undefined,
+    orgId: string,
+    requiredPermissions: Permission[]
+  ): boolean => {
+    if (!permissions?.organizations) return false
+    const orgPermissions = permissions.organizations[orgId]
+    if (!orgPermissions) return false
+    return requiredPermissions.some((p) => orgPermissions.includes(p))
+  },
+
+  hasAllOrgPermissions: (
+    permissions: UserPermissions | undefined,
+    orgId: string,
+    requiredPermissions: Permission[]
+  ): boolean => {
+    if (!permissions?.organizations) return false
+    const orgPermissions = permissions.organizations[orgId]
+    if (!orgPermissions) return false
+    return requiredPermissions.every((p) => orgPermissions.includes(p))
+  },
+
+  hasAnyProjectPermission: (
+    permissions: UserPermissions | undefined,
+    projectId: string,
+    requiredPermissions: Permission[]
+  ): boolean => {
+    if (!permissions?.projects) return false
+    const projectPermissions = permissions.projects[projectId]
+    if (!projectPermissions) return false
+    return requiredPermissions.some((p) => projectPermissions.includes(p))
+  },
+
+  hasAllProjectPermissions: (
+    permissions: UserPermissions | undefined,
+    projectId: string,
+    requiredPermissions: Permission[]
+  ): boolean => {
+    if (!permissions?.projects) return false
+    const projectPermissions = permissions.projects[projectId]
+    if (!projectPermissions) return false
+    return requiredPermissions.every((p) => projectPermissions.includes(p))
+  },
+
+  getOrgPermissions: (
+    permissions: UserPermissions | undefined,
+    orgId: string
+  ): Permission[] => {
+    return permissions?.organizations?.[orgId] ?? []
+  },
+
+  getProjectPermissions: (
+    permissions: UserPermissions | undefined,
+    projectId: string
+  ): Permission[] => {
+    return permissions?.projects?.[projectId] ?? []
   },
 }

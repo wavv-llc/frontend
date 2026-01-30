@@ -3,18 +3,44 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth, useUser, SignUp } from '@clerk/nextjs'
-import { Loader2, AlertCircle, CheckCircle2, Mail } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { AppBar } from '@/components/AppBar'
+import { motion } from 'framer-motion'
+import { Loader2, AlertCircle, CheckCircle2, Mail, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { accessLinkApi, AccessLink } from '@/lib/api'
 import { toast } from 'sonner'
 
 type InviteStatus = 'loading' | 'valid' | 'invalid' | 'expired' | 'already_used' | 'error'
 
+function Navigation() {
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-serif italic text-lg pr-0.5">w</span>
+          </div>
+          wavv
+        </Link>
+      </div>
+    </nav>
+  )
+}
+
+function BackgroundMesh() {
+  return (
+    <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary/30 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
+      <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-muted/20 rounded-full blur-[100px] animate-pulse-slow delay-700" />
+    </div>
+  )
+}
+
 export default function InviteAcceptPage() {
   const params = useParams()
   const router = useRouter()
-  const { isLoaded, isSignedIn, getToken } = useAuth()
+  const { isLoaded, isSignedIn, getToken, userId } = useAuth()
   const { user } = useUser()
 
   const accessLinkId = params.accessLinkId as string
@@ -92,14 +118,19 @@ export default function InviteAcceptPage() {
           throw new Error('Failed to get authentication token')
         }
 
-        await accessLinkApi.acceptAccessLink(token, accessLinkId)
+        await accessLinkApi.acceptAccessLink(token, accessLinkId, {
+          email: user.primaryEmailAddress?.emailAddress || '',
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          clerkId: userId!,
+        })
 
         // Clear the stored access link data
         sessionStorage.removeItem('pendingAccessLinkId')
         sessionStorage.removeItem('pendingAccessLinkEmail')
 
         toast.success('Invite accepted successfully!')
-        router.push('/dashboard')
+        router.push('/home')
       } catch (err) {
         console.error('Error accepting invite:', err)
         toast.error(err instanceof Error ? err.message : 'Failed to accept invite')
@@ -108,14 +139,31 @@ export default function InviteAcceptPage() {
     }
 
     acceptInvite()
-  }, [isLoaded, isSignedIn, user, status, accessLink, accessLinkId, getToken, router])
+  }, [isLoaded, isSignedIn, user, status, accessLink, accessLinkId, getToken, router, userId])
 
   // Loading state
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Validating invite...</p>
+      <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
+        <BackgroundMesh />
+        <Navigation />
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center gap-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="text-muted-foreground"
+          >
+            Validating invite...
+          </motion.p>
+        </div>
       </div>
     )
   }
@@ -123,31 +171,39 @@ export default function InviteAcceptPage() {
   // Error states
   if (status !== 'valid') {
     return (
-      <div className="bg-background text-foreground" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
-        <AppBar navItems={[]} showLoginLink={false} showContactButton={false} />
+      <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
+        <BackgroundMesh />
+        <Navigation />
 
-        <section className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
-          <div className="max-w-md mx-auto px-4 w-full py-12">
-            <Card className="bg-background border-border shadow-lg">
-              <CardContent className="p-8 text-center">
-                <div className="flex justify-center mb-4">
-                  <AlertCircle className="h-16 w-16 text-destructive" />
+        <section className="relative z-10 pt-32 pb-20 min-h-screen flex items-center justify-center">
+          <div className="max-w-xl mx-auto px-6 w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="relative"
+            >
+              <div className="absolute inset-0 bg-destructive/10 blur-[60px] rounded-full" />
+              <div className="relative bg-card/50 backdrop-blur-xl border border-border rounded-2xl p-10 md:p-12 text-center shadow-xl">
+                <div className="flex justify-center mb-8">
+                  <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <AlertCircle className="h-10 w-10 text-destructive" />
+                  </div>
                 </div>
-                <h1 className="font-serif text-2xl font-bold text-foreground mb-2">
+                <h1 className="text-3xl font-bold text-foreground mb-4">
                   {status === 'invalid' && 'Invalid Invite'}
                   {status === 'expired' && 'Invite Expired'}
                   {status === 'already_used' && 'Invite Already Used'}
                   {status === 'error' && 'Something Went Wrong'}
                 </h1>
-                <p className="text-muted-foreground mb-6">{errorMessage}</p>
-                <button
-                  onClick={() => router.push('/')}
-                  className="bg-[#3b4a5f] hover:bg-[#3b4a5f]/90 text-white px-6 py-2 rounded-md transition-colors"
-                >
-                  Go to Homepage
-                </button>
-              </CardContent>
-            </Card>
+                <p className="text-muted-foreground text-lg mb-10">{errorMessage}</p>
+                <Link href="/">
+                  <Button className="rounded-full h-11 px-8 shadow-lg">
+                    Go to Homepage
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </section>
       </div>
@@ -157,9 +213,26 @@ export default function InviteAcceptPage() {
   // If user is signed in and accepting invite
   if (isSignedIn && isAccepting) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Accepting invite...</p>
+      <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
+        <BackgroundMesh />
+        <Navigation />
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center gap-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="text-muted-foreground"
+          >
+            Accepting invite...
+          </motion.p>
+        </div>
       </div>
     )
   }
@@ -171,33 +244,46 @@ export default function InviteAcceptPage() {
 
     if (userEmail !== inviteEmail) {
       return (
-        <div className="bg-background text-foreground" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
-          <AppBar navItems={[]} showLoginLink={false} showContactButton={false} />
+        <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
+          <BackgroundMesh />
+          <Navigation />
 
-          <section className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
-            <div className="max-w-md mx-auto px-4 w-full py-12">
-              <Card className="bg-background border-border shadow-lg">
-                <CardContent className="p-8 text-center">
-                  <div className="flex justify-center mb-4">
-                    <AlertCircle className="h-16 w-16 text-amber-500" />
+          <section className="relative z-10 pt-32 pb-20 min-h-screen flex items-center justify-center">
+            <div className="max-w-xl mx-auto px-6 w-full">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-amber-500/10 blur-[60px] rounded-full" />
+                <div className="relative bg-card/50 backdrop-blur-xl border border-border rounded-2xl p-10 md:p-12 text-center shadow-xl">
+                  <div className="flex justify-center mb-8">
+                    <div className="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <AlertCircle className="h-10 w-10 text-amber-500" />
+                    </div>
                   </div>
-                  <h1 className="font-serif text-2xl font-bold text-foreground mb-2">
+                  <h1 className="text-3xl font-bold text-foreground mb-4">
                     Email Mismatch
                   </h1>
-                  <p className="text-muted-foreground mb-4">
-                    You are currently signed in as <strong>{userEmail}</strong>.
+                  <p className="text-muted-foreground text-lg mb-2">
+                    You are currently signed in as
                   </p>
-                  <p className="text-muted-foreground mb-6">
-                    This invite was sent to <strong>{accessLink?.email}</strong>. Please sign out and sign in with the correct account.
+                  <p className="text-foreground font-semibold text-lg mb-5">{userEmail}</p>
+                  <p className="text-muted-foreground text-lg mb-2">
+                    This invite was sent to
                   </p>
-                  <button
-                    onClick={() => router.push('/sign-in')}
-                    className="bg-[#3b4a5f] hover:bg-[#3b4a5f]/90 text-white px-6 py-2 rounded-md transition-colors"
-                  >
-                    Sign In with Correct Account
-                  </button>
-                </CardContent>
-              </Card>
+                  <p className="text-foreground font-semibold text-lg mb-6">{accessLink?.email}</p>
+                  <p className="text-muted-foreground mb-10">
+                    Please sign out and sign in with the correct account.
+                  </p>
+                  <Link href="/sign-in">
+                    <Button className="rounded-full h-11 px-8 shadow-lg">
+                      Sign In with Correct Account
+                    </Button>
+                  </Link>
+                </div>
+              </motion.div>
             </div>
           </section>
         </div>
@@ -207,22 +293,36 @@ export default function InviteAcceptPage() {
 
   // Valid invite - show sign up form
   return (
-    <div className="bg-background text-foreground selection:bg-primary/20 selection:text-primary-foreground" style={{ backgroundColor: 'hsl(42, 50%, 88%)', minHeight: '100vh' }}>
-      <AppBar navItems={[]} showLoginLink={false} showContactButton={false} />
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 font-sans overflow-x-hidden">
+      <BackgroundMesh />
+      <Navigation />
 
-      <section className="relative w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
-        <div className="max-w-md mx-auto px-4 w-full py-12">
+      <section className="relative z-10 pt-32 pb-20 min-h-screen flex items-center justify-center">
+        <div className="max-w-xl mx-auto px-6 w-full">
           {/* Invite Info Card */}
-          <Card className="bg-background border-border shadow-lg mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
-                <h2 className="font-serif text-xl font-bold text-foreground">
-                  You&apos;re Invited!
-                </h2>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-6"
+          >
+            <div className="bg-card/50 backdrop-blur-xl border border-border rounded-2xl p-8 md:p-10 shadow-lg">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Valid Invite</span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    You&apos;re Invited!
+                  </h2>
+                </div>
               </div>
 
-              <div className="space-y-3 text-sm">
+              <div className="space-y-4 text-base">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="h-4 w-4" />
                   <span>Invite sent to: <strong className="text-foreground">{accessLink?.email}</strong></span>
@@ -234,28 +334,34 @@ export default function InviteAcceptPage() {
                 )}
               </div>
 
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <p className="text-amber-800 text-sm">
+              <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-amber-600 dark:text-amber-400 text-sm leading-relaxed">
                   <strong>Important:</strong> You must sign up using a Microsoft account with the email address <strong>{accessLink?.email}</strong>.
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </motion.div>
 
           {/* Sign Up Card */}
-          <Card className="bg-background border-border shadow-lg hover:shadow-xl transition-all duration-300">
-            <CardContent className="p-8">
-              <div className="mb-4 text-center">
-                <h1 className="font-serif text-3xl font-bold text-foreground mb-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="relative"
+          >
+            <div className="absolute inset-0 bg-primary/10 blur-[60px] rounded-full" />
+            <div className="relative bg-card/50 backdrop-blur-xl border border-border rounded-2xl p-8 md:p-12 shadow-xl">
+              <div className="mb-8 text-center">
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
                   Accept Invitation
                 </h1>
-                <p className="font-sans text-sm text-muted-foreground">
+                <p className="text-muted-foreground">
                   Sign up with Microsoft to join
                 </p>
               </div>
               <div className="flex justify-center">
                 <SignUp
-                  forceRedirectUrl="/signup-callback"
+                  forceRedirectUrl="/invite/accept-callback"
                   initialValues={{
                     emailAddress: accessLink?.email || '',
                   }}
@@ -269,30 +375,30 @@ export default function InviteAcceptPage() {
                       headerSubtitle: "hidden",
                       main: "!bg-transparent w-full flex justify-center",
                       main__body: "!bg-transparent w-full flex flex-col items-center !mt-0",
-                      formButtonPrimary: "bg-[#3b4a5f] hover:bg-[#3b4a5f]/90 text-white shadow-sm hover:shadow-md transition-all !border-none w-full",
-                      socialButtonsBlockButton: "border-border hover:bg-muted/30 transition-colors !bg-background w-full !mt-0",
+                      formButtonPrimary: "!bg-primary hover:!bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all !border-none w-full !rounded-full !h-11",
+                      socialButtonsBlockButton: "border-border hover:bg-muted/30 transition-colors !bg-background/50 w-full !mt-0 !rounded-full !h-11",
                       socialButtons: "!mt-0 w-full",
                       socialButtonsBlockButtonText: "text-foreground",
-                      formFieldInput: "border-border focus:border-[#1e293b] focus:ring-[#1e293b] !bg-background w-full",
+                      formFieldInput: "border-border focus:border-primary focus:ring-primary !bg-background/50 w-full !rounded-xl",
                       formFieldLabel: "text-foreground font-medium",
                       formField: "w-full",
                       form: "w-full flex flex-col items-center",
                       identityPreview: "!bg-transparent border-border w-full",
                       identityPreviewText: "text-foreground",
-                      identityPreviewEditButton: "text-[#1e293b] hover:text-[#1e293b]/80",
+                      identityPreviewEditButton: "text-primary hover:text-primary/80",
                       footerAction: "hidden",
                       footerActionLink: "hidden",
                       footerActionText: "hidden",
                       dividerLine: "bg-border",
                       dividerText: "text-muted-foreground text-xs",
-                      formResendCodeLink: "text-[#1e293b] hover:text-[#1e293b]/80",
+                      formResendCodeLink: "text-primary hover:text-primary/80",
                       alertText: "text-foreground",
-                      formHeaderTitle: "font-serif text-2xl font-bold text-foreground",
-                      formHeaderSubtitle: "font-sans text-sm text-muted-foreground",
+                      formHeaderTitle: "text-2xl font-bold text-foreground",
+                      formHeaderSubtitle: "text-sm text-muted-foreground",
                       footer: "hidden",
                       footerPages: "hidden",
                       footerPagesLink: "hidden",
-                      formFieldInputShowPasswordButton: "text-[#1e293b] hover:text-[#1e293b]/80"
+                      formFieldInputShowPasswordButton: "text-primary hover:text-primary/80"
                     },
                     layout: {
                       socialButtonsPlacement: "top",
@@ -301,8 +407,8 @@ export default function InviteAcceptPage() {
                   }}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </motion.div>
         </div>
       </section>
     </div>

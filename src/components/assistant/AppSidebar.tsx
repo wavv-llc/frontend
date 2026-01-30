@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { workspaceApi, projectApi, type Workspace, type Project } from "@/lib/api";
+import { workspaceApi, projectApi, userApi, permissionUtils, type Workspace, type Project, type UserPermissions } from "@/lib/api";
 import {
   DndContext,
   closestCenter,
@@ -284,6 +284,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [projectsByWorkspace, setProjectsByWorkspace] = useState<Record<string, Project[]>>({});
   const [loading, setLoading] = useState(true);
+  const [userPermissions, setUserPermissions] = useState<UserPermissions | undefined>(undefined);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
 
   // Fetch workspaces and their projects
   useEffect(() => {
@@ -291,6 +293,15 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       try {
         const token = await getToken();
         if (!token) return;
+
+        // Fetch user data with permissions
+        const userResponse = await userApi.getMe(token);
+        if (userResponse.data) {
+          setUserPermissions(userResponse.data.permissions);
+          if (userResponse.data.organization) {
+            setOrganizationId(userResponse.data.organization.id);
+          }
+        }
 
         // Fetch workspaces
         const workspacesResponse = await workspaceApi.getWorkspaces(token);
@@ -365,8 +376,14 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     router.push("/");
   };
 
-
-
+  // Check if user can access organization settings
+  const canAccessOrgSettings = organizationId
+    ? permissionUtils.hasAnyOrgPermission(userPermissions, organizationId, [
+        'ORG_EDIT',
+        'ORG_DELETE',
+        'ORG_MANAGE_MEMBERS',
+      ])
+    : false;
 
   // Track if we're currently dragging a project
   const [isDraggingProject, setIsDraggingProject] = useState(false);
@@ -743,37 +760,39 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               )}
             </div>
 
-            {/* Organization Settings Link */}
-            <div>
-              {!isCompressed ? (
-                <Button
-                  variant="ghost"
-                  onClick={handleSettings}
-                  className="w-full justify-start gap-2 px-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                >
-                  <Settings className="h-4 w-4 flex-shrink-0" />
-                  <span>Organization Settings</span>
-                </Button>
-              ) : (
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleSettings}
-                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      >
-                        <Settings className="h-5 w-5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
-                      <p>Organization Settings</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+            {/* Organization Settings Link - Only shown if user has ORG_EDIT, ORG_DELETE, or ORG_MANAGE_MEMBERS permission */}
+            {canAccessOrgSettings && (
+              <div>
+                {!isCompressed ? (
+                  <Button
+                    variant="ghost"
+                    onClick={handleSettings}
+                    className="w-full justify-start gap-2 px-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <Settings className="h-4 w-4 flex-shrink-0" />
+                    <span>Organization Settings</span>
+                  </Button>
+                ) : (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleSettings}
+                          className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        >
+                          <Settings className="h-5 w-5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                        <p>Organization Settings</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Workspaces Section */}

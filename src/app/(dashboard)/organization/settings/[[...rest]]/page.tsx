@@ -54,8 +54,8 @@ export default function SettingsPage() {
       if (!token) return
 
       const response = await userApi.getMe(token)
-      if (response.data?.organizationId) {
-        setOrganizationId(response.data.organizationId)
+      if (response.data?.organization) {
+        setOrganizationId(response.data.organization.id)
       }
     } catch (err) {
       console.error('Error loading user data:', err)
