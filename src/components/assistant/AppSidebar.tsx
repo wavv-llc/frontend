@@ -40,7 +40,6 @@ import {
   ChevronDown,
   FolderKanban,
   Briefcase,
-  MessageSquare,
   GripVertical,
   Home,
 } from "lucide-react";
@@ -341,10 +340,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
     fetchData();
   }, [getToken, refreshTrigger]); // Added refreshTrigger to dependencies
-
-  const handleNewChat = () => {
-    router.push("/chat");
-  };
 
   const handleSearch = () => {
     console.log("Opening search...");
@@ -677,47 +672,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <PanelLeft className="h-5 w-5" />
           </Button>
         )}
-        {!isCompressed ? (
-          <>
-            <Button
-              onClick={handleNewChat}
-              className="flex-1 justify-start gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              New Chat
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSearch}
-              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-            <NotificationBell />
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={handleNewChat}
-              size="icon"
-              className="h-9 w-9 flex-shrink-0 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-              title="New Chat"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSearch}
-              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-              title="Search"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-            <NotificationBell />
-          </>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleSearch}
+          className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+          title="Search"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+        <NotificationBell />
 
       </div>
 
@@ -857,21 +821,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             </div>
           </div>
 
-          {/* Recent Chats Section */}
-          <div>
-            {!isCompressed && (
-              <h3 className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Recent Chats
-              </h3>
-            )}
-            <div className="space-y-1">
-              {!isCompressed && (
-                <p className="px-2 py-2 text-xs text-muted-foreground italic">
-                  Chat history coming soon
-                </p>
-              )}
-            </div>
-          </div>
         </div>
       </ScrollArea>
 
