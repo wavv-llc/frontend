@@ -42,10 +42,12 @@ import {
   Briefcase,
   GripVertical,
   Home,
+  MessageSquarePlus,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { workspaceApi, projectApi, userApi, permissionUtils, type Workspace, type Project, type UserPermissions } from "@/lib/api";
+import { workspaceApi, projectApi, userApi, chatApi, permissionUtils, type Workspace, type Project, type UserPermissions, type Chat } from "@/lib/api";
 import {
   DndContext,
   closestCenter,
@@ -285,6 +287,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   const [loading, setLoading] = useState(true);
   const [userPermissions, setUserPermissions] = useState<UserPermissions | undefined>(undefined);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
+  const [newChatMessage, setNewChatMessage] = useState("");
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   // Fetch workspaces and their projects
   useEffect(() => {
@@ -340,6 +346,51 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
     fetchData();
   }, [getToken, refreshTrigger]); // Added refreshTrigger to dependencies
+
+  // Fetch chats
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await chatApi.getChats(token);
+        setChats(response.data || []);
+      } catch (error) {
+        console.error("Failed to fetch chats:", error);
+      } finally {
+        setChatsLoading(false);
+      }
+    };
+
+    fetchChats();
+  }, [getToken, refreshTrigger]);
+
+  const handleCreateChat = async () => {
+    if (!newChatMessage.trim() || isCreatingChat) return;
+
+    try {
+      setIsCreatingChat(true);
+      const token = await getToken();
+      if (!token) return;
+
+      const response = await chatApi.createChat(token, newChatMessage.trim());
+      if (response.data) {
+        setChats((prev) => [response.data!, ...prev]);
+        setNewChatMessage("");
+        router.push(`/chats/${response.data.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to create chat:", error);
+      toast.error("Failed to create chat");
+    } finally {
+      setIsCreatingChat(false);
+    }
+  };
+
+  const handleChatClick = (chatId: string) => {
+    router.push(`/chats/${chatId}`);
+  };
 
   const handleSearch = () => {
     console.log("Opening search...");
@@ -672,6 +723,23 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             <PanelLeft className="h-5 w-5" />
           </Button>
         )}
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push("/chats/new")}
+                className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+              >
+                <MessageSquarePlus className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-popover text-popover-foreground border-border">
+              <p>New Chat</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button
           variant="ghost"
           size="icon"
@@ -815,6 +883,70 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 !isCompressed && (
                   <p className="px-2 py-2 text-xs text-muted-foreground italic">
                     No workspaces yet
+                  </p>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Chats Section */}
+          <div>
+            {!isCompressed && (
+              <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Recent Chats
+              </div>
+            )}
+            <div className="space-y-1">
+              {chatsLoading ? (
+                !isCompressed && (
+                  <div className="space-y-2 px-2 py-1">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Skeleton className="h-4 w-4 rounded-sm" />
+                        <Skeleton className="h-4 w-32 rounded-sm" />
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : chats.length > 0 ? (
+                chats.slice(0, 5).map((chat) => (
+                  <div key={chat.id}>
+                    {!isCompressed ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleChatClick(chat.id)}
+                        className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                        <span className="flex-1 truncate text-left">
+                          {chat.message.length > 30 ? chat.message.slice(0, 30) + "..." : chat.message}
+                        </span>
+                      </Button>
+                    ) : (
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleChatClick(chat.id)}
+                              className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            >
+                              <MessageSquare className="h-5 w-5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                            <p>{chat.message.length > 50 ? chat.message.slice(0, 50) + "..." : chat.message}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                ))
+              ) : (
+                !isCompressed && (
+                  <p className="px-2 py-2 text-xs text-muted-foreground italic">
+                    No chats yet
                   </p>
                 )
               )}

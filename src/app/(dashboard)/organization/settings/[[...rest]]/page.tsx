@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail } from 'lucide-react'
-import { sharepointApi, organizationApi, userApi } from '@/lib/api'
+import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter } from 'lucide-react'
+import { sharepointApi, organizationApi, userApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse } from '@/lib/api'
 import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface SharePointSite {
   id: string
@@ -26,6 +28,7 @@ interface SelectedSite {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { isLoaded, getToken } = useAuth()
   const [sites, setSites] = useState<SharePointSite[]>([])
   const [, setSelectedSites] = useState<SelectedSite[]>([])
@@ -40,6 +43,14 @@ export default function SettingsPage() {
   const [isInviting, setIsInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+
+  // Documents state
+  const [documents, setDocuments] = useState<OrganizationDocument[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [documentsError, setDocumentsError] = useState<string | null>(null)
+  const [retryingDocumentId, setRetryingDocumentId] = useState<string | null>(null)
+  const [documentSearch, setDocumentSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   useEffect(() => {
     if (isLoaded) {
@@ -56,10 +67,75 @@ export default function SettingsPage() {
       const response = await userApi.getMe(token)
       if (response.data?.organization) {
         setOrganizationId(response.data.organization.id)
+        loadDocuments(response.data.organization.id)
       }
     } catch (err) {
       console.error('Error loading user data:', err)
     }
+  }
+
+  const loadDocuments = async (orgId?: string) => {
+    const targetOrgId = orgId || organizationId
+    if (!targetOrgId) return
+
+    try {
+      setIsLoadingDocuments(true)
+      setDocumentsError(null)
+      const token = await getToken()
+      if (!token) return
+
+      const response = await documentsApi.getOrganizationDocuments(token, targetOrgId)
+      // Handle both array response and wrapped object response
+      const docs = Array.isArray(response.data)
+        ? response.data
+        : (response.data as OrganizationDocumentsResponse)?.documents || []
+      setDocuments(docs)
+    } catch (err) {
+      console.error('Error loading documents:', err)
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
+    } finally {
+      setIsLoadingDocuments(false)
+    }
+  }
+
+  const handleRetryDocument = async (documentId: string) => {
+    try {
+      setRetryingDocumentId(documentId)
+      const token = await getToken()
+      if (!token) return
+
+      await documentsApi.retryDocument(token, documentId)
+      // Reload documents to get updated status
+      await loadDocuments()
+    } catch (err) {
+      console.error('Error retrying document:', err)
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to retry document')
+    } finally {
+      setRetryingDocumentId(null)
+    }
+  }
+
+  const getStatusBadge = (status: OrganizationDocument['status']) => {
+    switch (status) {
+      case 'COMPLETED':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
+      case 'PROCESSING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>
+      case 'PENDING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
+      case 'FAILED':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Failed</span>
+      default:
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">{status}</span>
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   const handleInviteMember = async (e: React.FormEvent) => {
@@ -342,6 +418,146 @@ export default function SettingsPage() {
                 </p>
               </form>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Organization Documents */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                <div>
+                  <CardTitle>Documents</CardTitle>
+                  <CardDescription>
+                    View and manage documents uploaded to your organization
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadDocuments()}
+                disabled={isLoadingDocuments || !organizationId}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            {/* Search and Filter */}
+            {documents.length > 0 && (
+              <div className="flex items-center gap-3 pt-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search documents..."
+                    value={documentSearch}
+                    onChange={(e) => setDocumentSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="PROCESSING">Processing</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {documentsError && (
+              <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                {documentsError}
+              </div>
+            )}
+
+            {!organizationId ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Unable to load organization information.</p>
+              </div>
+            ) : isLoadingDocuments ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : documents.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No documents found in your organization.</p>
+              </div>
+            ) : (() => {
+              const filteredDocuments = documents.filter((doc) => {
+                const matchesSearch = documentSearch === '' ||
+                  doc.originalName.toLowerCase().includes(documentSearch.toLowerCase())
+                const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
+                return matchesSearch && matchesStatus
+              })
+
+              if (filteredDocuments.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No documents match your search or filter criteria.</p>
+                  </div>
+                )
+              }
+
+              return (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {filteredDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/documents/${doc.id}`)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-medium truncate" title={doc.originalName}>
+                            {doc.originalName}
+                          </h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{formatFileSize(doc.filesize)}</span>
+                            <span>•</span>
+                            <span>{doc.mimeType}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {getStatusBadge(doc.status)}
+                        {doc.status === 'FAILED' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRetryDocument(doc.id)
+                            }}
+                            disabled={retryingDocumentId === doc.id}
+                          >
+                            {retryingDocumentId === doc.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Retry
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>
