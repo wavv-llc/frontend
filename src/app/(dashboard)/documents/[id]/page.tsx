@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, FileText, ArrowLeft, Calendar, HardDrive, FileType, Clock, ExternalLink, RefreshCw, Play } from 'lucide-react'
 import { documentsApi, DocumentDetail } from '@/lib/api'
+import { toast } from 'sonner'
 
 export default function DocumentDetailPage() {
   const params = useParams()
@@ -58,6 +59,7 @@ export default function DocumentDetailPage() {
       if (!token) return
 
       await documentsApi.retryDocument(token, document.id)
+      toast.success('Re-process request sent successfully')
       await loadDocument()
     } catch (err) {
       console.error('Error retrying document:', err)
@@ -76,6 +78,7 @@ export default function DocumentDetailPage() {
       if (!token) return
 
       await documentsApi.reembedDocument(token, document.id)
+      toast.success('Re-embed request sent successfully')
       await loadDocument()
     } catch (err) {
       console.error('Error re-embedding document:', err)
