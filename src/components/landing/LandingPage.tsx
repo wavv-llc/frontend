@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import Link from 'next/link'
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
-import { ArrowRight, Check, Search, FileText, Database, Lock, Menu, X, Brain, Layers, Users, Sparkles, Zap, Command } from 'lucide-react'
+import { motion, useScroll, useTransform } from 'framer-motion'
+import {
+  ArrowRight, Check, Search, FileText, Database, Lock, Menu, X, Brain, Layers, Users, Sparkles, Zap, Command,
+  CheckCircle2, Circle, FolderOpen, Clock, Calendar as CalendarIcon, ArrowUpRight, ListFilter, Plus,
+  Briefcase, MessageSquarePlus, Home, PanelLeft, LayoutGrid, ChevronRight, ChevronDown, Settings
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
+import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView'
+import type { RecentItem, DashboardTask } from '@/lib/api'
 
 const NAV_ITEMS = [
   { name: 'Product', href: '#product' },
@@ -94,16 +103,6 @@ export function LandingPage() {
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden z-10">
         <div className="max-w-7xl mx-auto px-6 relative">
           <div className="flex flex-col items-center text-center">
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border text-xs font-medium text-foreground mb-8 backdrop-blur-sm"
-            >
-              <Sparkles className="w-3 h-3 text-primary" />
-              <span>The Intelligent Knowledge Hub for Tax</span>
-            </motion.div>
 
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -347,104 +346,419 @@ function DashboardScrollReveal() {
     <div ref={containerRef} className="min-h-[80vh] w-full flex items-center justify-center perspective-[2000px] px-6 py-20 relative z-10">
       <motion.div
         style={{ y, opacity, rotateX, scale, transformPerspective: 2000 }}
-        className="w-full max-w-6xl relative"
+        className="w-full max-w-7xl relative"
       >
         {/* Glow behind dashboard */}
         <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full z-0" />
 
-        <div className="relative z-10 bg-background/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
-          {/* Header Bar */}
-          <div className="h-14 border-b border-border bg-muted/30 flex items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-              <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-border" />
-                <div className="w-3 h-3 rounded-full bg-border" />
-                <div className="w-3 h-3 rounded-full bg-border" />
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background px-2 py-1 rounded-md border border-border">
-                <Users className="w-3 h-3" />
-                <span>Project: Q4 Returns</span>
-              </div>
-            </div>
+        <div className="relative z-10 bg-background/90 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden flex h-[800px]">
+          {/* Static Sidebar */}
+          <StaticSidebar />
 
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                <Sparkles className="w-3 h-3 text-primary-foreground" />
-              </div>
-              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground">Export</Button>
-            </div>
-          </div>
-
-          {/* Dashboard Content */}
-          <div className="grid grid-cols-12 min-h-[500px] bg-background">
-            {/* Text Sidebar */}
-            <div className="hidden md:flex col-span-3 border-r border-border flex-col p-4 bg-muted/10">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Knowledge Sources</div>
-              <div className="space-y-2">
-                {['Prior Year Returns', 'K-1 Support', 'Brokerage Stmts', 'Emails: Client', 'IRC Section 163', 'Rev. Proc. 2023-1'].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    <span className="text-sm text-muted-foreground group-hover:text-foreground">{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">AI Assistant</div>
-              <div className="flex-1 bg-muted/20 rounded-xl p-3 border border-border relative overflow-hidden">
-                <div className="space-y-3">
-                  <div className="bg-primary/10 p-2 rounded-lg rounded-tl-none border border-primary/20">
-                    <p className="text-xs text-foreground">I've analyzed the K-1s. There is a discrepancy in the Partner Capital Account on line L.</p>
-                  </div>
-                </div>
-                <div className="absolute inset-x-3 bottom-3 h-8 bg-background rounded border border-border flex items-center px-2">
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-                </div>
-              </div>
-            </div>
-
-            {/* Main View */}
-            <div className="col-span-12 md:col-span-9 p-6 md:p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-2xl font-semibold text-foreground">Review Summary</h2>
-                  <p className="text-muted-foreground text-sm">Automated analysis of 45 documents</p>
-                </div>
-                <div className="flex gap-2">
-                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-medium">98% Confidence</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className="p-5 rounded-xl bg-card border border-border">
-                  <div className="text-sm text-muted-foreground mb-2">Total Adjustments Found</div>
-                  <div className="text-3xl font-mono text-foreground">12</div>
-                </div>
-                <div className="p-5 rounded-xl bg-card border border-border">
-                  <div className="text-sm text-muted-foreground mb-2">Time Saved</div>
-                  <div className="text-3xl font-mono text-foreground">4.5 hrs</div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">High Priority Flag</div>
-                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex gap-4">
-                  <div className="mt-1">
-                    <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center text-destructive font-bold text-xs">!</div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground">Passive Activity Loss Limitation</h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Current calculation of $45,000 conflicts with prior year carryover data extracted from 2023 return ($32,000).
-                      <span className="text-primary hover:underline cursor-pointer ml-1">View Calculation &gt;</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* Main Content Area */}
+          <div className="flex-1 overflow-hidden flex flex-col bg-background">
+            <div className="flex-1 overflow-y-auto w-full">
+              <StaticHomePage />
             </div>
           </div>
         </div>
       </motion.div>
     </div>
+  )
+}
+
+// ---------------- Dashboard Helpers ----------------
+
+const MOCK_RECENTS: RecentItem[] = [
+  { id: '1', type: 'project', name: 'Q4 Tax Returns', workspaceId: '1', workspaceName: 'My Workspace', updatedAt: new Date().toISOString(), icon: 'project', parentName: 'My Workspace', parentId: '1', status: null },
+  { id: '2', type: 'task', name: 'Review 10-K Disclosures', workspaceId: '1', workspaceName: 'My Workspace', updatedAt: new Date(Date.now() - 3600000).toISOString(), icon: 'task', parentName: 'Annual Audit 2024', parentId: '2', status: null },
+  { id: '3', type: 'workspace', name: 'Acme Corp Engagement', workspaceId: '2', workspaceName: 'Acme Corp', updatedAt: new Date(Date.now() - 86400000).toISOString(), icon: 'workspace', parentName: null, parentId: null, status: null },
+  { id: '4', type: 'project', name: 'Estate Planning', workspaceId: '1', workspaceName: 'My Workspace', updatedAt: new Date(Date.now() - 172800000).toISOString(), icon: 'project', parentName: 'My Workspace', parentId: '1', status: null },
+]
+
+const MOCK_TASKS: DashboardTask[] = [
+  {
+    id: '1', name: 'Finalize Q3 Estimates', status: 'IN_PROGRESS', createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), updatedAt: new Date().toISOString(), projectId: '1', dueAt: new Date(Date.now() + 86400000 * 2).toISOString(),
+    project: { id: '1', name: 'Q3 Prep', workspace: { id: '1', name: 'My Workspace' } }, preparers: [], reviewers: [], linkedFiles: [],
+  },
+  {
+    id: '2', name: 'Client Onboarding - TechFlow Inc', status: 'PENDING', createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date().toISOString(), projectId: '2', dueAt: new Date(Date.now() + 86400000 * 5).toISOString(),
+    project: { id: '2', name: 'Onboarding', workspace: { id: '1', name: 'My Workspace' } }, preparers: [], reviewers: [], linkedFiles: [],
+  },
+  {
+    id: '3', name: 'Review R&D Credit Calculation', status: 'IN_REVIEW', createdAt: new Date(Date.now() - 86400000 * 3).toISOString(), updatedAt: new Date().toISOString(), projectId: '1', dueAt: new Date(Date.now() - 86400000).toISOString(), // Overdue
+    project: { id: '1', name: 'Tax Credits 2024', workspace: { id: '1', name: 'My Workspace' } }, preparers: [], reviewers: [], linkedFiles: [],
+  },
+  {
+    id: '4', name: 'Send Engagement Letter', status: 'COMPLETED', createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), updatedAt: new Date().toISOString(), projectId: '3', dueAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    project: { id: '3', name: 'Client Relations', workspace: { id: '1', name: 'My Workspace' } }, preparers: [], reviewers: [], linkedFiles: [],
+  },
+]
+
+// Mocking calendar tasks by spreading mock tasks and adjusting dates for current week visualization
+const today = new Date();
+const currentDay = today.getDay(); // 0-6
+const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+const monday = new Date(today);
+monday.setDate(today.getDate() + mondayOffset);
+
+const MOCK_CALENDAR_TASKS: DashboardTask[] = [
+  { ...MOCK_TASKS[0], dueAt: new Date(monday.getTime() + 86400000).toISOString() }, // Tuesday
+  { ...MOCK_TASKS[1], dueAt: new Date(monday.getTime() + 86400000 * 3).toISOString() }, // Thursday
+  { ...MOCK_TASKS[2], dueAt: new Date(monday.getTime() + 86400000 * 4).toISOString() }, // Friday
+  // Add one spread across days
+  {
+    id: '5', name: 'Audit Fieldwork', status: 'IN_PROGRESS', createdAt: new Date(monday.getTime()).toISOString(), updatedAt: new Date().toISOString(), projectId: '4', dueAt: new Date(monday.getTime() + 86400000 * 2).toISOString(),
+    project: { id: '4', name: 'Audit 2024', workspace: { id: '1', name: 'My Workspace' } }, preparers: [], reviewers: [], linkedFiles: [],
+  }
+]
+
+
+function StaticSidebar() {
+  return (
+    <div className="hidden md:flex flex-col w-[240px] border-r border-border bg-muted/10 h-full p-4 gap-2">
+      <div className="flex items-center gap-2 px-2 pb-4">
+        <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
+          <span className="text-primary-foreground font-serif italic text-xs">w</span>
+        </div>
+        <span className="font-bold">wavv</span>
+      </div>
+
+      <div className="space-y-1">
+        <Button variant="ghost" className="w-full justify-start gap-2 bg-sidebar-accent/50">
+          <Home className="w-4 h-4" /> Home
+        </Button>
+        <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground">
+          <MessageSquarePlus className="w-4 h-4" /> Chats
+        </Button>
+        <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground">
+          <Search className="w-4 h-4" /> Search
+        </Button>
+      </div>
+
+      <div className="mt-6">
+        <div className="text-xs font-semibold text-muted-foreground px-2 mb-2">Workspaces</div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-foreground rounded-md bg-muted/50">
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+            <Briefcase className="w-3.5 h-3.5 text-primary" />
+            My Workspace
+          </div>
+          <div className="pl-6 space-y-1 mt-1">
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+              <FolderOpen className="w-3 h-3" /> Q4 Prep
+            </div>
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+              <FolderOpen className="w-3 h-3" /> Annual Audit
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground rounded-md hover:bg-muted/30 cursor-pointer mt-2">
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            <Briefcase className="w-3.5 h-3.5" />
+            Acme Corp
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-border">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xs">MK</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">Michael K.</div>
+            <div className="text-xs text-muted-foreground truncate">Senior Manager</div>
+          </div>
+          <Settings className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StaticHomePage() {
+  return (
+    <div className="h-full w-full bg-transparent p-6 flex flex-col gap-6 min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Good afternoon, Michael
+          </h1>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+        <div className="lg:col-span-8 h-full min-h-0">
+          <MyWorkSection
+            tasks={MOCK_TASKS}
+            isLoading={false}
+            onTaskClick={() => { }}
+          />
+        </div>
+        <div className="lg:col-span-4 h-full flex flex-col gap-6 min-h-0">
+          <div className="h-1/3 min-h-[200px] shrink-0">
+            <RecentsSection
+              items={MOCK_RECENTS}
+              isLoading={false}
+              onItemClick={() => { }}
+            />
+          </div>
+          <div className="flex-1 min-h-0 bg-background/60 backdrop-blur-xl border border-border/50 shadow-sm rounded-xl overflow-hidden flex flex-col">
+            <div className="border-b border-border/40 bg-muted/20 py-3 px-4 shrink-0">
+              <span className="text-sm font-semibold flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 text-primary" />
+                Smart Schedule
+              </span>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <ScheduleList tasks={MOCK_CALENDAR_TASKS} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ScheduleList({ tasks }: { tasks: DashboardTask[] }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const groups = useMemo(() => {
+    const g: Record<string, DashboardTask[]> = {
+      'Today': [],
+      'Tomorrow': [],
+      'Later': []
+    }
+
+    tasks.forEach(t => {
+      if (!t.dueAt) return
+      const d = new Date(t.dueAt)
+      d.setHours(0, 0, 0, 0)
+
+      if (d.getTime() === today.getTime()) g['Today'].push(t)
+      else if (d.getTime() === tomorrow.getTime()) g['Tomorrow'].push(t)
+      else g['Later'].push(t)
+    })
+
+    return g
+  }, [tasks])
+
+  return (
+    <div className="p-0">
+      {Object.entries(groups).map(([label, groupTasks]) => {
+        if (groupTasks.length === 0) return null
+        return (
+          <div key={label} className="mb-2">
+            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/10 sticky top-0 backdrop-blur-sm z-10">
+              {label}
+            </div>
+            <div className="px-2">
+              {groupTasks.map((task) => (
+                <div key={task.id} className="flex items-center gap-3 p-2 hover:bg-muted/40 rounded-md group transition-colors cursor-pointer">
+                  <div className="w-1 h-8 rounded-full bg-primary/20 shrink-0 group-hover:bg-primary transition-colors" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{task.name}</div>
+                    <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" />
+                      {new Date(task.dueAt!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+      {Object.values(groups).every(g => g.length === 0) && (
+        <div className="flex flex-col items-center justify-center h-40 text-muted-foreground p-4 text-center">
+          <CalendarIcon className="w-8 h-8 mb-2 opacity-20" />
+          <p className="text-sm">No upcoming tasks scheduled</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatCard({ title, value, icon, trend, colorClass = "bg-primary/10 text-primary" }: any) {
+  return (
+    <Card className="group relative overflow-hidden bg-background/60 backdrop-blur-xl border-border/50 shadow-sm hover:border-primary/20 hover:shadow-md transition-all duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      <CardContent className="p-6 relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className={cn("p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110", colorClass)}>
+            {icon}
+          </div>
+          {trend && (
+            <div className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/20">
+              {trend}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+          <div className="text-3xl font-bold text-foreground tracking-tight">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function StatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case 'COMPLETED':
+      return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+    case 'IN_PROGRESS':
+      return <Circle className="h-4 w-4 text-primary fill-primary/20" />
+    case 'IN_REVIEW':
+      return <Circle className="h-4 w-4 text-amber-500 fill-amber-500/20" />
+    default:
+      return <Circle className="h-4 w-4 text-muted-foreground" />
+  }
+}
+
+function ItemIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'workspace':
+      return <Layers className="h-4 w-4 text-primary" />
+    case 'project':
+      return <FolderOpen className="h-4 w-4 text-blue-500" />
+    default:
+      return <FileText className="h-4 w-4 text-muted-foreground" />
+  }
+}
+
+function RecentsSection({ items, isLoading, onItemClick }: any) {
+  return (
+    <Card className="h-full bg-background/60 backdrop-blur-xl border-border/50 shadow-sm flex flex-col overflow-hidden">
+      <CardHeader className="pb-3 border-b border-border/40 bg-muted/20 py-3 px-4 shrink-0">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            Recent Activity
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <ScrollArea className="flex-1">
+        <div className="p-2 space-y-1">
+          {items.map((item: any) => (
+            <button
+              key={`${item.type}-${item.id}`}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 hover:border-primary/10 border border-transparent transition-all group text-left"
+            >
+              <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <ItemIcon type={item.type} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-foreground truncate block group-hover:text-primary transition-colors">
+                  {item.name}
+                </span>
+                {item.parentName && (
+                  <span className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                    in {item.parentName}
+                  </span>
+                )}
+              </div>
+            </button>
+          ))
+          }
+        </div>
+      </ScrollArea>
+    </Card>
+  )
+}
+
+function MyWorkSection({ tasks, isLoading, onTaskClick }: any) {
+  const [activeTab, setActiveTab] = useState<'todo' | 'done'>('todo')
+
+  // Simple filter for mock
+  const displayTasks = activeTab === 'done' ? tasks.filter((t: any) => t.status === 'COMPLETED') : tasks.filter((t: any) => t.status !== 'COMPLETED')
+
+  return (
+    <Card className="h-full bg-background/60 backdrop-blur-xl border-border/50 shadow-sm flex flex-col overflow-hidden">
+      <CardHeader className="pb-0 border-b border-border/40 bg-muted/20 py-3 px-4 mb-0 shrink-0">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            My Tasks
+          </CardTitle>
+          <div className="flex p-0.5 bg-muted/50 rounded-lg border border-border/20">
+            <button
+              onClick={() => setActiveTab('todo')}
+              className={cn(
+                "text-[10px] font-medium px-2 py-1 rounded-sm transition-all",
+                activeTab === 'todo' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              To Do
+            </button>
+            <button
+              onClick={() => setActiveTab('done')}
+              className={cn(
+                "text-[10px] font-medium px-2 py-1 rounded-sm transition-all",
+                activeTab === 'done' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </CardHeader>
+      <ScrollArea className="flex-1">
+        <div className="p-0 space-y-0 divide-y divide-border/20">
+          {displayTasks.map((task: any) => {
+            const dueDate = task.dueAt ? new Date(task.dueAt) : null
+            const isOverdue = dueDate && dueDate < new Date() && task.status !== 'COMPLETED'
+
+            return (
+              <button
+                key={task.id}
+                className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-all group text-left relative"
+                onClick={() => onTaskClick(task)}
+              >
+                <div className="shrink-0">
+                  <StatusIcon status={task.status} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className={cn(
+                    "text-sm font-medium truncate block transition-colors",
+                    task.status === 'COMPLETED' ? "text-muted-foreground line-through" : "text-foreground group-hover:text-primary"
+                  )}>
+                    {task.name}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
+                  <span className="flex items-center gap-1.5 opacity-70">
+                    <FolderOpen className="w-3 h-3" />
+                    <span className="truncate max-w-[100px]">{task.project.name}</span>
+                  </span>
+
+                  {dueDate && (
+                    <span className={cn(
+                      "flex items-center gap-1.5 transition-colors",
+                      isOverdue
+                        ? "text-red-500 font-medium"
+                        : "opacity-70"
+                    )}>
+                      <CalendarIcon className="w-3 h-3" />
+                      {dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity pl-2">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+              </button>
+            )
+          })
+          }
+        </div>
+      </ScrollArea>
+    </Card>
   )
 }
