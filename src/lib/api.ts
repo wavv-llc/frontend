@@ -52,7 +52,7 @@ export interface MeResponse {
     lastName?: string;
     clerkId?: string;
     hasCompletedOnboarding: boolean;
-    organization: Organization;
+    organization: Organization | null;
     permissions: UserPermissions;
 }
 
@@ -224,8 +224,7 @@ export async function apiRequest<T = any>(
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
         throw new Error(
-            `Expected JSON response but got ${
-                contentType || 'unknown'
+            `Expected JSON response but got ${contentType || 'unknown'
             }. This usually means the API endpoint is not found (404).`
         );
     }
@@ -271,20 +270,17 @@ export async function apiRequest<T = any>(
             }
             // If data exists but has no recognizable error format
             else if (Object.keys(data).length > 0) {
-                errorMessage = `API error (${response.status}): ${
-                    response.statusText || 'Unknown error'
-                }`;
+                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
+                    }`;
             }
             // Empty object
             else {
-                errorMessage = `API error (${response.status}): ${
-                    response.statusText || 'Unknown error'
-                }`;
+                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
+                    }`;
             }
         } else {
-            errorMessage = `API error (${response.status}): ${
-                response.statusText || 'Unknown error'
-            }`;
+            errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
+                }`;
         }
 
         throw new Error(errorMessage);

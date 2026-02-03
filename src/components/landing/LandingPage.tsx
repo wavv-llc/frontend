@@ -60,7 +60,7 @@ export function LandingPage() {
             <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Login
             </Link>
-            <Link href="/sign-up">
+            <Link href="/contact">
               <Button variant="default" className="rounded-full h-9 px-5 shadow-lg">
                 Get Started
               </Button>
@@ -91,8 +91,8 @@ export function LandingPage() {
             ))}
             <div className="pt-4 border-t border-border space-y-4">
               <Link href="/sign-in" className="block text-sm font-medium text-muted-foreground">Login</Link>
-              <Link href="/sign-up" className="block">
-                <Button className="w-full">Request Demo</Button>
+              <Link href="/contact" className="block">
+                <Button className="w-full">Request Access</Button>
               </Link>
             </div>
           </div>
@@ -130,14 +130,9 @@ export function LandingPage() {
               transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
               className="flex flex-col sm:flex-row items-center gap-4"
             >
-              <Link href="/sign-up">
-                <Button size="lg" className="h-12 px-8 text-lg rounded-full">
-                  Start Free Trial
-                </Button>
-              </Link>
               <Link href="/contact">
-                <Button variant="outline" className="h-12 px-8 text-lg rounded-full">
-                  Book a Demo <ArrowRight className="w-4 h-4 ml-2" />
+                <Button size="lg" className="h-12 px-8 text-lg rounded-full">
+                  Request Access <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             </motion.div>
@@ -149,7 +144,7 @@ export function LandingPage() {
       <DashboardScrollReveal />
 
       {/* Solutions Grid */}
-      <section id="product" className="py-24 relative z-10">
+      <section id="product" className="py-24 relative z-10 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-6">
             <GlassCard
@@ -172,7 +167,7 @@ export function LandingPage() {
       </section>
 
       {/* Feature Deep Dive: The Core */}
-      <section id="solutions" className="py-32 relative z-10">
+      <section id="solutions" className="py-32 relative z-10 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="bg-muted/30 border border-border rounded-3xl p-8 md:p-16 overflow-hidden relative">
             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none translate-x-1/2 -translate-y-1/2" />
@@ -221,10 +216,9 @@ export function LandingPage() {
 
                     {/* Orbiting Nodes */}
                     <OrbitNode angle={0} distance={120} delay={0} icon={<FileText className="w-4 h-4 text-foreground" />} label="10-K" />
-                    <OrbitNode angle={72} distance={120} delay={1} icon={<Database className="w-4 h-4 text-foreground" />} label="SharePoint" />
-                    <OrbitNode angle={144} distance={120} delay={2} icon={<Search className="w-4 h-4 text-foreground" />} label="IRC Code" />
-                    <OrbitNode angle={216} distance={120} delay={3} icon={<Lock className="w-4 h-4 text-foreground" />} label="Security" />
-                    <OrbitNode angle={288} distance={120} delay={4} icon={<Layers className="w-4 h-4 text-foreground" />} label="Workflows" />
+                    <OrbitNode angle={90} distance={120} delay={1} icon={<Database className="w-4 h-4 text-foreground" />} label="SharePoint" />
+                    <OrbitNode angle={180} distance={120} delay={2} icon={<Search className="w-4 h-4 text-foreground" />} label="IRC Code" />
+                    <OrbitNode angle={270} distance={120} delay={3} icon={<Layers className="w-4 h-4 text-foreground" />} label="Workflows" />
 
                     {/* Connection Lines (SVG) */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30">
@@ -254,7 +248,7 @@ export function LandingPage() {
                 Join the top firms using Wavv to modernize their practice and empower their professionals.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/sign-up">
+                <Link href="/contact">
                   <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl">
                     Get Started Now
                   </Button>
@@ -277,7 +271,6 @@ export function LandingPage() {
           <div className="flex gap-8">
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Security</Link>
           </div>
           <div>© 2026 Wavv AI Inc.</div>
         </div>
