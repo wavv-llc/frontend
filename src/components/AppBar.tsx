@@ -19,10 +19,10 @@ interface AppBarProps {
   showLoginLink?: boolean
 }
 
-export function AppBar({ 
-  navItems = [], 
+export function AppBar({
+  navItems = [],
   showContactButton = true,
-  showLoginLink = true 
+  showLoginLink = true
 }: AppBarProps) {
   const [hoveredNav, setHoveredNav] = useState<string | null>(null)
 
@@ -73,8 +73,8 @@ export function AppBar({
             <span className="text-muted-foreground/50">|</span>
           )}
           {showContactButton && (
-            <Link href="/sign-up" className="font-serif text-lg font-medium text-muted-foreground hover:text-[#1e293b] transition-colors">
-              Signup
+            <Link href="/contact" className="font-serif text-lg font-medium text-muted-foreground hover:text-[#1e293b] transition-colors">
+              Request Access
             </Link>
           )}
         </div>

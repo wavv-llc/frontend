@@ -27,6 +27,7 @@ import { TaskList } from './TaskList'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
     DropdownMenu,
@@ -790,8 +791,15 @@ export function ProjectDetailView({
                     <div className="flex flex-col h-full w-full max-w-full">
                         {/* Loading state */}
                         {isLoadingCustomFields ? (
-                            <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <div className="flex flex-col gap-2 p-4">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="flex items-center gap-4">
+                                        <Skeleton className="h-4 w-4 rounded-full" />
+                                        <Skeleton className="h-4 flex-1" />
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-8 w-8 rounded-full" />
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="flex-1 overflow-hidden">
