@@ -59,6 +59,7 @@ export default function DocumentDetailPage() {
       if (!token) return
 
       await documentsApi.retryDocument(token, document.id)
+      toast.success('Re-process request sent successfully')
       await loadDocument()
     } catch (err) {
       console.error('Error retrying document:', err)
@@ -77,6 +78,7 @@ export default function DocumentDetailPage() {
       if (!token) return
 
       await documentsApi.reembedDocument(token, document.id)
+      toast.success('Re-embed request sent successfully')
       await loadDocument()
     } catch (err) {
       console.error('Error re-embedding document:', err)
