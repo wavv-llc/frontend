@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, FileText, ArrowLeft, Calendar, HardDrive, FileType, Clock, ExternalLink, RefreshCw, Play } from 'lucide-react'
 import { documentsApi, DocumentDetail } from '@/lib/api'
 import { DocumentDetailSkeleton } from '@/components/skeletons/DocumentDetailSkeleton'
+import { toast } from 'sonner';
 
 export default function DocumentDetailPage() {
   const params = useParams()
