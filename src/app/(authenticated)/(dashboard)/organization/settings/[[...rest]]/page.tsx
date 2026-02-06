@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter } from 'lucide-react'
-import { sharepointApi, organizationApi, userApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse } from '@/lib/api'
+import { sharepointApi, organizationApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse } from '@/lib/api'
 import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from "@/components/ui/skeleton"
+import { useUser } from '@/contexts/UserContext'
+import { PermissionGuard } from '@/components/auth/PermissionGuard'
 
 interface SharePointSite {
   id: string
@@ -31,6 +33,7 @@ interface SelectedSite {
 export default function SettingsPage() {
   const router = useRouter()
   const { isLoaded, getToken } = useAuth()
+  const { user, isLoading: isUserLoading } = useUser()
   const [sites, setSites] = useState<SharePointSite[]>([])
   const [, setSelectedSites] = useState<SelectedSite[]>([])
   const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set())
@@ -39,7 +42,6 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
 
   // Invite member state
-  const [organizationId, setOrganizationId] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [isInviting, setIsInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -53,27 +55,14 @@ export default function SettingsPage() {
   const [documentSearch, setDocumentSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
+  const organizationId = user?.organization?.id
+
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && organizationId) {
       loadSharePointData()
-      loadUserData()
+      loadDocuments(organizationId)
     }
-  }, [isLoaded, getToken])
-
-  const loadUserData = async () => {
-    try {
-      const token = await getToken()
-      if (!token) return
-
-      const response = await userApi.getMe(token)
-      if (response.data?.organization) {
-        setOrganizationId(response.data.organization.id)
-        loadDocuments(response.data.organization.id)
-      }
-    } catch (err) {
-      console.error('Error loading user data:', err)
-    }
-  }
+  }, [isLoaded, getToken, organizationId])
 
   const loadDocuments = async (orgId?: string) => {
     const targetOrgId = orgId || organizationId
@@ -237,350 +226,356 @@ export default function SettingsPage() {
     }
   }
 
-  if (!isLoaded) {
+  if (!isLoaded || isUserLoading) {
     return <SettingsSkeleton />
   }
 
   return (
-    <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold flex items-center gap-2">
-            <SettingsIcon className="h-8 w-8" />
-            Organization Settings
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your organization settings
-          </p>
-        </div>
+    <PermissionGuard
+      scope="organization"
+      permission="ORG_EDIT"
+      redirectTo="/home"
+    >
+      <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl font-semibold flex items-center gap-2">
+              <SettingsIcon className="h-8 w-8" />
+              Organization Settings
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your organization settings
+            </p>
+          </div>
 
-        {/* SharePoint Sites Management */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>SharePoint Sites</CardTitle>
-                <CardDescription>
-                  Manage which SharePoint sites are selected for AI auditing
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadSharePointData}
-                disabled={isLoadingSites}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                {error}
-              </div>
-            )}
-
-            {isLoadingSites ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="p-4 border rounded-lg flex items-center gap-3">
-                    <Skeleton className="h-5 w-5 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-40" />
-                      <Skeleton className="h-4 w-56" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : sites.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No SharePoint sites found. Make sure you have access to SharePoint sites.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="max-h-[400px] overflow-y-auto space-y-2">
-                  {sites.map((site) => {
-                    const isSelected = selectedSiteIds.has(site.id)
-                    return (
-                      <div
-                        key={site.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
-                          ? 'border-primary bg-primary/5'
-                          : 'border-input hover:bg-accent'
-                          }`}
-                        onClick={() => toggleSite(site.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center shrink-0">
-                            {isSelected ? (
-                              <CheckCircle2 className="h-5 w-5 text-primary" />
-                            ) : (
-                              <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium truncate">
-                              {site.displayName || site.name}
-                            </h3>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {site.webUrl}
-                            </p>
-                            {site.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {site.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    {selectedSiteIds.size} site{selectedSiteIds.size !== 1 ? 's' : ''} selected
-                  </p>
-                  <Button
-                    onClick={handleSaveSites}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Invite Members */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              <div>
-                <CardTitle>Invite Members</CardTitle>
-                <CardDescription>
-                  Invite new members to join your organization
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {inviteError && (
-              <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                {inviteError}
-              </div>
-            )}
-
-            {inviteSuccess && (
-              <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                {inviteSuccess}
-              </div>
-            )}
-
-            {!organizationId ? (
-              <div className="text-center py-4 text-muted-foreground">
-                <p>Unable to load organization information.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleInviteMember} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email Address</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="invite-email"
-                        type="email"
-                        placeholder="colleague@example.com"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        className="pl-9"
-                        required
-                      />
-                    </div>
-                    <Button type="submit" disabled={isInviting || !inviteEmail.trim()}>
-                      {isInviting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Send Invite'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  An invitation link will be sent to the email address provided.
-                </p>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Organization Documents */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+          {/* SharePoint Sites Management */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Documents</CardTitle>
+                  <CardTitle>SharePoint Sites</CardTitle>
                   <CardDescription>
-                    View and manage documents uploaded to your organization
+                    Manage which SharePoint sites are selected for AI auditing
                   </CardDescription>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadSharePointData}
+                  disabled={isLoadingSites}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => loadDocuments()}
-                disabled={isLoadingDocuments || !organizationId}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
-            {/* Search and Filter */}
-            {documents.length > 0 && (
-              <div className="flex items-center gap-3 pt-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search documents..."
-                    value={documentSearch}
-                    onChange={(e) => setDocumentSearch(e.target.value)}
-                    className="pl-9"
-                  />
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {error}
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="PROCESSING">Processing</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="FAILED">Failed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </CardHeader>
-          <CardContent>
-            {documentsError && (
-              <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                {documentsError}
-              </div>
-            )}
+              )}
 
-            {!organizationId ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Unable to load organization information.</p>
-              </div>
-            ) : isLoadingDocuments ? (
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3 flex-1">
-                      <Skeleton className="h-8 w-8 rounded-md" />
-                      <div className="space-y-2 flex-1">
-                        <Skeleton className="h-5 w-1/3" />
-                        <Skeleton className="h-4 w-1/4" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : documents.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No documents found in your organization.</p>
-              </div>
-            ) : (() => {
-              const filteredDocuments = documents.filter((doc) => {
-                const matchesSearch = documentSearch === '' ||
-                  doc.originalName.toLowerCase().includes(documentSearch.toLowerCase())
-                const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
-                return matchesSearch && matchesStatus
-              })
-
-              if (filteredDocuments.length === 0) {
-                return (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No documents match your search or filter criteria.</p>
-                  </div>
-                )
-              }
-
-              return (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {filteredDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/documents/${doc.id}`)}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-medium truncate" title={doc.originalName}>
-                            {doc.originalName}
-                          </h4>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{formatFileSize(doc.filesize)}</span>
-                            <span>•</span>
-                            <span>{doc.mimeType}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {getStatusBadge(doc.status)}
-                        {doc.status === 'FAILED' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRetryDocument(doc.id)
-                            }}
-                            disabled={retryingDocumentId === doc.id}
-                          >
-                            {retryingDocumentId === doc.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RotateCcw className="h-4 w-4 mr-1" />
-                                Retry
-                              </>
-                            )}
-                          </Button>
-                        )}
+              {isLoadingSites ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="p-4 border rounded-lg flex items-center gap-3">
+                      <Skeleton className="h-5 w-5 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-4 w-56" />
                       </div>
                     </div>
                   ))}
                 </div>
-              )
-            })()}
-          </CardContent>
-        </Card>
+              ) : sites.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No SharePoint sites found. Make sure you have access to SharePoint sites.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="max-h-[400px] overflow-y-auto space-y-2">
+                    {sites.map((site) => {
+                      const isSelected = selectedSiteIds.has(site.id)
+                      return (
+                        <div
+                          key={site.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-input hover:bg-accent'
+                            }`}
+                          onClick={() => toggleSite(site.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center shrink-0">
+                              {isSelected ? (
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium truncate">
+                                {site.displayName || site.name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {site.webUrl}
+                              </p>
+                              {site.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {site.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      {selectedSiteIds.size} site{selectedSiteIds.size !== 1 ? 's' : ''} selected
+                    </p>
+                    <Button
+                      onClick={handleSaveSites}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Invite Members */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                <div>
+                  <CardTitle>Invite Members</CardTitle>
+                  <CardDescription>
+                    Invite new members to join your organization
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {inviteError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {inviteError}
+                </div>
+              )}
+
+              {inviteSuccess && (
+                <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {inviteSuccess}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleInviteMember} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="invite-email"
+                          type="email"
+                          placeholder="colleague@example.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          className="pl-9"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()}>
+                        {isInviting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          'Send Invite'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    An invitation link will be sent to the email address provided.
+                  </p>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Organization Documents */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <div>
+                    <CardTitle>Documents</CardTitle>
+                    <CardDescription>
+                      View and manage documents uploaded to your organization
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadDocuments()}
+                  disabled={isLoadingDocuments || !organizationId}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+              {/* Search and Filter */}
+              {documents.length > 0 && (
+                <div className="flex items-center gap-3 pt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search documents..."
+                      value={documentSearch}
+                      onChange={(e) => setDocumentSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="PROCESSING">Processing</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {documentsError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {documentsError}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : isLoadingDocuments ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Skeleton className="h-8 w-8 rounded-md" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-1/3" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No documents found in your organization.</p>
+                </div>
+              ) : (() => {
+                const filteredDocuments = documents.filter((doc) => {
+                  const matchesSearch = documentSearch === '' ||
+                    doc.originalName.toLowerCase().includes(documentSearch.toLowerCase())
+                  const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
+                  return matchesSearch && matchesStatus
+                })
+
+                if (filteredDocuments.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No documents match your search or filter criteria.</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {filteredDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/documents/${doc.id}`)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium truncate" title={doc.originalName}>
+                              {doc.originalName}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{formatFileSize(doc.filesize)}</span>
+                              <span>•</span>
+                              <span>{doc.mimeType}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {getStatusBadge(doc.status)}
+                          {doc.status === 'FAILED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRetryDocument(doc.id)
+                              }}
+                              disabled={retryingDocumentId === doc.id}
+                            >
+                              {retryingDocumentId === doc.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <RotateCcw className="h-4 w-4 mr-1" />
+                                  Retry
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </PermissionGuard>
   )
 }

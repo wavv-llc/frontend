@@ -16,8 +16,12 @@ import {
     ChevronDown,
     Filter,
     X,
+    FileText,
+    CheckSquare,
+    Pencil,
+    Square,
 } from 'lucide-react'
-import { type Task, type CustomField, type DataType, type User as ApiUser, customFieldApi, taskApi, userApi } from '@/lib/api'
+import { type Task, type CustomField, type DataType, type User as ApiUser, type OrganizationDocument, customFieldApi, taskApi, userApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -43,7 +47,8 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Pencil } from 'lucide-react'
+
+import { Checkbox } from '@/components/ui/checkbox'
 
 export interface TaskListRef {
     startCreatingTask: () => void
@@ -60,6 +65,7 @@ interface TaskListProps {
     onTaskCreated: () => void
     projectId: string
     members: ApiUser[]
+    documents?: OrganizationDocument[]
     groupByField: string | null
     columnFilters: Record<string, { value: string, type: 'text' | 'date' }>
     onColumnFilterChange: (fieldId: string, value: string, type?: 'text' | 'date') => void
@@ -71,6 +77,8 @@ const FIELD_TYPES = [
     { value: 'NUMBER' as DataType, label: 'Number', icon: Hash, description: 'Numeric value' },
     { value: 'DATE' as DataType, label: 'Date', icon: Calendar, description: 'Date picker' },
     { value: 'USER' as DataType, label: 'Person', icon: UserIcon, description: 'Assign a person' },
+    { value: 'TASK' as DataType, label: 'Task', icon: CheckSquare, description: 'Link to a task' },
+    { value: 'DOCUMENT' as DataType, label: 'Document', icon: FileText, description: 'Link to a document' },
     { value: 'CUSTOM' as DataType, label: 'Status', icon: CheckCircle2, description: 'Task status' },
 ] as const
 
@@ -165,7 +173,9 @@ const EditableContent = ({
         queueMicrotask(handleInput)
     }
 
-    const handleClick = () => {
+    const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+        // Prevent row selection or opening side panel
+        e.stopPropagation()
         if (!isEditing) {
             setIsEditing(true)
             setEditEmpty(!displayValue.trim())
@@ -213,7 +223,7 @@ const EditableContent = ({
             role="button"
             tabIndex={0}
             onClick={handleClick}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() } }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(e) } }}
             className={cn(
                 'group cursor-pointer rounded -ml-1 pl-1 pr-1 border border-transparent',
                 'hover:bg-muted/30 active:bg-muted/40 transition-colors duration-150',
@@ -253,6 +263,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
     onTaskCreated,
     projectId,
     members,
+    documents = [],
     groupByField,
     columnFilters,
     onColumnFilterChange,
@@ -281,6 +292,51 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
             ...prev,
             [groupValue]: !prev[groupValue]
         }))
+    }
+
+    // Bulk selection state
+    const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+
+    const toggleTaskSelection = (taskId: string, selected: boolean) => {
+        setSelectedTaskIds(prev => {
+            const next = new Set(prev)
+            if (selected) next.add(taskId)
+            else next.delete(taskId)
+            return next
+        })
+    }
+
+    const toggleAllTasks = (selected: boolean) => {
+        if (selected) {
+            setSelectedTaskIds(new Set(tasks.map(t => t.id)))
+        } else {
+            setSelectedTaskIds(new Set())
+        }
+    }
+
+    const handleBulkDelete = async () => {
+        if (selectedTaskIds.size === 0) return
+        if (!confirm(`Are you sure you want to delete ${selectedTaskIds.size} task(s)?`)) return
+
+        try {
+            const token = await getToken()
+            if (!token) return
+
+            // Delete one by one for now as API might not support bulk
+            // Ideally we'd have bulk delete API
+            const promises = Array.from(selectedTaskIds).map(id =>
+                taskApi.deleteTask(token, projectId, id)
+            )
+
+            await Promise.all(promises)
+
+            toast.success(`Deleted ${selectedTaskIds.size} tasks`)
+            setSelectedTaskIds(new Set())
+            onTaskCreated() // Refresh text
+        } catch (error) {
+            console.error('Failed to bulk delete:', error)
+            toast.error('Failed to delete some tasks')
+        }
     }
 
     // Expose method to start creating task from parent
@@ -508,8 +564,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
             // User dropdown
             const selectedMember = uniqueMembers.find(m => m.id === value)
 
-            console.log(uniqueMembers);
-
             return (
                 <Select
                     value={value || ''}
@@ -537,7 +591,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                     <SelectContent>
                         {uniqueMembers.map((member) => (
                             <SelectItem key={member.id} value={member.id}>
-                                djaslkjdklasjdlkas
                                 <div className="flex items-center gap-2">
                                     <Avatar className="h-4 w-4">
                                         <AvatarFallback className="text-[10px]">
@@ -547,6 +600,81 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                     <span>
                                         {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
                                     </span>
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )
+        }
+
+        if (field.dataType === 'TASK') {
+            // Task dropdown
+            const selectedTask = tasks.find(t => t.id === value)
+
+            return (
+                <Select
+                    value={value || ''}
+                    onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
+                >
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {selectedTask ? (
+                                <>
+                                    <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate text-xs">
+                                        {selectedTask.name}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-muted-foreground">-</span>
+                            )}
+                        </div>
+                    </SelectTrigger>
+
+                    <SelectContent>
+                        {tasks.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                                <div className="flex items-center gap-2">
+                                    <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate max-w-[200px]">{t.name}</span>
+                                </div>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )
+        }
+
+        if (field.dataType === 'DOCUMENT') {
+            // Document dropdown
+            const selectedDoc = documents.find(d => d.id === value)
+
+            return (
+                <Select
+                    value={value || ''}
+                    onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
+                >
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {selectedDoc ? (
+                                <>
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate text-xs">
+                                        {selectedDoc.originalName || selectedDoc.filename}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-muted-foreground">-</span>
+                            )}
+                        </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {documents.map((doc) => (
+                            <SelectItem key={doc.id} value={doc.id}>
+                                <div className="flex items-center gap-2">
+                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="truncate max-w-[200px]">{doc.originalName || doc.filename}</span>
                                 </div>
                             </SelectItem>
                         ))}
@@ -572,11 +700,56 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                 <div className="min-w-max h-full">
                     {/* Table Header - Sticky Top */}
                     <div className="sticky top-0 z-30 flex border-b border-border bg-muted">
+                        {/* Bulk Action Bar Overlay */}
+                        {selectedTaskIds.size > 0 && (
+                            <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-between px-4 border-b border-primary/20">
+                                <div className="flex items-center gap-3">
+                                    <Checkbox
+                                        checked={true}
+                                        onCheckedChange={() => toggleAllTasks(false)}
+                                        aria-label="Deselect all"
+                                    />
+                                    <span className="text-sm font-medium text-primary">
+                                        {selectedTaskIds.size} selected
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleBulkDelete}
+                                        className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete
+                                    </Button>
+                                    <div className="h-4 w-px bg-primary/20 mx-2" />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedTaskIds(new Set())}
+                                        className="h-8 text-muted-foreground"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         {/* Task Name Column Header - Sticky Left & Top */}
                         <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-muted flex items-center justify-between text-sm font-medium text-muted-foreground shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] group">
-                            <div className="flex items-center gap-2">
-                                <Type className="h-4 w-4" />
-                                Task name
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox
+                                        checked={tasks.length > 0 && selectedTaskIds.size === tasks.length}
+                                        onCheckedChange={(checked) => toggleAllTasks(!!checked)}
+                                        aria-label="Select all"
+                                        className="translate-y-[1px]"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Type className="h-4 w-4" />
+                                    Task name
+                                </div>
                             </div>
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -619,13 +792,22 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                         {/* Custom Field Columns Headers */}
                         {displayedFields.map((field) => (
                             <div key={field.id} className="w-[150px] shrink-0 px-4 py-3 border-r border-border flex items-center justify-between text-sm font-medium text-muted-foreground bg-muted group">
-                                <div className="flex items-center gap-2 truncate">
-                                    {field.dataType === 'DATE' && <Calendar className="h-4 w-4" />}
-                                    {field.dataType === 'NUMBER' && <Hash className="h-4 w-4" />}
-                                    {field.dataType === 'USER' && <UserIcon className="h-4 w-4" />}
-                                    {field.dataType === 'STRING' && <Type className="h-4 w-4" />}
-                                    {field.dataType === 'CUSTOM' && <CheckCircle2 className="h-4 w-4" />}
-                                    <span className="truncate">{field.name}</span>
+                                <div className="flex flex-col truncate">
+                                    <div className="flex items-center gap-2 truncate">
+                                        {field.dataType === 'DATE' && <Calendar className="h-4 w-4" />}
+                                        {field.dataType === 'NUMBER' && <Hash className="h-4 w-4" />}
+                                        {field.dataType === 'USER' && <UserIcon className="h-4 w-4" />}
+                                        {field.dataType === 'TASK' && <CheckSquare className="h-4 w-4" />}
+                                        {field.dataType === 'DOCUMENT' && <FileText className="h-4 w-4" />}
+                                        {field.dataType === 'STRING' && <Type className="h-4 w-4" />}
+                                        {field.dataType === 'CUSTOM' && <CheckCircle2 className="h-4 w-4" />}
+                                        <span className="truncate">{field.name}</span>
+                                    </div>
+                                    {field.dataType === 'USER' && field.customOptions?.[0] && (
+                                        <span className="text-[10px] text-muted-foreground/70 pl-6 truncate font-normal">
+                                            {field.customOptions[0]}
+                                        </span>
+                                    )}
                                 </div>
                                 <Popover>
                                     <PopoverTrigger asChild>
@@ -679,7 +861,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                         New field
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                                     <div className="space-y-4">
                                         <div>
                                             <Label htmlFor="field-name">Type property name</Label>
@@ -870,34 +1052,27 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                                         For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
-                                                    {/* Task Name - Sticky */}
                                                     <div
-                                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]"
+                                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
                                                         onClick={() => {
-                                                            if (editingTaskId !== task.id) {
-                                                                onTaskClick(task)
-                                                            }
+                                                            // Open side panel
+                                                            onTaskClick(task)
                                                         }}
                                                     >
-                                                        {editingTaskId === task.id ? (
+                                                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                                                            <Checkbox
+                                                                checked={selectedTaskIds.has(task.id)}
+                                                                onCheckedChange={(checked) => toggleTaskSelection(task.id, !!checked)}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
                                                             <EditableContent
                                                                 value={task.name}
                                                                 onSave={(name) => handleSaveTaskName(task.id, name)}
                                                                 placeholder="Task name..."
                                                                 textStyle="text-sm font-medium"
-                                                                autoFocus
                                                             />
-                                                        ) : (
-                                                            <div
-                                                                className="font-medium text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer"
-                                                                onDoubleClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setEditingTaskId(task.id)
-                                                                }}
-                                                            >
-                                                                {task.name}
-                                                            </div>
-                                                        )}
+                                                        </div>
                                                     </div>
 
                                                     {/* Custom Field Values */}
@@ -969,32 +1144,25 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                 >
                                     {/* Task Name - Sticky */}
                                     <div
-                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]"
+                                        className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
                                         onClick={() => {
-                                            if (editingTaskId !== task.id) {
-                                                onTaskClick(task)
-                                            }
+                                            onTaskClick(task)
                                         }}
                                     >
-                                        {editingTaskId === task.id ? (
+                                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                                            <Checkbox
+                                                checked={selectedTaskIds.has(task.id)}
+                                                onCheckedChange={(checked) => toggleTaskSelection(task.id, !!checked)}
+                                            />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
                                             <EditableContent
                                                 value={task.name}
                                                 onSave={(name) => handleSaveTaskName(task.id, name)}
                                                 placeholder="Task name..."
                                                 textStyle="text-sm font-medium"
-                                                autoFocus
                                             />
-                                        ) : (
-                                            <div
-                                                className="font-medium text-sm text-foreground group-hover:text-primary transition-colors cursor-pointer"
-                                                onDoubleClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setEditingTaskId(task.id)
-                                                }}
-                                            >
-                                                {task.name}
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
 
                                     {/* Custom Field Values */}
@@ -1056,7 +1224,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                         )}
 
                         {/* New Task Row - Only shown when creating */}
-                        {isCreatingTask && (
+                        {isCreatingTask ? (
                             <div className="flex border-b border-border bg-muted/20 min-w-max">
                                 <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-muted shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]">
                                     <EditableContent
@@ -1071,6 +1239,24 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                     <div key={field.id} className="w-[150px] shrink-0 px-4 py-4 border-r border-border" />
                                 ))}
                                 <div className="w-[150px] shrink-0 px-4 py-4" />
+                            </div>
+                        ) : (
+                            <div
+                                className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max cursor-pointer"
+                                onClick={() => {
+                                    setIsCreatingTask(true)
+                                    setNewTaskName('')
+                                }}
+                            >
+                                <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-card group-hover:bg-muted/30 transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-2 text-sm text-muted-foreground group-hover:text-foreground">
+                                    <Plus className="h-4 w-4" />
+                                    Add task
+                                </div>
+                                {/* Empty cells for alignment */}
+                                {displayedFields.map((field) => (
+                                    <div key={field.id} className="w-[150px] shrink-0 border-r border-border" />
+                                ))}
+                                <div className="w-[150px] shrink-0" />
                             </div>
                         )}
                     </div>
