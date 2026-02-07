@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
-import { MessageSquare, User, Bot, ArrowLeft } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { MessageSquare, ArrowLeft } from 'lucide-react'
 import { chatApi, type Chat } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ChatMessageCard } from '@/components/chat/ChatMessageCard'
+import { ChatResponseCard } from '@/components/chat/ChatResponseCard'
 
 export default function ChatDetailPage() {
     const params = useParams()
@@ -50,15 +49,18 @@ export default function ChatDetailPage() {
     if (loading) {
         return (
             <div className="relative h-full w-full bg-background overflow-y-auto">
-                <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-6">
-                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
+                    {/* Header Skeleton */}
+                    <div className="flex items-center gap-3 pb-6 border-b border-border/30">
                         <Skeleton className="h-10 w-10 rounded-lg" />
+                        <Skeleton className="h-10 w-10 rounded-xl" />
                         <div className="space-y-2">
                             <Skeleton className="h-6 w-32" />
-                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-4 w-24" />
                         </div>
                     </div>
-                    <div className="space-y-4">
+                    {/* Message Skeletons */}
+                    <div className="space-y-6">
                         <Skeleton className="h-32 w-full rounded-xl" />
                         <Skeleton className="h-48 w-full rounded-xl" />
                     </div>
@@ -70,16 +72,24 @@ export default function ChatDetailPage() {
     if (error || !chat) {
         return (
             <div className="relative h-full w-full bg-background overflow-y-auto">
-                <div className="max-w-3xl mx-auto p-6 md:p-8">
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
-                        <p className="text-lg font-medium">{error || 'Chat not found'}</p>
+                <div className="max-w-3xl mx-auto p-4 md:p-8">
+                    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+                        <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-destructive/5 border border-destructive/10">
+                            <MessageSquare className="h-12 w-12 md:h-16 md:w-16 text-destructive/40" />
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-lg font-semibold text-foreground">
+                                {error || 'Chat not found'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                This conversation doesn't exist or you don't have access to it
+                            </p>
+                        </div>
                         <Button
-                            variant="outline"
                             onClick={() => router.push('/chats/new')}
-                            className="mt-4 gap-2"
+                            className="gap-2 shadow-sm"
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <MessageSquare className="h-4 w-4" />
                             Start New Chat
                         </Button>
                     </div>
@@ -88,82 +98,87 @@ export default function ChatDetailPage() {
         )
     }
 
+    // Format timestamp
+    const formatTimestamp = (dateString: string) => {
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+        if (diffInSeconds < 60) return 'Just now'
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+
+        return date.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    }
+
     return (
         <div className="relative h-full w-full bg-background overflow-y-auto">
-            <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-6">
+            <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
                 {/* Header */}
-                <div className="flex items-center gap-3 pb-4 border-b border-border/40">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.push('/home')}
-                        className="h-10 w-10"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <MessageSquare className="h-6 w-6 text-primary" />
+                <div className="flex items-center justify-between pb-6 border-b border-border/30">
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => router.push('/home')}
+                            className="h-10 w-10 hover:bg-muted"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <div className="p-2 rounded-xl bg-primary/5 border border-primary/10">
+                            <MessageSquare className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                                Chat
+                            </h1>
+                            <p className="text-xs text-muted-foreground">
+                                {formatTimestamp(chat.createdAt)}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight text-foreground">
-                            Chat
-                        </h1>
-                        <p className="text-muted-foreground text-xs">
+
+                    {/* Created Date Card */}
+                    <div className="hidden md:flex px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex-col items-start min-w-[140px]">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">
+                            Created
+                        </span>
+                        <span className="text-sm font-medium text-foreground">
                             {new Date(chat.createdAt).toLocaleDateString(undefined, {
-                                month: 'long',
+                                month: 'short',
                                 day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
+                                year: 'numeric'
                             })}
-                        </p>
+                        </span>
                     </div>
                 </div>
 
                 {/* Messages */}
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {/* User Message */}
-                    <Card className="bg-primary/5 border-primary/20">
-                        <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 rounded-full bg-primary/10 shrink-0">
-                                    <User className="h-4 w-4 text-primary" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-primary mb-1">You</p>
-                                    <p className="text-sm text-foreground whitespace-pre-wrap">
-                                        {chat.message}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ChatMessageCard
+                        message={chat.message}
+                        timestamp={formatTimestamp(chat.createdAt)}
+                        userName="You"
+                    />
 
                     {/* AI Response */}
-                    <Card className="bg-background/60 backdrop-blur-xl border-border/50">
-                        <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                                <div className="p-2 rounded-full bg-muted shrink-0">
-                                    <Bot className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-muted-foreground mb-2">Assistant</p>
-                                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-foreground prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-ul:text-foreground prose-ol:text-foreground prose-li:marker:text-muted-foreground prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-hr:border-border prose-table:text-sm prose-th:text-foreground prose-td:text-foreground prose-img:rounded-lg">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                            {chat.response}
-                                        </ReactMarkdown>
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ChatResponseCard
+                        response={chat.response}
+                        timestamp={formatTimestamp(chat.createdAt)}
+                    />
                 </div>
 
                 {/* New Chat Button */}
-                <div className="flex justify-center pt-4">
+                <div className="flex justify-center pt-6">
                     <Button
                         onClick={() => router.push('/chats/new')}
-                        className="gap-2"
+                        className="gap-2 shadow-sm"
                     >
                         <MessageSquare className="h-4 w-4" />
                         Start New Chat

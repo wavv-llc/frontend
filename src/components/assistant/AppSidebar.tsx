@@ -44,6 +44,8 @@ import {
   Home,
   MessageSquarePlus,
   MessageSquare,
+  Clock,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/SidebarContext";
@@ -291,6 +293,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   const [chatsLoading, setChatsLoading] = useState(true);
   const [newChatMessage, setNewChatMessage] = useState("");
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [sidebarView, setSidebarView] = useState<'main' | 'chat-history'>('main');
 
   // Fetch workspaces and their projects
   useEffect(() => {
@@ -713,53 +716,57 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     <div className="flex h-full flex-col bg-sidebar">
       {/* Header */}
       <div className={`flex items-center gap-2 p-2 ${isCompressed ? 'flex-col' : ''}`}>
-        {showToggle && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={onToggleSidebar}
-          >
-            <PanelLeft className="h-5 w-5" />
-          </Button>
-        )}
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
+        {sidebarView === 'chat-history' ? (
+          // Chat History Header
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={() => setSidebarView('main')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            {!isCompressed && (
+              <h2 className="flex-1 text-sm font-semibold text-sidebar-foreground">Chat History</h2>
+            )}
+          </>
+        ) : (
+          // Main Header
+          <>
+            {showToggle && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => router.push("/chats/new")}
-                className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+                className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                onClick={onToggleSidebar}
               >
-                <MessageSquarePlus className="h-5 w-5" />
+                <PanelLeft className="h-5 w-5" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="bg-popover text-popover-foreground border-border">
-              <p>New Chat</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleSearch}
-          className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-          title="Search"
-        >
-          <Search className="h-5 w-5" />
-        </Button>
-        <NotificationBell />
-
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSearch}
+              className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
+              title="Search"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            <NotificationBell />
+          </>
+        )}
       </div>
 
       <Separator className="bg-sidebar-border" />
 
       {/* Scrollable Content */}
       <ScrollArea className="flex-1 px-2">
-        <div className="space-y-6 py-4">
-          {/* Navigation Group */}
-          <div className="space-y-1">
+        {sidebarView === 'main' ? (
+          // Main Sidebar Content
+          <div className="space-y-6 py-4">
+            {/* Navigation Group */}
+            <div className="space-y-1">
             {/* Home Link */}
             <div>
               {!isCompressed ? (
@@ -825,6 +832,70 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 )}
               </div>
             )}
+
+            {/* New Chat Link */}
+            <div>
+              {!isCompressed ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push("/chats/new")}
+                  className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <MessageSquarePlus className="h-4 w-4 flex-shrink-0" />
+                  <span>New Chat</span>
+                </Button>
+              ) : (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => router.push("/chats/new")}
+                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <MessageSquarePlus className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                      <p>New Chat</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+
+            {/* Chat History Link */}
+            <div>
+              {!isCompressed ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => setSidebarView('chat-history')}
+                  className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span>Chat History</span>
+                </Button>
+              ) : (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSidebarView('chat-history')}
+                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      >
+                        <Clock className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                      <p>Chat History</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
           </div>
 
           {/* Workspaces Section */}
@@ -888,72 +959,69 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               )}
             </div>
           </div>
-
-          {/* Chats Section */}
-          <div>
-            {!isCompressed && (
-              <div className="px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Recent Chats
+          </div>
+        ) : (
+          // Chat History Content
+          <div className="space-y-1 py-4">
+            {chatsLoading ? (
+              <div className="space-y-2 px-2 py-1">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-4 rounded-sm" />
+                    <Skeleton className="h-4 flex-1 rounded-sm" />
+                  </div>
+                ))}
+              </div>
+            ) : chats.length > 0 ? (
+              chats.map((chat) => (
+                <div key={chat.id}>
+                  {!isCompressed ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        handleChatClick(chat.id);
+                        setSidebarView('main');
+                      }}
+                      className="w-full justify-start gap-2 px-2 py-3 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    >
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                      <span className="flex-1 truncate text-left">
+                        {chat.message.length > 40 ? chat.message.slice(0, 40) + "..." : chat.message}
+                      </span>
+                    </Button>
+                  ) : (
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              handleChatClick(chat.id);
+                              setSidebarView('main');
+                            }}
+                            className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          >
+                            <MessageSquare className="h-5 w-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
+                          <p className="max-w-[200px] truncate">{chat.message}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-12 text-center">
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-sm text-muted-foreground">No chats yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Start a new chat to get started</p>
               </div>
             )}
-            <div className="space-y-1">
-              {chatsLoading ? (
-                !isCompressed && (
-                  <div className="space-y-2 px-2 py-1">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-4 rounded-sm" />
-                        <Skeleton className="h-4 w-32 rounded-sm" />
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : chats.length > 0 ? (
-                chats.slice(0, 5).map((chat) => (
-                  <div key={chat.id}>
-                    {!isCompressed ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleChatClick(chat.id)}
-                        className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      >
-                        <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                        <span className="flex-1 truncate text-left">
-                          {chat.message.length > 30 ? chat.message.slice(0, 30) + "..." : chat.message}
-                        </span>
-                      </Button>
-                    ) : (
-                      <TooltipProvider delayDuration={300}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleChatClick(chat.id)}
-                              className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            >
-                              <MessageSquare className="h-5 w-5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="bg-popover text-popover-foreground border-border">
-                            <p>{chat.message.length > 50 ? chat.message.slice(0, 50) + "..." : chat.message}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                ))
-              ) : (
-                !isCompressed && (
-                  <p className="px-2 py-2 text-xs text-muted-foreground italic">
-                    No chats yet
-                  </p>
-                )
-              )}
-            </div>
           </div>
-
-        </div>
+        )}
       </ScrollArea>
 
       <Separator className="bg-sidebar-border" />
@@ -1016,8 +1084,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-
 
     </div >
   );

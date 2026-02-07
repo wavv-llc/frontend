@@ -3,11 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
-import { MessageSquare, Send, Loader2 } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { chatApi } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChatCommandBar } from '@/components/chat/ChatCommandBar'
 import { toast } from 'sonner'
 
 export default function NewChatPage() {
@@ -41,57 +39,34 @@ export default function NewChatPage() {
     }
 
     return (
-        <div className="relative h-full w-full bg-background overflow-y-auto">
-            <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-6">
-                <div className="flex items-center gap-3 pb-4 border-b border-border/40">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                        <MessageSquare className="h-6 w-6 text-primary" />
+        <div className="relative h-full w-full bg-background overflow-hidden flex flex-col">
+            {/* Empty State - Centered */}
+            <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+                <div className="max-w-xl text-center space-y-6">
+                    <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                        <MessageSquare className="h-12 w-12 md:h-16 md:w-16 text-primary/40" />
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                            New Chat
+                    <div className="space-y-3">
+                        <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                            Start a new conversation
                         </h1>
-                        <p className="text-muted-foreground text-sm">
-                            Start a conversation
+                        <p className="text-sm md:text-base text-muted-foreground">
+                            Ask me anything and I'll help you find the answers you need
                         </p>
                     </div>
                 </div>
+            </div>
 
-                <Card className="bg-background/60 backdrop-blur-xl border-border/50 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="text-base">Your Message</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <Textarea
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                placeholder="Type your message here..."
-                                className="min-h-[150px] resize-none"
-                                disabled={isSubmitting}
-                            />
-                            <div className="flex justify-end">
-                                <Button
-                                    type="submit"
-                                    disabled={!message.trim() || isSubmitting}
-                                    className="gap-2"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Sending...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="h-4 w-4" />
-                                            Send Message
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
+            {/* Command Bar - Bottom */}
+            <div className="w-full pb-6 px-4">
+                <div className="max-w-2xl mx-auto">
+                    <ChatCommandBar
+                        message={message}
+                        onChange={setMessage}
+                        onSubmit={handleSubmit}
+                        isSubmitting={isSubmitting}
+                    />
+                </div>
             </div>
         </div>
     )
