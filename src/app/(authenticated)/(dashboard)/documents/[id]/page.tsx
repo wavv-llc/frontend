@@ -89,7 +89,14 @@ export default function DocumentDetailPage() {
     }
   }
 
-  const canReembed = document?.status === 'COMPLETED' || document?.status === 'ARCHIVED'
+  // Determine which retry buttons to show based on status
+  const canRetryProcessing = document?.status === 'FAILED' ||
+                             document?.status === 'PROCESSING' ||
+                             document?.status === 'EMBEDDING' ||
+                             document?.status === 'READY'
+
+  const canRetryEmbedding = document?.status === 'EMBEDDING' ||
+                           document?.status === 'READY'
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -115,6 +122,10 @@ export default function DocumentDetailPage() {
         return <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
       case 'PROCESSING':
         return <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>
+      case 'EMBEDDING':
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">Embedding</span>
+      case 'READY':
+        return <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ready</span>
       case 'PENDING':
         return <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
       case 'FAILED':
@@ -207,44 +218,45 @@ export default function DocumentDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant={canReembed ? "default" : "outline"}
-              size="sm"
-              onClick={handleReembedDocument}
-              disabled={!canReembed || isReembedding}
-              className={canReembed
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : "opacity-50 cursor-not-allowed"
-              }
-            >
-              {isReembedding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Retry Embed
-                </>
-              )}
-            </Button>
-            <Button
-              variant={!canReembed ? "default" : "outline"}
-              size="sm"
-              onClick={handleRetryDocument}
-              disabled={isRetrying}
-              className={!canReembed
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : ""
-              }
-            >
-              {isRetrying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-1" />
-                  Retry Process
-                </>
-              )}
-            </Button>
+            {canRetryEmbedding && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleReembedDocument}
+                disabled={isReembedding}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isReembedding ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Retry Embed
+                  </>
+                )}
+              </Button>
+            )}
+            {canRetryProcessing && (
+              <Button
+                variant={canRetryEmbedding ? "outline" : "default"}
+                size="sm"
+                onClick={handleRetryDocument}
+                disabled={isRetrying}
+                className={!canRetryEmbedding
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : ""
+                }
+              >
+                {isRetrying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-1" />
+                    Retry Process
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 

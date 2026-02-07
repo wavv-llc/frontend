@@ -861,7 +861,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                         New field
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80 max-h-[80vh] overflow-y-auto" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                <PopoverContent
+                                    className="w-80 max-h-[400px] overflow-y-auto"
+                                    align="start"
+                                    sideOffset={5}
+                                    collisionPadding={20}
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                >
                                     <div className="space-y-4">
                                         <div>
                                             <Label htmlFor="field-name">Type property name</Label>

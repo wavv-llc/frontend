@@ -105,12 +105,33 @@ export default function SettingsPage() {
     }
   }
 
+  const handleReembedDocument = async (documentId: string) => {
+    try {
+      setRetryingDocumentId(documentId)
+      const token = await getToken()
+      if (!token) return
+
+      await documentsApi.reembedDocument(token, documentId)
+      // Reload documents to get updated status
+      await loadDocuments()
+    } catch (err) {
+      console.error('Error re-embedding document:', err)
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to re-embed document')
+    } finally {
+      setRetryingDocumentId(null)
+    }
+  }
+
   const getStatusBadge = (status: OrganizationDocument['status']) => {
     switch (status) {
       case 'COMPLETED':
         return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
       case 'PROCESSING':
         return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>
+      case 'EMBEDDING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">Embedding</span>
+      case 'READY':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ready</span>
       case 'PENDING':
         return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
       case 'FAILED':
@@ -468,6 +489,8 @@ export default function SettingsPage() {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                       <SelectItem value="PROCESSING">Processing</SelectItem>
+                      <SelectItem value="EMBEDDING">Embedding</SelectItem>
+                      <SelectItem value="READY">Ready</SelectItem>
                       <SelectItem value="PENDING">Pending</SelectItem>
                       <SelectItem value="FAILED">Failed</SelectItem>
                     </SelectContent>
@@ -546,7 +569,47 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           {getStatusBadge(doc.status)}
-                          {doc.status === 'FAILED' && (
+                          {(doc.status === 'EMBEDDING' || doc.status === 'READY') && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleReembedDocument(doc.id)
+                                }}
+                                disabled={retryingDocumentId === doc.id}
+                              >
+                                {retryingDocumentId === doc.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Retry Embed
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRetryDocument(doc.id)
+                                }}
+                                disabled={retryingDocumentId === doc.id}
+                              >
+                                {retryingDocumentId === doc.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RotateCcw className="h-4 w-4 mr-1" />
+                                    Retry Process
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          )}
+                          {(doc.status === 'FAILED' || doc.status === 'PROCESSING') && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -561,7 +624,7 @@ export default function SettingsPage() {
                               ) : (
                                 <>
                                   <RotateCcw className="h-4 w-4 mr-1" />
-                                  Retry
+                                  Retry Process
                                 </>
                               )}
                             </Button>

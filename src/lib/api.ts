@@ -1256,7 +1256,7 @@ export interface OrganizationDocument {
     originalName: string;
     filesize: number;
     mimeType: string;
-    status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ARCHIVED';
+    status: 'PENDING' | 'PROCESSING' | 'EMBEDDING' | 'READY' | 'COMPLETED' | 'FAILED' | 'ARCHIVED';
     createdAt: string;
     updatedAt: string;
 }
