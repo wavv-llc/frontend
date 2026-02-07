@@ -276,10 +276,46 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
     const [selectedRole, setSelectedRole] = useState<string>('')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    // Optimistic updates: store pending field value changes
+    // Key format: "taskId:fieldId" -> value
+    const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, string>>({})
+
     // Deduplicate members to avoid key collision errors
     const uniqueMembers = useMemo(() => {
         return Array.from(new Map(members.map(m => [m.id, m])).values())
     }, [members])
+
+    // Clear optimistic updates when tasks change (e.g., after successful refresh)
+    // This prevents stale optimistic updates from persisting
+    useLayoutEffect(() => {
+        if (Object.keys(optimisticUpdates).length > 0) {
+            // Only clear optimistic updates that are now reflected in the actual data
+            setOptimisticUpdates(prev => {
+                const next = { ...prev }
+                let hasChanges = false
+
+                Object.keys(next).forEach(key => {
+                    const [taskId, fieldId] = key.split(':')
+                    const task = tasks.find(t => t.id === taskId)
+                    const actualValue = task?.customFieldValues?.find(v => v.customFieldId === fieldId)?.value
+                    const optimisticValue = next[key]
+
+                    // Clear the optimistic update if:
+                    // 1. The actual value matches the optimistic value exactly
+                    // 2. Both are "empty" (undefined, null, or empty string)
+                    const actualIsEmpty = !actualValue || actualValue === ''
+                    const optimisticIsEmpty = !optimisticValue || optimisticValue === ''
+
+                    if (actualValue === optimisticValue || (actualIsEmpty && optimisticIsEmpty)) {
+                        delete next[key]
+                        hasChanges = true
+                    }
+                })
+
+                return hasChanges ? next : prev
+            })
+        }
+    }, [tasks, optimisticUpdates])
 
     // Inline task creation
     const [isCreatingTask, setIsCreatingTask] = useState(false)
@@ -451,25 +487,60 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
     }
 
     const handleUpdateCustomField = async (task: Task, fieldId: string, value: string) => {
-        // Optimistic check - prevent unnecessary updates
-        const currentValue = task.customFieldValues?.find(v => v.customFieldId === fieldId)?.value
+        const optimisticKey = `${task.id}:${fieldId}`
+
+        // Check against current value (including any pending optimistic update)
+        const currentValue = optimisticUpdates[optimisticKey] ?? task.customFieldValues?.find(v => v.customFieldId === fieldId)?.value
         if (currentValue === value) return
+
+        // Apply optimistic update immediately
+        setOptimisticUpdates(prev => ({
+            ...prev,
+            [optimisticKey]: value
+        }))
 
         try {
             const token = await getToken()
-            if (!token) return
+            if (!token) {
+                // Revert optimistic update on auth failure
+                setOptimisticUpdates(prev => {
+                    const next = { ...prev }
+                    delete next[optimisticKey]
+                    return next
+                })
+                return
+            }
 
             await taskApi.updateTask(token, projectId, task.id, {
                 customFields: { [fieldId]: value }
             })
-            onTaskCreated() // Refresh list
+
+            // DON'T clear the optimistic update here - let it persist until the refresh completes
+            // The cleanup effect will clear it once the new data arrives
+
+            // Refresh list to get the authoritative data from server
+            onTaskCreated()
         } catch (error) {
             console.error('Failed to update field:', error)
             toast.error('Failed to update field')
+
+            // Revert optimistic update on error
+            setOptimisticUpdates(prev => {
+                const next = { ...prev }
+                delete next[optimisticKey]
+                return next
+            })
         }
     }
 
     const getCustomFieldValue = (task: Task, field: CustomField) => {
+        // Check for optimistic update first
+        const optimisticKey = `${task.id}:${field.id}`
+        if (optimisticKey in optimisticUpdates) {
+            return optimisticUpdates[optimisticKey]
+        }
+
+        // Fall back to actual task data
         const val = task.customFieldValues?.find(v => v.customFieldId === field.id)?.value
         if (!val) return null
         return val
@@ -546,15 +617,21 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                     value={value || ''}
                     onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
                 >
-                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0 cursor-pointer">
                         <SelectValue placeholder="-" />
                     </SelectTrigger>
                     <SelectContent>
-                        {(field.customOptions || []).map((opt) => (
-                            <SelectItem key={opt} value={opt}>
-                                {opt}
-                            </SelectItem>
-                        ))}
+                        {(field.customOptions || []).length > 0 ? (
+                            (field.customOptions || []).map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                    {opt}
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                No options available
+                            </div>
+                        )}
                     </SelectContent>
                 </Select>
             )
@@ -569,40 +646,48 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                     value={value || ''}
                     onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
                 >
-                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            {selectedMember ? (
-                                <>
-                                    <Avatar className="h-4 w-4">
-                                        <AvatarFallback className="text-[10px]">
-                                            {(selectedMember.firstName?.[0] || selectedMember.email[0]).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span className="truncate text-xs">
-                                        {selectedMember.firstName ? `${selectedMember.firstName} ${selectedMember.lastName || ''}` : selectedMember.email}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-muted-foreground">-</span>
-                            )}
-                        </div>
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0 cursor-pointer">
+                        <SelectValue placeholder="-">
+                            {value ? (
+                                selectedMember ? (
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <Avatar className="h-4 w-4">
+                                            <AvatarFallback className="text-[10px]">
+                                                {(selectedMember.firstName?.[0] || selectedMember.email[0]).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="truncate text-xs">
+                                            {selectedMember.firstName ? `${selectedMember.firstName} ${selectedMember.lastName || ''}` : selectedMember.email}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">Unknown ({value.slice(0, 8)}...)</span>
+                                )
+                            ) : null}
+                        </SelectValue>
                     </SelectTrigger>
 
                     <SelectContent>
-                        {uniqueMembers.map((member) => (
-                            <SelectItem key={member.id} value={member.id}>
-                                <div className="flex items-center gap-2">
-                                    <Avatar className="h-4 w-4">
-                                        <AvatarFallback className="text-[10px]">
-                                            {(member.firstName?.[0] || member.email[0]).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <span>
-                                        {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
-                                    </span>
-                                </div>
-                            </SelectItem>
-                        ))}
+                        {uniqueMembers.length > 0 ? (
+                            uniqueMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-4 w-4">
+                                            <AvatarFallback className="text-[10px]">
+                                                {(member.firstName?.[0] || member.email[0]).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span>
+                                            {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
+                                        </span>
+                                    </div>
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                No members available
+                            </div>
+                        )}
                     </SelectContent>
                 </Select>
             )
@@ -617,30 +702,38 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                     value={value || ''}
                     onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
                 >
-                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            {selectedTask ? (
-                                <>
-                                    <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="truncate text-xs">
-                                        {selectedTask.name}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-muted-foreground">-</span>
-                            )}
-                        </div>
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0 cursor-pointer">
+                        <SelectValue placeholder="-">
+                            {value ? (
+                                selectedTask ? (
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate text-xs">
+                                            {selectedTask.name}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">Unknown task ({value.slice(0, 8)}...)</span>
+                                )
+                            ) : null}
+                        </SelectValue>
                     </SelectTrigger>
 
                     <SelectContent>
-                        {tasks.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                                <div className="flex items-center gap-2">
-                                    <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="truncate max-w-[200px]">{t.name}</span>
-                                </div>
-                            </SelectItem>
-                        ))}
+                        {tasks.length > 0 ? (
+                            tasks.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>
+                                    <div className="flex items-center gap-2">
+                                        <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate max-w-[200px]">{t.name}</span>
+                                    </div>
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                No tasks available
+                            </div>
+                        )}
                     </SelectContent>
                 </Select>
             )
@@ -655,29 +748,37 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                     value={value || ''}
                     onValueChange={(val) => handleUpdateCustomField(task, field.id, val)}
                 >
-                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            {selectedDoc ? (
-                                <>
-                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="truncate text-xs">
-                                        {selectedDoc.originalName || selectedDoc.filename}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-muted-foreground">-</span>
-                            )}
-                        </div>
+                    <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0 cursor-pointer">
+                        <SelectValue placeholder="-">
+                            {value ? (
+                                selectedDoc ? (
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate text-xs">
+                                            {selectedDoc.originalName || selectedDoc.filename}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">Unknown document ({value.slice(0, 8)}...)</span>
+                                )
+                            ) : null}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                        {documents.map((doc) => (
-                            <SelectItem key={doc.id} value={doc.id}>
-                                <div className="flex items-center gap-2">
-                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="truncate max-w-[200px]">{doc.originalName || doc.filename}</span>
-                                </div>
-                            </SelectItem>
-                        ))}
+                        {documents.length > 0 ? (
+                            documents.map((doc) => (
+                                <SelectItem key={doc.id} value={doc.id}>
+                                    <div className="flex items-center gap-2">
+                                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate max-w-[200px]">{doc.originalName || doc.filename}</span>
+                                    </div>
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                No documents available
+                            </div>
+                        )}
                     </SelectContent>
                 </Select>
             )

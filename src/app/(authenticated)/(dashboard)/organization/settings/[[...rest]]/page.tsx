@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from "@/components/ui/skeleton"
 import { useUser } from '@/contexts/UserContext'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
+import { toast } from 'sonner'
 
 interface SharePointSite {
   id: string
@@ -92,14 +93,20 @@ export default function SettingsPage() {
     try {
       setRetryingDocumentId(documentId)
       const token = await getToken()
-      if (!token) return
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
 
       await documentsApi.retryDocument(token, documentId)
+      toast.success('Document processing restarted successfully')
       // Reload documents to get updated status
       await loadDocuments()
     } catch (err) {
       console.error('Error retrying document:', err)
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to retry document')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retry document'
+      setDocumentsError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setRetryingDocumentId(null)
     }
@@ -109,14 +116,20 @@ export default function SettingsPage() {
     try {
       setRetryingDocumentId(documentId)
       const token = await getToken()
-      if (!token) return
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
 
       await documentsApi.reembedDocument(token, documentId)
+      toast.success('Document re-embedding started successfully')
       // Reload documents to get updated status
       await loadDocuments()
     } catch (err) {
       console.error('Error re-embedding document:', err)
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to re-embed document')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to re-embed document'
+      setDocumentsError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setRetryingDocumentId(null)
     }
