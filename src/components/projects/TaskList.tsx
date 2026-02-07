@@ -194,9 +194,12 @@ const EditableContent = ({
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     className={cn(
-                        'outline-none cursor-text rounded px-1 -mx-1 py-0.5 -my-0.5',
-                        'bg-muted/30 focus:bg-muted/40 transition-colors duration-150',
-                        'min-h-[1.5em]',
+                        'outline-none cursor-text rounded-md',
+                        'px-3 py-2 -mx-3 -my-2',
+                        'bg-background border-2 border-primary shadow-lg',
+                        'min-h-[2em] min-w-[180px]',
+                        'relative z-50',
+                        'transition-all duration-150',
                         textStyle,
                         inputClassName
                     )}
@@ -205,8 +208,8 @@ const EditableContent = ({
                 {editEmpty && (
                     <div
                         className={cn(
-                            'pointer-events-none absolute left-0 top-0 px-1 py-0.5 text-muted-foreground/50 italic',
-                            'min-h-[1.5em]',
+                            'pointer-events-none absolute left-0 top-0 px-3 py-2 text-muted-foreground/50 italic',
+                            'min-h-[2em]',
                             textStyle
                         )}
                         aria-hidden
@@ -248,6 +251,136 @@ function placeCaretAtEnd(el: HTMLElement) {
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(range)
+}
+
+interface EditableHeaderProps {
+    initialValue: string
+    icon?: React.ComponentType<{ className?: string }>
+    onSave: (value: string) => void
+    placeholder?: string
+}
+
+/** Elevated popout header for column names with enhanced styling */
+const EditableHeader = ({ initialValue, icon: Icon, onSave, placeholder = 'Field name...' }: EditableHeaderProps) => {
+    const [isEditing, setIsEditing] = useState(false)
+    const [value, setValue] = useState(initialValue)
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    // Sync with prop changes when not editing
+    useLayoutEffect(() => {
+        if (!isEditing) {
+            setValue(initialValue)
+        }
+    }, [initialValue, isEditing])
+
+    // Auto-focus and select all text when entering edit mode
+    useLayoutEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus()
+            inputRef.current.select()
+        }
+    }, [isEditing])
+
+    const handleSave = () => {
+        const trimmed = value.trim()
+        if (trimmed && trimmed !== initialValue) {
+            onSave(trimmed)
+        } else if (!trimmed) {
+            setValue(initialValue)
+        }
+        setIsEditing(false)
+    }
+
+    const handleCancel = () => {
+        setValue(initialValue)
+        setIsEditing(false)
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            handleSave()
+        } else if (e.key === 'Escape') {
+            e.preventDefault()
+            handleCancel()
+        }
+    }
+
+    const handleBlur = () => {
+        handleSave()
+    }
+
+    if (isEditing) {
+        return (
+            <div
+                className={cn(
+                    'relative flex items-center gap-2 min-w-0',
+                    'animate-in fade-in-0 zoom-in-95 duration-150'
+                )}
+            >
+                {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground z-10" />}
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleBlur}
+                    placeholder={placeholder}
+                    className={cn(
+                        'absolute left-0 right-0 -top-1 -bottom-1',
+                        Icon ? '-left-2 pl-8' : '-left-3 pl-3',
+                        'pr-3 py-2.5',
+                        'text-sm font-medium',
+                        'bg-background',
+                        'border-2 border-[#2563eb]',
+                        'rounded-md',
+                        'shadow-[0_4px_12px_rgba(37,99,235,0.15),0_2px_4px_rgba(0,0,0,0.1)]',
+                        'outline-none',
+                        'z-50',
+                        'transition-all duration-150',
+                        'min-w-[180px]'
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </div>
+        )
+    }
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+                e.stopPropagation()
+                setIsEditing(true)
+            }}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setIsEditing(true)
+                }
+            }}
+            className={cn(
+                'flex items-center gap-2 min-w-0 flex-1',
+                'group/header cursor-pointer',
+                'rounded px-1 py-1 -mx-1 -my-1',
+                'hover:bg-muted/50 active:bg-muted/70',
+                'transition-colors duration-150',
+                'relative'
+            )}
+            title="Click to edit"
+        >
+            {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+            <span className={cn(
+                'text-sm font-medium truncate',
+                !value && 'text-muted-foreground/50 italic'
+            )}>
+                {value || placeholder}
+            </span>
+            <Pencil className="h-3 w-3 text-muted-foreground/40 opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0 absolute right-0" />
+        </div>
+    )
 }
 
 
@@ -607,6 +740,37 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
         setIsCreatingField(false)
     }
 
+    const handleUpdateFieldName = async (fieldId: string, newName: string) => {
+        const trimmedName = newName.trim()
+        if (!trimmedName) {
+            toast.error('Field name cannot be empty')
+            return
+        }
+
+        const field = customFields.find(f => f.id === fieldId)
+        if (!field || field.name === trimmedName) {
+            return
+        }
+
+        try {
+            const token = await getToken()
+            if (!token) {
+                toast.error('Authentication required')
+                return
+            }
+
+            await customFieldApi.updateCustomField(token, projectId, fieldId, {
+                name: trimmedName,
+            })
+
+            toast.success('Field name updated')
+            onCustomFieldCreated() // Refresh fields
+        } catch (error) {
+            console.error('Failed to update field name:', error)
+            toast.error('Failed to update field name')
+        }
+    }
+
     const renderCustomFieldCell = (task: Task, field: CustomField) => {
         const value = getCustomFieldValue(task, field)
 
@@ -891,63 +1055,77 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                         </div>
 
                         {/* Custom Field Columns Headers */}
-                        {displayedFields.map((field) => (
-                            <div key={field.id} className="w-[150px] shrink-0 px-4 py-3 border-r border-border flex items-center justify-between text-sm font-medium text-muted-foreground bg-muted group">
-                                <div className="flex flex-col truncate">
-                                    <div className="flex items-center gap-2 truncate">
-                                        {field.dataType === 'DATE' && <Calendar className="h-4 w-4" />}
-                                        {field.dataType === 'NUMBER' && <Hash className="h-4 w-4" />}
-                                        {field.dataType === 'USER' && <UserIcon className="h-4 w-4" />}
-                                        {field.dataType === 'TASK' && <CheckSquare className="h-4 w-4" />}
-                                        {field.dataType === 'DOCUMENT' && <FileText className="h-4 w-4" />}
-                                        {field.dataType === 'STRING' && <Type className="h-4 w-4" />}
-                                        {field.dataType === 'CUSTOM' && <CheckCircle2 className="h-4 w-4" />}
-                                        <span className="truncate">{field.name}</span>
-                                    </div>
-                                    {field.dataType === 'USER' && field.customOptions?.[0] && (
-                                        <span className="text-[10px] text-muted-foreground/70 pl-6 truncate font-normal">
-                                            {field.customOptions[0]}
-                                        </span>
-                                    )}
-                                </div>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className={cn("h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10", columnFilters[field.id] && "opacity-100 text-primary")}
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Filter className="h-3 w-3" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-2">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-xs text-muted-foreground">Filter {field.name}</h4>
-                                                {columnFilters[field.id] && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-4 w-4"
-                                                        onClick={() => onColumnFilterChange(field.id, '')}
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <input
-                                                className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                placeholder={field.dataType === 'DATE' ? 'YYYY-MM-DD' : "Contains..."}
-                                                value={columnFilters[field.id]?.value || ''}
-                                                onChange={(e) => onColumnFilterChange(field.id, e.target.value, field.dataType === 'DATE' ? 'date' : 'text')}
-                                                autoFocus
+                        {displayedFields.map((field) => {
+                            // Get the appropriate icon for this field type
+                            const getFieldIcon = () => {
+                                switch (field.dataType) {
+                                    case 'DATE': return Calendar
+                                    case 'NUMBER': return Hash
+                                    case 'USER': return UserIcon
+                                    case 'TASK': return CheckSquare
+                                    case 'DOCUMENT': return FileText
+                                    case 'STRING': return Type
+                                    case 'CUSTOM': return CheckCircle2
+                                    default: return Type
+                                }
+                            }
+
+                            return (
+                                <div key={field.id} className="w-[150px] shrink-0 px-4 py-3 border-r border-border flex items-center justify-between text-sm font-medium text-muted-foreground bg-muted group">
+                                    <div className="flex flex-col min-w-0 flex-1 overflow-visible">
+                                        <div className="min-w-0 overflow-visible">
+                                            <EditableHeader
+                                                initialValue={field.name}
+                                                icon={getFieldIcon()}
+                                                onSave={(newName) => handleUpdateFieldName(field.id, newName)}
+                                                placeholder="Field name..."
                                             />
                                         </div>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        ))}
+                                        {field.dataType === 'USER' && field.customOptions?.[0] && (
+                                            <span className="text-[10px] text-muted-foreground/70 pl-6 truncate font-normal mt-0.5">
+                                                {field.customOptions[0]}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn("h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10", columnFilters[field.id] && "opacity-100 text-primary")}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Filter className="h-3 w-3" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-56 p-2">
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="font-medium text-xs text-muted-foreground">Filter {field.name}</h4>
+                                                    {columnFilters[field.id] && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-4 w-4"
+                                                            onClick={() => onColumnFilterChange(field.id, '')}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <input
+                                                    className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                    placeholder={field.dataType === 'DATE' ? 'YYYY-MM-DD' : "Contains..."}
+                                                    value={columnFilters[field.id]?.value || ''}
+                                                    onChange={(e) => onColumnFilterChange(field.id, e.target.value, field.dataType === 'DATE' ? 'date' : 'text')}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            )
+                        })}
 
                         {/* Add Column Button */}
                         <div className="w-[150px] shrink-0 px-4 py-3 bg-muted">
@@ -1005,7 +1183,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(({
                                                                     key={type.value}
                                                                     onClick={() => handleFieldTypeSelect(type.value)}
                                                                     className={cn(
-                                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors",
+                                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors cursor-pointer",
                                                                         fieldType === type.value && "bg-muted"
                                                                     )}
                                                                 >
