@@ -336,7 +336,7 @@ export default function SettingsPage() {
                           key={site.id}
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
                             ? 'border-primary bg-primary/5'
-                            : 'border-input hover:bg-accent'
+                            : 'border-input hover:bg-blue-50 dark:hover:bg-blue-950/30'
                             }`}
                           onClick={() => toggleSite(site.id)}
                         >
@@ -564,7 +564,7 @@ export default function SettingsPage() {
                     {filteredDocuments.map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer"
                         onClick={() => router.push(`/documents/${doc.id}`)}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">

@@ -335,7 +335,7 @@ export default function OnboardingPage() {
                           key={site.id}
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
                             ? 'border-primary bg-primary/5'
-                            : 'border-input hover:bg-accent'
+                            : 'border-input hover:bg-blue-50 dark:hover:bg-blue-950/30'
                             }`}
                           onClick={() => toggleSite(site.id)}
                         >

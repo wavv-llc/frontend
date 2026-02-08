@@ -355,6 +355,21 @@ a[href*="signUp"] {
   padding-top: 0 !important;
 }
 
+/* UserButton hover styling */
+.cl-userButtonTrigger:hover,
+.cl-userButtonBox:hover,
+.cl-avatarBox:hover,
+[class*="cl-userButton"]:hover {
+  background-color: rgb(239 246 255) !important; /* blue-50 */
+}
+
+.dark .cl-userButtonTrigger:hover,
+.dark .cl-userButtonBox:hover,
+.dark .cl-avatarBox:hover,
+.dark [class*="cl-userButton"]:hover {
+  background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
+}
+
 .dark {
   --sidebar: hsl(240 5.9% 10%);
   --sidebar-foreground: hsl(240 4.8% 95.9%);

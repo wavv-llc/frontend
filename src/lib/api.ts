@@ -1170,9 +1170,15 @@ export interface AccessLink {
 
 export const accessLinkApi = {
     getAccessLink: async (linkId: string) => {
-        return apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
+        console.log('[API] GET /api/v1/access-links/${linkId}', {
+            endpoint: `/api/v1/access-links/${linkId}`,
             method: 'GET',
         });
+        const response = await apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
+            method: 'GET',
+        });
+        console.log('[API] GET /api/v1/access-links/${linkId} - Response:', response);
+        return response;
     },
 
     acceptAccessLink: async (
@@ -1185,7 +1191,13 @@ export const accessLinkApi = {
             clerkId: string;
         }
     ) => {
-        return apiRequest<{ message: string }>(
+        console.log('[API] POST /api/v1/access-links/${linkId}/accept', {
+            endpoint: `/api/v1/access-links/${linkId}/accept`,
+            method: 'POST',
+            data,
+            hasToken: !!token,
+        });
+        const response = await apiRequest<{ message: string }>(
             `/api/v1/access-links/${linkId}/accept`,
             {
                 method: 'POST',
@@ -1193,6 +1205,8 @@ export const accessLinkApi = {
                 body: JSON.stringify(data),
             }
         );
+        console.log('[API] POST /api/v1/access-links/${linkId}/accept - Response:', response);
+        return response;
     },
 };
 

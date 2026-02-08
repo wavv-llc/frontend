@@ -55,7 +55,14 @@ export default function InviteAcceptPage() {
   useEffect(() => {
     const validateAccessLink = async () => {
       try {
+        console.log('🔍 GET /api/v1/access-links - Request:', {
+          accessLinkId,
+          endpoint: `/api/v1/access-links/${accessLinkId}`
+        })
+
         const response = await accessLinkApi.getAccessLink(accessLinkId)
+
+        console.log('✅ GET /api/v1/access-links - Response:', response)
 
         if (!response.data) {
           setStatus('invalid')
@@ -86,7 +93,7 @@ export default function InviteAcceptPage() {
         sessionStorage.setItem('pendingAccessLinkId', accessLinkId)
         sessionStorage.setItem('pendingAccessLinkEmail', link.email)
       } catch (err) {
-        console.error('Error validating access link:', err)
+        console.error('❌ GET /api/v1/access-links - Error:', err)
         setStatus('error')
         setErrorMessage(err instanceof Error ? err.message : 'Failed to validate invite link.')
       }
@@ -119,12 +126,22 @@ export default function InviteAcceptPage() {
           throw new Error('Failed to get authentication token')
         }
 
-        await accessLinkApi.acceptAccessLink(token, accessLinkId, {
+        const requestData = {
           email: user.primaryEmailAddress?.emailAddress || '',
           firstName: user.firstName || '',
           lastName: user.lastName || '',
           clerkId: userId!,
+        }
+
+        console.log('📤 POST /api/v1/access-links/accept - Request:', {
+          endpoint: `/api/v1/access-links/${accessLinkId}/accept`,
+          data: requestData,
+          hasToken: !!token
         })
+
+        const response = await accessLinkApi.acceptAccessLink(token, accessLinkId, requestData)
+
+        console.log('✅ POST /api/v1/access-links/accept - Response:', response)
 
         // Clear the stored access link data
         sessionStorage.removeItem('pendingAccessLinkId')
@@ -133,7 +150,7 @@ export default function InviteAcceptPage() {
         toast.success('Invite accepted successfully!')
         router.push('/home')
       } catch (err) {
-        console.error('Error accepting invite:', err)
+        console.error('❌ POST /api/v1/access-links/accept - Error:', err)
         toast.error(err instanceof Error ? err.message : 'Failed to accept invite')
         setIsAccepting(false)
       }

@@ -8,7 +8,7 @@ import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
 export default function SignInPage() {
   return (
     <div
-      className="min-h-screen select-none overscroll-none overflow-hidden"
+      className="min-h-screen select-none overscroll-none"
       style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}
     >
       {/* Retro Water Animation Background */}
@@ -57,8 +57,8 @@ export default function SignInPage() {
       </nav>
 
       {/* Sign In Section */}
-      <section className="relative h-screen flex items-center justify-center pt-16 z-10">
-        <div className="max-w-[850px] mx-auto px-6 w-full">
+      <section className="relative flex items-center justify-center pt-24 pb-12 z-10">
+        <div className="max-w-[480px] mx-auto px-6 w-full">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -80,21 +80,21 @@ export default function SignInPage() {
               }}
             >
               {/* Header Section */}
-              <div className="px-16 pt-10 pb-6 text-center border-b" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+              <div className="px-6 pt-4 pb-3 text-center border-b" style={{ borderColor: 'var(--mahogany-300)/30' }}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.2 }}
-                  className="mb-3"
+                  className="mb-1"
                 >
                   <h1
-                    className="text-3xl font-serif font-bold tracking-tight mb-2"
+                    className="text-xl font-serif font-bold tracking-tight mb-1"
                     style={{ color: 'var(--mahogany-800)' }}
                   >
                     Welcome Back
                   </h1>
                   <p
-                    className="text-base leading-relaxed"
+                    className="text-xs leading-relaxed"
                     style={{ color: 'var(--mahogany-500)' }}
                   >
                     Sign in to access your intelligent tax workspace
@@ -107,9 +107,9 @@ export default function SignInPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="px-16 py-8 flex flex-col items-center"
+                className="px-6 py-4 flex flex-col items-center"
               >
-                <div className="w-full max-w-[750px]">
+                <div className="w-full">
                 <SignIn
                   forceRedirectUrl="/auth/callback"
                   appearance={{
@@ -124,36 +124,36 @@ export default function SignInPage() {
                       main__body: "!bg-transparent w-full !p-0 !flex !flex-col !items-center",
 
                       // Social Buttons - styled to match landing page
-                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-14 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-8",
-                      socialButtonsBlockButtonText: "!font-medium !text-base",
-                      socialButtons: "!w-full !flex !flex-col !items-center !gap-4",
+                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-9 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-4",
+                      socialButtonsBlockButtonText: "!font-medium !text-xs",
+                      socialButtons: "!w-full !flex !flex-col !items-center !gap-2",
                       socialButtonsProviderIcon: "!mr-2 !h-5",
 
                       // Divider
-                      dividerRow: "!flex !items-center !justify-between !my-6 !w-full",
+                      dividerRow: "!flex !items-center !justify-between !my-3 !w-full",
                       dividerLine: "!h-px !flex-grow",
                       dividerText: "!text-xs !uppercase !tracking-wider !bg-transparent !px-4",
 
                       // Form Fields - styled to match landing page aesthetic
-                      form: "!w-full !gap-4 !mt-0 !flex !flex-col !items-center",
+                      form: "!w-full !gap-2 !mt-0 !flex !flex-col !items-center",
                       formFieldRow: "!w-full",
                       formField: "!w-full !mb-0",
-                      formFieldLabel: "!text-xs !font-semibold !mb-2.5 !text-left !block !w-full !uppercase !tracking-wide",
-                      formFieldInput: "!w-full !h-14 !rounded-md !border !bg-background/50 !px-8 !text-base focus:!ring-2 transition-all !box-border",
+                      formFieldLabel: "!text-xs !font-semibold !mb-1.5 !text-left !block !w-full !uppercase !tracking-wide",
+                      formFieldInput: "!w-full !h-9 !rounded-md !border !bg-background/50 !px-4 !text-xs focus:!ring-2 transition-all !box-border",
 
                       // Primary Button - styled to match landing page CTA
-                      formButtonPrimary: "!w-full !h-12 !rounded-md !text-base !font-serif !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] !shadow-md !mt-2 !px-6",
+                      formButtonPrimary: "!w-full !h-9 !rounded-md !text-xs !font-serif !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] !shadow-md !mt-1.5 !px-4",
 
                       // Footer/Links
                       footerAction: "hidden",
                       footer: "hidden",
 
                       // Other
-                      identityPreview: "!border !rounded-md !p-4 !mb-4 !w-full",
-                      identityPreviewText: "!text-sm",
+                      identityPreview: "!border !rounded-md !p-3 !mb-3 !w-full",
+                      identityPreviewText: "!text-xs",
                       identityPreviewEditButton: "!text-xs hover:!underline",
                       formFieldInputShowPasswordButton: "hover:!scale-105 transition-transform",
-                      alert: "!border-2 !rounded-md !mb-4 !text-sm !p-4 !w-full",
+                      alert: "!border-2 !rounded-md !mb-3 !text-xs !p-3 !w-full",
                       alertText: ""
                     },
                     layout: {
@@ -175,9 +175,9 @@ export default function SignInPage() {
                 />
 
                 {/* Footer Link */}
-                <div className="mt-5 pt-5 border-t w-full" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+                <div className="mt-3 pt-3 border-t w-full" style={{ borderColor: 'var(--mahogany-300)/30' }}>
                   <p
-                    className="text-sm text-center"
+                    className="text-xs text-center"
                     style={{ color: 'var(--mahogany-500)' }}
                   >
                     Don&apos;t have an account?{' '}
