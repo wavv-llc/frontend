@@ -113,7 +113,7 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
 
     return (
         <motion.div
-            className={`absolute inset-0 overflow-hidden ${className}`}
+            className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.5 }}
@@ -124,7 +124,8 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
                 className="w-full h-full"
                 style={{
                     imageRendering: 'pixelated',
-                    willChange: 'contents'
+                    willChange: 'contents',
+                    pointerEvents: 'none'
                 }}
             />
             {/* Gradient overlay for depth */}

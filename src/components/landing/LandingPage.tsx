@@ -24,7 +24,7 @@ export function LandingPage() {
 
   return (
     <div
-      className="min-h-screen text-[var(--mahogany-800)] overflow-x-hidden select-none overscroll-none"
+      className="min-h-screen text-[var(--mahogany-800)] overflow-x-hidden"
       style={{ backgroundColor: 'var(--ivory-100)' }}
     >
       {/* Navigation */}
@@ -178,15 +178,15 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
 // ============ HERO SECTION ============
 function HeroSection() {
   return (
-    <section className="relative pt-28 pb-20 md:pt-40 md:pb-32 overflow-hidden">
+    <section className="relative pt-28 pb-20 md:pt-40 md:pb-32">
       {/* Animated water background */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <RetroWaterAnimation intensity="medium" />
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         {/* Semi-transparent backdrop for text readability */}
-        <div className="flex flex-col items-center text-center bg-[var(--ivory-100)]/80 backdrop-blur-sm rounded-2xl py-12 px-8 md:py-16 md:px-12">
+        <div className="flex flex-col items-center text-center bg-[var(--ivory-100)]/60 backdrop-blur-sm rounded-2xl py-12 px-8 md:py-16 md:px-12">
 
           {/* Main Headline */}
           <motion.h1
@@ -516,7 +516,7 @@ function SolutionSection() {
     <section
       id="features"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      className="py-24 md:py-32 scroll-mt-20 relative"
       style={{ backgroundColor: 'var(--ivory-100)' }}
     >
       {/* Excel grid overlay */}

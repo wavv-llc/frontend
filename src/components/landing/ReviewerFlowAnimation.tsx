@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { memo, useState, useEffect } from 'react'
+import { memo, useState, useEffect, useRef } from 'react'
 import { Check, Clock, User, FileCheck, Send, ChevronRight } from 'lucide-react'
 
 interface ReviewerFlowAnimationProps {
@@ -19,6 +19,7 @@ const STAGES = [
 function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimationProps) {
     const [activeStage, setActiveStage] = useState(0)
     const [isPaused, setIsPaused] = useState(false)
+    const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
         // Check for reduced motion preference
@@ -28,13 +29,27 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
             return
         }
 
-        const interval = setInterval(() => {
-            if (!isPaused) {
-                setActiveStage((prev) => (prev + 1) % (STAGES.length + 1))
-            }
+        // Clear any existing interval
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current)
+        }
+
+        // If paused, don't start a new interval
+        if (isPaused) {
+            return
+        }
+
+        // Start interval for stage progression
+        intervalRef.current = setInterval(() => {
+            setActiveStage((prev) => (prev + 1) % (STAGES.length + 1))
         }, 1800)
 
-        return () => clearInterval(interval)
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current)
+                intervalRef.current = null
+            }
+        }
     }, [isPaused])
 
     return (
@@ -65,7 +80,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                 {/* Content Area */}
                 <div className="p-6 bg-[var(--ivory-50)]">
                     {/* Flow Diagram */}
-                    <div className="flex items-center justify-between gap-2 mb-8">
+                    <div className="flex items-center justify-between gap-2 mb-3">
                         {STAGES.map((stage, index) => {
                             const Icon = stage.icon
                             const isActive = index === activeStage
@@ -86,8 +101,6 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                             style={{
                                                 backgroundColor: isComplete || isActive ? stage.color : 'var(--ivory-200)',
                                                 borderColor: stage.color,
-                                            }}
-                                            animate={{
                                                 boxShadow: isActive
                                                     ? `0 0 20px ${stage.color}40`
                                                     : '0 2px 4px rgba(0,0,0,0.1)',
@@ -100,20 +113,6 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                                 }}
                                             />
                                         </motion.div>
-
-                                        {/* Pulse ring for active stage */}
-                                        <AnimatePresence>
-                                            {isActive && (
-                                                <motion.div
-                                                    className="absolute inset-0 rounded-full border-2"
-                                                    style={{ borderColor: stage.color }}
-                                                    initial={{ scale: 1, opacity: 0.8 }}
-                                                    animate={{ scale: 1.6, opacity: 0 }}
-                                                    exit={{ opacity: 0 }}
-                                                    transition={{ duration: 1, repeat: Infinity }}
-                                                />
-                                            )}
-                                        </AnimatePresence>
                                     </motion.div>
 
                                     {/* Connector Line */}
@@ -135,24 +134,26 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                     </div>
 
                     {/* Stage Labels */}
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between">
                         {STAGES.map((stage, index) => (
-                            <div
-                                key={stage.id}
-                                className="text-center flex-1"
-                                style={{ minWidth: '60px' }}
-                            >
-                                <motion.span
-                                    className="text-[10px] font-medium block transition-colors duration-300"
-                                    style={{
-                                        color: index <= activeStage ? 'var(--mahogany-700)' : 'var(--mahogany-400)',
-                                    }}
-                                    animate={{
-                                        fontWeight: index === activeStage ? 600 : 400,
-                                    }}
-                                >
-                                    {stage.label}
-                                </motion.span>
+                            <div key={stage.id} className="flex items-center">
+                                <div className="flex-shrink-0 flex justify-center" style={{ width: '48px' }}>
+                                    <motion.span
+                                        className="text-xs font-medium transition-colors duration-300 whitespace-nowrap"
+                                        style={{
+                                            color: index <= activeStage ? 'var(--mahogany-700)' : 'var(--mahogany-400)',
+                                        }}
+                                        animate={{
+                                            fontWeight: index === activeStage ? 600 : 400,
+                                        }}
+                                    >
+                                        {stage.label}
+                                    </motion.span>
+                                </div>
+                                {/* Spacer to match connector width */}
+                                {index < STAGES.length - 1 && (
+                                    <div className="w-8 mx-1 flex-shrink-0" />
+                                )}
                             </div>
                         ))}
                     </div>
