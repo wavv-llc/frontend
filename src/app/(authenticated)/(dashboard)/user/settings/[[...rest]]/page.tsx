@@ -8,7 +8,7 @@ export default function UserSettingsPage() {
     <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-semibold flex items-center gap-2">
+          <h1 className="text-3xl font-serif font-semibold flex items-center gap-2">
             <User className="h-8 w-8" />
             User Settings
           </h1>

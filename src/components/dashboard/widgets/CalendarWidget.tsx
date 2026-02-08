@@ -11,7 +11,7 @@ export function CalendarWidget({ tasks, isLoading }: {
     return (
         <div className="h-full bg-background/60 backdrop-blur-xl border border-border/50 shadow-sm rounded-xl overflow-hidden flex flex-col">
             <div className="border-b border-border/40 bg-muted/20 py-3 px-4 shrink-0 cursor-move">
-                <span className="text-sm font-semibold flex items-center gap-2">
+                <span className="text-sm font-serif font-semibold flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4 text-primary" />
                     Smart Schedule
                 </span>

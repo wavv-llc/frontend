@@ -109,7 +109,7 @@ export default function SignInPage() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="px-16 py-8 flex flex-col items-center"
               >
-                <div className="w-full max-w-[620px]">
+                <div className="w-full max-w-[750px]">
                 <SignIn
                   forceRedirectUrl="/auth/callback"
                   appearance={{
@@ -124,7 +124,7 @@ export default function SignInPage() {
                       main__body: "!bg-transparent w-full !p-0 !flex !flex-col !items-center",
 
                       // Social Buttons - styled to match landing page
-                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-14 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-6",
+                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-14 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-8",
                       socialButtonsBlockButtonText: "!font-medium !text-base",
                       socialButtons: "!w-full !flex !flex-col !items-center !gap-4",
                       socialButtonsProviderIcon: "!mr-2 !h-5",
@@ -139,7 +139,7 @@ export default function SignInPage() {
                       formFieldRow: "!w-full",
                       formField: "!w-full !mb-0",
                       formFieldLabel: "!text-xs !font-semibold !mb-2.5 !text-left !block !w-full !uppercase !tracking-wide",
-                      formFieldInput: "!w-full !h-14 !rounded-md !border !bg-background/50 !px-6 !text-base focus:!ring-2 transition-all !box-border",
+                      formFieldInput: "!w-full !h-14 !rounded-md !border !bg-background/50 !px-8 !text-base focus:!ring-2 transition-all !box-border",
 
                       // Primary Button - styled to match landing page CTA
                       formButtonPrimary: "!w-full !h-12 !rounded-md !text-base !font-serif !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] !shadow-md !mt-2 !px-6",

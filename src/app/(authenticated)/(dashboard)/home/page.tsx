@@ -75,7 +75,7 @@ export default function HomePage() {
                 {/* Header */}
                 <div className="flex items-center justify-between shrink-0">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-foreground">
                             {greeting}, {user?.firstName}
                         </h1>
                     </div>

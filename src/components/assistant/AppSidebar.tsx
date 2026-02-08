@@ -728,7 +728,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             {!isCompressed && (
-              <h2 className="flex-1 text-sm font-semibold text-sidebar-foreground">Chat History</h2>
+              <h2 className="flex-1 text-sm font-serif font-semibold text-sidebar-foreground">Chat History</h2>
             )}
           </>
         ) : (
@@ -904,7 +904,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
               <Button
                 variant="ghost"
                 onClick={handleWorkspacesClick}
-                className="w-full justify-start px-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:bg-sidebar-accent/50"
+                className="w-full justify-start px-2 mb-2 text-xs font-serif font-semibold text-muted-foreground uppercase tracking-wider hover:bg-sidebar-accent/50"
               >
                 Workspaces
               </Button>

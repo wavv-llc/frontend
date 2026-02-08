@@ -751,8 +751,8 @@ export function ProjectDetailView({
                                 value={localProject.name}
                                 onSave={(val) => handleUpdateProjectField({ name: val })}
                                 className="w-fit"
-                                textStyle="text-3xl font-semibold tracking-tight text-foreground"
-                                inputClassName="text-3xl font-semibold h-auto py-1 px-2"
+                                textStyle="text-3xl font-serif font-semibold tracking-tight text-foreground"
+                                inputClassName="text-3xl font-serif font-semibold h-auto py-1 px-2"
                                 placeholder="Project Name"
                             />
                             <EditableContent

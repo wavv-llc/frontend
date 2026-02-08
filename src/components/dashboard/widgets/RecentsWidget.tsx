@@ -20,7 +20,7 @@ export function RecentsWidget({ items, isLoading, onItemClick }: {
         <Card className="h-full bg-background/60 backdrop-blur-xl border-border/50 shadow-sm flex flex-col overflow-hidden">
             <CardHeader className="pb-3 border-b border-border/40 bg-muted/20 py-3 px-4 shrink-0 cursor-move">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <CardTitle className="text-sm font-serif font-semibold flex items-center gap-2">
                         <Clock className="w-4 h-4 text-primary" />
                         Recent Activity
                     </CardTitle>

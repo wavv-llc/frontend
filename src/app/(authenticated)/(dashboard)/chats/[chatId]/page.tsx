@@ -134,7 +134,7 @@ export default function ChatDetailPage() {
                             <MessageSquare className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                            <h1 className="text-xl md:text-2xl font-serif font-bold tracking-tight text-foreground">
                                 Chat
                             </h1>
                             <p className="text-xs text-muted-foreground">

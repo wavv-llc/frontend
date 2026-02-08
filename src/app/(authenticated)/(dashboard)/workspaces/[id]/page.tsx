@@ -228,7 +228,7 @@ export default function WorkspaceDetailsPage() {
                                 <span className="text-muted-foreground/40">/</span>
                             </div>
                         </div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{workspace.name}</h1>
+                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-foreground">{workspace.name}</h1>
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

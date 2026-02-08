@@ -47,38 +47,39 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.147 0.004 49.25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.216 0.006 56.043);
-  --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
-  --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.216 0.006 56.043);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+  /* Bateman Palette - Old Money Aesthetic */
+  --background: #FAF7F0; /* ivory-100 - warm ivory background */
+  --foreground: #3E2723; /* mahogany-800 - dark mahogany for primary text */
+  --card: #FDFCFA; /* ivory-50 - lightest ivory for cards */
+  --card-foreground: #4A332D; /* mahogany-700 - card text */
+  --popover: #FDFCFA; /* ivory-50 - popover background */
+  --popover-foreground: #3E2723; /* mahogany-800 - popover text */
+  --primary: #5D4037; /* mahogany-600 - primary actions/buttons */
+  --primary-foreground: #FAF7F0; /* ivory-100 - text on primary */
+  --secondary: #6FA8C6; /* lake-blue-400 - secondary actions */
+  --secondary-foreground: #FAF7F0; /* ivory-100 - text on secondary */
+  --muted: #F5EFE4; /* ivory-200 - muted backgrounds */
+  --muted-foreground: #6D4532; /* mahogany-500 - muted text */
+  --accent: #218380; /* excel-green-400 - accent highlights */
+  --accent-foreground: #FDFCFA; /* ivory-50 - text on accent */
+  --destructive: #DC2626; /* red for destructive actions */
+  --destructive-foreground: #FDFCFA; /* ivory-50 - text on destructive */
+  --border: #A67C5B; /* mahogany-300 - warm borders */
+  --input: #E8DFD0; /* ivory-300 - input borders */
+  --ring: #8B5A3C; /* mahogany-400 - focus rings */
+  --chart-1: #218380; /* excel-green-400 */
+  --chart-2: #6FA8C6; /* lake-blue-400 */
+  --chart-3: #B8860B; /* gold-500 */
+  --chart-4: #5D4037; /* mahogany-600 */
+  --chart-5: #2A9D8F; /* excel-green-300 */
+  --sidebar: #FAF7F0; /* ivory-100 - match background */
+  --sidebar-foreground: #3E2723; /* mahogany-800 - sidebar text */
+  --sidebar-primary: #5D4037; /* mahogany-600 - sidebar primary */
+  --sidebar-primary-foreground: #FAF7F0; /* ivory-100 */
+  --sidebar-accent: #F5EFE4; /* ivory-200 - sidebar hover */
+  --sidebar-accent-foreground: #4A332D; /* mahogany-700 - sidebar accent text */
+  --sidebar-border: #A67C5B; /* mahogany-300 - sidebar borders */
+  --sidebar-ring: #8B5A3C; /* mahogany-400 - sidebar focus */
 
   /* Bateman Palette - Old Money Aesthetic */
   --ivory-50: #FDFCFA;
@@ -357,12 +358,12 @@ a[href*="signUp"] {
 .dark {
   --sidebar: hsl(240 5.9% 10%);
   --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary: #6FA8C6; /* lake-blue-400 for dark mode */
   --sidebar-primary-foreground: hsl(0 0% 100%);
   --sidebar-accent: hsl(240 3.7% 15.9%);
   --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
   --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar-ring: #8B5A3C; /* mahogany-400 */
 }
 
 @layer base {
