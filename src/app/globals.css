@@ -79,6 +79,32 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+
+  /* Bateman Palette - Old Money Aesthetic */
+  --ivory-50: #FDFCFA;
+  --ivory-100: #FAF7F0;
+  --ivory-200: #F5EFE4;
+  --ivory-300: #E8DFD0;
+  
+  --mahogany-300: #A67C5B;
+  --mahogany-400: #8B5A3C;
+  --mahogany-500: #6D4532;
+  --mahogany-600: #5D4037;
+  --mahogany-700: #4A332D;
+  --mahogany-800: #3E2723;
+  
+  --excel-green-300: #2A9D8F;
+  --excel-green-400: #218380;
+  --excel-green-500: #186140;
+  --excel-green-600: #145535;
+  
+  --lake-blue-100: #D4E8F2;
+  --lake-blue-200: #B8D4E3;
+  --lake-blue-300: #8FBFD6;
+  --lake-blue-400: #6FA8C6;
+  
+  --gold-400: #C9A227;
+  --gold-500: #B8860B;
 }
 
 .dark {

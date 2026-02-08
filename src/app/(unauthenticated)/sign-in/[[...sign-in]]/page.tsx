@@ -7,22 +7,22 @@ import { Sparkles } from 'lucide-react'
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 font-sans overflow-hidden">
+    <div className="min-h-screen select-none overscroll-none font-sans overflow-hidden" style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}>
       {/* Dynamic Background Mesh */}
-      <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary/30 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
-        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-muted/20 rounded-full blur-[100px] animate-pulse-slow delay-700" />
+      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow" style={{ backgroundColor: 'var(--lake-blue-300)' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow delay-1000" style={{ backgroundColor: 'var(--mahogany-300)' }} />
+        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] rounded-full blur-[100px] animate-pulse-slow delay-700" style={{ backgroundColor: 'var(--ivory-300)' }} />
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/70 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl" style={{ backgroundColor: 'rgba(250, 247, 240, 0.7)', borderColor: 'var(--mahogany-200)' }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-serif italic text-lg pr-0.5">w</span>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--mahogany-600)' }}>
+              <span className="font-serif italic text-lg pr-0.5" style={{ color: 'var(--ivory-100)' }}>w</span>
             </div>
-            wavv
+            <span style={{ color: 'var(--mahogany-700)' }}>wavv</span>
           </Link>
         </div>
       </nav>
@@ -37,9 +37,9 @@ export default function SignInPage() {
             className="relative"
           >
             {/* Glow effect behind card */}
-            <div className="absolute inset-0 bg-primary/10 blur-[60px] rounded-full" />
+            <div className="absolute inset-0 blur-[60px] rounded-full" style={{ backgroundColor: 'var(--lake-blue-200)' }} />
 
-            <div className="relative bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl p-8 shadow-sm flex flex-col items-center">
+            <div className="relative backdrop-blur-xl border rounded-2xl p-8 shadow-sm flex flex-col items-center" style={{ backgroundColor: 'rgba(250, 247, 240, 0.9)', borderColor: 'var(--mahogany-200)' }}>
               <div className="mb-4 text-center w-full">
                 <motion.h1
                   initial={{ opacity: 0, y: 10 }}

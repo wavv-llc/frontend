@@ -74,7 +74,7 @@ export function AppBar({
           )}
           {showContactButton && (
             <Link href="/contact" className="font-serif text-lg font-medium text-muted-foreground hover:text-[#1e293b] transition-colors">
-              Request Access
+              Contact Us
             </Link>
           )}
         </div>

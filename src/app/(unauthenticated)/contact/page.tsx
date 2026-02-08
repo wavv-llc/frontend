@@ -305,7 +305,7 @@ export default function ContactPage() {
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Security</Link>
           </div>
-          <div>© 2026 Wavv AI Inc.</div>
+          <div>© 2026 Wavv AI LLC.</div>
         </div>
       </footer>
     </div>

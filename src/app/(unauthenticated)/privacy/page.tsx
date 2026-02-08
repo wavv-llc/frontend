@@ -40,7 +40,7 @@ const sections = [
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/20" style={{ backgroundColor: 'hsl(42, 50%, 88%)' }}>
+    <div className="min-h-screen select-none overscroll-none" style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}>
       <AppBar navItems={[]} showContactButton={true} showLoginLink={true} />
 
       <main className="max-w-4xl mx-auto px-6 py-16">
@@ -80,10 +80,11 @@ export default function PrivacyPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="bg-background rounded-2xl border border-border p-6 shadow-sm hover:shadow-md transition-shadow"
+                  className="rounded-2xl border p-6 shadow-sm hover:shadow-md transition-shadow"
+                  style={{ backgroundColor: 'var(--ivory-50)', borderColor: 'var(--mahogany-200)' }}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--mahogany-200)', color: 'var(--mahogany-600)' }}>
                       {section.icon}
                     </div>
                     <div>
@@ -103,7 +104,8 @@ export default function PrivacyPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
-              className="mt-12 p-6 bg-muted/50 rounded-2xl border border-border"
+              className="mt-12 p-6 rounded-2xl border"
+              style={{ backgroundColor: 'var(--ivory-200)', borderColor: 'var(--mahogany-200)' }}
             >
               <h2 className="font-serif text-xl font-semibold text-foreground mb-3">
                 Contact Us
@@ -119,7 +121,7 @@ export default function PrivacyPage() {
         </motion.div>
       </main>
 
-      <footer className="py-8 border-t border-border text-muted-foreground text-sm" style={{ backgroundColor: 'hsl(42, 50%, 88%)' }}>
+      <footer className="py-8 border-t text-sm" style={{ backgroundColor: 'var(--ivory-200)', borderColor: 'var(--mahogany-300)', color: 'var(--mahogany-500)' }}>
         <div className="max-w-4xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="font-serif font-bold text-foreground">Wavv</span>
@@ -128,7 +130,7 @@ export default function PrivacyPage() {
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>
-          <div>© 2026 Wavv AI Inc.</div>
+          <div>© 2026 Wavv AI LLC.</div>
         </div>
       </footer>
     </div>
