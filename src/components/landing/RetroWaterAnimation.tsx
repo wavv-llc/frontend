@@ -20,18 +20,22 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
 
         let animationId: number
         let time = 0
+        let frameCount = 0
 
         const resizeCanvas = () => {
             const rect = canvas.getBoundingClientRect()
-            canvas.width = rect.width
-            canvas.height = rect.height
+            // Use device pixel ratio for sharper rendering but cap at 1 for performance
+            const dpr = Math.min(window.devicePixelRatio || 1, 1)
+            canvas.width = rect.width * dpr
+            canvas.height = rect.height * dpr
+            ctx.scale(dpr, dpr)
         }
 
         resizeCanvas()
         window.addEventListener('resize', resizeCanvas)
 
-        // Pixel size based on intensity
-        const pixelSize = intensity === 'subtle' ? 8 : intensity === 'medium' ? 6 : 4
+        // Larger pixel sizes for better performance (was 8/6/4, now 12/10/8)
+        const pixelSize = intensity === 'subtle' ? 12 : intensity === 'medium' ? 10 : 8
 
         // Lake Como inspired colors - more visible
         const colors = [
@@ -42,10 +46,18 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
         ]
 
         const draw = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            frameCount++
+            // Throttle to ~30fps by skipping every other frame
+            if (frameCount % 2 !== 0) {
+                animationId = requestAnimationFrame(draw)
+                return
+            }
 
-            const cols = Math.ceil(canvas.width / pixelSize)
-            const rows = Math.ceil(canvas.height / pixelSize)
+            const rect = canvas.getBoundingClientRect()
+            ctx.clearRect(0, 0, rect.width, rect.height)
+
+            const cols = Math.ceil(rect.width / pixelSize)
+            const rows = Math.ceil(rect.height / pixelSize)
 
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
@@ -78,10 +90,11 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
             draw()
         } else {
             // Draw static version
+            const rect = canvas.getBoundingClientRect()
             time = 0
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            const cols = Math.ceil(canvas.width / pixelSize)
-            const rows = Math.ceil(canvas.height / pixelSize)
+            ctx.clearRect(0, 0, rect.width, rect.height)
+            const cols = Math.ceil(rect.width / pixelSize)
+            const rows = Math.ceil(rect.height / pixelSize)
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
                     const colorIndex = (x + y) % colors.length
@@ -104,11 +117,15 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.5 }}
+            style={{ willChange: 'transform' }}
         >
             <canvas
                 ref={canvasRef}
                 className="w-full h-full"
-                style={{ imageRendering: 'pixelated' }}
+                style={{
+                    imageRendering: 'pixelated',
+                    willChange: 'contents'
+                }}
             />
             {/* Gradient overlay for depth */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--ivory-100)]/80 pointer-events-none" />
