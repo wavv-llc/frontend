@@ -3,68 +3,113 @@
 import Link from 'next/link'
 import { SignIn } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
+import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen select-none overscroll-none font-sans overflow-hidden" style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}>
-      {/* Dynamic Background Mesh */}
-      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow" style={{ backgroundColor: 'var(--lake-blue-300)' }} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[120px] animate-pulse-slow delay-1000" style={{ backgroundColor: 'var(--mahogany-300)' }} />
-        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] rounded-full blur-[100px] animate-pulse-slow delay-700" style={{ backgroundColor: 'var(--ivory-300)' }} />
+    <div
+      className="min-h-screen select-none overscroll-none overflow-hidden"
+      style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}
+    >
+      {/* Retro Water Animation Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <RetroWaterAnimation intensity="medium" />
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl" style={{ backgroundColor: 'rgba(250, 247, 240, 0.7)', borderColor: 'var(--mahogany-200)' }}>
+      <nav
+        className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl"
+        style={{
+          backgroundColor: 'rgba(250, 247, 240, 0.95)',
+          borderColor: 'var(--mahogany-300)/30'
+        }}
+      >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--mahogany-600)' }}>
-              <span className="font-serif italic text-lg pr-0.5" style={{ color: 'var(--ivory-100)' }}>w</span>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div
+              className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
+              style={{ backgroundColor: 'var(--mahogany-600)' }}
+            >
+              <span
+                className="font-serif italic text-lg font-semibold"
+                style={{ color: 'var(--ivory-100)' }}
+              >
+                w
+              </span>
             </div>
-            <span style={{ color: 'var(--mahogany-700)' }}>wavv</span>
+            <span
+              className="text-xl font-serif font-bold tracking-tight"
+              style={{ color: 'var(--mahogany-700)' }}
+            >
+              wavv
+            </span>
+          </Link>
+          <Link
+            href="/"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--mahogany-500)' }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--mahogany-800)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--mahogany-500)'}
+          >
+            Back to Home
           </Link>
         </div>
       </nav>
 
       {/* Sign In Section */}
-      <section className="relative h-screen flex items-center justify-center z-10">
-        <div className="max-w-[420px] mx-auto px-4 w-full">
+      <section className="relative h-screen flex items-center justify-center pt-16 z-10">
+        <div className="max-w-[850px] mx-auto px-6 w-full">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             className="relative"
           >
             {/* Glow effect behind card */}
-            <div className="absolute inset-0 blur-[60px] rounded-full" style={{ backgroundColor: 'var(--lake-blue-200)' }} />
+            <div
+              className="absolute -inset-4 rounded-3xl opacity-20 blur-3xl"
+              style={{ backgroundColor: 'var(--lake-blue-300)' }}
+            />
 
-            <div className="relative backdrop-blur-xl border rounded-2xl p-8 shadow-sm flex flex-col items-center" style={{ backgroundColor: 'rgba(250, 247, 240, 0.9)', borderColor: 'var(--mahogany-200)' }}>
-              <div className="mb-4 text-center w-full">
-                <motion.h1
+            {/* Card Container */}
+            <div
+              className="relative backdrop-blur-sm border-2 rounded-2xl shadow-2xl overflow-hidden"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderColor: 'var(--mahogany-400)'
+              }}
+            >
+              {/* Header Section */}
+              <div className="px-16 pt-10 pb-6 text-center border-b" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+                <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="text-2xl font-bold tracking-tight text-foreground mb-1"
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="mb-3"
                 >
-                  Sign in to Wavv
-                </motion.h1>
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="text-sm text-muted-foreground"
-                >
-                  Access your intelligent tax workspace
-                </motion.p>
+                  <h1
+                    className="text-3xl font-serif font-bold tracking-tight mb-2"
+                    style={{ color: 'var(--mahogany-800)' }}
+                  >
+                    Welcome Back
+                  </h1>
+                  <p
+                    className="text-base leading-relaxed"
+                    style={{ color: 'var(--mahogany-500)' }}
+                  >
+                    Sign in to access your intelligent tax workspace
+                  </p>
+                </motion.div>
               </div>
 
+              {/* Form Section */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                className="w-full"
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="px-16 py-8 flex flex-col items-center"
               >
+                <div className="w-full max-w-[620px]">
                 <SignIn
                   forceRedirectUrl="/auth/callback"
                   appearance={{
@@ -78,56 +123,96 @@ export default function SignInPage() {
                       main: "!bg-transparent w-full !flex !flex-col !items-center",
                       main__body: "!bg-transparent w-full !p-0 !flex !flex-col !items-center",
 
-                      // Social Buttons
-                      socialButtonsBlockButton: "!relative !overflow-visible !border !border-border hover:!bg-muted/50 !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-10 !rounded-lg !mb-0 !shadow-sm transition-all",
-                      socialButtonsBlockButtonText: "!text-foreground !font-medium !text-sm",
-                      socialButtons: "!w-full !flex !flex-col !items-center",
-                      socialButtonsProviderIcon: "!mr-2",
+                      // Social Buttons - styled to match landing page
+                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-14 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-6",
+                      socialButtonsBlockButtonText: "!font-medium !text-base",
+                      socialButtons: "!w-full !flex !flex-col !items-center !gap-4",
+                      socialButtonsProviderIcon: "!mr-2 !h-5",
 
                       // Divider
-                      // Using flex layout with growing lines as requested
-                      dividerRow: "!flex !items-center !justify-between !my-4 !w-full",
-                      dividerLine: "!h-px !flex-grow !bg-border/50",
-                      dividerText: "!text-muted-foreground !text-[10px] !uppercase !tracking-wider !bg-transparent !px-3",
+                      dividerRow: "!flex !items-center !justify-between !my-6 !w-full",
+                      dividerLine: "!h-px !flex-grow",
+                      dividerText: "!text-xs !uppercase !tracking-wider !bg-transparent !px-4",
 
-                      // Form Fields
-                      form: "!w-full !gap-3 !mt-0 !flex !flex-col !items-center",
+                      // Form Fields - styled to match landing page aesthetic
+                      form: "!w-full !gap-4 !mt-0 !flex !flex-col !items-center",
                       formFieldRow: "!w-full",
                       formField: "!w-full !mb-0",
-                      // Ensure label is left-aligned and block
-                      formFieldLabel: "!text-foreground !text-xs !font-medium !mb-1.5 !text-left !block !w-full",
-                      formFieldInput: "!w-full !h-10 !rounded-lg !border !border-border !bg-background/50 !px-3 !text-sm focus:!border-primary focus:!ring-2 focus:!ring-primary/10 transition-all !box-border",
+                      formFieldLabel: "!text-xs !font-semibold !mb-2.5 !text-left !block !w-full !uppercase !tracking-wide",
+                      formFieldInput: "!w-full !h-14 !rounded-md !border !bg-background/50 !px-6 !text-base focus:!ring-2 transition-all !box-border",
 
-                      // Primary Button
-                      formButtonPrimary: "!w-full !h-10 !rounded-lg !bg-primary !text-primary-foreground !text-sm !font-medium hover:!bg-primary/90 hover:!shadow-md transition-all !shadow-sm !mt-2",
+                      // Primary Button - styled to match landing page CTA
+                      formButtonPrimary: "!w-full !h-12 !rounded-md !text-base !font-serif !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] !shadow-md !mt-2 !px-6",
 
                       // Footer/Links
                       footerAction: "hidden",
                       footer: "hidden",
 
                       // Other
-                      identityPreview: "!bg-muted/30 !border !border-border !rounded-lg !p-3 !mb-4 !w-full",
-                      identityPreviewText: "!text-foreground !text-sm",
-                      identityPreviewEditButton: "!text-primary !text-xs hover:!underline",
-                      formFieldInputShowPasswordButton: "!text-muted-foreground hover:!text-foreground",
-                      alert: "!bg-destructive/10 !text-destructive !border !border-destructive/20 !rounded-lg !mb-4 !text-sm !p-3 !w-full",
-                      alertText: "!text-destructive"
+                      identityPreview: "!border !rounded-md !p-4 !mb-4 !w-full",
+                      identityPreviewText: "!text-sm",
+                      identityPreviewEditButton: "!text-xs hover:!underline",
+                      formFieldInputShowPasswordButton: "hover:!scale-105 transition-transform",
+                      alert: "!border-2 !rounded-md !mb-4 !text-sm !p-4 !w-full",
+                      alertText: ""
                     },
                     layout: {
                       socialButtonsPlacement: "top",
                       showOptionalFields: false
+                    },
+                    variables: {
+                      colorPrimary: '#704830', // mahogany-600
+                      colorText: '#422F26', // mahogany-800
+                      colorTextSecondary: '#8B6758', // mahogany-500
+                      colorBackground: 'rgba(250, 247, 240, 0.5)', // ivory-100 with transparency
+                      colorInputBackground: 'rgba(255, 255, 255, 0.5)',
+                      colorInputText: '#422F26',
+                      borderRadius: '0.375rem',
+                      fontFamily: 'inherit',
+                      fontSize: '0.875rem',
                     }
                   }}
                 />
 
-                <p className="text-xs text-muted-foreground text-center mt-4">
-                  Don&apos;t have an account?{' '}
-                  <Link href="/contact" className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline">
-                    Request access
-                  </Link>
-                </p>
+                {/* Footer Link */}
+                <div className="mt-5 pt-5 border-t w-full" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+                  <p
+                    className="text-sm text-center"
+                    style={{ color: 'var(--mahogany-500)' }}
+                  >
+                    Don&apos;t have an account?{' '}
+                    <Link
+                      href="/contact"
+                      className="font-semibold transition-colors hover:underline"
+                      style={{ color: 'var(--mahogany-700)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--lake-blue-500)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--mahogany-700)'}
+                    >
+                      Request access
+                    </Link>
+                  </p>
+                </div>
+                </div>
               </motion.div>
             </div>
+
+            {/* Decorative corner accents - matching landing page CTA */}
+            <div
+              className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 rounded-tl-lg pointer-events-none"
+              style={{ borderColor: 'var(--gold-500)' }}
+            />
+            <div
+              className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 rounded-tr-lg pointer-events-none"
+              style={{ borderColor: 'var(--gold-500)' }}
+            />
+            <div
+              className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 rounded-bl-lg pointer-events-none"
+              style={{ borderColor: 'var(--gold-500)' }}
+            />
+            <div
+              className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 rounded-br-lg pointer-events-none"
+              style={{ borderColor: 'var(--gold-500)' }}
+            />
           </motion.div>
         </div>
       </section>
