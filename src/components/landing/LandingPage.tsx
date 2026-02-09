@@ -24,8 +24,8 @@ export function LandingPage() {
 
   return (
     <div
-      className="min-h-screen text-[var(--mahogany-800)] overflow-x-hidden"
-      style={{ backgroundColor: 'var(--ivory-100)' }}
+      className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
       {/* Navigation */}
       <Navigation
@@ -73,11 +73,11 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${hasScrolled
-        ? 'border-b border-[var(--mahogany-300)]/30 backdrop-blur-xl'
-        : ''
+        ? 'border-b border-[var(--mono-border-gray)] backdrop-blur-md shadow-sm'
+        : 'backdrop-blur-sm'
         }`}
       style={{
-        backgroundColor: hasScrolled ? 'rgba(250, 247, 240, 0.95)' : 'rgba(250, 247, 240, 0.7)'
+        backgroundColor: hasScrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.8)'
       }}
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
@@ -85,11 +85,11 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
         <Link href="/" className="flex items-center gap-2.5 group z-10">
           <div
             className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-            style={{ backgroundColor: 'var(--mahogany-600)' }}
+            style={{ backgroundColor: 'var(--accent-brown)' }}
           >
-            <span className="text-[var(--ivory-100)] font-serif italic text-lg font-semibold">w</span>
+            <span className="text-white font-serif italic text-lg font-semibold">w</span>
           </div>
-          <span className="text-xl font-serif font-bold tracking-tight text-[var(--mahogany-700)]">
+          <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
             wavv
           </span>
         </Link>
@@ -100,7 +100,7 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
             <Link
               key={item.name}
               href={item.href}
-              className="text-sm font-medium text-[var(--mahogany-500)] hover:text-[var(--mahogany-800)] transition-colors"
+              className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
             >
               {item.name}
             </Link>
@@ -111,16 +111,16 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
         <div className="hidden md:flex items-center gap-4 z-10">
           <Link
             href="/sign-in"
-            className="text-sm font-medium text-[var(--mahogany-500)] hover:text-[var(--mahogany-800)] transition-colors"
+            className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
           >
             Login
           </Link>
           <Link href="/contact">
             <Button
-              className="rounded-md px-5 h-10 font-serif font-medium transition-all hover:scale-[1.02]"
+              className="rounded-md px-5 h-10 font-medium transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
               style={{
-                backgroundColor: 'var(--mahogany-600)',
-                color: 'var(--ivory-100)',
+                backgroundColor: 'var(--accent-brown)',
+                color: 'white',
               }}
             >
               Request Access
@@ -130,7 +130,7 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden p-2 text-[var(--mahogany-600)]"
+          className="md:hidden p-2 text-[var(--mono-black)]"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
         >
@@ -143,27 +143,27 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden border-t border-[var(--mahogany-300)]/30 px-6 py-4 space-y-4"
-          style={{ backgroundColor: 'var(--ivory-100)' }}
+          className="md:hidden border-t border-[var(--mono-border-gray)] px-6 py-4 space-y-4"
+          style={{ backgroundColor: 'var(--mono-white)' }}
         >
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              className="block text-sm font-medium text-[var(--mahogany-600)] hover:text-[var(--mahogany-800)]"
+              className="block text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)]"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               {item.name}
             </Link>
           ))}
-          <div className="pt-4 border-t border-[var(--mahogany-300)]/30 space-y-3">
-            <Link href="/sign-in" className="block text-sm font-medium text-[var(--mahogany-600)]">
+          <div className="pt-4 border-t border-[var(--mono-border-gray)] space-y-3">
+            <Link href="/sign-in" className="block text-sm font-medium text-[var(--mono-secondary-gray)]">
               Login
             </Link>
             <Link href="/contact" className="block">
               <Button
-                className="w-full font-serif"
-                style={{ backgroundColor: 'var(--mahogany-600)', color: 'var(--ivory-100)' }}
+                className="w-full hover:brightness-95"
+                style={{ backgroundColor: 'var(--accent-brown)', color: 'white' }}
               >
                 Request Access
               </Button>
@@ -186,15 +186,15 @@ function HeroSection() {
 
       <div className="max-w-5xl mx-auto px-6 relative z-10">
         {/* Semi-transparent backdrop for text readability */}
-        <div className="flex flex-col items-center text-center bg-[var(--ivory-100)]/60 backdrop-blur-sm rounded-2xl py-10 px-8 md:py-12 md:px-10">
+        <div className="flex flex-col items-center text-center bg-white/90 backdrop-blur-md rounded-3xl py-14 px-8 md:py-20 md:px-12 border border-white/40 shadow-2xl shadow-black/5">
 
           {/* Main Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-5 leading-[1.1]"
-            style={{ color: 'var(--mahogany-800)' }}
+            className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight mb-6 leading-[1.05]"
+            style={{ color: 'var(--mono-black)' }}
           >
             Tax Intelligence,<br />
             <span style={{ color: 'var(--lake-blue-400)' }}>Unleashed.</span>
@@ -205,8 +205,8 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-base md:text-lg max-w-xl leading-relaxed mb-8"
-            style={{ color: 'var(--mahogany-500)' }}
+            className="text-base md:text-xl max-w-2xl leading-relaxed mb-10"
+            style={{ color: 'var(--mono-secondary-gray)' }}
           >
             Wavv is the unified AI workspace where tax professionals find answers, automate reviews,
             and reclaim time. Work smarter now. Live better later.
@@ -222,10 +222,10 @@ function HeroSection() {
             <Link href="/contact">
               <Button
                 size="lg"
-                className="h-12 px-6 text-base font-serif font-medium rounded-md shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
+                className="h-12 px-8 text-base font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
                 style={{
-                  backgroundColor: 'var(--mahogany-600)',
-                  color: 'var(--ivory-100)',
+                  backgroundColor: 'var(--accent-brown)',
+                  color: 'white',
                 }}
               >
                 Contact Us
@@ -264,38 +264,40 @@ function DashboardPreview() {
       {/* Glow effect */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={isInView ? { opacity: 0.2 } : {}}
+        animate={isInView ? { opacity: 0.4 } : {}}
         transition={{ duration: 1, delay: 0.2 }}
-        className="absolute -inset-4 rounded-3xl blur-3xl"
-        style={{ backgroundColor: 'var(--lake-blue-300)' }}
+        className="absolute -inset-8 rounded-3xl blur-3xl"
+        style={{
+          background: 'radial-gradient(circle at center, rgba(139, 94, 60, 0.08), transparent 70%)'
+        }}
       />
 
       {/* Main container */}
       <div
-        className="relative rounded-2xl border-2 shadow-2xl overflow-hidden"
+        className="relative rounded-3xl border shadow-2xl overflow-hidden"
         style={{
-          backgroundColor: 'var(--ivory-50)',
-          borderColor: 'var(--mahogany-400)',
+          backgroundColor: 'var(--mono-white)',
+          borderColor: 'var(--mono-border-gray)',
         }}
       >
         {/* Browser chrome */}
         <div
           className="h-10 px-4 flex items-center gap-2 border-b"
           style={{
-            backgroundColor: 'var(--ivory-200)',
-            borderColor: 'var(--mahogany-300)',
+            backgroundColor: 'var(--mono-light-gray)',
+            borderColor: 'var(--mono-border-gray)',
           }}
         >
           <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-[var(--mahogany-300)]" />
-            <div className="w-3 h-3 rounded-full bg-[var(--mahogany-300)]" />
-            <div className="w-3 h-3 rounded-full bg-[var(--mahogany-300)]" />
+            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
+            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
+            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
           </div>
           <div
             className="flex-1 mx-4 h-6 rounded-md flex items-center px-3 text-xs"
             style={{
-              backgroundColor: 'var(--ivory-100)',
-              color: 'var(--mahogany-400)',
+              backgroundColor: 'var(--mono-white)',
+              color: 'var(--mono-muted-gray)',
             }}
           >
             wavv.ai/workspace
@@ -308,18 +310,18 @@ function DashboardPreview() {
           <div
             className="hidden md:flex flex-col w-56 p-4 border-r"
             style={{
-              backgroundColor: 'var(--ivory-100)',
-              borderColor: 'var(--mahogany-200)',
+              backgroundColor: 'var(--mono-off-white)',
+              borderColor: 'var(--mono-border-gray)',
             }}
           >
             <div className="flex items-center gap-2 mb-6">
               <div
                 className="w-7 h-7 rounded flex items-center justify-center"
-                style={{ backgroundColor: 'var(--mahogany-600)' }}
+                style={{ backgroundColor: 'var(--accent-brown)' }}
               >
-                <span className="text-[var(--ivory-100)] font-serif italic text-sm">w</span>
+                <span className="text-white font-serif italic text-sm">w</span>
               </div>
-              <span className="font-serif font-bold text-[var(--mahogany-700)]">wavv</span>
+              <span className="font-serif font-bold text-[var(--mono-black)]">wavv</span>
             </div>
 
             {/* Nav items */}
@@ -334,8 +336,8 @@ function DashboardPreview() {
                   key={item.label}
                   className="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors"
                   style={{
-                    backgroundColor: item.active ? 'var(--mahogany-100)' : 'transparent',
-                    color: item.active ? 'var(--mahogany-700)' : 'var(--mahogany-500)',
+                    backgroundColor: item.active ? 'var(--mono-light-gray)' : 'transparent',
+                    color: item.active ? 'var(--mono-black)' : 'var(--mono-secondary-gray)',
                   }}
                 >
                   <item.icon className="w-4 h-4" />
@@ -346,24 +348,24 @@ function DashboardPreview() {
           </div>
 
           {/* Main content */}
-          <div className="flex-1 p-6 overflow-hidden" style={{ backgroundColor: 'var(--ivory-50)' }}>
+          <div className="flex-1 p-6 overflow-hidden" style={{ backgroundColor: 'var(--mono-white)' }}>
             {/* Search bar */}
             <div
               className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg border"
               style={{
-                backgroundColor: 'var(--ivory-100)',
-                borderColor: 'var(--mahogany-300)',
+                backgroundColor: 'var(--mono-off-white)',
+                borderColor: 'var(--mono-border-gray)',
               }}
             >
-              <Search className="w-5 h-5 text-[var(--mahogany-400)]" />
-              <span className="text-[var(--mahogany-400)]">
+              <Search className="w-5 h-5 text-[var(--mono-muted-gray)]" />
+              <span className="text-[var(--mono-muted-gray)]">
                 Search IRC, internal memos, client files...
               </span>
               <div
                 className="ml-auto px-2 py-0.5 rounded text-xs font-mono"
                 style={{
-                  backgroundColor: 'var(--mahogany-200)',
-                  color: 'var(--mahogany-600)',
+                  backgroundColor: 'var(--mono-light-gray)',
+                  color: 'var(--mono-secondary-gray)',
                 }}
               >
                 ⌘K
@@ -397,34 +399,34 @@ function DashboardPreview() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.8 + i * 0.1 }}
-                  className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md"
+                  className="flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm"
                   style={{
-                    backgroundColor: 'var(--ivory-100)',
-                    borderColor: 'var(--mahogany-200)',
+                    backgroundColor: 'var(--mono-white)',
+                    borderColor: 'var(--mono-border-gray)',
                   }}
                 >
                   <div
-                    className="p-2 rounded-md shrink-0"
-                    style={{ backgroundColor: 'var(--excel-green-400)' }}
+                    className="p-2 rounded-lg shrink-0 shadow-sm"
+                    style={{ backgroundColor: 'var(--accent-brown)' }}
                   >
-                    <result.icon className="w-4 h-4 text-[var(--ivory-100)]" />
+                    <result.icon className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span
                         className="text-[10px] font-medium px-1.5 py-0.5 rounded"
                         style={{
-                          backgroundColor: 'var(--mahogany-200)',
-                          color: 'var(--mahogany-600)',
+                          backgroundColor: 'var(--mono-light-gray)',
+                          color: 'var(--mono-secondary-gray)',
                         }}
                       >
                         {result.type}
                       </span>
                     </div>
-                    <h4 className="font-medium text-sm text-[var(--mahogany-700)] truncate">
+                    <h4 className="font-medium text-sm text-[var(--mono-black)] truncate">
                       {result.title}
                     </h4>
-                    <p className="text-xs text-[var(--mahogany-400)] truncate mt-0.5">
+                    <p className="text-xs text-[var(--mono-muted-gray)] truncate mt-0.5">
                       {result.excerpt}
                     </p>
                   </div>
@@ -464,24 +466,56 @@ function ProblemSection() {
   return (
     <section
       ref={ref}
-      className="py-24 md:py-32 relative"
-      style={{ backgroundColor: 'var(--ivory-200)' }}
+      className="py-24 md:py-32 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--mono-off-white)' }}
     >
-      {/* Bookshelf texture on sides */}
-      <div className="absolute inset-y-0 left-0 w-4 opacity-10" style={{ backgroundColor: 'var(--mahogany-600)' }} />
-      <div className="absolute inset-y-0 right-0 w-4 opacity-10" style={{ backgroundColor: 'var(--mahogany-600)' }} />
+      {/* Animated floating orbs */}
+      <motion.div
+        className="absolute top-20 left-10 w-72 h-72 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, 30, 0],
+          y: [0, -20, 0],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(139, 94, 60, 0.15), transparent 70%)'
+        }}
+      />
+      <motion.div
+        className="absolute bottom-20 right-10 w-96 h-96 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, -40, 0],
+          y: [0, 30, 0],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(127, 179, 230, 0.12), transparent 70%)'
+        }}
+      />
 
-      <div className="max-w-6xl mx-auto px-6">
+      {/* Decorative corner elements */}
+      <div className="absolute top-8 right-8 w-24 h-24 border-t border-r border-[var(--mono-border-gray)] rounded-tr-3xl opacity-60 z-0" />
+      <div className="absolute bottom-8 left-8 w-24 h-24 border-b border-l border-[var(--mono-border-gray)] rounded-bl-3xl opacity-60 z-0" />
+
+      <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-5xl font-serif font-bold mb-4" style={{ color: 'var(--mahogany-800)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
             The Reality of Tax Work
           </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--mahogany-500)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
             Your profession demands precision. Your tools should rise to meet it.
           </p>
         </motion.div>
@@ -493,22 +527,22 @@ function ProblemSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: i * 0.1 }}
-              className="p-8 rounded-xl border-2"
+              className="p-8 rounded-2xl border"
               style={{
-                backgroundColor: 'var(--ivory-50)',
-                borderColor: 'var(--mahogany-300)',
+                backgroundColor: 'var(--mono-white)',
+                borderColor: 'var(--mono-border-gray)',
               }}
             >
               <div
-                className="w-12 h-12 rounded-lg flex items-center justify-center mb-5"
-                style={{ backgroundColor: 'var(--mahogany-500)' }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 shadow-sm"
+                style={{ backgroundColor: 'var(--accent-brown)' }}
               >
-                <problem.icon className="w-6 h-6 text-[var(--ivory-100)]" />
+                <problem.icon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-serif font-bold mb-3" style={{ color: 'var(--mahogany-700)' }}>
+              <h3 className="text-xl font-serif font-bold mb-3" style={{ color: 'var(--mono-black)' }}>
                 {problem.title}
               </h3>
-              <p className="leading-relaxed" style={{ color: 'var(--mahogany-500)' }}>
+              <p className="leading-relaxed text-[15px]" style={{ color: 'var(--mono-secondary-gray)' }}>
                 {problem.description}
               </p>
             </motion.div>
@@ -528,11 +562,49 @@ function SolutionSection() {
     <section
       id="features"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20 relative"
-      style={{ backgroundColor: 'var(--ivory-100)' }}
+      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
       {/* Excel grid overlay */}
-      <ExcelGridBackground className="opacity-40" />
+      <ExcelGridBackground className="z-0" />
+
+      {/* Animated floating geometric shapes */}
+      <motion.div
+        className="absolute top-32 right-20 w-64 h-64 rounded-full opacity-70 blur-xl z-[1]"
+        animate={{
+          x: [0, -25, 0],
+          y: [0, 25, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{
+          duration: 9,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(127, 179, 230, 0.3), rgba(127, 179, 230, 0.1) 50%, transparent 70%)'
+        }}
+      />
+      <motion.div
+        className="absolute bottom-32 left-16 w-80 h-80 rounded-full opacity-70 blur-xl z-[1]"
+        animate={{
+          x: [0, 35, 0],
+          y: [0, -25, 0],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{
+          duration: 11,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(139, 94, 60, 0.25), rgba(139, 94, 60, 0.08) 50%, transparent 70%)'
+        }}
+      />
+
+      {/* Decorative grid accent */}
+      <div className="absolute top-12 left-12 w-32 h-32 border-2 border-[var(--mono-border-gray)] rounded-2xl opacity-60 rotate-12 z-[1]" />
+      <div className="absolute bottom-16 right-16 w-40 h-40 border-2 border-[var(--mono-border-gray)] rounded-full opacity-60 z-[1]" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
@@ -542,10 +614,10 @@ function SolutionSection() {
           className="text-center mb-16"
         >
 
-          <h2 className="text-3xl md:text-5xl font-serif font-bold mb-4" style={{ color: 'var(--mahogany-800)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
             One Hub. All Answers.
           </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--mahogany-500)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
             Stop switching between twelve tabs. Wavv unifies your internal knowledge with external tax authority
             in a single, intelligent search.
           </p>
@@ -583,23 +655,23 @@ function SolutionSection() {
             ].map((feature, i) => (
               <div
                 key={feature.title}
-                className="flex gap-4 p-5 rounded-xl border transition-all hover:shadow-md"
+                className="flex gap-4 p-6 rounded-2xl border transition-all hover:shadow-sm"
                 style={{
-                  backgroundColor: 'var(--ivory-50)',
-                  borderColor: 'var(--mahogany-200)',
+                  backgroundColor: 'var(--mono-white)',
+                  borderColor: 'var(--mono-border-gray)',
                 }}
               >
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: 'var(--excel-green-400)' }}
+                  style={{ backgroundColor: 'var(--accent-brown)' }}
                 >
-                  <feature.icon className="w-5 h-5 text-[var(--ivory-100)]" />
+                  <feature.icon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-serif font-bold text-lg mb-1" style={{ color: 'var(--mahogany-700)' }}>
+                  <h4 className="font-serif font-bold text-lg mb-1" style={{ color: 'var(--mono-black)' }}>
                     {feature.title}
                   </h4>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mahogany-500)' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
                     {feature.description}
                   </p>
                 </div>
@@ -626,31 +698,45 @@ function SolutionSection() {
 function KnowledgeGraphVisualization() {
   return (
     <div
-      className="aspect-square relative rounded-2xl border-2 p-8"
+      className="aspect-square relative rounded-2xl border p-8"
       style={{
-        backgroundColor: 'var(--ivory-50)',
-        borderColor: 'var(--mahogany-300)',
+        backgroundColor: 'var(--mono-white)',
+        borderColor: 'var(--mono-border-gray)',
       }}
     >
+      {/* Connection lines (SVG) - Behind everything */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+        <circle
+          cx="50%"
+          cy="50%"
+          r="120"
+          fill="none"
+          stroke="var(--mono-border-gray)"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+          opacity="0.4"
+        />
+      </svg>
+
       {/* Center node */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
         <motion.div
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 3, repeat: Infinity }}
-          className="w-20 h-20 rounded-xl flex items-center justify-center shadow-xl"
-          style={{ backgroundColor: 'var(--mahogany-600)' }}
+          className="w-20 h-20 rounded-xl flex items-center justify-center shadow-lg"
+          style={{ backgroundColor: 'var(--accent-brown)' }}
         >
-          <Brain className="w-10 h-10 text-[var(--ivory-100)]" />
+          <Brain className="w-10 h-10 text-white" />
         </motion.div>
       </div>
 
       {/* Orbiting nodes */}
       {[
         { angle: 0, icon: FileText, label: '10-K Filing', color: 'var(--lake-blue-400)' },
-        { angle: 72, icon: Database, label: 'SharePoint', color: 'var(--excel-green-400)' },
-        { angle: 144, icon: BookOpen, label: 'Tax Research', color: 'var(--gold-500)' },
-        { angle: 216, icon: FolderOpen, label: 'Workpapers', color: 'var(--mahogany-400)' },
-        { angle: 288, icon: Briefcase, label: 'Client Files', color: 'var(--excel-green-500)' },
+        { angle: 72, icon: Database, label: 'SharePoint', color: 'var(--lake-blue-400)' },
+        { angle: 144, icon: BookOpen, label: 'Tax Research', color: 'var(--lake-blue-400)' },
+        { angle: 216, icon: FolderOpen, label: 'Workpapers', color: 'var(--lake-blue-400)' },
+        { angle: 288, icon: Briefcase, label: 'Client Files', color: 'var(--lake-blue-400)' },
       ].map((node) => {
         const x = Math.cos((node.angle * Math.PI) / 180) * 120
         const y = Math.sin((node.angle * Math.PI) / 180) * 120
@@ -658,23 +744,25 @@ function KnowledgeGraphVisualization() {
         return (
           <motion.div
             key={node.label}
-            className="absolute top-1/2 left-1/2 flex flex-col items-center gap-2"
+            className="absolute top-1/2 left-1/2 flex flex-col items-center gap-2 z-10"
             style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: node.angle / 360 + 0.5 }}
           >
             <div
-              className="w-12 h-12 rounded-lg flex items-center justify-center shadow-md"
-              style={{ backgroundColor: node.color }}
+              className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm border border-white/30"
+              style={{
+                backgroundColor: node.color,
+              }}
             >
-              <node.icon className="w-5 h-5 text-[var(--ivory-100)]" />
+              <node.icon className="w-5 h-5 text-white" />
             </div>
             <span
               className="text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded"
               style={{
-                backgroundColor: 'var(--ivory-200)',
-                color: 'var(--mahogany-600)',
+                backgroundColor: 'var(--mono-light-gray)',
+                color: 'var(--mono-secondary-gray)',
               }}
             >
               {node.label}
@@ -682,20 +770,6 @@ function KnowledgeGraphVisualization() {
           </motion.div>
         )
       })}
-
-      {/* Connection lines (SVG) */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        <circle
-          cx="50%"
-          cy="50%"
-          r="120"
-          fill="none"
-          stroke="var(--mahogany-300)"
-          strokeWidth="1"
-          strokeDasharray="4 4"
-          opacity="0.5"
-        />
-      </svg>
     </div>
   )
 }
@@ -709,20 +783,71 @@ function FeaturesSection() {
     <section
       id="how-it-works"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20"
-      style={{ backgroundColor: 'var(--ivory-200)' }}
+      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--mono-off-white)' }}
     >
-      <div className="max-w-6xl mx-auto px-6">
+      {/* Animated floating orbs with different patterns */}
+      <motion.div
+        className="absolute top-16 left-16 w-56 h-56 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, 20, 0],
+          y: [0, -30, 0],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: 7,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(127, 179, 230, 0.15), transparent 70%)'
+        }}
+      />
+      <motion.div
+        className="absolute bottom-24 right-20 w-72 h-72 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, -30, 0],
+          y: [0, 20, 0],
+        }}
+        transition={{
+          duration: 9,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(139, 94, 60, 0.13), transparent 70%)'
+        }}
+      />
+
+      {/* Decorative corner accents */}
+      <div className="absolute top-10 right-10 w-28 h-28 border-t-2 border-r-2 border-[var(--mono-border-gray)] rounded-tr-3xl opacity-60 z-0" />
+      <div className="absolute bottom-10 left-10 w-28 h-28 border-b-2 border-l-2 border-[var(--mono-border-gray)] rounded-bl-3xl opacity-60 z-0" />
+
+      {/* Animated connecting lines */}
+      <motion.div
+        className="absolute top-1/2 left-0 w-32 h-[2px] bg-gradient-to-r from-transparent via-[var(--mono-border-gray)] to-transparent z-0 opacity-80"
+        animate={{
+          scaleX: [0, 1, 0],
+          x: [0, 100, 200],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+
+      <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-5xl font-serif font-bold mb-4" style={{ color: 'var(--mahogany-800)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
             Built for How You Work
           </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--mahogany-500)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
             From task creation to multi-level review approval, Wavv streamlines your entire workflow.
           </p>
         </motion.div>
@@ -735,8 +860,8 @@ function FeaturesSection() {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <h3
-              className="text-2xl md:text-3xl font-serif font-bold mb-6"
-              style={{ color: 'var(--mahogany-800)' }}
+              className="text-2xl md:text-3xl font-serif font-bold mb-6 leading-tight"
+              style={{ color: 'var(--mono-black)' }}
             >
               Automated Review Workflows
             </h3>
@@ -758,11 +883,11 @@ function FeaturesSection() {
                 >
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: 'var(--excel-green-400)' }}
+                    style={{ backgroundColor: 'var(--accent-brown)' }}
                   >
-                    <Check className="w-3 h-3 text-[var(--ivory-100)]" />
+                    <Check className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-[var(--mahogany-600)]">{item}</span>
+                  <span className="text-[var(--mono-secondary-gray)]">{item}</span>
                 </motion.div>
               ))}
             </div>
@@ -816,20 +941,86 @@ function RoadmapSection() {
     <section
       id="why-wavv"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20"
-      style={{ backgroundColor: 'var(--ivory-200)' }}
+      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
-      <div className="max-w-6xl mx-auto px-6">
+      {/* Large animated gradient orbs for future/innovation feel */}
+      <motion.div
+        className="absolute top-20 right-10 w-96 h-96 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, -20, 0],
+          y: [0, 40, 0],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(127, 179, 230, 0.18), transparent 70%)'
+        }}
+      />
+      <motion.div
+        className="absolute bottom-16 left-12 w-80 h-80 rounded-full opacity-60 blur-2xl z-0"
+        animate={{
+          x: [0, 30, 0],
+          y: [0, -30, 0],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        style={{
+          background: 'radial-gradient(circle, rgba(139, 94, 60, 0.12), transparent 70%)'
+        }}
+      />
+
+      {/* Animated progress lines - suggesting forward motion */}
+      <motion.div
+        className="absolute top-1/3 right-0 w-48 h-[2px] bg-gradient-to-l from-transparent via-[var(--mono-border-gray)] to-transparent opacity-80 z-0"
+        animate={{
+          scaleX: [0, 1, 0],
+          x: [-100, -50, 0],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+          repeatDelay: 1,
+        }}
+      />
+      <motion.div
+        className="absolute top-2/3 left-0 w-48 h-[2px] bg-gradient-to-r from-transparent via-[var(--mono-border-gray)] to-transparent opacity-80 z-0"
+        animate={{
+          scaleX: [0, 1, 0],
+          x: [0, 50, 100],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+          repeatDelay: 1,
+          delay: 0.5,
+        }}
+      />
+
+      {/* Decorative tech-inspired elements */}
+      <div className="absolute top-12 left-12 w-20 h-20 border-2 border-[var(--lake-blue-400)] rounded-lg opacity-40 rotate-45 z-0" />
+      <div className="absolute bottom-12 right-12 w-24 h-24 border-2 border-[var(--accent-brown)] rounded-full opacity-35 z-0" />
+
+      <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-5xl font-serif font-bold mb-4" style={{ color: 'var(--mahogany-800)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
             What's Next
           </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--mahogany-500)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
             Our roadmap for continuous improvement and innovation.
           </p>
         </motion.div>
@@ -841,47 +1032,47 @@ function RoadmapSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="p-6 rounded-xl border-2 relative overflow-hidden"
+              className="p-6 rounded-2xl border relative overflow-hidden"
               style={{
-                backgroundColor: 'var(--ivory-50)',
-                borderColor: 'var(--mahogany-300)',
+                backgroundColor: 'var(--mono-white)',
+                borderColor: 'var(--mono-border-gray)',
               }}
             >
               {/* Progress bar at top */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--mahogany-200)]">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--mono-light-gray)]">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={isInView ? { width: `${item.progress}%` } : {}}
                   transition={{ duration: 1, delay: 0.5 + i * 0.2 }}
                   className="h-full"
-                  style={{ backgroundColor: 'var(--excel-green-400)' }}
+                  style={{ backgroundColor: 'var(--accent-brown)' }}
                 />
               </div>
 
               <div className="flex items-start gap-4 mt-4">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: 'var(--lake-blue-400)' }}
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                  style={{ backgroundColor: 'var(--accent-brown)' }}
                 >
-                  <item.icon className="w-6 h-6 text-[var(--ivory-100)]" />
+                  <item.icon className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                       style={{
-                        backgroundColor: item.status === 'In Progress' ? 'var(--excel-green-400)' :
-                          item.status === 'Coming Soon' ? 'var(--gold-400)' : 'var(--mahogany-300)',
-                        color: 'var(--ivory-100)',
+                        backgroundColor: item.status === 'In Progress' ? 'var(--accent-brown)' :
+                          item.status === 'Coming Soon' ? 'var(--mono-secondary-gray)' : 'var(--mono-muted-gray)',
+                        color: 'white',
                       }}
                     >
                       {item.status}
                     </span>
                   </div>
-                  <h3 className="font-serif font-bold text-lg mb-2" style={{ color: 'var(--mahogany-700)' }}>
+                  <h3 className="font-serif font-bold text-lg mb-2 leading-snug" style={{ color: 'var(--mono-black)' }}>
                     {item.title}
                   </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mahogany-500)' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
                     {item.description}
                   </p>
                 </div>
@@ -1039,69 +1230,60 @@ function CTASection() {
   return (
     <section
       ref={ref}
-      className="py-24 md:py-32"
-      style={{ backgroundColor: 'var(--ivory-100)' }}
+      className="py-32 md:py-40 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
-      <div className="max-w-3xl mx-auto px-6">
+      {/* Subtle gradient background */}
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: 'radial-gradient(ellipse at top, rgba(139, 94, 60, 0.04), transparent 60%)'
+        }}
+      />
+
+      <div className="max-w-4xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="relative"
+          className="text-center"
         >
-          {/* The "Business Card" */}
-          <div
-            className="relative p-12 md:p-16 rounded-2xl border-2 shadow-2xl text-center"
-            style={{
-              backgroundColor: 'var(--ivory-50)',
-              borderColor: 'var(--mahogany-400)',
-            }}
+          {/* Minimal accent line */}
+          <motion.div
+            initial={{ width: 0 }}
+            animate={isInView ? { width: '64px' } : {}}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="h-0.5 mx-auto mb-10"
+            style={{ backgroundColor: 'var(--accent-brown)' }}
+          />
+
+          <h2
+            className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold mb-6 leading-tight"
+            style={{ color: 'var(--mono-black)' }}
           >
-            {/* Decorative corner accents */}
-            <div
-              className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 rounded-tl-lg"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 rounded-tr-lg"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 rounded-bl-lg"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 rounded-br-lg"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
+            Join the firms that work like the 1%.
+          </h2>
 
-            <h2
-              className="text-3xl md:text-4xl font-serif font-bold mb-4"
-              style={{ color: 'var(--mahogany-800)' }}
-            >
-              Join the firms that <br />work like the 1%.
-            </h2>
-            <p
-              className="text-lg mb-8 max-w-lg mx-auto"
-              style={{ color: 'var(--mahogany-500)' }}
-            >
-              See how Wavv transforms tax practice. Schedule a personalized demo with our team.
-            </p>
+          <p
+            className="text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed"
+            style={{ color: 'var(--mono-secondary-gray)' }}
+          >
+            See how Wavv transforms tax practice. Schedule a personalized demo with our team.
+          </p>
 
-            <Link href="/contact">
-              <Button
-                size="lg"
-                className="h-14 px-10 text-lg font-serif font-medium rounded-md shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
-                style={{
-                  backgroundColor: 'var(--mahogany-600)',
-                  color: 'var(--ivory-100)',
-                }}
-              >
-                Request Access
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
+          <Link href="/contact">
+            <Button
+              size="lg"
+              className="h-14 px-12 text-lg font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm group"
+              style={{
+                backgroundColor: 'var(--accent-brown)',
+                color: 'white',
+              }}
+            >
+              Request Access
+              <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
         </motion.div>
       </div>
     </section>
@@ -1114,8 +1296,8 @@ function Footer() {
     <footer
       className="py-12 border-t"
       style={{
-        backgroundColor: 'var(--ivory-200)',
-        borderColor: 'var(--mahogany-300)',
+        backgroundColor: 'var(--mono-white)',
+        borderColor: 'var(--mono-border-gray)',
       }}
     >
       <div className="max-w-6xl mx-auto px-6">
@@ -1124,33 +1306,33 @@ function Footer() {
           <div className="flex items-center gap-2">
             <div
               className="w-7 h-7 rounded flex items-center justify-center"
-              style={{ backgroundColor: 'var(--mahogany-600)' }}
+              style={{ backgroundColor: 'var(--accent-brown)' }}
             >
-              <span className="text-[var(--ivory-100)] font-serif italic text-sm">w</span>
+              <span className="text-white font-serif italic text-sm">w</span>
             </div>
-            <span className="font-serif font-bold text-[var(--mahogany-700)]">wavv</span>
+            <span className="font-serif font-bold text-[var(--mono-black)]">wavv</span>
           </div>
 
           {/* Links */}
           <div className="flex gap-8">
             <Link
               href="/privacy"
-              className="text-sm hover:underline"
-              style={{ color: 'var(--mahogany-500)' }}
+              className="text-sm hover:underline transition-colors"
+              style={{ color: 'var(--mono-secondary-gray)' }}
             >
               Privacy Policy
             </Link>
             <Link
               href="/terms"
-              className="text-sm hover:underline"
-              style={{ color: 'var(--mahogany-500)' }}
+              className="text-sm hover:underline transition-colors"
+              style={{ color: 'var(--mono-secondary-gray)' }}
             >
               Terms of Service
             </Link>
           </div>
 
           {/* Copyright */}
-          <div className="text-sm" style={{ color: 'var(--mahogany-400)' }}>
+          <div className="text-sm" style={{ color: 'var(--mono-muted-gray)' }}>
             © 2026 Wavv AI LLC.
           </div>
         </div>

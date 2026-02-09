@@ -18,7 +18,7 @@ function ExcelGridBackgroundComponent({
         <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
             {/* Base grid pattern */}
             <div
-                className="absolute inset-0 opacity-[0.08]"
+                className="absolute inset-0"
                 style={{
                     backgroundImage: `
             linear-gradient(to right, var(--excel-green-500) 1px, transparent 1px),
@@ -60,52 +60,6 @@ function ExcelGridBackgroundComponent({
                         </motion.div>
                     ))}
                 </div>
-            )}
-
-            {/* Animated highlight cells */}
-            {animated && (
-                <>
-                    <motion.div
-                        className="absolute w-40 h-6 bg-[var(--excel-green-400)]/10 border border-[var(--excel-green-400)]/30"
-                        style={{ top: '48px', left: '80px' }}
-                        animate={{
-                            opacity: [0.3, 0.6, 0.3],
-                            scale: [1, 1.02, 1],
-                        }}
-                        transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            repeatType: 'reverse',
-                        }}
-                    />
-                    <motion.div
-                        className="absolute w-20 h-6 bg-[var(--excel-green-400)]/10 border border-[var(--excel-green-400)]/30"
-                        style={{ top: '120px', left: '160px' }}
-                        animate={{
-                            opacity: [0.2, 0.5, 0.2],
-                            scale: [1, 1.02, 1],
-                        }}
-                        transition={{
-                            duration: 4,
-                            repeat: Infinity,
-                            repeatType: 'reverse',
-                            delay: 1,
-                        }}
-                    />
-                    <motion.div
-                        className="absolute w-32 h-12 bg-[var(--excel-green-400)]/10 border-2 border-[var(--excel-green-400)]/40"
-                        style={{ top: '168px', left: '40px' }}
-                        animate={{
-                            opacity: [0.2, 0.4, 0.2],
-                        }}
-                        transition={{
-                            duration: 5,
-                            repeat: Infinity,
-                            repeatType: 'reverse',
-                            delay: 2,
-                        }}
-                    />
-                </>
             )}
 
             {/* Subtle gradient overlay */}

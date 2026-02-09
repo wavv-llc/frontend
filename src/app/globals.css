@@ -46,66 +46,96 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  /* Bateman Palette - Old Money Aesthetic */
-  --background: #FAF7F0; /* ivory-100 - warm ivory background */
-  --foreground: #3E2723; /* mahogany-800 - dark mahogany for primary text */
-  --card: #FDFCFA; /* ivory-50 - lightest ivory for cards */
-  --card-foreground: #4A332D; /* mahogany-700 - card text */
-  --popover: #FDFCFA; /* ivory-50 - popover background */
-  --popover-foreground: #3E2723; /* mahogany-800 - popover text */
-  --primary: #5D4037; /* mahogany-600 - primary actions/buttons */
-  --primary-foreground: #FAF7F0; /* ivory-100 - text on primary */
-  --secondary: #6FA8C6; /* lake-blue-400 - secondary actions */
-  --secondary-foreground: #FAF7F0; /* ivory-100 - text on secondary */
-  --muted: #F5EFE4; /* ivory-200 - muted backgrounds */
-  --muted-foreground: #6D4532; /* mahogany-500 - muted text */
-  --accent: #218380; /* excel-green-400 - accent highlights */
-  --accent-foreground: #FDFCFA; /* ivory-50 - text on accent */
-  --destructive: #DC2626; /* red for destructive actions */
-  --destructive-foreground: #FDFCFA; /* ivory-50 - text on destructive */
-  --border: #A67C5B; /* mahogany-300 - warm borders */
-  --input: #E8DFD0; /* ivory-300 - input borders */
-  --ring: #8B5A3C; /* mahogany-400 - focus rings */
-  --chart-1: #218380; /* excel-green-400 */
-  --chart-2: #6FA8C6; /* lake-blue-400 */
-  --chart-3: #B8860B; /* gold-500 */
-  --chart-4: #5D4037; /* mahogany-600 */
-  --chart-5: #2A9D8F; /* excel-green-300 */
-  --sidebar: #FAF7F0; /* ivory-100 - match background */
-  --sidebar-foreground: #3E2723; /* mahogany-800 - sidebar text */
-  --sidebar-primary: #5D4037; /* mahogany-600 - sidebar primary */
-  --sidebar-primary-foreground: #FAF7F0; /* ivory-100 */
-  --sidebar-accent: #F5EFE4; /* ivory-200 - sidebar hover */
-  --sidebar-accent-foreground: #4A332D; /* mahogany-700 - sidebar accent text */
-  --sidebar-border: #A67C5B; /* mahogany-300 - sidebar borders */
-  --sidebar-ring: #8B5A3C; /* mahogany-400 - sidebar focus */
+  --radius: 0.5rem;
 
-  /* Bateman Palette - Old Money Aesthetic */
-  --ivory-50: #FDFCFA;
-  --ivory-100: #FAF7F0;
-  --ivory-200: #F5EFE4;
-  --ivory-300: #E8DFD0;
-  
-  --mahogany-300: #A67C5B;
-  --mahogany-400: #8B5A3C;
-  --mahogany-500: #6D4532;
-  --mahogany-600: #5D4037;
-  --mahogany-700: #4A332D;
-  --mahogany-800: #3E2723;
-  
-  --excel-green-300: #2A9D8F;
-  --excel-green-400: #218380;
-  --excel-green-500: #186140;
-  --excel-green-600: #145535;
-  
-  --lake-blue-100: #D4E8F2;
-  --lake-blue-200: #B8D4E3;
-  --lake-blue-300: #8FBFD6;
-  --lake-blue-400: #6FA8C6;
-  
-  --gold-400: #C9A227;
-  --gold-500: #B8860B;
+  /* Editorial Monochrome SaaS Design System */
+  /* Base Colors - Strictly Monochrome */
+  --background: #FFFFFF; /* pure white */
+  --foreground: #000000; /* pure black for primary text */
+  --card: #FFFFFF; /* white cards */
+  --card-foreground: #000000; /* black text on cards */
+  --popover: #FFFFFF; /* white popovers */
+  --popover-foreground: #000000; /* black text */
+
+  /* Accent Color - Warm Brown for CTAs and highlights */
+  --primary: #8B5E3C; /* warm brown accent */
+  --primary-foreground: #FFFFFF; /* white text on accent */
+
+  /* Secondary stays as blue for hero section only */
+  --secondary: #7FB3E6; /* soft light blue (hero only) */
+  --secondary-foreground: #FFFFFF; /* white text */
+
+  /* Neutral Grays */
+  --muted: #FAFAFA; /* off-white for subtle backgrounds */
+  --muted-foreground: #666666; /* medium gray for secondary text */
+  --accent: #8B5E3C; /* warm brown accent */
+  --accent-foreground: #FFFFFF; /* white text on accent */
+
+  --destructive: #DC2626; /* red for destructive actions */
+  --destructive-foreground: #FFFFFF; /* white text */
+
+  /* Borders & Inputs - Very Subtle */
+  --border: #E5E5E5; /* very light gray borders */
+  --input: #F5F5F5; /* light gray input backgrounds */
+  --ring: #8B5E3C; /* warm brown focus rings */
+
+  /* Chart Colors */
+  --chart-1: #8B5E3C; /* warm brown */
+  --chart-2: #7FB3E6; /* soft blue */
+  --chart-3: #999999; /* medium gray */
+  --chart-4: #666666; /* dark gray */
+  --chart-5: #CCCCCC; /* light gray */
+
+  /* Sidebar */
+  --sidebar: #FFFFFF; /* white */
+  --sidebar-foreground: #000000; /* black text */
+  --sidebar-primary: #8B5E3C; /* warm brown */
+  --sidebar-primary-foreground: #FFFFFF; /* white */
+  --sidebar-accent: #FAFAFA; /* off-white hover */
+  --sidebar-accent-foreground: #000000; /* black text */
+  --sidebar-border: #E5E5E5; /* light gray borders */
+  --sidebar-ring: #8B5E3C; /* warm brown focus */
+
+  /* Design Token Variables - Monochrome System */
+  --mono-white: #FFFFFF;
+  --mono-off-white: #FAFAFA;
+  --mono-light-gray: #F5F5F5;
+  --mono-border-gray: #E5E5E5;
+  --mono-muted-gray: #999999;
+  --mono-secondary-gray: #666666;
+  --mono-black: #000000;
+
+  /* Accent Color */
+  --accent-brown: #8B5E3C; /* warm brown for CTAs */
+  --accent-brown-hover: #734D2F; /* darker on hover */
+
+  /* Hero Section Only - Blue Lake Colors (preserved) */
+  --lake-blue-100: #E6F3FA;
+  --lake-blue-200: #B8DCEF;
+  --lake-blue-300: #9CCAE8;
+  --lake-blue-400: #7FB3E6; /* soft light blue */
+  --lake-blue-500: #5A9BD4;
+
+  /* Legacy variable mapping for backward compatibility */
+  --ivory-50: #FFFFFF;
+  --ivory-100: #FAFAFA;
+  --ivory-200: #F5F5F5;
+  --ivory-300: #E5E5E5;
+
+  --mahogany-300: #999999;
+  --mahogany-400: #666666;
+  --mahogany-500: #666666;
+  --mahogany-600: #8B5E3C; /* maps to accent brown */
+  --mahogany-700: #333333;
+  --mahogany-800: #000000;
+
+  --excel-green-300: #8B5E3C;
+  --excel-green-400: #8B5E3C;
+  --excel-green-500: #734D2F;
+  --excel-green-600: #5A3D24;
+
+  --gold-400: #8B5E3C;
+  --gold-500: #8B5E3C;
 }
 
 .dark {
