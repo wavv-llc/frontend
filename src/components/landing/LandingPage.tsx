@@ -178,22 +178,22 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
 // ============ HERO SECTION ============
 function HeroSection() {
   return (
-    <section className="relative pt-28 pb-20 md:pt-40 md:pb-32">
+    <section className="relative pt-24 pb-16 md:pt-32 md:pb-24">
       {/* Animated water background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <RetroWaterAnimation intensity="medium" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 relative z-10">
+      <div className="max-w-5xl mx-auto px-6 relative z-10">
         {/* Semi-transparent backdrop for text readability */}
-        <div className="flex flex-col items-center text-center bg-[var(--ivory-100)]/60 backdrop-blur-sm rounded-2xl py-12 px-8 md:py-16 md:px-12">
+        <div className="flex flex-col items-center text-center bg-[var(--ivory-100)]/60 backdrop-blur-sm rounded-2xl py-10 px-8 md:py-12 md:px-10">
 
           {/* Main Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight mb-6 leading-[1.1]"
+            className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-5 leading-[1.1]"
             style={{ color: 'var(--mahogany-800)' }}
           >
             Tax Intelligence,<br />
@@ -205,7 +205,7 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg md:text-xl max-w-2xl leading-relaxed mb-10"
+            className="text-base md:text-lg max-w-xl leading-relaxed mb-8"
             style={{ color: 'var(--mahogany-500)' }}
           >
             Wavv is the unified AI workspace where tax professionals find answers, automate reviews,
@@ -222,7 +222,7 @@ function HeroSection() {
             <Link href="/contact">
               <Button
                 size="lg"
-                className="h-14 px-8 text-lg font-serif font-medium rounded-md shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
+                className="h-12 px-6 text-base font-serif font-medium rounded-md shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
                 style={{
                   backgroundColor: 'var(--mahogany-600)',
                   color: 'var(--ivory-100)',
@@ -239,7 +239,7 @@ function HeroSection() {
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="mt-16 md:mt-24 relative"
+          className="mt-32 md:mt-48 relative"
         >
           <DashboardPreview />
         </motion.div>
@@ -250,11 +250,23 @@ function HeroSection() {
 
 // ============ DASHBOARD PREVIEW (Simplified) ============
 function DashboardPreview() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
+
   return (
-    <div className="relative mx-auto max-w-5xl">
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 60, scale: 0.95 }}
+      animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="relative mx-auto max-w-5xl"
+    >
       {/* Glow effect */}
-      <div
-        className="absolute -inset-4 rounded-3xl opacity-20 blur-3xl"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={isInView ? { opacity: 0.2 } : {}}
+        transition={{ duration: 1, delay: 0.2 }}
+        className="absolute -inset-4 rounded-3xl blur-3xl"
         style={{ backgroundColor: 'var(--lake-blue-300)' }}
       />
 
@@ -422,7 +434,7 @@ function DashboardPreview() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -756,11 +768,12 @@ function FeaturesSection() {
             </div>
           </motion.div>
 
-          {/* Reviewer Flow Animation */}
+          {/* Reviewer Flow Animation - Hidden on mobile to prevent clipping */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.3 }}
+            className="hidden lg:block"
           >
             <ReviewerFlowAnimation />
           </motion.div>

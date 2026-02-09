@@ -1072,12 +1072,12 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
             align="end"
             className="w-56 bg-popover border-border text-popover-foreground"
           >
-            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/user/settings")}>
+            <DropdownMenuItem className="cursor-pointer focus:bg-sky-100 focus:text-foreground" onClick={() => router.push("/user/settings")}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleSignOut}>
+            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive focus:bg-sky-100" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </DropdownMenuItem>

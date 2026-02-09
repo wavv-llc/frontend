@@ -242,10 +242,6 @@ export default function DocumentDetailPage() {
                 size="sm"
                 onClick={handleRetryDocument}
                 disabled={isRetrying}
-                className={!canRetryEmbedding
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : ""
-                }
               >
                 {isRetrying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

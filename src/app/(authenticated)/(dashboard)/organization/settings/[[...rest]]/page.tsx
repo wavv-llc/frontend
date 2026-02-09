@@ -7,14 +7,22 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter } from 'lucide-react'
-import { sharepointApi, organizationApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse } from '@/lib/api'
+import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter, Users, Trash2 } from 'lucide-react'
+import { sharepointApi, organizationApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse, roleApi, OrganizationMember, Role } from '@/lib/api'
 import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from "@/components/ui/skeleton"
 import { useUser } from '@/contexts/UserContext'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
 import { toast } from 'sonner'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
 interface SharePointSite {
   id: string
@@ -56,12 +64,23 @@ export default function SettingsPage() {
   const [documentSearch, setDocumentSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
+  // Members state
+  const [members, setMembers] = useState<OrganizationMember[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  const [membersError, setMembersError] = useState<string | null>(null)
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null)
+  const [isRemovingMember, setIsRemovingMember] = useState(false)
+  const [updatingRoleForUserId, setUpdatingRoleForUserId] = useState<string | null>(null)
+
   const organizationId = user?.organization?.id
 
   useEffect(() => {
     if (isLoaded && organizationId) {
       loadSharePointData()
       loadDocuments(organizationId)
+      loadMembers()
+      loadRoles()
     }
   }, [isLoaded, getToken, organizationId])
 
@@ -186,6 +205,97 @@ export default function SettingsPage() {
     } finally {
       setIsInviting(false)
     }
+  }
+
+  const loadMembers = async () => {
+    if (!organizationId) return
+
+    try {
+      setIsLoadingMembers(true)
+      setMembersError(null)
+      const token = await getToken()
+      if (!token) return
+
+      const response = await organizationApi.getMembers(token, organizationId)
+      setMembers(response.data || [])
+    } catch (err) {
+      console.error('Error loading members:', err)
+      setMembersError(err instanceof Error ? err.message : 'Failed to load members')
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }
+
+  const loadRoles = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+
+      const response = await roleApi.getAllRoles(token)
+      // Filter to only organization-level roles
+      const orgRoles = (response.data || []).filter(role =>
+        role.permissions.some(p =>
+          ['ORG_VIEW', 'ORG_EDIT', 'ORG_DELETE', 'ORG_MANAGE_MEMBERS'].includes(p.key)
+        )
+      )
+      setRoles(orgRoles)
+    } catch (err) {
+      console.error('Error loading roles:', err)
+    }
+  }
+
+  const handleRoleChange = async (userId: string, newRoleId: string) => {
+    if (!organizationId) return
+
+    try {
+      setUpdatingRoleForUserId(userId)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await organizationApi.updateMemberRole(token, organizationId, userId, newRoleId)
+      toast.success('Member role updated successfully')
+      await loadMembers()
+    } catch (err) {
+      console.error('Error updating member role:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to update member role')
+    } finally {
+      setUpdatingRoleForUserId(null)
+    }
+  }
+
+  const handleRemoveMember = async () => {
+    if (!organizationId || !memberToRemove) return
+
+    try {
+      setIsRemovingMember(true)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await organizationApi.removeMember(token, organizationId, memberToRemove.id)
+      toast.success(`${memberToRemove.email} has been removed from the organization`)
+      setMemberToRemove(null)
+      await loadMembers()
+    } catch (err) {
+      console.error('Error removing member:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to remove member')
+    } finally {
+      setIsRemovingMember(false)
+    }
+  }
+
+  const getMemberRole = (member: OrganizationMember) => {
+    const orgRoleAssignment = member.roleAssignments.find(ra => ra.organizationId === organizationId)
+    return orgRoleAssignment?.role
+  }
+
+  const isCurrentUser = (member: OrganizationMember) => {
+    return member.id === user?.id
   }
 
   const loadSharePointData = async () => {
@@ -336,7 +446,7 @@ export default function SettingsPage() {
                           key={site.id}
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
                             ? 'border-primary bg-primary/5'
-                            : 'border-input hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                            : 'border-input hover:bg-muted'
                             }`}
                           onClick={() => toggleSite(site.id)}
                         >
@@ -458,6 +568,141 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Members Management */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <div>
+                    <CardTitle>Organization Members</CardTitle>
+                    <CardDescription>
+                      View and manage member roles and access
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadMembers}
+                  disabled={isLoadingMembers}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {membersError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {membersError}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : isLoadingMembers ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-1/3" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-9 w-32" />
+                    </div>
+                  ))}
+                </div>
+              ) : members.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No members found in your organization.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {members.map((member) => {
+                    const memberRole = getMemberRole(member)
+                    const isMe = isCurrentUser(member)
+                    const isUpdating = updatingRoleForUserId === member.id
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-medium text-primary">
+                              {member.firstName?.[0]?.toUpperCase() || member.email[0].toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium truncate">
+                                {member.firstName && member.lastName
+                                  ? `${member.firstName} ${member.lastName}`
+                                  : member.email}
+                              </h4>
+                              {isMe && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {member.email}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Select
+                            value={memberRole?.id || ''}
+                            onValueChange={(newRoleId) => handleRoleChange(member.id, newRoleId)}
+                            disabled={isMe || isUpdating}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select role">
+                                {isUpdating ? (
+                                  <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Updating...
+                                  </div>
+                                ) : (
+                                  memberRole?.name || 'No role'
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map((role) => (
+                                <SelectItem key={role.id} value={role.id}>
+                                  {role.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberToRemove(member)}
+                            disabled={isMe}
+                            title={isMe ? 'You cannot remove yourself' : 'Remove member'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Organization Documents */}
           <Card>
             <CardHeader>
@@ -564,7 +809,7 @@ export default function SettingsPage() {
                     {filteredDocuments.map((doc) => (
                       <div
                         key={doc.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted transition-colors cursor-pointer"
                         onClick={() => router.push(`/documents/${doc.id}`)}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -652,6 +897,42 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Confirmation Dialog for Member Removal */}
+      <Dialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove {memberToRemove?.email} from the organization?
+              This action will deactivate their account and remove all their access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMemberToRemove(null)}
+              disabled={isRemovingMember}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveMember}
+              disabled={isRemovingMember}
+            >
+              {isRemovingMember ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Member'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
   )
 }

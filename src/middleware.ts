@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   '/privacy',
   '/terms',
   '/api/webhooks(.*)',
+  '/api/v1(.*)', // Allow backend API routes to be proxied without Clerk auth
 ])
 
 export default clerkMiddleware(async (auth, request) => {

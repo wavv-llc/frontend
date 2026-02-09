@@ -1,16 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useClerk } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, CheckCircle2, Building2, Share2, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, CheckCircle2, Building2, Share2, UserPlus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { sharepointApi, userApi, organizationApi } from '@/lib/api'
 import { OnboardingSkeleton } from '@/components/skeletons/OnboardingSkeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface SharePointSite {
   id: string
@@ -28,6 +36,7 @@ const STEPS = [
 
 export default function OnboardingPage() {
   const { isLoaded, isSignedIn, getToken, userId } = useAuth()
+  const { signOut } = useClerk()
   const router = useRouter()
 
   // Multi-step state
@@ -48,6 +57,10 @@ export default function OnboardingPage() {
   // General loading states
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Exit dialog state
+  const [showExitDialog, setShowExitDialog] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
 
   useEffect(() => {
     if (!isLoaded) return
@@ -227,6 +240,39 @@ export default function OnboardingPage() {
     }
   }
 
+  const handleExitOnboarding = async () => {
+    try {
+      setIsExiting(true)
+      const token = await getToken()
+
+      if (!token) {
+        toast.error('Authentication required')
+        setIsExiting(false)
+        return
+      }
+
+      // Call API to clean up data
+      await userApi.abandonOnboarding(token)
+
+      // Clear cached onboarding state
+      sessionStorage.removeItem('wavv_onboarding_completed')
+      sessionStorage.removeItem('wavv_cached_user_id')
+
+      toast.success('Setup cancelled')
+
+      // Sign out from Clerk
+      await signOut()
+
+      // Redirect to homepage
+      router.push('/')
+    } catch (err) {
+      console.error('Error abandoning onboarding:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to exit setup')
+      setIsExiting(false)
+      setShowExitDialog(false)
+    }
+  }
+
   const canProceedFromStep = (step: number): boolean => {
     switch (step) {
       case 0:
@@ -335,7 +381,7 @@ export default function OnboardingPage() {
                           key={site.id}
                           className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
                             ? 'border-primary bg-primary/5'
-                            : 'border-input hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                            : 'border-input hover:bg-muted'
                             }`}
                           onClick={() => toggleSite(site.id)}
                         >
@@ -516,11 +562,58 @@ export default function OnboardingPage() {
           </div>
 
           {/* Step Content Card */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden relative">
+            {/* Exit Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExitDialog(true)}
+              disabled={isExiting || isSaving}
+              className="absolute top-4 right-4 z-10"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Exit Setup
+            </Button>
+
             <div className="transition-all duration-300">
               {renderStepContent()}
             </div>
           </Card>
+
+          {/* Exit Confirmation Dialog */}
+          <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Exit Setup?</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to exit the setup process? Any progress you've made will be lost.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExitDialog(false)}
+                  disabled={isExiting}
+                >
+                  Continue Setup
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleExitOnboarding}
+                  disabled={isExiting}
+                >
+                  {isExiting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Exiting...
+                    </>
+                  ) : (
+                    'Exit'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

@@ -55,14 +55,7 @@ export default function InviteAcceptPage() {
   useEffect(() => {
     const validateAccessLink = async () => {
       try {
-        console.log('🔍 GET /api/v1/access-links - Request:', {
-          accessLinkId,
-          endpoint: `/api/v1/access-links/${accessLinkId}`
-        })
-
         const response = await accessLinkApi.getAccessLink(accessLinkId)
-
-        console.log('✅ GET /api/v1/access-links - Response:', response)
 
         if (!response.data) {
           setStatus('invalid')
@@ -133,15 +126,7 @@ export default function InviteAcceptPage() {
           clerkId: userId!,
         }
 
-        console.log('📤 POST /api/v1/access-links/accept - Request:', {
-          endpoint: `/api/v1/access-links/${accessLinkId}/accept`,
-          data: requestData,
-          hasToken: !!token
-        })
-
         const response = await accessLinkApi.acceptAccessLink(token, accessLinkId, requestData)
-
-        console.log('✅ POST /api/v1/access-links/accept - Response:', response)
 
         // Clear the stored access link data
         sessionStorage.removeItem('pendingAccessLinkId')
@@ -327,6 +312,7 @@ export default function InviteAcceptPage() {
               </div>
               <div className="flex justify-center">
                 <SignUp
+                  routing="hash"
                   forceRedirectUrl="/invite/callback"
                   initialValues={{
                     emailAddress: accessLink?.email || '',

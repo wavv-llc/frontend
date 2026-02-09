@@ -182,6 +182,36 @@ export interface TaskAttachment {
     uploadedBy: User;
 }
 
+export interface PermissionDetail {
+    id: string;
+    key: string;
+}
+
+export interface Role {
+    id: string;
+    name: string;
+    description?: string;
+    permissions: PermissionDetail[];
+}
+
+export interface RoleAssignment {
+    id: string;
+    roleId: string;
+    role: Role;
+    organizationId?: string;
+    projectId?: string;
+}
+
+export interface OrganizationMember {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    active: boolean;
+    createdAt: string;
+    roleAssignments: RoleAssignment[];
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
     success: boolean;
@@ -330,6 +360,13 @@ export const userApi = {
             token,
         });
     },
+
+    abandonOnboarding: async (token: string) => {
+        return apiRequest('/api/v1/users/me/abandon-onboarding', {
+            method: 'POST',
+            token,
+        });
+    },
 };
 
 // Organization API functions
@@ -355,6 +392,56 @@ export const organizationApi = {
                 body: JSON.stringify({ email }),
             }
         );
+    },
+
+    getMembers: async (token: string, organizationId: string) => {
+        return apiRequest<OrganizationMember[]>(
+            `/api/v1/organizations/${organizationId}/members`,
+            {
+                method: 'GET',
+                token,
+            }
+        );
+    },
+
+    updateMemberRole: async (
+        token: string,
+        organizationId: string,
+        userId: string,
+        roleId: string
+    ) => {
+        return apiRequest<RoleAssignment>(
+            `/api/v1/organizations/${organizationId}/users/${userId}/role`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify({ roleId }),
+            }
+        );
+    },
+
+    removeMember: async (
+        token: string,
+        organizationId: string,
+        userId: string
+    ) => {
+        return apiRequest(
+            `/api/v1/organizations/${organizationId}/users/${userId}`,
+            {
+                method: 'DELETE',
+                token,
+            }
+        );
+    },
+};
+
+// Role API functions
+export const roleApi = {
+    getAllRoles: async (token: string) => {
+        return apiRequest<Role[]>('/api/v1/roles', {
+            method: 'GET',
+            token,
+        });
     },
 };
 
@@ -1170,14 +1257,9 @@ export interface AccessLink {
 
 export const accessLinkApi = {
     getAccessLink: async (linkId: string) => {
-        console.log('[API] GET /api/v1/access-links/${linkId}', {
-            endpoint: `/api/v1/access-links/${linkId}`,
-            method: 'GET',
-        });
         const response = await apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
             method: 'GET',
         });
-        console.log('[API] GET /api/v1/access-links/${linkId} - Response:', response);
         return response;
     },
 
