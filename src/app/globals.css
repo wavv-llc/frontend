@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -45,43 +46,100 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.147 0.004 49.25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.216 0.006 56.043);
-  --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
-  --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.216 0.006 56.043);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+  --radius: 0.5rem;
+
+  /* Editorial Monochrome SaaS Design System */
+  /* Base Colors - Strictly Monochrome */
+  --background: #FFFFFF; /* pure white */
+  --foreground: #000000; /* pure black for primary text */
+  --card: #FFFFFF; /* white cards */
+  --card-foreground: #000000; /* black text on cards */
+  --popover: #FFFFFF; /* white popovers */
+  --popover-foreground: #000000; /* black text */
+
+  /* Accent Color - Warm Brown for CTAs and highlights */
+  --primary: #8B5E3C; /* warm brown accent */
+  --primary-foreground: #FFFFFF; /* white text on accent */
+
+  /* Secondary stays as blue for hero section only */
+  --secondary: #7FB3E6; /* soft light blue (hero only) */
+  --secondary-foreground: #FFFFFF; /* white text */
+
+  /* Neutral Grays */
+  --muted: #FAFAFA; /* off-white for subtle backgrounds */
+  --muted-foreground: #666666; /* medium gray for secondary text */
+  --accent: #8B5E3C; /* warm brown accent */
+  --accent-foreground: #FFFFFF; /* white text on accent */
+
+  --destructive: #DC2626; /* red for destructive actions */
+  --destructive-foreground: #FFFFFF; /* white text */
+
+  /* Borders & Inputs - Very Subtle */
+  --border: #E5E5E5; /* very light gray borders */
+  --input: #F5F5F5; /* light gray input backgrounds */
+  --ring: #8B5E3C; /* warm brown focus rings */
+
+  /* Chart Colors */
+  --chart-1: #8B5E3C; /* warm brown */
+  --chart-2: #7FB3E6; /* soft blue */
+  --chart-3: #999999; /* medium gray */
+  --chart-4: #666666; /* dark gray */
+  --chart-5: #CCCCCC; /* light gray */
+
+  /* Sidebar */
+  --sidebar: #FFFFFF; /* white */
+  --sidebar-foreground: #000000; /* black text */
+  --sidebar-primary: #8B5E3C; /* warm brown */
+  --sidebar-primary-foreground: #FFFFFF; /* white */
+  --sidebar-accent: #FAFAFA; /* off-white hover */
+  --sidebar-accent-foreground: #000000; /* black text */
+  --sidebar-border: #E5E5E5; /* light gray borders */
+  --sidebar-ring: #8B5E3C; /* warm brown focus */
+
+  /* Design Token Variables - Monochrome System */
+  --mono-white: #FFFFFF;
+  --mono-off-white: #FAFAFA;
+  --mono-light-gray: #F5F5F5;
+  --mono-border-gray: #E5E5E5;
+  --mono-muted-gray: #999999;
+  --mono-secondary-gray: #666666;
+  --mono-black: #000000;
+
+  /* Accent Color */
+  --accent-brown: #8B5E3C; /* warm brown for CTAs */
+  --accent-brown-hover: #734D2F; /* darker on hover */
+
+  /* Hero Section Only - Blue Lake Colors (preserved) */
+  --lake-blue-100: #E6F3FA;
+  --lake-blue-200: #B8DCEF;
+  --lake-blue-300: #9CCAE8;
+  --lake-blue-400: #7FB3E6; /* soft light blue */
+  --lake-blue-500: #5A9BD4;
+
+  /* Legacy variable mapping for backward compatibility */
+  --ivory-50: #FFFFFF;
+  --ivory-100: #FAFAFA;
+  --ivory-200: #F5F5F5;
+  --ivory-300: #E5E5E5;
+
+  --mahogany-300: #999999;
+  --mahogany-400: #666666;
+  --mahogany-500: #666666;
+  --mahogany-600: #8B5E3C; /* maps to accent brown */
+  --mahogany-700: #333333;
+  --mahogany-800: #000000;
+
+  --excel-green-300: #8B5E3C;
+  --excel-green-400: #8B5E3C;
+  --excel-green-500: #734D2F;
+  --excel-green-600: #5A3D24;
+
+  --gold-400: #8B5E3C;
+  --gold-500: #8B5E3C;
 }
 
 .dark {
-  --background: oklch(0.147 0.004 49.25);
+  --background: hsl(240 5.9% 10%);
   --foreground: oklch(0.985 0.001 106.423);
   --card: oklch(0.216 0.006 56.043);
   --card-foreground: oklch(0.985 0.001 106.423);
@@ -327,15 +385,30 @@ a[href*="signUp"] {
   padding-top: 0 !important;
 }
 
+/* UserButton hover styling */
+.cl-userButtonTrigger:hover,
+.cl-userButtonBox:hover,
+.cl-avatarBox:hover,
+[class*="cl-userButton"]:hover {
+  background-color: rgb(239 246 255) !important; /* blue-50 */
+}
+
+.dark .cl-userButtonTrigger:hover,
+.dark .cl-userButtonBox:hover,
+.dark .cl-avatarBox:hover,
+.dark [class*="cl-userButton"]:hover {
+  background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
+}
+
 .dark {
   --sidebar: hsl(240 5.9% 10%);
   --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary: #6FA8C6; /* lake-blue-400 for dark mode */
   --sidebar-primary-foreground: hsl(0 0% 100%);
   --sidebar-accent: hsl(240 3.7% 15.9%);
   --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
   --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar-ring: #8B5A3C; /* mahogany-400 */
 }
 
 @layer base {

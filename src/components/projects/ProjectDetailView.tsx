@@ -16,8 +16,16 @@ import {
     Loader2,
     Copy,
     Pencil,
-    Layers
+    Layers,
+    Download,
+    Upload,
+    Mail,
+    Activity,
+    Bell,
+    Lock,
+    Archive
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { cn } from '@/lib/utils'
 import { type Project, type Task, type CustomField, type DataType, projectApi, taskApi, customFieldApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -27,6 +35,7 @@ import { TaskList } from './TaskList'
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
     DropdownMenu,
@@ -34,6 +43,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
     DropdownMenuCheckboxItem,
+    DropdownMenuItem,
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -358,11 +368,105 @@ export function ProjectDetailView({
             setDeleteDialogOpen(false)
             window.history.back()
         } catch (error) {
-            console.error('Failed to delete project:', error)
-            toast.error('Failed to delete project')
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const handleExportProject = () => {
+        try {
+            // Prepare data
+            const dataToExport = tasks.map(task => {
+                const row: Record<string, any> = {
+                    'Task Name': task.name,
+                    'Status': task.status,
+                }
+
+                customFields.forEach(field => {
+                    const val = task.customFieldValues?.find(v => v.customFieldId === field.id)?.value
+
+                    if (field.dataType === 'USER' && val) {
+                        const u = project.members.find(m => m.id === val) || project.owners.find(o => o.id === val)
+                        row[field.name] = u ? (u.firstName ? `${u.firstName} ${u.lastName || ''}` : u.email) : val
+                    } else {
+                        row[field.name] = val || ''
+                    }
+                })
+
+                return row
+            })
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+            const workbook = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Tasks')
+            XLSX.writeFile(workbook, `${project.name.replace(/\s+/g, '_')}_export.xlsx`)
+            toast.success('Project exported successfully')
+        } catch (error) {
+            console.error('Export failed:', error)
+            toast.error('Failed to export project')
+        }
+    }
+
+    const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        try {
+            const data = await file.arrayBuffer()
+            const workbook = XLSX.read(data)
+            const worksheetName = workbook.SheetNames[0]
+            const worksheet = workbook.Sheets[worksheetName]
+            const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+            if (jsonData.length === 0) {
+                toast.error('No data found in file')
+                return
+            }
+
+            const token = await getToken()
+            if (!token) return
+
+            toast.info(`Importing ${jsonData.length} tasks...`)
+
+            // Process one by one for now
+            // We assume column names match 'Task Name' and Custom Field names
+            // This is a basic implementation
+
+            let count = 0
+            for (const row of jsonData as any[]) {
+                const taskName = row['Task Name'] || row['Name'] || row['Task']
+                if (!taskName) continue
+
+                // Try to map custom fields
+                const customFieldsPayload: Record<string, any> = {}
+
+                customFields.forEach(field => {
+                    if (row[field.name]) {
+                        // Simplify: just take string value. 
+                        // For User fields, we'd need email lookup which might not be in row.
+                        // For now, only string/number/date fields might import cleanly directly.
+                        // Use as is.
+                        customFieldsPayload[field.id] = row[field.name]
+                    }
+                })
+
+                await taskApi.createTask(token, project.id, {
+                    name: taskName,
+                    status: 'PENDING',
+                    customFields: customFieldsPayload
+                })
+                count++
+            }
+
+            toast.success(`Imported ${count} tasks`)
+            onRefresh()
+        } catch (error) {
+            console.error('Import failed:', error)
+            toast.error('Failed to import file')
+        }
+
+        // Reset input
+        e.target.value = ''
     }
 
     const handleCopyProject = async () => {
@@ -374,7 +478,68 @@ export function ProjectDetailView({
                 return
             }
 
-            await projectApi.copyProject(token, project.id)
+            // Manual copy to avoid "Copy of" prefix on tasks
+
+            // 1. Create new project
+            const newProjectName = `Copy of ${project.name}`
+            const newProjectResponse = await projectApi.createProject(token, project.workspaceId, newProjectName, project.description)
+
+            if (!newProjectResponse.data) {
+                throw new Error('Failed to create new project')
+            }
+            const newProjectId = newProjectResponse.data.id
+
+            // 3. Create Custom Fields
+            const fieldIdMap = new Map<string, string>()
+
+            for (const field of customFields) {
+                const newFieldResponse = await customFieldApi.createCustomField(token, newProjectId, {
+                    name: field.name,
+                    dataType: field.dataType,
+                    customOptions: field.customOptions,
+                    defaultValue: field.defaultValue,
+                    description: field.description,
+                    required: field.required,
+                    color: field.color
+                })
+                if (newFieldResponse.data) {
+                    fieldIdMap.set(field.id, newFieldResponse.data.id)
+                }
+            }
+
+            // 4. Create Tasks
+            toast.info(`Copying ${tasks.length} tasks...`)
+            let copiedCount = 0
+
+            // Create tasks in parallel batches of 5 to speed up but not overwhelm
+            const batchSize = 5
+            for (let i = 0; i < tasks.length; i += batchSize) {
+                const batch = tasks.slice(i, i + batchSize)
+                await Promise.all(batch.map(async (task) => {
+                    const newCustomFields: Record<string, any> = {}
+
+                    // Map custom values
+                    if (task.customFieldValues) {
+                        task.customFieldValues.forEach(val => {
+                            const newFieldId = fieldIdMap.get(val.customFieldId)
+                            if (newFieldId) {
+                                // For USER type, the value is userId, which is fine to copy as is (same workspace)
+                                newCustomFields[newFieldId] = val.value
+                            }
+                        })
+                    }
+
+                    await taskApi.createTask(token, newProjectId, {
+                        name: task.name, // DIRECT NAME COPY - NO PREFIX
+                        description: task.description,
+                        dueAt: task.dueAt,
+                        status: task.status,
+                        customFields: newCustomFields
+                    })
+                }))
+                copiedCount += batch.length
+            }
+
             toast.success('Project copied successfully')
             setSettingsDialogOpen(false)
             onRefresh()
@@ -438,119 +603,6 @@ export function ProjectDetailView({
             setIsLoadingCustomFields(false)
         }
     }, [getToken, project.id])
-
-    const handleCreateCustomField = async () => {
-        if (!newFieldName.trim()) {
-            toast.error('Name is required')
-            return
-        }
-
-        try {
-            setIsCreatingField(true)
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
-
-            await customFieldApi.createCustomField(token, project.id, {
-                name: newFieldName.trim(),
-                description: newFieldDescription.trim() || undefined,
-                defaultValue: newFieldDefaultValue.trim() || undefined,
-                dataType: newFieldDataType,
-                color: newFieldColor.trim() || undefined,
-                required: newFieldRequired
-            })
-
-            toast.success('Custom field created successfully')
-            resetNewFieldForm()
-            fetchCustomFields()
-        } catch (error) {
-            console.error('Failed to create custom field:', error)
-            toast.error('Failed to create custom field')
-        } finally {
-            setIsCreatingField(false)
-        }
-    }
-
-    const handleOpenEditField = (field: CustomField) => {
-        setEditingField(field)
-        setEditFieldName(field.name)
-        setEditFieldDescription(field.description || '')
-        setEditFieldDefaultValue(field.defaultValue || '')
-        setEditFieldDataType(field.dataType)
-        setEditFieldColor(field.color || '')
-        setEditFieldRequired(field.required)
-        setSettingsModalPage('editField')
-    }
-
-    const handleUpdateCustomField = async () => {
-        if (!editingField || !editFieldName.trim()) {
-            toast.error('Name is required')
-            return
-        }
-
-        try {
-            setIsUpdatingField(true)
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
-
-            await customFieldApi.updateCustomField(token, project.id, editingField.id, {
-                name: editFieldName.trim(),
-                description: editFieldDescription.trim() || undefined,
-                defaultValue: editFieldDefaultValue.trim() || undefined,
-                dataType: editFieldDataType,
-                color: editFieldColor.trim() || undefined,
-                required: editFieldRequired
-            })
-
-            toast.success('Custom field updated successfully')
-            resetEditFieldForm()
-            fetchCustomFields()
-        } catch (error) {
-            console.error('Failed to update custom field:', error)
-            toast.error('Failed to update custom field')
-        } finally {
-            setIsUpdatingField(false)
-        }
-    }
-
-    const handleDeleteCustomField = async () => {
-        if (!editingField) return
-
-        try {
-            setIsDeletingField(true)
-            const token = await getToken()
-            if (!token) {
-                toast.error('Authentication required')
-                return
-            }
-
-            await customFieldApi.deleteCustomField(token, project.id, editingField.id)
-            toast.success('Custom field deleted successfully')
-            resetEditFieldForm()
-            fetchCustomFields()
-        } catch (error) {
-            console.error('Failed to delete custom field:', error)
-            toast.error('Failed to delete custom field')
-        } finally {
-            setIsDeletingField(false)
-        }
-    }
-
-    const resetEditFieldForm = () => {
-        setEditingField(null)
-        setEditFieldName('')
-        setEditFieldDescription('')
-        setEditFieldDefaultValue('')
-        setEditFieldDataType('STRING')
-        setEditFieldColor('')
-        setEditFieldRequired(false)
-        setSettingsModalPage('settings')
-    }
 
     const resetNewFieldForm = () => {
         setNewFieldName('')
@@ -699,8 +751,8 @@ export function ProjectDetailView({
                                 value={localProject.name}
                                 onSave={(val) => handleUpdateProjectField({ name: val })}
                                 className="w-fit"
-                                textStyle="text-3xl font-semibold tracking-tight text-foreground"
-                                inputClassName="text-3xl font-semibold h-auto py-1 px-2"
+                                textStyle="text-3xl font-serif font-semibold tracking-tight text-foreground"
+                                inputClassName="text-3xl font-serif font-semibold h-auto py-1 px-2"
                                 placeholder="Project Name"
                             />
                             <EditableContent
@@ -742,36 +794,73 @@ export function ProjectDetailView({
                             </button>
                         </div>
 
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 bg-white border-border hover:bg-muted shadow-sm cursor-pointer"
-                            onClick={handleOpenSettings}
-                            title="Project Settings"
-                        >
-                            <Settings className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 bg-white border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 shadow-sm cursor-pointer"
-                            onClick={() => setDeleteDialogOpen(true)}
-                            title="Delete Project"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <div className="w-px h-6 bg-border mx-1" />
-                        <Button
-                            onClick={() => {
-                                if (taskListRef.current) {
-                                    taskListRef.current.startCreatingTask()
-                                }
-                            }}
-                            className="gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                        >
-                            <Plus className="h-4 w-4" />
-                            New Task
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-9 w-9 bg-white border-border hover:bg-muted shadow-sm cursor-pointer"
+                                    title="Project Settings"
+                                >
+                                    <Settings className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onClick={() => toast.info('Invite feature coming soon')}>
+                                    <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Invite with email</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportProject}>
+                                    <Download className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Export board to Excel</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => document.getElementById('import-file-input')?.click()}>
+                                    <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Import tasks</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleCopyProject}>
+                                    <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Copy Project</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.info('Activity log feature coming soon')}>
+                                    <Activity className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Activity log</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuSeparator />
+
+                                <DropdownMenuItem onClick={() => toast.info('Notifications feature coming soon')}>
+                                    <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Notifications</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.info('Permissions feature coming soon')}>
+                                    <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Permissions</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuSeparator />
+
+                                <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)} className="text-destructive focus:text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.info('Archive feature coming soon')}>
+                                    <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Archive</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Hidden import input available globally for the menu item */}
+                        <input
+                            id="import-file-input"
+                            type="file"
+                            accept=".xlsx, .xls, .csv"
+                            className="hidden"
+                            onChange={handleImportProject}
+                        />
+
+
                     </div>
                 </div>
             </div>
@@ -779,14 +868,22 @@ export function ProjectDetailView({
             {/* Content Controls */}
             {view === 'list' && (
                 <div className="flex items-center justify-between pb-2">
-                    <div className="relative w-72">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search tasks..."
-                            className="pl-9 bg-white border-border shadow-sm"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            className="bg-blue-600 hover:bg-blue-700 text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
+                            onClick={() => toast.info('New Section feature coming soon')}
+                        >
+                            New <Plus className="ml-1 h-4 w-4" />
+                        </Button>
+                        <div className="relative w-72">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search tasks..."
+                                className="pl-9 bg-white border-border shadow-sm"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         {statusFilter !== 'ALL' && (
@@ -903,8 +1000,15 @@ export function ProjectDetailView({
                     <div className="flex flex-col h-full w-full max-w-full">
                         {/* Loading state */}
                         {isLoadingCustomFields ? (
-                            <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <div className="flex flex-col gap-2 p-4">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="flex items-center gap-4">
+                                        <Skeleton className="h-4 w-4 rounded-full" />
+                                        <Skeleton className="h-4 flex-1" />
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-8 w-8 rounded-full" />
+                                    </div>
+                                ))}
                             </div>
                         ) : (
                             <div className="flex-1 overflow-hidden">
@@ -933,128 +1037,6 @@ export function ProjectDetailView({
                     </div>
                 )}
             </div>
-
-            {/* Project Settings Dialog */}
-            <Dialog open={settingsDialogOpen} onOpenChange={(open) => {
-                setSettingsDialogOpen(open)
-                if (!open) {
-                    resetNewFieldForm()
-                }
-            }}>
-                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <>
-                        <DialogHeader>
-                            <DialogTitle>Project Settings</DialogTitle>
-                            <DialogDescription>
-                                Manage project details and custom fields
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        {/* Project Details Section */}
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-foreground">Project Details</h3>
-                                <div className="space-y-2">
-                                    <Label htmlFor="settings-project-name">Project Name</Label>
-                                    <Input
-                                        id="settings-project-name"
-                                        value={editProjectName}
-                                        onChange={(e) => setEditProjectName(e.target.value)}
-                                        placeholder="Enter project name"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="settings-project-description">Description</Label>
-                                    <Textarea
-                                        id="settings-project-description"
-                                        value={editProjectDescription}
-                                        onChange={(e) => setEditProjectDescription(e.target.value)}
-                                        placeholder="Enter project description"
-                                        rows={3}
-                                    />
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={handleEditProject}
-                                        disabled={isSubmitting || !editProjectName.trim()}
-                                        size="sm"
-                                    >
-                                        {isSubmitting ? 'Saving...' : 'Update Project'}
-                                    </Button>
-                                    <Button
-                                        onClick={handleCopyProject}
-                                        disabled={isCopyingProject}
-                                        size="sm"
-                                        variant="outline"
-                                        className="gap-1"
-                                    >
-                                        {isCopyingProject ? (
-                                            <>
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                Copying...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Copy className="h-3.5 w-3.5" />
-                                                Copy Project
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="border-t border-border my-6" />
-
-                            {/* Members Section */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-semibold text-foreground">Members</h3>
-
-                                <div className="space-y-2">
-                                    {[...project.owners.map(u => ({ ...u, role: 'Owner' })), ...project.members.map(u => ({ ...u, role: 'Member' }))].map((member) => (
-                                        <div
-                                            key={`${member.role}-${member.id}`}
-                                            className="flex items-center justify-between p-3 border border-border rounded-lg bg-white"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-8 w-8">
-                                                    <AvatarFallback>
-                                                        {(member.firstName?.[0] || member.email[0]).toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <p className="text-sm font-medium">
-                                                        {member.firstName ? `${member.firstName} ${member.lastName || ''}` : member.email}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">{member.email}</p>
-                                                </div>
-                                            </div>
-                                            <span className={cn(
-                                                "text-xs px-2 py-1 rounded-full font-medium",
-                                                member.role === 'Owner' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                            )}>
-                                                {member.role}
-                                            </span>
-                                        </div>
-                                    ))}
-
-                                    {project.owners.length === 0 && project.members.length === 0 && (
-                                        <div className="text-center py-4 text-muted-foreground text-sm">
-                                            No members found
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setSettingsDialogOpen(false)}>
-                                Close
-                            </Button>
-                        </DialogFooter>
-                    </>
-
-                </DialogContent>
-            </Dialog>
 
             {/* Delete Project Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1086,6 +1068,6 @@ export function ProjectDetailView({
                     />
                 )
             }
-        </div >
+        </div>
     )
 }

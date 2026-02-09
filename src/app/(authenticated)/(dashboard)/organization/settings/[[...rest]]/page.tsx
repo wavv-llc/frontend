@@ -1,0 +1,938 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter, Users, Trash2 } from 'lucide-react'
+import { sharepointApi, organizationApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse, roleApi, OrganizationMember, Role } from '@/lib/api'
+import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from "@/components/ui/skeleton"
+import { useUser } from '@/contexts/UserContext'
+import { PermissionGuard } from '@/components/auth/PermissionGuard'
+import { toast } from 'sonner'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+
+interface SharePointSite {
+  id: string
+  name: string
+  displayName: string
+  webUrl: string
+  description?: string
+}
+
+interface SelectedSite {
+  id: string
+  siteId: string
+  siteName: string
+  webUrl: string
+}
+
+export default function SettingsPage() {
+  const router = useRouter()
+  const { isLoaded, getToken } = useAuth()
+  const { user, isLoading: isUserLoading } = useUser()
+  const [sites, setSites] = useState<SharePointSite[]>([])
+  const [, setSelectedSites] = useState<SelectedSite[]>([])
+  const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set())
+  const [isLoadingSites, setIsLoadingSites] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Invite member state
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [isInviting, setIsInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+
+  // Documents state
+  const [documents, setDocuments] = useState<OrganizationDocument[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [documentsError, setDocumentsError] = useState<string | null>(null)
+  const [retryingDocumentId, setRetryingDocumentId] = useState<string | null>(null)
+  const [documentSearch, setDocumentSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Members state
+  const [members, setMembers] = useState<OrganizationMember[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  const [membersError, setMembersError] = useState<string | null>(null)
+  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null)
+  const [isRemovingMember, setIsRemovingMember] = useState(false)
+  const [updatingRoleForUserId, setUpdatingRoleForUserId] = useState<string | null>(null)
+
+  const organizationId = user?.organization?.id
+
+  useEffect(() => {
+    if (isLoaded && organizationId) {
+      loadSharePointData()
+      loadDocuments(organizationId)
+      loadMembers()
+      loadRoles()
+    }
+  }, [isLoaded, getToken, organizationId])
+
+  const loadDocuments = async (orgId?: string) => {
+    const targetOrgId = orgId || organizationId
+    if (!targetOrgId) return
+
+    try {
+      setIsLoadingDocuments(true)
+      setDocumentsError(null)
+      const token = await getToken()
+      if (!token) return
+
+      const response = await documentsApi.getOrganizationDocuments(token, targetOrgId)
+      // Handle both array response and wrapped object response
+      const docs = Array.isArray(response.data)
+        ? response.data
+        : (response.data as OrganizationDocumentsResponse)?.documents || []
+      setDocuments(docs)
+    } catch (err) {
+      console.error('Error loading documents:', err)
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
+    } finally {
+      setIsLoadingDocuments(false)
+    }
+  }
+
+  const handleRetryDocument = async (documentId: string) => {
+    try {
+      setRetryingDocumentId(documentId)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await documentsApi.retryDocument(token, documentId)
+      toast.success('Document processing restarted successfully')
+      // Reload documents to get updated status
+      await loadDocuments()
+    } catch (err) {
+      console.error('Error retrying document:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retry document'
+      setDocumentsError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setRetryingDocumentId(null)
+    }
+  }
+
+  const handleReembedDocument = async (documentId: string) => {
+    try {
+      setRetryingDocumentId(documentId)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await documentsApi.reembedDocument(token, documentId)
+      toast.success('Document re-embedding started successfully')
+      // Reload documents to get updated status
+      await loadDocuments()
+    } catch (err) {
+      console.error('Error re-embedding document:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to re-embed document'
+      setDocumentsError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setRetryingDocumentId(null)
+    }
+  }
+
+  const getStatusBadge = (status: OrganizationDocument['status']) => {
+    switch (status) {
+      case 'COMPLETED':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
+      case 'PROCESSING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>
+      case 'EMBEDDING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">Embedding</span>
+      case 'READY':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ready</span>
+      case 'PENDING':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
+      case 'FAILED':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Failed</span>
+      default:
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">{status}</span>
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteEmail.trim() || !organizationId) return
+
+    try {
+      setIsInviting(true)
+      setInviteError(null)
+      setInviteSuccess(null)
+
+      const token = await getToken()
+      if (!token) {
+        setInviteError('Authentication required')
+        return
+      }
+
+      await organizationApi.inviteMember(token, organizationId, inviteEmail.trim())
+      setInviteSuccess(`Invitation sent to ${inviteEmail}`)
+      setInviteEmail('')
+    } catch (err) {
+      console.error('Error inviting member:', err)
+      setInviteError(err instanceof Error ? err.message : 'Failed to send invitation')
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  const loadMembers = async () => {
+    if (!organizationId) return
+
+    try {
+      setIsLoadingMembers(true)
+      setMembersError(null)
+      const token = await getToken()
+      if (!token) return
+
+      const response = await organizationApi.getMembers(token, organizationId)
+      setMembers(response.data || [])
+    } catch (err) {
+      console.error('Error loading members:', err)
+      setMembersError(err instanceof Error ? err.message : 'Failed to load members')
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }
+
+  const loadRoles = async () => {
+    try {
+      const token = await getToken()
+      if (!token) return
+
+      const response = await roleApi.getAllRoles(token)
+      // Filter to only organization-level roles
+      const orgRoles = (response.data || []).filter(role =>
+        role.permissions.some(p =>
+          ['ORG_VIEW', 'ORG_EDIT', 'ORG_DELETE', 'ORG_MANAGE_MEMBERS'].includes(p.key)
+        )
+      )
+      setRoles(orgRoles)
+    } catch (err) {
+      console.error('Error loading roles:', err)
+    }
+  }
+
+  const handleRoleChange = async (userId: string, newRoleId: string) => {
+    if (!organizationId) return
+
+    try {
+      setUpdatingRoleForUserId(userId)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await organizationApi.updateMemberRole(token, organizationId, userId, newRoleId)
+      toast.success('Member role updated successfully')
+      await loadMembers()
+    } catch (err) {
+      console.error('Error updating member role:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to update member role')
+    } finally {
+      setUpdatingRoleForUserId(null)
+    }
+  }
+
+  const handleRemoveMember = async () => {
+    if (!organizationId || !memberToRemove) return
+
+    try {
+      setIsRemovingMember(true)
+      const token = await getToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      await organizationApi.removeMember(token, organizationId, memberToRemove.id)
+      toast.success(`${memberToRemove.email} has been removed from the organization`)
+      setMemberToRemove(null)
+      await loadMembers()
+    } catch (err) {
+      console.error('Error removing member:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to remove member')
+    } finally {
+      setIsRemovingMember(false)
+    }
+  }
+
+  const getMemberRole = (member: OrganizationMember) => {
+    const orgRoleAssignment = member.roleAssignments.find(ra => ra.organizationId === organizationId)
+    return orgRoleAssignment?.role
+  }
+
+  const isCurrentUser = (member: OrganizationMember) => {
+    return member.id === user?.id
+  }
+
+  const loadSharePointData = async () => {
+    try {
+      setIsLoadingSites(true)
+      setError(null)
+      const token = await getToken()
+      if (!token) return
+
+      // Load available sites and selected sites in parallel
+      const [sitesResponse, selectedResponse] = await Promise.all([
+        sharepointApi.getSites(token).catch(() => ({ data: { sites: [] } })),
+        sharepointApi.getSelectedSites(token).catch(() => ({ data: { selectedSites: [] } })),
+      ])
+
+      if (sitesResponse.data?.sites) {
+        setSites(sitesResponse.data.sites)
+      }
+
+      if (selectedResponse.data?.selectedSites) {
+        setSelectedSites(selectedResponse.data.selectedSites)
+        setSelectedSiteIds(new Set(selectedResponse.data.selectedSites.map(s => s.siteId)))
+      }
+    } catch (err) {
+      console.error('Error loading SharePoint data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load SharePoint data')
+    } finally {
+      setIsLoadingSites(false)
+    }
+  }
+
+  const toggleSite = (siteId: string) => {
+    const newSelected = new Set(selectedSiteIds)
+    if (newSelected.has(siteId)) {
+      newSelected.delete(siteId)
+    } else {
+      newSelected.add(siteId)
+    }
+    setSelectedSiteIds(newSelected)
+  }
+
+  const handleSaveSites = async () => {
+    try {
+      setIsSaving(true)
+      setError(null)
+      const token = await getToken()
+      if (!token) {
+        setError('Authentication required')
+        return
+      }
+
+      const sitesToSave = sites
+        .filter(site => selectedSiteIds.has(site.id))
+        .map(site => ({
+          id: site.id,
+          name: site.displayName || site.name,
+          webUrl: site.webUrl,
+        }))
+
+      await sharepointApi.saveSelectedSites(token, sitesToSave)
+
+      // Reload selected sites
+      const selectedResponse = await sharepointApi.getSelectedSites(token)
+      if (selectedResponse.data?.selectedSites) {
+        setSelectedSites(selectedResponse.data.selectedSites)
+      }
+    } catch (err) {
+      console.error('Error saving selected sites:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save selected sites')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (!isLoaded || isUserLoading) {
+    return <SettingsSkeleton />
+  }
+
+  return (
+    <PermissionGuard
+      scope="organization"
+      permission="ORG_EDIT"
+      redirectTo="/home"
+    >
+      <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-3xl font-serif font-semibold flex items-center gap-2">
+              <SettingsIcon className="h-8 w-8" />
+              Organization Settings
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your organization settings
+            </p>
+          </div>
+
+          {/* SharePoint Sites Management */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>SharePoint Sites</CardTitle>
+                  <CardDescription>
+                    Manage which SharePoint sites are selected for AI auditing
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadSharePointData}
+                  disabled={isLoadingSites}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {error}
+                </div>
+              )}
+
+              {isLoadingSites ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="p-4 border rounded-lg flex items-center gap-3">
+                      <Skeleton className="h-5 w-5 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-4 w-56" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sites.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No SharePoint sites found. Make sure you have access to SharePoint sites.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="max-h-[400px] overflow-y-auto space-y-2">
+                    {sites.map((site) => {
+                      const isSelected = selectedSiteIds.has(site.id)
+                      return (
+                        <div
+                          key={site.id}
+                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-input hover:bg-muted'
+                            }`}
+                          onClick={() => toggleSite(site.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center shrink-0">
+                              {isSelected ? (
+                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium truncate">
+                                {site.displayName || site.name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {site.webUrl}
+                              </p>
+                              {site.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {site.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      {selectedSiteIds.size} site{selectedSiteIds.size !== 1 ? 's' : ''} selected
+                    </p>
+                    <Button
+                      onClick={handleSaveSites}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Changes'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Invite Members */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                <div>
+                  <CardTitle>Invite Members</CardTitle>
+                  <CardDescription>
+                    Invite new members to join your organization
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {inviteError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {inviteError}
+                </div>
+              )}
+
+              {inviteSuccess && (
+                <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {inviteSuccess}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleInviteMember} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="invite-email"
+                          type="email"
+                          placeholder="colleague@example.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          className="pl-9"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()}>
+                        {isInviting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          'Send Invite'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    An invitation link will be sent to the email address provided.
+                  </p>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Members Management */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <div>
+                    <CardTitle>Organization Members</CardTitle>
+                    <CardDescription>
+                      View and manage member roles and access
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadMembers}
+                  disabled={isLoadingMembers}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {membersError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {membersError}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : isLoadingMembers ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-1/3" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-9 w-32" />
+                    </div>
+                  ))}
+                </div>
+              ) : members.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No members found in your organization.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {members.map((member) => {
+                    const memberRole = getMemberRole(member)
+                    const isMe = isCurrentUser(member)
+                    const isUpdating = updatingRoleForUserId === member.id
+
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-medium text-primary">
+                              {member.firstName?.[0]?.toUpperCase() || member.email[0].toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium truncate">
+                                {member.firstName && member.lastName
+                                  ? `${member.firstName} ${member.lastName}`
+                                  : member.email}
+                              </h4>
+                              {isMe && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {member.email}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Select
+                            value={memberRole?.id || ''}
+                            onValueChange={(newRoleId) => handleRoleChange(member.id, newRoleId)}
+                            disabled={isMe || isUpdating}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select role">
+                                {isUpdating ? (
+                                  <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Updating...
+                                  </div>
+                                ) : (
+                                  memberRole?.name || 'No role'
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map((role) => (
+                                <SelectItem key={role.id} value={role.id}>
+                                  {role.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberToRemove(member)}
+                            disabled={isMe}
+                            title={isMe ? 'You cannot remove yourself' : 'Remove member'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Organization Documents */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <div>
+                    <CardTitle>Documents</CardTitle>
+                    <CardDescription>
+                      View and manage documents uploaded to your organization
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadDocuments()}
+                  disabled={isLoadingDocuments || !organizationId}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+              {/* Search and Filter */}
+              {documents.length > 0 && (
+                <div className="flex items-center gap-3 pt-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search documents..."
+                      value={documentSearch}
+                      onChange={(e) => setDocumentSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="PROCESSING">Processing</SelectItem>
+                      <SelectItem value="EMBEDDING">Embedding</SelectItem>
+                      <SelectItem value="READY">Ready</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {documentsError && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                  {documentsError}
+                </div>
+              )}
+
+              {!organizationId ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Unable to load organization information.</p>
+                </div>
+              ) : isLoadingDocuments ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Skeleton className="h-8 w-8 rounded-md" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-5 w-1/3" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No documents found in your organization.</p>
+                </div>
+              ) : (() => {
+                const filteredDocuments = documents.filter((doc) => {
+                  const matchesSearch = documentSearch === '' ||
+                    doc.originalName.toLowerCase().includes(documentSearch.toLowerCase())
+                  const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
+                  return matchesSearch && matchesStatus
+                })
+
+                if (filteredDocuments.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No documents match your search or filter criteria.</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {filteredDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                        onClick={() => router.push(`/documents/${doc.id}`)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-medium truncate" title={doc.originalName}>
+                              {doc.originalName}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{formatFileSize(doc.filesize)}</span>
+                              <span>•</span>
+                              <span>{doc.mimeType}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {getStatusBadge(doc.status)}
+                          {(doc.status === 'EMBEDDING' || doc.status === 'READY') && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleReembedDocument(doc.id)
+                                }}
+                                disabled={retryingDocumentId === doc.id}
+                              >
+                                {retryingDocumentId === doc.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Retry Embed
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRetryDocument(doc.id)
+                                }}
+                                disabled={retryingDocumentId === doc.id}
+                              >
+                                {retryingDocumentId === doc.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RotateCcw className="h-4 w-4 mr-1" />
+                                    Retry Process
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          )}
+                          {(doc.status === 'FAILED' || doc.status === 'PROCESSING') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRetryDocument(doc.id)
+                              }}
+                              disabled={retryingDocumentId === doc.id}
+                            >
+                              {retryingDocumentId === doc.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <RotateCcw className="h-4 w-4 mr-1" />
+                                  Retry Process
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Confirmation Dialog for Member Removal */}
+      <Dialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove {memberToRemove?.email} from the organization?
+              This action will deactivate their account and remove all their access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMemberToRemove(null)}
+              disabled={isRemovingMember}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemoveMember}
+              disabled={isRemovingMember}
+            >
+              {isRemovingMember ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Member'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </PermissionGuard>
+  )
+}

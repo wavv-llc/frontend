@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { userApi } from '@/lib/api'
 import { Loader2 } from 'lucide-react'
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton"
 import { AppSidebar } from '@/components/assistant/AppSidebar'
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext'
 import { KnockClientProvider } from '@/components/providers/KnockClientProvider'
@@ -62,8 +63,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 }
             } catch (error) {
                 console.error('Error checking onboarding status:', error)
-                // If error (e.g. network), we probably shouldn't block access indefinitely, 
-                // or maybe we should? For now, let's allow access but log error.
+                // If user doesn't exist in Core API, redirect to onboarding
+                router.push('/onboarding')
+                return
             } finally {
                 setIsChecking(false)
             }
@@ -73,11 +75,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }, [isLoaded, isSignedIn, getToken, router])
 
     if (!isLoaded || (isSignedIn && isChecking)) {
-        return (
-            <div className="flex h-screen w-full items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <DashboardSkeleton />
     }
 
     return (

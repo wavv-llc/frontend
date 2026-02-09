@@ -22,11 +22,12 @@ import {
 
 interface ProjectCalendarViewProps {
     tasks: Task[]
+    compact?: boolean // When true, uses a simplified layout without task name column
 }
 
 type ViewMode = 'week' | 'month'
 
-export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
+export function ProjectCalendarView({ tasks, compact = false }: ProjectCalendarViewProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('week')
     const [currentDate, setCurrentDate] = useState(new Date())
 
@@ -286,7 +287,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                 : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                             }
                         </span>
-                        {isToday(currentDate) && (
+                        {(viewMode === 'week' ? weekDates.some(date => isToday(date)) : isToday(currentDate)) && (
                             <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">Today</span>
                         )}
                     </div>
@@ -341,16 +342,21 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                 {viewMode === 'week' ? (
                     <>
                         {/* Week View - Timeline Header */}
-                        <div className="grid grid-cols-[250px_1fr] border-b border-border/40 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm">
-                            <div className="p-4 flex items-end font-medium text-xs text-muted-foreground uppercase tracking-wider border-r border-border/40">
-                                Task Name
-                            </div>
-                            <div className="grid grid-cols-7">
+                        <div className={cn(
+                            "border-b border-border/40 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm",
+                            compact ? "grid grid-cols-7" : "grid grid-cols-[250px_1fr]"
+                        )}>
+                            {!compact && (
+                                <div className="p-4 flex items-end font-medium text-xs text-muted-foreground uppercase tracking-wider border-r border-border/40">
+                                    Task Name
+                                </div>
+                            )}
+                            <div className={cn(compact ? "contents" : "grid grid-cols-7 flex-1")}>
                                 {weekDates.map((date, i) => {
                                     const today = isToday(date)
                                     return (
                                         <div key={i} className={cn(
-                                            "flex flex-col items-center justify-center py-4 border-r border-border/40 text-sm last:border-0 relative",
+                                            "flex flex-col items-center justify-center py-4 px-2 border-r border-border/40 text-sm last:border-0 relative min-w-0",
                                             (i === 5 || i === 6) && "bg-muted/5",
                                             today && "bg-primary/5"
                                         )}>
@@ -358,7 +364,7 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary" />
                                             )}
                                             <span className={cn(
-                                                "text-xs font-medium mb-1",
+                                                "text-xs font-medium mb-1 whitespace-nowrap",
                                                 today ? "text-primary" : "text-muted-foreground"
                                             )}>{days[i]}</span>
                                             <div className={cn(
@@ -376,9 +382,12 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                         {/* Week View - Task Rows */}
                         <div className="divide-y divide-border/40 relative bg-background/30 min-h-[300px]">
                             {/* Background Grid Lines */}
-                            <div className="absolute inset-0 grid grid-cols-[250px_1fr] pointer-events-none z-0">
-                                <div className="border-r border-border/40 h-full bg-muted/5" />
-                                <div className="grid grid-cols-7 h-full">
+                            <div className={cn(
+                                "absolute inset-0 pointer-events-none z-0",
+                                compact ? "grid grid-cols-7" : "grid grid-cols-[250px_1fr]"
+                            )}>
+                                {!compact && <div className="border-r border-border/40 h-full bg-muted/5" />}
+                                <div className={cn(compact ? "contents" : "grid grid-cols-7 h-full flex-1")}>
                                     {weekDates.map((date, i) => (
                                         <div key={i} className={cn(
                                             "border-r border-border/40 h-full last:border-0",
@@ -401,37 +410,42 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                                         if (!position) return null
 
                                         return (
-                                            <div key={task.id} className="grid grid-cols-[250px_1fr] min-h-[56px] relative group hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0">
-                                                <div className="px-4 py-3 flex flex-col justify-center border-r border-border/40 bg-background/40 backdrop-blur-[1px]">
-                                                    <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
-                                                    <div className="flex items-center gap-2 mt-1.5">
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger>
-                                                                    <div className="flex -space-x-2">
-                                                                        {(task.preparers || []).slice(0, 3).map((user, i) => (
-                                                                            <Avatar key={i} className="h-5 w-5 border-2 border-background ring-1 ring-border/50">
-                                                                                <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                                                                    {user.firstName?.[0] || user.email[0].toUpperCase()}
-                                                                                </AvatarFallback>
-                                                                            </Avatar>
-                                                                        ))}
-                                                                        {(tasks.length === 0 && (
-                                                                            <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] text-muted-foreground">?</div>
-                                                                        ))}
-                                                                    </div>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>Assigned to: {(task.preparers || []).map(u => u.firstName).join(', ') || 'Unassigned'}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                                                            {task.project?.description || 'Project'}
-                                                        </span>
+                                            <div key={task.id} className={cn(
+                                                "min-h-[56px] relative group hover:bg-muted/30 transition-colors border-b border-border/40 last:border-0",
+                                                compact ? "grid grid-cols-7" : "grid grid-cols-[250px_1fr]"
+                                            )}>
+                                                {!compact && (
+                                                    <div className="px-4 py-3 flex flex-col justify-center border-r border-border/40 bg-background/40 backdrop-blur-[1px]">
+                                                        <span className="font-medium text-sm text-foreground truncate">{task.name}</span>
+                                                        <div className="flex items-center gap-2 mt-1.5">
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <div className="flex -space-x-2">
+                                                                            {(task.preparers || []).slice(0, 3).map((user, i) => (
+                                                                                <Avatar key={i} className="h-5 w-5 border-2 border-background ring-1 ring-border/50">
+                                                                                    <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                                                                        {user.firstName?.[0] || user.email[0].toUpperCase()}
+                                                                                    </AvatarFallback>
+                                                                                </Avatar>
+                                                                            ))}
+                                                                            {(tasks.length === 0 && (
+                                                                                <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] text-muted-foreground">?</div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Assigned to: {(task.preparers || []).map(u => u.firstName).join(', ') || 'Unassigned'}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                                                                {task.project?.description || 'Project'}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="relative h-full w-full py-2">
+                                                )}
+                                                <div className={cn("relative h-full w-full py-2", compact && "col-span-7")}>
                                                     {/* Task Bar */}
                                                     <TooltipProvider>
                                                         <Tooltip>
@@ -474,8 +488,8 @@ export function ProjectCalendarView({ tasks }: ProjectCalendarViewProps) {
                             {/* Month View Header - Days of Week */}
                             <div className="grid grid-cols-7 border-b border-border/50 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm">
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-                                    <div key={i} className="py-3 px-4 text-left">
-                                        <span className="text-xs font-medium text-muted-foreground">
+                                    <div key={i} className="py-3 px-2 text-center">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                                             {day}
                                         </span>
                                     </div>
