@@ -8,94 +8,87 @@ import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
 export default function SignInPage() {
   return (
     <div
-      className="min-h-screen select-none overscroll-none"
-      style={{ backgroundColor: 'var(--ivory-100)', color: 'var(--mahogany-800)' }}
+      className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
       {/* Retro Water Animation Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <RetroWaterAnimation intensity="medium" />
       </div>
 
-      {/* Navigation */}
+      {/* Navigation - Matching Landing Page */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl"
+        className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md shadow-sm"
         style={{
-          backgroundColor: 'rgba(250, 247, 240, 0.95)',
-          borderColor: 'var(--mahogany-300)/30'
+          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          borderColor: 'var(--mono-border-gray)'
         }}
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div
               className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-              style={{ backgroundColor: 'var(--mahogany-600)' }}
+              style={{ backgroundColor: 'var(--accent-brown)' }}
             >
-              <span
-                className="font-serif italic text-lg font-semibold"
-                style={{ color: 'var(--ivory-100)' }}
-              >
+              <span className="text-white font-serif italic text-lg font-semibold">
                 w
               </span>
             </div>
-            <span
-              className="text-xl font-serif font-bold tracking-tight"
-              style={{ color: 'var(--mahogany-700)' }}
-            >
+            <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
               wavv
             </span>
           </Link>
           <Link
             href="/"
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--mahogany-500)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--mahogany-800)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--mahogany-500)'}
+            className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
           >
             Back to Home
           </Link>
         </div>
       </nav>
 
-      {/* Sign In Section */}
-      <section className="relative flex items-center justify-center pt-24 pb-12 z-10">
+      {/* Sign In Section - Better Vertical Centering */}
+      <section className="relative flex items-center justify-center min-h-screen py-24 z-10">
         <div className="max-w-[480px] mx-auto px-6 w-full">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="relative"
           >
-            {/* Glow effect behind card */}
+            {/* Subtle glow effect behind card */}
             <div
-              className="absolute -inset-4 rounded-3xl opacity-20 blur-3xl"
-              style={{ backgroundColor: 'var(--lake-blue-300)' }}
+              className="absolute -inset-8 rounded-3xl blur-3xl"
+              style={{
+                background: 'radial-gradient(circle at center, rgba(139, 94, 60, 0.08), transparent 70%)',
+                opacity: 0.4
+              }}
             />
 
-            {/* Card Container */}
+            {/* Card Container - Modern & Sleek */}
             <div
-              className="relative backdrop-blur-sm border-2 rounded-2xl shadow-2xl overflow-hidden"
+              className="relative bg-white/90 backdrop-blur-md border rounded-3xl shadow-2xl shadow-black/5 overflow-hidden"
               style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: 'var(--mahogany-400)'
+                borderColor: 'var(--mono-border-gray)'
               }}
             >
               {/* Header Section */}
-              <div className="px-6 pt-4 pb-3 text-center border-b" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+              <div className="px-8 pt-8 pb-6 text-center border-b" style={{ borderColor: 'var(--mono-border-gray)' }}>
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
                   className="mb-1"
                 >
                   <h1
-                    className="text-xl font-serif font-bold tracking-tight mb-1"
-                    style={{ color: 'var(--mahogany-800)' }}
+                    className="text-2xl font-serif font-bold tracking-tight mb-2"
+                    style={{ color: 'var(--mono-black)' }}
                   >
                     Welcome Back
                   </h1>
                   <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: 'var(--mahogany-500)' }}
+                    className="text-sm leading-relaxed"
+                    style={{ color: 'var(--mono-secondary-gray)' }}
                   >
                     Sign in to access your intelligent tax workspace
                   </p>
@@ -106,8 +99,8 @@ export default function SignInPage() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="px-6 py-4 flex flex-col items-center"
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="px-8 py-6 flex flex-col items-center"
               >
                 <div className="w-full">
                 <SignIn
@@ -124,36 +117,36 @@ export default function SignInPage() {
                       main__body: "!bg-transparent w-full !p-0 !flex !flex-col !items-center",
 
                       // Social Buttons - styled to match landing page
-                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-background/50 !w-full !flex !items-center !justify-center !gap-2 !h-9 !rounded-md !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-4",
-                      socialButtonsBlockButtonText: "!font-medium !text-xs",
-                      socialButtons: "!w-full !flex !flex-col !items-center !gap-2",
+                      socialButtonsBlockButton: "!relative !overflow-visible !border !bg-white/50 !w-full !flex !items-center !justify-center !gap-2 !h-10 !rounded-lg !mb-0 !shadow-sm transition-all hover:!shadow-md hover:!scale-[1.01] !px-4",
+                      socialButtonsBlockButtonText: "!font-medium !text-sm",
+                      socialButtons: "!w-full !flex !flex-col !items-center !gap-3",
                       socialButtonsProviderIcon: "!mr-2 !h-5",
 
                       // Divider
-                      dividerRow: "!flex !items-center !justify-between !my-3 !w-full",
+                      dividerRow: "!flex !items-center !justify-between !my-4 !w-full",
                       dividerLine: "!h-px !flex-grow",
                       dividerText: "!text-xs !uppercase !tracking-wider !bg-transparent !px-4",
 
                       // Form Fields - styled to match landing page aesthetic
-                      form: "!w-full !gap-2 !mt-0 !flex !flex-col !items-center",
+                      form: "!w-full !gap-3 !mt-0 !flex !flex-col !items-center",
                       formFieldRow: "!w-full",
                       formField: "!w-full !mb-0",
-                      formFieldLabel: "!text-xs !font-semibold !mb-1.5 !text-left !block !w-full !uppercase !tracking-wide",
-                      formFieldInput: "!w-full !h-9 !rounded-md !border !bg-background/50 !px-4 !text-xs focus:!ring-2 transition-all !box-border",
+                      formFieldLabel: "!text-sm !font-medium !mb-2 !text-left !block !w-full",
+                      formFieldInput: "!w-full !h-10 !rounded-lg !border !bg-white/50 !px-4 !text-sm focus:!ring-2 transition-all !box-border",
 
                       // Primary Button - styled to match landing page CTA
-                      formButtonPrimary: "!w-full !h-9 !rounded-md !text-xs !font-serif !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] !shadow-md !mt-1.5 !px-4",
+                      formButtonPrimary: "!w-full !h-11 !rounded-lg !text-base !font-medium hover:!shadow-lg transition-all hover:!scale-[1.02] hover:!brightness-95 !shadow-sm !mt-2 !px-4",
 
                       // Footer/Links
                       footerAction: "hidden",
                       footer: "hidden",
 
                       // Other
-                      identityPreview: "!border !rounded-md !p-3 !mb-3 !w-full",
-                      identityPreviewText: "!text-xs",
-                      identityPreviewEditButton: "!text-xs hover:!underline",
+                      identityPreview: "!border !rounded-lg !p-3 !mb-3 !w-full",
+                      identityPreviewText: "!text-sm",
+                      identityPreviewEditButton: "!text-sm hover:!underline",
                       formFieldInputShowPasswordButton: "hover:!scale-105 transition-transform",
-                      alert: "!border-2 !rounded-md !mb-3 !text-xs !p-3 !w-full",
+                      alert: "!border !rounded-lg !mb-3 !text-sm !p-3 !w-full",
                       alertText: ""
                     },
                     layout: {
@@ -161,13 +154,13 @@ export default function SignInPage() {
                       showOptionalFields: false
                     },
                     variables: {
-                      colorPrimary: '#704830', // mahogany-600
-                      colorText: '#422F26', // mahogany-800
-                      colorTextSecondary: '#8B6758', // mahogany-500
-                      colorBackground: 'rgba(250, 247, 240, 0.5)', // ivory-100 with transparency
+                      colorPrimary: '#8B5E3C', // accent-brown
+                      colorText: '#1A1A1A', // mono-black
+                      colorTextSecondary: '#6B6B6B', // mono-secondary-gray
+                      colorBackground: 'rgba(255, 255, 255, 0.5)',
                       colorInputBackground: 'rgba(255, 255, 255, 0.5)',
-                      colorInputText: '#422F26',
-                      borderRadius: '0.375rem',
+                      colorInputText: '#1A1A1A',
+                      borderRadius: '0.5rem',
                       fontFamily: 'inherit',
                       fontSize: '0.875rem',
                     }
@@ -175,18 +168,16 @@ export default function SignInPage() {
                 />
 
                 {/* Footer Link */}
-                <div className="mt-3 pt-3 border-t w-full" style={{ borderColor: 'var(--mahogany-300)/30' }}>
+                <div className="mt-5 pt-4 border-t w-full" style={{ borderColor: 'var(--mono-border-gray)' }}>
                   <p
-                    className="text-xs text-center"
-                    style={{ color: 'var(--mahogany-500)' }}
+                    className="text-sm text-center"
+                    style={{ color: 'var(--mono-secondary-gray)' }}
                   >
                     Don&apos;t have an account?{' '}
                     <Link
                       href="/contact"
-                      className="font-semibold transition-colors hover:underline"
-                      style={{ color: 'var(--mahogany-700)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--lake-blue-500)'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--mahogany-700)'}
+                      className="font-medium transition-colors hover:underline"
+                      style={{ color: 'var(--accent-brown)' }}
                     >
                       Request access
                     </Link>
@@ -195,24 +186,6 @@ export default function SignInPage() {
                 </div>
               </motion.div>
             </div>
-
-            {/* Decorative corner accents - matching landing page CTA */}
-            <div
-              className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 rounded-tl-lg pointer-events-none"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 rounded-tr-lg pointer-events-none"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 rounded-bl-lg pointer-events-none"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
-            <div
-              className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 rounded-br-lg pointer-events-none"
-              style={{ borderColor: 'var(--gold-500)' }}
-            />
           </motion.div>
         </div>
       </section>

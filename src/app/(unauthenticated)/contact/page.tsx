@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Send, Menu, X } from 'lucide-react'
@@ -10,14 +10,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { signupRequestApi } from '@/lib/api'
 import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
+import { toast } from 'sonner'
 
 const NAV_ITEMS = [
-  { name: 'Product', href: '/#product' },
-  { name: 'Solutions', href: '/#solutions' },
+  { name: 'Features', href: '/#features' },
+  { name: 'How It Works', href: '/#how-it-works' },
+  { name: 'Why Wavv', href: '/#why-wavv' },
 ]
 
 export default function ContactPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [hasScrolled, setHasScrolled] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -27,12 +30,10 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    setError(null)
 
     try {
       await signupRequestApi.createRequest({
@@ -50,16 +51,23 @@ export default function ContactPage() {
       }, 3000)
     } catch (err) {
       console.error('Error submitting request:', err)
-      setError(err instanceof Error ? err.message : 'Failed to submit request. Please try again.')
+      toast.error(err instanceof Error ? err.message : 'Failed to submit request. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Scroll effect for navbar
+  useEffect(() => {
+    const handleScroll = () => setHasScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   return (
     <div
-      className="min-h-screen text-[var(--mahogany-800)] overflow-x-hidden"
-      style={{ backgroundColor: 'var(--ivory-100)' }}
+      className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
+      style={{ backgroundColor: 'var(--mono-white)' }}
     >
       {/* Retro Water Animation Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -68,19 +76,24 @@ export default function ContactPage() {
 
       {/* Navigation */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b border-[var(--mahogany-300)]/30 backdrop-blur-xl"
-        style={{ backgroundColor: 'rgba(250, 247, 240, 0.95)' }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${hasScrolled
+          ? 'border-b border-[var(--mono-border-gray)] backdrop-blur-md shadow-sm'
+          : 'backdrop-blur-sm'
+          }`}
+        style={{
+          backgroundColor: hasScrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.8)'
+        }}
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group z-10">
             <div
               className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-              style={{ backgroundColor: 'var(--mahogany-600)' }}
+              style={{ backgroundColor: 'var(--accent-brown)' }}
             >
-              <span className="text-[var(--ivory-100)] font-serif italic text-lg font-semibold">w</span>
+              <span className="text-white font-serif italic text-lg font-semibold">w</span>
             </div>
-            <span className="text-xl font-serif font-bold tracking-tight text-[var(--mahogany-700)]">
+            <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
               wavv
             </span>
           </Link>
@@ -91,7 +104,7 @@ export default function ContactPage() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-sm font-medium text-[var(--mahogany-500)] hover:text-[var(--mahogany-800)] transition-colors"
+                className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
               >
                 {item.name}
               </Link>
@@ -102,15 +115,26 @@ export default function ContactPage() {
           <div className="hidden md:flex items-center gap-4 z-10">
             <Link
               href="/sign-in"
-              className="text-sm font-medium text-[var(--mahogany-500)] hover:text-[var(--mahogany-800)] transition-colors"
+              className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
             >
               Login
+            </Link>
+            <Link href="/contact">
+              <Button
+                className="rounded-md px-5 h-10 font-medium transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
+                style={{
+                  backgroundColor: 'var(--accent-brown)',
+                  color: 'white',
+                }}
+              >
+                Request Access
+              </Button>
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 text-[var(--mahogany-600)]"
+            className="md:hidden p-2 text-[var(--mono-black)]"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
@@ -123,22 +147,30 @@ export default function ContactPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden border-t border-[var(--mahogany-300)]/30 px-6 py-4 space-y-4"
-            style={{ backgroundColor: 'var(--ivory-100)' }}
+            className="md:hidden border-t border-[var(--mono-border-gray)] px-6 py-4 space-y-4"
+            style={{ backgroundColor: 'var(--mono-white)' }}
           >
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="block text-sm font-medium text-[var(--mahogany-600)] hover:text-[var(--mahogany-800)]"
+                className="block text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)]"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {item.name}
               </Link>
             ))}
-            <div className="pt-4 border-t border-[var(--mahogany-300)]/30 space-y-3">
-              <Link href="/sign-in" className="block text-sm font-medium text-[var(--mahogany-600)]">
+            <div className="pt-4 border-t border-[var(--mono-border-gray)] space-y-3">
+              <Link href="/sign-in" className="block text-sm font-medium text-[var(--mono-secondary-gray)]">
                 Login
+              </Link>
+              <Link href="/contact" className="block">
+                <Button
+                  className="w-full hover:brightness-95"
+                  style={{ backgroundColor: 'var(--accent-brown)', color: 'white' }}
+                >
+                  Request Access
+                </Button>
               </Link>
             </div>
           </motion.div>
@@ -146,10 +178,10 @@ export default function ContactPage() {
       </nav>
 
       {/* Contact Section */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 min-h-screen flex items-center z-10">
+      <section className="relative pt-20 pb-16 min-h-screen flex items-center justify-center z-10">
         <div className="max-w-6xl mx-auto px-6 w-full">
           {/* Semi-transparent backdrop for content */}
-          <div className="bg-[var(--ivory-100)]/70 backdrop-blur-sm rounded-2xl p-8 md:p-12">
+          <div className="bg-[var(--ivory-100)]/70 backdrop-blur-sm rounded-2xl p-6 md:p-10 scale-[0.85]">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left Column - Text */}
               <div>
@@ -203,10 +235,10 @@ export default function ContactPage() {
                   />
 
                   <div
-                    className="relative rounded-2xl p-8 md:p-10 shadow-2xl border-2"
+                    className="relative rounded-2xl p-6 md:p-8 shadow-2xl border scale-[0.968]"
                     style={{
                       backgroundColor: 'var(--ivory-50)',
-                      borderColor: 'var(--mahogany-400)',
+                      borderColor: 'var(--mahogany-300)',
                     }}
                   >
                     {submitted ? (
@@ -230,19 +262,6 @@ export default function ContactPage() {
                       </motion.div>
                     ) : (
                       <form onSubmit={handleSubmit} className="space-y-6">
-                        {error && (
-                          <div
-                            className="p-3 rounded-xl text-sm border"
-                            style={{
-                              backgroundColor: 'var(--mahogany-100)',
-                              color: 'var(--mahogany-700)',
-                              borderColor: 'var(--mahogany-300)',
-                            }}
-                          >
-                            {error}
-                          </div>
-                        )}
-
                         <div className="grid sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="name" className="text-sm font-medium" style={{ color: 'var(--mahogany-700)' }}>

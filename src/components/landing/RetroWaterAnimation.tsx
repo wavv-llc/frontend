@@ -116,7 +116,7 @@ function RetroWaterAnimationComponent({ className = '', intensity = 'medium' }: 
             className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 1.5 }}
+            transition={{ duration: 0.4 }}
             style={{ willChange: 'transform' }}
         >
             <canvas

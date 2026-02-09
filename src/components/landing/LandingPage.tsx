@@ -178,22 +178,22 @@ function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
 // ============ HERO SECTION ============
 function HeroSection() {
   return (
-    <section className="relative pt-24 pb-16 md:pt-32 md:pb-24">
+    <section className="relative pt-32 pb-16 md:pt-40 md:pb-20">
       {/* Animated water background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <RetroWaterAnimation intensity="medium" />
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 relative z-10">
+      <div className="max-w-4xl mx-auto px-6 relative z-10">
         {/* Semi-transparent backdrop for text readability */}
-        <div className="flex flex-col items-center text-center bg-white/90 backdrop-blur-md rounded-3xl py-14 px-8 md:py-20 md:px-12 border border-white/40 shadow-2xl shadow-black/5">
+        <div className="flex flex-col items-center text-center bg-white/90 backdrop-blur-md rounded-3xl py-10 px-6 md:py-14 md:px-10 border border-white/40 shadow-2xl shadow-black/5">
 
           {/* Main Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight mb-6 leading-[1.05]"
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-5 leading-[1.05]"
             style={{ color: 'var(--mono-black)' }}
           >
             Tax Intelligence,<br />
@@ -204,8 +204,8 @@ function HeroSection() {
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-base md:text-xl max-w-2xl leading-relaxed mb-10"
+            transition={{ duration: 0.3, delay: 0.05}}
+            className="text-sm md:text-lg max-w-xl leading-relaxed mb-8"
             style={{ color: 'var(--mono-secondary-gray)' }}
           >
             Wavv is the unified AI workspace where tax professionals find answers, automate reviews,
@@ -216,13 +216,13 @@ function HeroSection() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
             className="flex flex-col sm:flex-row items-center gap-4"
           >
             <Link href="/contact">
               <Button
                 size="lg"
-                className="h-12 px-8 text-base font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
+                className="h-11 px-7 text-base font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
                 style={{
                   backgroundColor: 'var(--accent-brown)',
                   color: 'white',
@@ -238,8 +238,8 @@ function HeroSection() {
         <motion.div
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="mt-32 md:mt-48 relative"
+          transition={{ duration: 0.25, delay: 0.05 }}
+          className="mt-48 md:mt-64 relative"
         >
           <DashboardPreview />
         </motion.div>
@@ -258,14 +258,14 @@ function DashboardPreview() {
       ref={ref}
       initial={{ opacity: 0, y: 60, scale: 0.95 }}
       animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="relative mx-auto max-w-5xl"
     >
       {/* Glow effect */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={isInView ? { opacity: 0.4 } : {}}
-        transition={{ duration: 1, delay: 0.2 }}
+        transition={{ duration: 0.35, delay: 0.05}}
         className="absolute -inset-8 rounded-3xl blur-3xl"
         style={{
           background: 'radial-gradient(circle at center, rgba(139, 94, 60, 0.08), transparent 70%)'
@@ -398,7 +398,7 @@ function DashboardPreview() {
                   key={result.title}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 + i * 0.1 }}
+                  transition={{ delay: 0.1 + i * 0.03 }}
                   className="flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm"
                   style={{
                     backgroundColor: 'var(--mono-white)',
@@ -477,7 +477,7 @@ function ProblemSection() {
           y: [0, -20, 0],
         }}
         transition={{
-          duration: 8,
+          duration: 5,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -492,7 +492,7 @@ function ProblemSection() {
           y: [0, 30, 0],
         }}
         transition={{
-          duration: 10,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -509,7 +509,7 @@ function ProblemSection() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
@@ -526,7 +526,7 @@ function ProblemSection() {
               key={problem.title}
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: i * 0.1 }}
+              transition={{ duration: 0.25, delay: i * 0.05 }}
               className="p-8 rounded-2xl border"
               style={{
                 backgroundColor: 'var(--mono-white)',
@@ -577,7 +577,7 @@ function SolutionSection() {
           scale: [1, 1.1, 1],
         }}
         transition={{
-          duration: 9,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -593,7 +593,7 @@ function SolutionSection() {
           scale: [1, 1.15, 1],
         }}
         transition={{
-          duration: 11,
+          duration: 7,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -603,14 +603,13 @@ function SolutionSection() {
       />
 
       {/* Decorative grid accent */}
-      <div className="absolute top-12 left-12 w-32 h-32 border-2 border-[var(--mono-border-gray)] rounded-2xl opacity-60 rotate-12 z-[1]" />
       <div className="absolute bottom-16 right-16 w-40 h-40 border-2 border-[var(--mono-border-gray)] rounded-full opacity-60 z-[1]" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
 
@@ -628,7 +627,7 @@ function SolutionSection() {
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.25, delay: 0.05}}
             className="space-y-6"
           >
             {[
@@ -683,7 +682,7 @@ function SolutionSection() {
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
             className="relative"
           >
             <KnowledgeGraphVisualization />
@@ -722,7 +721,7 @@ function KnowledgeGraphVisualization() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
         <motion.div
           animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 3, repeat: Infinity }}
+          transition={{ duration: 2, repeat: Infinity }}
           className="w-20 h-20 rounded-xl flex items-center justify-center shadow-lg"
           style={{ backgroundColor: 'var(--accent-brown)' }}
         >
@@ -810,7 +809,7 @@ function FeaturesSection() {
           y: [0, 20, 0],
         }}
         transition={{
-          duration: 9,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -831,7 +830,7 @@ function FeaturesSection() {
           x: [0, 100, 200],
         }}
         transition={{
-          duration: 8,
+          duration: 5,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -841,7 +840,7 @@ function FeaturesSection() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
@@ -857,7 +856,7 @@ function FeaturesSection() {
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.25, delay: 0.05}}
           >
             <h3
               className="text-2xl md:text-3xl font-serif font-bold mb-6 leading-tight"
@@ -878,7 +877,7 @@ function FeaturesSection() {
                   key={item}
                   initial={{ opacity: 0, x: -20 }}
                   animate={isInView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ delay: 0.3 + i * 0.1 }}
+                  transition={{ delay: i * 0.03 }}
                   className="flex items-center gap-3"
                 >
                   <div
@@ -897,7 +896,7 @@ function FeaturesSection() {
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
             className="hidden lg:block"
           >
             <ReviewerFlowAnimation />
@@ -920,6 +919,9 @@ function RoadmapSection() {
       description: 'SOC 2 Type II certification and enhanced client data protection protocols.',
       status: 'In Progress',
       progress: 65,
+      progressColor: 'var(--accent-brown)',
+      iconColor: 'var(--lake-blue-400)',
+      badgeColor: 'var(--accent-brown)',
     },
     {
       icon: Rocket,
@@ -927,6 +929,9 @@ function RoadmapSection() {
       description: 'Intelligent review automation for complex tax calculations and multi-level approvals. Coworker.ai-inspired AI workflows.',
       status: 'Coming Soon',
       progress: 30,
+      progressColor: 'var(--accent-brown)',
+      iconColor: 'var(--lake-blue-400)',
+      badgeColor: 'var(--accent-brown)',
     },
     {
       icon: Target,
@@ -934,6 +939,9 @@ function RoadmapSection() {
       description: 'External research capabilities to match or exceed competitors like Blue J. Deep regulatory analysis.',
       status: 'Planned',
       progress: 15,
+      progressColor: 'var(--accent-brown)',
+      iconColor: 'var(--lake-blue-400)',
+      badgeColor: 'var(--accent-brown)',
     },
   ]
 
@@ -953,7 +961,7 @@ function RoadmapSection() {
           scale: [1, 1.15, 1],
         }}
         transition={{
-          duration: 12,
+          duration: 7,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -968,7 +976,7 @@ function RoadmapSection() {
           y: [0, -30, 0],
         }}
         transition={{
-          duration: 10,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut"
         }}
@@ -985,7 +993,7 @@ function RoadmapSection() {
           x: [-100, -50, 0],
         }}
         transition={{
-          duration: 6,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut",
           repeatDelay: 1,
@@ -998,7 +1006,7 @@ function RoadmapSection() {
           x: [0, 50, 100],
         }}
         transition={{
-          duration: 6,
+          duration: 4,
           repeat: Infinity,
           ease: "easeInOut",
           repeatDelay: 1,
@@ -1014,7 +1022,7 @@ function RoadmapSection() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
@@ -1031,7 +1039,7 @@ function RoadmapSection() {
               key={item.title}
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: i * 0.15 }}
+              transition={{ duration: 0.25, delay: i * 0.05 }}
               className="p-6 rounded-2xl border relative overflow-hidden"
               style={{
                 backgroundColor: 'var(--mono-white)',
@@ -1043,16 +1051,16 @@ function RoadmapSection() {
                 <motion.div
                   initial={{ width: 0 }}
                   animate={isInView ? { width: `${item.progress}%` } : {}}
-                  transition={{ duration: 1, delay: 0.5 + i * 0.2 }}
+                  transition={{ duration: 0.25, delay: 0.05 + i * 0.05 }}
                   className="h-full"
-                  style={{ backgroundColor: 'var(--accent-brown)' }}
+                  style={{ backgroundColor: item.progressColor }}
                 />
               </div>
 
               <div className="flex items-start gap-4 mt-4">
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                  style={{ backgroundColor: 'var(--accent-brown)' }}
+                  style={{ backgroundColor: item.iconColor }}
                 >
                   <item.icon className="w-6 h-6 text-white" />
                 </div>
@@ -1061,8 +1069,7 @@ function RoadmapSection() {
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                       style={{
-                        backgroundColor: item.status === 'In Progress' ? 'var(--accent-brown)' :
-                          item.status === 'Coming Soon' ? 'var(--mono-secondary-gray)' : 'var(--mono-muted-gray)',
+                        backgroundColor: item.badgeColor,
                         color: 'white',
                       }}
                     >
@@ -1125,7 +1132,7 @@ function IbizaVibesSection() {
         {/* Palm tree */}
         <motion.div
           animate={{ rotate: [-5, 5, -5] }}
-          transition={{ duration: 3, repeat: Infinity }}
+          transition={{ duration: 2, repeat: Infinity }}
           className="absolute bottom-20 left-12 text-4xl"
         >
           🌴
@@ -1152,7 +1159,7 @@ function IbizaVibesSection() {
         {/* DJ/Music note */}
         <motion.div
           animate={{ scale: [1, 1.2, 1] }}
-          transition={{ duration: 0.5, repeat: Infinity }}
+          transition={{ duration: 0.3, repeat: Infinity }}
           className="absolute bottom-32 right-1/4 text-3xl"
         >
           🎧
@@ -1172,7 +1179,7 @@ function IbizaVibesSection() {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.3 }}
         >
           {/* Music icon */}
           <motion.div
@@ -1245,14 +1252,14 @@ function CTASection() {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.35 }}
           className="text-center"
         >
           {/* Minimal accent line */}
           <motion.div
             initial={{ width: 0 }}
             animate={isInView ? { width: '64px' } : {}}
-            transition={{ duration: 0.8, delay: 0.2 }}
+            transition={{ duration: 0.3, delay: 0.05}}
             className="h-0.5 mx-auto mb-10"
             style={{ backgroundColor: 'var(--accent-brown)' }}
           />

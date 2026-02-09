@@ -42,7 +42,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
         // Start interval for stage progression
         intervalRef.current = setInterval(() => {
             setActiveStage((prev) => (prev + 1) % (STAGES.length + 1))
-        }, 1800)
+        }, 900)
 
         return () => {
             if (intervalRef.current) {
@@ -95,7 +95,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                         animate={{
                                             scale: isActive ? 1.15 : 1,
                                         }}
-                                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                                     >
                                         <motion.div
                                             className="w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-colors duration-300"
@@ -125,7 +125,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                                 animate={{
                                                     width: isComplete ? '100%' : isActive ? '50%' : '0%'
                                                 }}
-                                                transition={{ duration: 0.5 }}
+                                                transition={{ duration: 0.3 }}
                                             />
                                         </div>
                                     )}
