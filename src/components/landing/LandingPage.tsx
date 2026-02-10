@@ -383,8 +383,8 @@ function DashboardPreview() {
                 },
                 {
                   type: 'Research',
-                  title: 'Pass-Through Entity Tax Treatment',
-                  excerpt: 'Qualified business income deduction analysis for pass-through...',
+                  title: 'Corporate Income Tax Analysis',
+                  excerpt: 'ASC 740 deferred tax calculations and state apportionment rules...',
                   icon: BookOpen,
                 },
                 {
@@ -449,7 +449,7 @@ function ProblemSection() {
     {
       icon: Clock,
       title: 'Manual Processes',
-      description: 'Endless switching between tools. Repetitive tasks eating billable hours. Your team deserves better.',
+      description: 'Endless switching between tools. Repetitive tasks consuming valuable time. Your team deserves better.',
     },
     {
       icon: FileSearch,
@@ -562,7 +562,7 @@ function SolutionSection() {
     <section
       id="features"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
       style={{ backgroundColor: 'var(--mono-white)' }}
     >
       {/* Excel grid overlay */}
@@ -782,7 +782,7 @@ function FeaturesSection() {
     <section
       id="how-it-works"
       ref={ref}
-      className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+      className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
       style={{ backgroundColor: 'var(--mono-off-white)' }}
     >
       {/* Animated floating orbs with different patterns */}
