@@ -4,6 +4,7 @@ import {
 } from '@clerk/nextjs'
 import { Geist, Geist_Mono, Crimson_Pro } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const geistSans = Geist({
@@ -38,6 +39,7 @@ export default function RootLayout({
         <body className={`${geistSans.variable} ${geistMono.variable} ${crimsonPro.variable} antialiased`}>
           {children}
           <Toaster />
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
