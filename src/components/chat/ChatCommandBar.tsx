@@ -1,14 +1,14 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
-import { Send, Loader2 } from 'lucide-react'
+import { useRef, useEffect, useState } from 'react'
+import { Send, Loader2, Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 interface ChatCommandBarProps {
     message: string
     onChange: (value: string) => void
-    onSubmit: (e: React.FormEvent) => void
+    onSubmit: (e: React.FormEvent, externalSearchEnabled: boolean) => void
     isSubmitting: boolean
     placeholder?: string
 }
@@ -21,6 +21,7 @@ export function ChatCommandBar({
     placeholder = 'Ask me anything...'
 }: ChatCommandBarProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const [externalSearchEnabled, setExternalSearchEnabled] = useState(false)
 
     // Auto-resize textarea
     useEffect(() => {
@@ -34,12 +35,21 @@ export function ChatCommandBar({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            onSubmit(e)
+            onSubmit(e, externalSearchEnabled)
         }
     }
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        onSubmit(e, externalSearchEnabled)
+    }
+
+    const toggleExternalSearch = () => {
+        setExternalSearchEnabled(!externalSearchEnabled)
+    }
+
     return (
-        <form onSubmit={onSubmit} className="relative">
+        <form onSubmit={handleSubmit} className="relative">
             <div className="relative bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/5 hover:shadow-black/10 transition-all focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-border">
                 <Textarea
                     ref={textareaRef}
@@ -47,10 +57,22 @@ export function ChatCommandBar({
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="min-h-[56px] max-h-[200px] resize-none border-0 bg-transparent px-4 md:px-6 py-4 pr-14 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm md:text-base placeholder:text-muted-foreground/60 scrollbar-thin"
+                    className="min-h-[56px] max-h-[200px] resize-none border-0 bg-transparent pl-14 pr-14 md:pl-16 md:pr-16 py-4 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm md:text-base placeholder:text-muted-foreground/60 scrollbar-thin"
                     disabled={isSubmitting}
                     rows={1}
                 />
+                <div className="absolute left-3 bottom-3">
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant={externalSearchEnabled ? "default" : "ghost"}
+                        onClick={toggleExternalSearch}
+                        className="h-8 w-8 rounded-full transition-all"
+                        title={externalSearchEnabled ? "External search enabled" : "Enable external search"}
+                    >
+                        <Globe className={`h-4 w-4 ${externalSearchEnabled ? '' : 'text-muted-foreground'}`} />
+                    </Button>
+                </div>
                 <div className="absolute right-3 bottom-3">
                     <Button
                         type="submit"

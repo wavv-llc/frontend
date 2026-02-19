@@ -1424,11 +1424,11 @@ export const chatApi = {
         });
     },
 
-    createChat: async (token: string, message: string) => {
+    createChat: async (token: string, message: string, externalSearchEnabled: boolean = false) => {
         return apiRequest<Chat>('/api/v1/chats/', {
             method: 'POST',
             token,
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message, externalSearchEnabled }),
         });
     },
 };

@@ -14,7 +14,7 @@ export default function NewChatPage() {
     const [message, setMessage] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, externalSearchEnabled: boolean) => {
         e.preventDefault()
         if (!message.trim() || isSubmitting) return
 
@@ -26,7 +26,7 @@ export default function NewChatPage() {
                 return
             }
 
-            const response = await chatApi.createChat(token, message.trim())
+            const response = await chatApi.createChat(token, message.trim(), externalSearchEnabled)
             if (response.data) {
                 router.push(`/chats/${response.data.id}`)
             }
