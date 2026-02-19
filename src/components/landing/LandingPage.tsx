@@ -5,13 +5,15 @@ import Link from 'next/link'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import {
   ArrowRight, Search, FileText, Database, Brain, Layers, Users, Zap, Command,
-  BookOpen, Library, Briefcase, Check, Menu, X, Sparkles, ShieldCheck, Clock, FileSearch, FolderOpen,
+  BookOpen, Library, Briefcase, Check, Sparkles, ShieldCheck, Clock, FileSearch, FolderOpen,
   TrendingUp, BarChart3, LineChart, Rocket, Shield, Target, Music
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RetroWaterAnimation } from './RetroWaterAnimation'
 import { ExcelGridBackground } from './ExcelGridBackground'
 import { ReviewerFlowAnimation } from './ReviewerFlowAnimation'
+import { AppBar } from '@/components/AppBar'
+import { Footer } from '@/components/Footer'
 
 const NAV_ITEMS = [
   { name: 'Features', href: '#features' },
@@ -20,18 +22,12 @@ const NAV_ITEMS = [
 ]
 
 export function LandingPage() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
   return (
     <div
-      className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
-      style={{ backgroundColor: 'var(--mono-white)' }}
+      className="min-h-screen text-steel-950 overflow-x-hidden bg-white"
     >
       {/* Navigation */}
-      <Navigation
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-      />
+      <AppBar navItems={NAV_ITEMS} />
 
       {/* Hero Section */}
       <HeroSection />
@@ -57,124 +53,6 @@ export function LandingPage() {
   )
 }
 
-// ============ NAVIGATION ============
-function Navigation({ isMobileMenuOpen, setIsMobileMenuOpen }: {
-  isMobileMenuOpen: boolean
-  setIsMobileMenuOpen: (open: boolean) => void
-}) {
-  const [hasScrolled, setHasScrolled] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => setHasScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${hasScrolled
-        ? 'border-b border-[var(--mono-border-gray)] backdrop-blur-md shadow-sm'
-        : 'backdrop-blur-sm'
-        }`}
-      style={{
-        backgroundColor: hasScrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.8)'
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group z-10">
-          <div
-            className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-            style={{ backgroundColor: 'var(--accent-brown)' }}
-          >
-            <span className="text-white font-serif italic text-lg font-semibold">w</span>
-          </div>
-          <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
-            wavv
-          </span>
-        </Link>
-
-        {/* Desktop Nav - Absolutely centered */}
-        <div className="hidden md:flex items-center gap-10 absolute left-1/2 -translate-x-1/2">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
-            >
-              {item.name}
-            </Link>
-          ))}
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="hidden md:flex items-center gap-4 z-10">
-          <Link
-            href="/sign-in"
-            className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
-          >
-            Login
-          </Link>
-          <Link href="/contact">
-            <Button
-              className="rounded-md px-5 h-10 font-medium transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
-              style={{
-                backgroundColor: 'var(--accent-brown)',
-                color: 'white',
-              }}
-            >
-              Request Access
-            </Button>
-          </Link>
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden p-2 text-[var(--mono-black)]"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="md:hidden border-t border-[var(--mono-border-gray)] px-6 py-4 space-y-4"
-          style={{ backgroundColor: 'var(--mono-white)' }}
-        >
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="block text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)]"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              {item.name}
-            </Link>
-          ))}
-          <div className="pt-4 border-t border-[var(--mono-border-gray)] space-y-3">
-            <Link href="/sign-in" className="block text-sm font-medium text-[var(--mono-secondary-gray)]">
-              Login
-            </Link>
-            <Link href="/contact" className="block">
-              <Button
-                className="w-full hover:brightness-95"
-                style={{ backgroundColor: 'var(--accent-brown)', color: 'white' }}
-              >
-                Request Access
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
-      )}
-    </nav>
-  )
-}
-
 // ============ HERO SECTION ============
 function HeroSection() {
   return (
@@ -193,11 +71,10 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}
-            className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-5 leading-[1.05]"
-            style={{ color: 'var(--mono-black)' }}
+            className="text-3xl md:text-5xl lg:text-6xl font-serif font-normal tracking-tight mb-5 leading-[1.05] text-steel-950"
           >
             Tax Intelligence,<br />
-            <span style={{ color: 'var(--lake-blue-400)' }}>Unleashed.</span>
+            <span className="italic text-steel-600">Unleashed.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -205,8 +82,7 @@ function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05}}
-            className="text-sm md:text-lg max-w-xl leading-relaxed mb-8"
-            style={{ color: 'var(--mono-secondary-gray)' }}
+            className="font-sans text-sm md:text-lg max-w-xl leading-relaxed mb-8 text-steel-700"
           >
             Wavv is the unified AI workspace where tax professionals find answers, automate reviews,
             and reclaim time. Work smarter now. Live better later.
@@ -222,11 +98,7 @@ function HeroSection() {
             <Link href="/contact">
               <Button
                 size="lg"
-                className="h-11 px-7 text-base font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
-                style={{
-                  backgroundColor: 'var(--accent-brown)',
-                  color: 'white',
-                }}
+                className="h-11 px-7 text-base font-medium rounded-lg"
               >
                 Contact Us
               </Button>
@@ -276,28 +148,28 @@ function DashboardPreview() {
       <div
         className="relative rounded-3xl border shadow-2xl overflow-hidden"
         style={{
-          backgroundColor: 'var(--mono-white)',
-          borderColor: 'var(--mono-border-gray)',
+          backgroundColor: '#FFFFFF',
+          borderColor: '#e2e8f0',
         }}
       >
         {/* Browser chrome */}
         <div
           className="h-10 px-4 flex items-center gap-2 border-b"
           style={{
-            backgroundColor: 'var(--mono-light-gray)',
-            borderColor: 'var(--mono-border-gray)',
+            backgroundColor: '#f1f5f9',
+            borderColor: '#e2e8f0',
           }}
         >
           <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
-            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
-            <div className="w-3 h-3 rounded-full bg-[var(--mono-border-gray)]" />
+            <div className="w-3 h-3 rounded-full bg-[#e2e8f0]" />
+            <div className="w-3 h-3 rounded-full bg-[#e2e8f0]" />
+            <div className="w-3 h-3 rounded-full bg-[#e2e8f0]" />
           </div>
           <div
             className="flex-1 mx-4 h-6 rounded-md flex items-center px-3 text-xs"
             style={{
-              backgroundColor: 'var(--mono-white)',
-              color: 'var(--mono-muted-gray)',
+              backgroundColor: '#FFFFFF',
+              color: '#94a3b8',
             }}
           >
             wavv.ai/workspace
@@ -310,18 +182,18 @@ function DashboardPreview() {
           <div
             className="hidden md:flex flex-col w-56 p-4 border-r"
             style={{
-              backgroundColor: 'var(--mono-off-white)',
-              borderColor: 'var(--mono-border-gray)',
+              backgroundColor: '#f8fafc',
+              borderColor: '#e2e8f0',
             }}
           >
             <div className="flex items-center gap-2 mb-6">
               <div
                 className="w-7 h-7 rounded flex items-center justify-center"
-                style={{ backgroundColor: 'var(--accent-brown)' }}
+                style={{ backgroundColor: '#1e293b' }}
               >
                 <span className="text-white font-serif italic text-sm">w</span>
               </div>
-              <span className="font-serif font-bold text-[var(--mono-black)]">wavv</span>
+              <span className="font-serif font-bold text-[#0b1120]">wavv</span>
             </div>
 
             {/* Nav items */}
@@ -336,8 +208,8 @@ function DashboardPreview() {
                   key={item.label}
                   className="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors"
                   style={{
-                    backgroundColor: item.active ? 'var(--mono-light-gray)' : 'transparent',
-                    color: item.active ? 'var(--mono-black)' : 'var(--mono-secondary-gray)',
+                    backgroundColor: item.active ? '#f1f5f9' : 'transparent',
+                    color: item.active ? '#0b1120' : '#475569',
                   }}
                 >
                   <item.icon className="w-4 h-4" />
@@ -348,24 +220,24 @@ function DashboardPreview() {
           </div>
 
           {/* Main content */}
-          <div className="flex-1 p-6 overflow-hidden" style={{ backgroundColor: 'var(--mono-white)' }}>
+          <div className="flex-1 p-6 overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
             {/* Search bar */}
             <div
               className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg border"
               style={{
-                backgroundColor: 'var(--mono-off-white)',
-                borderColor: 'var(--mono-border-gray)',
+                backgroundColor: '#f8fafc',
+                borderColor: '#e2e8f0',
               }}
             >
-              <Search className="w-5 h-5 text-[var(--mono-muted-gray)]" />
-              <span className="text-[var(--mono-muted-gray)]">
+              <Search className="w-5 h-5 text-[#94a3b8]" />
+              <span className="text-[#94a3b8]">
                 Search IRC, internal memos, client files...
               </span>
               <div
                 className="ml-auto px-2 py-0.5 rounded text-xs font-mono"
                 style={{
-                  backgroundColor: 'var(--mono-light-gray)',
-                  color: 'var(--mono-secondary-gray)',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
                 }}
               >
                 ⌘K
@@ -401,13 +273,13 @@ function DashboardPreview() {
                   transition={{ delay: 0.1 + i * 0.03 }}
                   className="flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm"
                   style={{
-                    backgroundColor: 'var(--mono-white)',
-                    borderColor: 'var(--mono-border-gray)',
+                    backgroundColor: '#FFFFFF',
+                    borderColor: '#e2e8f0',
                   }}
                 >
                   <div
                     className="p-2 rounded-lg shrink-0 shadow-sm"
-                    style={{ backgroundColor: 'var(--accent-brown)' }}
+                    style={{ backgroundColor: '#1e293b' }}
                   >
                     <result.icon className="w-4 h-4 text-white" />
                   </div>
@@ -416,17 +288,17 @@ function DashboardPreview() {
                       <span
                         className="text-[10px] font-medium px-1.5 py-0.5 rounded"
                         style={{
-                          backgroundColor: 'var(--mono-light-gray)',
-                          color: 'var(--mono-secondary-gray)',
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
                         }}
                       >
                         {result.type}
                       </span>
                     </div>
-                    <h4 className="font-medium text-sm text-[var(--mono-black)] truncate">
+                    <h4 className="font-medium text-sm text-[#0b1120] truncate">
                       {result.title}
                     </h4>
-                    <p className="text-xs text-[var(--mono-muted-gray)] truncate mt-0.5">
+                    <p className="text-xs text-[#94a3b8] truncate mt-0.5">
                       {result.excerpt}
                     </p>
                   </div>
@@ -467,7 +339,7 @@ function ProblemSection() {
     <section
       ref={ref}
       className="py-24 md:py-32 relative overflow-hidden"
-      style={{ backgroundColor: 'var(--mono-off-white)' }}
+      style={{ backgroundColor: '#f8fafc' }}
     >
       {/* Animated floating orbs */}
       <motion.div
@@ -502,8 +374,8 @@ function ProblemSection() {
       />
 
       {/* Decorative corner elements */}
-      <div className="absolute top-8 right-8 w-24 h-24 border-t border-r border-[var(--mono-border-gray)] rounded-tr-3xl opacity-60 z-0" />
-      <div className="absolute bottom-8 left-8 w-24 h-24 border-b border-l border-[var(--mono-border-gray)] rounded-bl-3xl opacity-60 z-0" />
+      <div className="absolute top-8 right-8 w-24 h-24 border-t border-r border-[#e2e8f0] rounded-tr-3xl opacity-60 z-0" />
+      <div className="absolute bottom-8 left-8 w-24 h-24 border-b border-l border-[#e2e8f0] rounded-bl-3xl opacity-60 z-0" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
@@ -512,10 +384,10 @@ function ProblemSection() {
           transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: '#0b1120' }}>
             The Reality of Tax Work
           </h2>
-          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: '#475569' }}>
             Your profession demands precision. Your tools should rise to meet it.
           </p>
         </motion.div>
@@ -529,20 +401,20 @@ function ProblemSection() {
               transition={{ duration: 0.25, delay: i * 0.05 }}
               className="p-8 rounded-2xl border"
               style={{
-                backgroundColor: 'var(--mono-white)',
-                borderColor: 'var(--mono-border-gray)',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#e2e8f0',
               }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 shadow-sm"
-                style={{ backgroundColor: 'var(--accent-brown)' }}
+                style={{ backgroundColor: '#1e293b' }}
               >
                 <problem.icon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-serif font-bold mb-3" style={{ color: 'var(--mono-black)' }}>
+              <h3 className="text-xl font-serif font-bold mb-3" style={{ color: '#0b1120' }}>
                 {problem.title}
               </h3>
-              <p className="leading-relaxed text-[15px]" style={{ color: 'var(--mono-secondary-gray)' }}>
+              <p className="leading-relaxed text-[15px]" style={{ color: '#475569' }}>
                 {problem.description}
               </p>
             </motion.div>
@@ -563,7 +435,7 @@ function SolutionSection() {
       id="features"
       ref={ref}
       className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
-      style={{ backgroundColor: 'var(--mono-white)' }}
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       {/* Excel grid overlay */}
       <ExcelGridBackground className="z-0" />
@@ -603,7 +475,7 @@ function SolutionSection() {
       />
 
       {/* Decorative grid accent */}
-      <div className="absolute bottom-16 right-16 w-40 h-40 border-2 border-[var(--mono-border-gray)] rounded-full opacity-60 z-[1]" />
+      <div className="absolute bottom-16 right-16 w-40 h-40 border-2 border-steel-200 rounded-full opacity-60 z-0" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
@@ -613,10 +485,10 @@ function SolutionSection() {
           className="text-center mb-16"
         >
 
-          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: '#0b1120' }}>
             One Hub. All Answers.
           </h2>
-          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: '#475569' }}>
             Stop switching between twelve tabs. Wavv unifies your internal knowledge with external tax authority
             in a single, intelligent search.
           </p>
@@ -656,21 +528,21 @@ function SolutionSection() {
                 key={feature.title}
                 className="flex gap-4 p-6 rounded-2xl border transition-all hover:shadow-sm"
                 style={{
-                  backgroundColor: 'var(--mono-white)',
-                  borderColor: 'var(--mono-border-gray)',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#e2e8f0',
                 }}
               >
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: 'var(--accent-brown)' }}
+                  style={{ backgroundColor: '#1e293b' }}
                 >
                   <feature.icon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-serif font-bold text-lg mb-1" style={{ color: 'var(--mono-black)' }}>
+                  <h4 className="font-serif font-bold text-lg mb-1" style={{ color: '#0b1120' }}>
                     {feature.title}
                   </h4>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: '#475569' }}>
                     {feature.description}
                   </p>
                 </div>
@@ -697,10 +569,10 @@ function SolutionSection() {
 function KnowledgeGraphVisualization() {
   return (
     <div
-      className="aspect-square relative rounded-2xl border p-8"
+      className="aspect-square relative rounded-2xl border p-8 z-20"
       style={{
-        backgroundColor: 'var(--mono-white)',
-        borderColor: 'var(--mono-border-gray)',
+        backgroundColor: '#FFFFFF',
+        borderColor: '#e2e8f0',
       }}
     >
       {/* Connection lines (SVG) - Behind everything */}
@@ -710,7 +582,7 @@ function KnowledgeGraphVisualization() {
           cy="50%"
           r="120"
           fill="none"
-          stroke="var(--mono-border-gray)"
+          stroke="#e2e8f0"
           strokeWidth="1"
           strokeDasharray="4 4"
           opacity="0.4"
@@ -723,7 +595,7 @@ function KnowledgeGraphVisualization() {
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 2, repeat: Infinity }}
           className="w-20 h-20 rounded-xl flex items-center justify-center shadow-lg"
-          style={{ backgroundColor: 'var(--accent-brown)' }}
+          style={{ backgroundColor: '#1e293b' }}
         >
           <Brain className="w-10 h-10 text-white" />
         </motion.div>
@@ -731,11 +603,11 @@ function KnowledgeGraphVisualization() {
 
       {/* Orbiting nodes */}
       {[
-        { angle: 0, icon: FileText, label: '10-K Filing', color: 'var(--lake-blue-400)' },
-        { angle: 72, icon: Database, label: 'SharePoint', color: 'var(--lake-blue-400)' },
-        { angle: 144, icon: BookOpen, label: 'Tax Research', color: 'var(--lake-blue-400)' },
-        { angle: 216, icon: FolderOpen, label: 'Workpapers', color: 'var(--lake-blue-400)' },
-        { angle: 288, icon: Briefcase, label: 'Client Files', color: 'var(--lake-blue-400)' },
+        { angle: 0, icon: FileText, label: '10-K Filing', color: '#64748b' },
+        { angle: 72, icon: Database, label: 'SharePoint', color: '#64748b' },
+        { angle: 144, icon: BookOpen, label: 'Tax Research', color: '#64748b' },
+        { angle: 216, icon: FolderOpen, label: 'Workpapers', color: '#64748b' },
+        { angle: 288, icon: Briefcase, label: 'Client Files', color: '#64748b' },
       ].map((node) => {
         const x = Math.cos((node.angle * Math.PI) / 180) * 120
         const y = Math.sin((node.angle * Math.PI) / 180) * 120
@@ -760,8 +632,8 @@ function KnowledgeGraphVisualization() {
             <span
               className="text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded"
               style={{
-                backgroundColor: 'var(--mono-light-gray)',
-                color: 'var(--mono-secondary-gray)',
+                backgroundColor: '#f1f5f9',
+                color: '#475569',
               }}
             >
               {node.label}
@@ -783,7 +655,7 @@ function FeaturesSection() {
       id="how-it-works"
       ref={ref}
       className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
-      style={{ backgroundColor: 'var(--mono-off-white)' }}
+      style={{ backgroundColor: '#f8fafc' }}
     >
       {/* Animated floating orbs with different patterns */}
       <motion.div
@@ -819,12 +691,12 @@ function FeaturesSection() {
       />
 
       {/* Decorative corner accents */}
-      <div className="absolute top-10 right-10 w-28 h-28 border-t-2 border-r-2 border-[var(--mono-border-gray)] rounded-tr-3xl opacity-60 z-0" />
-      <div className="absolute bottom-10 left-10 w-28 h-28 border-b-2 border-l-2 border-[var(--mono-border-gray)] rounded-bl-3xl opacity-60 z-0" />
+      <div className="absolute top-10 right-10 w-28 h-28 border-t-2 border-r-2 border-[#e2e8f0] rounded-tr-3xl opacity-60 z-0" />
+      <div className="absolute bottom-10 left-10 w-28 h-28 border-b-2 border-l-2 border-[#e2e8f0] rounded-bl-3xl opacity-60 z-0" />
 
       {/* Animated connecting lines */}
       <motion.div
-        className="absolute top-1/2 left-0 w-32 h-[2px] bg-gradient-to-r from-transparent via-[var(--mono-border-gray)] to-transparent z-0 opacity-80"
+        className="absolute top-1/2 left-0 w-32 h-[2px] bg-gradient-to-r from-transparent via-[#e2e8f0] to-transparent z-0 opacity-80"
         animate={{
           scaleX: [0, 1, 0],
           x: [0, 100, 200],
@@ -843,10 +715,10 @@ function FeaturesSection() {
           transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: '#0b1120' }}>
             Built for How You Work
           </h2>
-          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: '#475569' }}>
             From task creation to multi-level review approval, Wavv streamlines your entire workflow.
           </p>
         </motion.div>
@@ -860,7 +732,7 @@ function FeaturesSection() {
           >
             <h3
               className="text-2xl md:text-3xl font-serif font-bold mb-6 leading-tight"
-              style={{ color: 'var(--mono-black)' }}
+              style={{ color: '#0b1120' }}
             >
               Automated Review Workflows
             </h3>
@@ -882,11 +754,11 @@ function FeaturesSection() {
                 >
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: 'var(--accent-brown)' }}
+                    style={{ backgroundColor: '#1e293b' }}
                   >
                     <Check className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-[var(--mono-secondary-gray)]">{item}</span>
+                  <span className="text-[#475569]">{item}</span>
                 </motion.div>
               ))}
             </div>
@@ -919,9 +791,9 @@ function RoadmapSection() {
       description: 'SOC 2 Type II certification and enhanced client data protection protocols.',
       status: 'In Progress',
       progress: 65,
-      progressColor: 'var(--accent-brown)',
-      iconColor: 'var(--lake-blue-400)',
-      badgeColor: 'var(--accent-brown)',
+      progressColor: '#1e293b',
+      iconColor: '#64748b',
+      badgeColor: '#1e293b',
     },
     {
       icon: Rocket,
@@ -929,9 +801,9 @@ function RoadmapSection() {
       description: 'Intelligent review automation for complex tax calculations and multi-level approvals. Coworker.ai-inspired AI workflows.',
       status: 'Coming Soon',
       progress: 30,
-      progressColor: 'var(--accent-brown)',
-      iconColor: 'var(--lake-blue-400)',
-      badgeColor: 'var(--accent-brown)',
+      progressColor: '#1e293b',
+      iconColor: '#64748b',
+      badgeColor: '#1e293b',
     },
     {
       icon: Target,
@@ -939,9 +811,9 @@ function RoadmapSection() {
       description: 'External research capabilities to match or exceed competitors like Blue J. Deep regulatory analysis.',
       status: 'Planned',
       progress: 15,
-      progressColor: 'var(--accent-brown)',
-      iconColor: 'var(--lake-blue-400)',
-      badgeColor: 'var(--accent-brown)',
+      progressColor: '#1e293b',
+      iconColor: '#64748b',
+      badgeColor: '#1e293b',
     },
   ]
 
@@ -950,7 +822,7 @@ function RoadmapSection() {
       id="why-wavv"
       ref={ref}
       className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
-      style={{ backgroundColor: 'var(--mono-white)' }}
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       {/* Large animated gradient orbs for future/innovation feel */}
       <motion.div
@@ -987,7 +859,7 @@ function RoadmapSection() {
 
       {/* Animated progress lines - suggesting forward motion */}
       <motion.div
-        className="absolute top-1/3 right-0 w-48 h-[2px] bg-gradient-to-l from-transparent via-[var(--mono-border-gray)] to-transparent opacity-80 z-0"
+        className="absolute top-1/3 right-0 w-48 h-[2px] bg-gradient-to-l from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
         animate={{
           scaleX: [0, 1, 0],
           x: [-100, -50, 0],
@@ -1000,7 +872,7 @@ function RoadmapSection() {
         }}
       />
       <motion.div
-        className="absolute top-2/3 left-0 w-48 h-[2px] bg-gradient-to-r from-transparent via-[var(--mono-border-gray)] to-transparent opacity-80 z-0"
+        className="absolute top-2/3 left-0 w-48 h-[2px] bg-gradient-to-r from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
         animate={{
           scaleX: [0, 1, 0],
           x: [0, 50, 100],
@@ -1015,8 +887,8 @@ function RoadmapSection() {
       />
 
       {/* Decorative tech-inspired elements */}
-      <div className="absolute top-12 left-12 w-20 h-20 border-2 border-[var(--lake-blue-400)] rounded-lg opacity-40 rotate-45 z-0" />
-      <div className="absolute bottom-12 right-12 w-24 h-24 border-2 border-[var(--accent-brown)] rounded-full opacity-35 z-0" />
+      <div className="absolute top-12 left-12 w-20 h-20 border-2 border-[#64748b] rounded-lg opacity-40 rotate-45 z-0" />
+      <div className="absolute bottom-12 right-12 w-24 h-24 border-2 border-[#1e293b] rounded-full opacity-35 z-0" />
 
       <div className="max-w-6xl mx-auto px-6 relative z-10">
         <motion.div
@@ -1025,10 +897,10 @@ function RoadmapSection() {
           transition={{ duration: 0.35 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: 'var(--mono-black)' }}>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight" style={{ color: '#0b1120' }}>
             What's Next
           </h2>
-          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+          <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: '#475569' }}>
             Our roadmap for continuous improvement and innovation.
           </p>
         </motion.div>
@@ -1042,12 +914,12 @@ function RoadmapSection() {
               transition={{ duration: 0.25, delay: i * 0.05 }}
               className="p-6 rounded-2xl border relative overflow-hidden"
               style={{
-                backgroundColor: 'var(--mono-white)',
-                borderColor: 'var(--mono-border-gray)',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#e2e8f0',
               }}
             >
               {/* Progress bar at top */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--mono-light-gray)]">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-[#f1f5f9]">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={isInView ? { width: `${item.progress}%` } : {}}
@@ -1076,10 +948,10 @@ function RoadmapSection() {
                       {item.status}
                     </span>
                   </div>
-                  <h3 className="font-serif font-bold text-lg mb-2 leading-snug" style={{ color: 'var(--mono-black)' }}>
+                  <h3 className="font-serif font-bold text-lg mb-2 leading-snug" style={{ color: '#0b1120' }}>
                     {item.title}
                   </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--mono-secondary-gray)' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: '#475569' }}>
                     {item.description}
                   </p>
                 </div>
@@ -1186,7 +1058,7 @@ function IbizaVibesSection() {
             animate={{ rotate: [0, 10, -10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
             className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6"
-            style={{ backgroundColor: 'var(--lake-blue-400)' }}
+            style={{ backgroundColor: '#64748b' }}
           >
             <Music className="w-8 h-8 text-[var(--ivory-100)]" />
           </motion.div>
@@ -1219,7 +1091,7 @@ function IbizaVibesSection() {
                   ease: 'easeInOut',
                 }}
                 className="w-2 rounded-full"
-                style={{ backgroundColor: 'var(--lake-blue-400)' }}
+                style={{ backgroundColor: '#64748b' }}
               />
             ))}
           </div>
@@ -1238,7 +1110,7 @@ function CTASection() {
     <section
       ref={ref}
       className="py-32 md:py-40 relative overflow-hidden"
-      style={{ backgroundColor: 'var(--mono-white)' }}
+      style={{ backgroundColor: '#FFFFFF' }}
     >
       {/* Subtle gradient background */}
       <div
@@ -1261,19 +1133,19 @@ function CTASection() {
             animate={isInView ? { width: '64px' } : {}}
             transition={{ duration: 0.3, delay: 0.05}}
             className="h-0.5 mx-auto mb-10"
-            style={{ backgroundColor: 'var(--accent-brown)' }}
+            style={{ backgroundColor: '#1e293b' }}
           />
 
           <h2
             className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold mb-6 leading-tight"
-            style={{ color: 'var(--mono-black)' }}
+            style={{ color: '#0b1120' }}
           >
             Join the firms that work like the 1%.
           </h2>
 
           <p
             className="text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed"
-            style={{ color: 'var(--mono-secondary-gray)' }}
+            style={{ color: '#475569' }}
           >
             See how Wavv transforms tax practice. Schedule a personalized demo with our team.
           </p>
@@ -1283,7 +1155,7 @@ function CTASection() {
               size="lg"
               className="h-14 px-12 text-lg font-medium rounded-lg transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm group"
               style={{
-                backgroundColor: 'var(--accent-brown)',
+                backgroundColor: '#1e293b',
                 color: 'white',
               }}
             >
@@ -1297,53 +1169,3 @@ function CTASection() {
   )
 }
 
-// ============ FOOTER ============
-function Footer() {
-  return (
-    <footer
-      className="py-12 border-t"
-      style={{
-        backgroundColor: 'var(--mono-white)',
-        borderColor: 'var(--mono-border-gray)',
-      }}
-    >
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div
-              className="w-7 h-7 rounded flex items-center justify-center"
-              style={{ backgroundColor: 'var(--accent-brown)' }}
-            >
-              <span className="text-white font-serif italic text-sm">w</span>
-            </div>
-            <span className="font-serif font-bold text-[var(--mono-black)]">wavv</span>
-          </div>
-
-          {/* Links */}
-          <div className="flex gap-8">
-            <Link
-              href="/privacy"
-              className="text-sm hover:underline transition-colors"
-              style={{ color: 'var(--mono-secondary-gray)' }}
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/terms"
-              className="text-sm hover:underline transition-colors"
-              style={{ color: 'var(--mono-secondary-gray)' }}
-            >
-              Terms of Service
-            </Link>
-          </div>
-
-          {/* Copyright */}
-          <div className="text-sm" style={{ color: 'var(--mono-muted-gray)' }}>
-            © 2026 Wavv AI LLC.
-          </div>
-        </div>
-      </div>
-    </footer>
-  )
-}

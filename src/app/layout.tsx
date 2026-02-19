@@ -2,25 +2,22 @@ import { type Metadata } from 'next'
 import {
   ClerkProvider,
 } from '@clerk/nextjs'
-import { Geist, Geist_Mono, Crimson_Pro } from 'next/font/google'
+import { DM_Sans, DM_Serif_Display } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
   subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const dmSerifDisplay = DM_Serif_Display({
+  variable: '--font-dm-serif',
   subsets: ['latin'],
-})
-
-const crimsonPro = Crimson_Pro({
-  variable: '--font-crimson',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['400'],
+  style: ['normal', 'italic'], // For "Unleashed" accent
 })
 
 export const metadata: Metadata = {
@@ -36,7 +33,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} ${crimsonPro.variable} antialiased`}>
+        <body className={`${dmSans.variable} ${dmSerifDisplay.variable} antialiased`}>
           {children}
           <Toaster />
           <Analytics />

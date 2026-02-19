@@ -9,11 +9,11 @@ interface ReviewerFlowAnimationProps {
 }
 
 const STAGES = [
-    { id: 1, label: 'Task Created', icon: FileCheck, color: 'var(--lake-blue-400)' },
-    { id: 2, label: 'Preparer', icon: User, color: 'var(--lake-blue-400)' },
-    { id: 3, label: '1st Reviewer', icon: User, color: 'var(--lake-blue-400)' },
-    { id: 4, label: '2nd Reviewer', icon: User, color: 'var(--lake-blue-400)' },
-    { id: 5, label: 'Complete', icon: Check, color: 'var(--lake-blue-400)' },
+    { id: 1, label: 'Task Created', icon: FileCheck, color: '#64748b' },
+    { id: 2, label: 'Preparer', icon: User, color: '#64748b' },
+    { id: 3, label: '1st Reviewer', icon: User, color: '#64748b' },
+    { id: 4, label: '2nd Reviewer', icon: User, color: '#64748b' },
+    { id: 5, label: 'Complete', icon: Check, color: '#64748b' },
 ]
 
 function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimationProps) {
@@ -59,22 +59,22 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
             onMouseLeave={() => setIsPaused(false)}
         >
             {/* Clean Window Frame */}
-            <div className="bg-white border border-[var(--mono-border-gray)] rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-white border border-[#e2e8f0] rounded-2xl shadow-lg overflow-hidden">
                 {/* Title Bar - Modern clean style */}
                 <div
                     className="h-10 px-4 flex items-center justify-between border-b"
                     style={{
-                        backgroundColor: 'var(--mono-off-white)',
-                        borderColor: 'var(--mono-border-gray)'
+                        backgroundColor: '#f8fafc',
+                        borderColor: '#e2e8f0'
                     }}
                 >
-                    <span className="text-[var(--mono-black)] text-sm font-semibold tracking-wide font-serif">
+                    <span className="text-[#0b1120] text-sm font-semibold tracking-wide font-serif">
                         Task Review Workflow
                     </span>
                     <div className="flex gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[var(--mono-border-gray)]" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-[var(--mono-border-gray)]" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-[var(--mono-border-gray)]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#e2e8f0]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#e2e8f0]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#e2e8f0]" />
                     </div>
                 </div>
 
@@ -100,8 +100,8 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                         <motion.div
                                             className="w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-colors duration-300"
                                             style={{
-                                                backgroundColor: isComplete || isActive ? stage.color : 'var(--mono-off-white)',
-                                                borderColor: isComplete || isActive ? stage.color : 'var(--mono-border-gray)',
+                                                backgroundColor: isComplete || isActive ? stage.color : '#f8fafc',
+                                                borderColor: isComplete || isActive ? stage.color : '#e2e8f0',
                                                 boxShadow: isActive
                                                     ? '0 0 0 3px rgba(127, 179, 230, 0.15)'
                                                     : 'none',
@@ -110,7 +110,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                             <Icon
                                                 className="w-5 h-5 transition-colors duration-300"
                                                 style={{
-                                                    color: isComplete || isActive ? 'white' : 'var(--mono-secondary-gray)'
+                                                    color: isComplete || isActive ? 'white' : '#475569'
                                                 }}
                                             />
                                         </motion.div>
@@ -118,9 +118,9 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
 
                                     {/* Connector Line */}
                                     {index < STAGES.length - 1 && (
-                                        <div className="w-8 h-0.5 mx-1 relative overflow-hidden bg-[var(--mono-border-gray)]">
+                                        <div className="w-8 h-0.5 mx-1 relative overflow-hidden bg-[#e2e8f0]">
                                             <motion.div
-                                                className="absolute inset-y-0 left-0 bg-[var(--lake-blue-400)]"
+                                                className="absolute inset-y-0 left-0 bg-[#64748b]"
                                                 initial={{ width: '0%' }}
                                                 animate={{
                                                     width: isComplete ? '100%' : isActive ? '50%' : '0%'
@@ -142,7 +142,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                     <motion.span
                                         className="text-xs font-medium transition-colors duration-300 whitespace-nowrap"
                                         style={{
-                                            color: index <= activeStage ? 'var(--mono-black)' : 'var(--mono-muted-gray)',
+                                            color: index <= activeStage ? '#0b1120' : '#94a3b8',
                                         }}
                                         animate={{
                                             fontWeight: index === activeStage ? 600 : 400,
@@ -163,8 +163,8 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                     <motion.div
                         className="mt-6 p-3 rounded-xl border"
                         style={{
-                            backgroundColor: 'var(--mono-off-white)',
-                            borderColor: 'var(--mono-border-gray)',
+                            backgroundColor: '#f8fafc',
+                            borderColor: '#e2e8f0',
                         }}
                     >
                         <AnimatePresence mode="wait">
@@ -177,8 +177,8 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                             >
                                 {activeStage < STAGES.length ? (
                                     <>
-                                        <Clock className="w-4 h-4 text-[var(--mono-secondary-gray)]" />
-                                        <span className="text-sm text-[var(--mono-black)] font-serif">
+                                        <Clock className="w-4 h-4 text-[#475569]" />
+                                        <span className="text-sm text-[#0b1120] font-serif">
                                             {activeStage === 0 && 'Initializing task...'}
                                             {activeStage === 1 && 'Awaiting preparer review...'}
                                             {activeStage === 2 && 'Submitted to 1st level reviewer...'}
@@ -188,8 +188,8 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
                                     </>
                                 ) : (
                                     <>
-                                        <Check className="w-4 h-4 text-[var(--lake-blue-400)]" />
-                                        <span className="text-sm text-[var(--lake-blue-400)] font-serif font-medium">
+                                        <Check className="w-4 h-4 text-[#64748b]" />
+                                        <span className="text-sm text-[#64748b] font-serif font-medium">
                                             Task approved and finalized
                                         </span>
                                     </>
@@ -204,7 +204,7 @@ function ReviewerFlowAnimationComponent({ className = '' }: ReviewerFlowAnimatio
             <div
                 className="absolute -bottom-2 left-4 right-4 h-4 rounded-2xl -z-10"
                 style={{
-                    background: 'radial-gradient(ellipse at center, rgba(139, 94, 60, 0.1), transparent 70%)',
+                    background: 'radial-gradient(ellipse at center, rgba(100, 116, 139, 0.15), transparent 70%)',
                     filter: 'blur(6px)',
                 }}
             />

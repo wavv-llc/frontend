@@ -7,9 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-crimson);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-dm-serif);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -43,134 +42,133 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-steel-950: var(--steel-950);
+  --color-steel-900: var(--steel-900);
+  --color-steel-800: var(--steel-800);
+  --color-steel-700: var(--steel-700);
+  --color-steel-600: var(--steel-600);
+  --color-steel-500: var(--steel-500);
+  --color-steel-400: var(--steel-400);
+  --color-steel-300: var(--steel-300);
+  --color-steel-200: var(--steel-200);
+  --color-steel-100: var(--steel-100);
+  --color-steel-50: var(--steel-50);
 }
 
 :root {
-  --radius: 0.5rem;
+  /* Border Radius Scale - Pure Steel */
+  --radius: 0.5rem; /* 8px base */
+  --radius-sm: 0.375rem; /* 6px */
+  --radius-md: 0.5rem; /* 8px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1.25rem; /* 20px */
 
-  /* Editorial Monochrome SaaS Design System */
-  /* Base Colors - Strictly Monochrome */
-  --background: #FFFFFF; /* pure white */
-  --foreground: #000000; /* pure black for primary text */
-  --card: #FFFFFF; /* white cards */
-  --card-foreground: #000000; /* black text on cards */
-  --popover: #FFFFFF; /* white popovers */
-  --popover-foreground: #000000; /* black text */
+  /* ============ PURE STEEL COLOR SYSTEM ============ */
+  /* Steel Grayscale - Only Color Palette */
+  --steel-950: #0b1120; /* Deepest black */
+  --steel-900: #0f172a; /* Dark backgrounds */
+  --steel-800: #1e293b; /* Headlines, CTA fills */
+  --steel-700: #334155; /* Strong secondary text */
+  --steel-600: #475569; /* "Unleashed" italic accent */
+  --steel-500: #64748b; /* Body copy, nav links */
+  --steel-400: #94a3b8; /* Muted text, placeholders */
+  --steel-300: #cbd5e1; /* Subtle borders */
+  --steel-200: #e2e8f0; /* Card borders, dividers */
+  --steel-100: #f1f5f9; /* Subtle backgrounds */
+  --steel-50: #f8fafc; /* Card backgrounds */
 
-  /* Accent Color - Warm Brown for CTAs and highlights */
-  --primary: #8B5E3C; /* warm brown accent */
-  --primary-foreground: #FFFFFF; /* white text on accent */
+  /* Semantic Token Mapping */
+  --background: #FFFFFF;
+  --foreground: var(--steel-950);
 
-  /* Secondary stays as blue for hero section only */
-  --secondary: #7FB3E6; /* soft light blue (hero only) */
-  --secondary-foreground: #FFFFFF; /* white text */
+  --card: #FFFFFF;
+  --card-foreground: var(--steel-950);
 
-  /* Neutral Grays */
-  --muted: #FAFAFA; /* off-white for subtle backgrounds */
-  --muted-foreground: #666666; /* medium gray for secondary text */
-  --accent: #8B5E3C; /* warm brown accent */
-  --accent-foreground: #FFFFFF; /* white text on accent */
+  --popover: #FFFFFF;
+  --popover-foreground: var(--steel-950);
 
-  --destructive: #DC2626; /* red for destructive actions */
-  --destructive-foreground: #FFFFFF; /* white text */
+  --primary: var(--steel-800); /* NO brown */
+  --primary-foreground: var(--steel-50);
 
-  /* Borders & Inputs - Very Subtle */
-  --border: #E5E5E5; /* very light gray borders */
-  --input: #F5F5F5; /* light gray input backgrounds */
-  --ring: #8B5E3C; /* warm brown focus rings */
+  --secondary: var(--steel-200);
+  --secondary-foreground: var(--steel-800);
 
-  /* Chart Colors */
-  --chart-1: #8B5E3C; /* warm brown */
-  --chart-2: #7FB3E6; /* soft blue */
-  --chart-3: #999999; /* medium gray */
-  --chart-4: #666666; /* dark gray */
-  --chart-5: #CCCCCC; /* light gray */
+  --muted: var(--steel-100);
+  --muted-foreground: var(--steel-600);
+
+  --accent: var(--steel-600); /* "Unleashed" only */
+  --accent-foreground: var(--steel-50);
+
+  --destructive: #DC2626; /* Keep red */
+  --destructive-foreground: #FFFFFF;
+
+  --border: var(--steel-200);
+  --input: var(--steel-100);
+  --ring: var(--steel-500);
+
+  /* Chart Colors - Grayscale only */
+  --chart-1: var(--steel-800);
+  --chart-2: var(--steel-600);
+  --chart-3: var(--steel-500);
+  --chart-4: var(--steel-400);
+  --chart-5: var(--steel-300);
 
   /* Sidebar */
-  --sidebar: #FFFFFF; /* white */
-  --sidebar-foreground: #000000; /* black text */
-  --sidebar-primary: #8B5E3C; /* warm brown */
-  --sidebar-primary-foreground: #FFFFFF; /* white */
-  --sidebar-accent: #FAFAFA; /* off-white hover */
-  --sidebar-accent-foreground: #000000; /* black text */
-  --sidebar-border: #E5E5E5; /* light gray borders */
-  --sidebar-ring: #8B5E3C; /* warm brown focus */
-
-  /* Design Token Variables - Monochrome System */
-  --mono-white: #FFFFFF;
-  --mono-off-white: #FAFAFA;
-  --mono-light-gray: #F5F5F5;
-  --mono-border-gray: #E5E5E5;
-  --mono-muted-gray: #999999;
-  --mono-secondary-gray: #666666;
-  --mono-black: #000000;
-
-  /* Accent Color */
-  --accent-brown: #8B5E3C; /* warm brown for CTAs */
-  --accent-brown-hover: #734D2F; /* darker on hover */
-
-  /* Hero Section Only - Blue Lake Colors (preserved) */
-  --lake-blue-100: #E6F3FA;
-  --lake-blue-200: #B8DCEF;
-  --lake-blue-300: #9CCAE8;
-  --lake-blue-400: #7FB3E6; /* soft light blue */
-  --lake-blue-500: #5A9BD4;
-
-  /* Legacy variable mapping for backward compatibility */
-  --ivory-50: #FFFFFF;
-  --ivory-100: #FAFAFA;
-  --ivory-200: #F5F5F5;
-  --ivory-300: #E5E5E5;
-
-  --mahogany-300: #999999;
-  --mahogany-400: #666666;
-  --mahogany-500: #666666;
-  --mahogany-600: #8B5E3C; /* maps to accent brown */
-  --mahogany-700: #333333;
-  --mahogany-800: #000000;
-
-  --excel-green-300: #8B5E3C;
-  --excel-green-400: #8B5E3C;
-  --excel-green-500: #734D2F;
-  --excel-green-600: #5A3D24;
-
-  --gold-400: #8B5E3C;
-  --gold-500: #8B5E3C;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: var(--steel-950);
+  --sidebar-primary: var(--steel-800);
+  --sidebar-primary-foreground: var(--steel-50);
+  --sidebar-accent: var(--steel-100);
+  --sidebar-accent-foreground: var(--steel-800);
+  --sidebar-border: var(--steel-200);
+  --sidebar-ring: var(--steel-500);
 }
 
 .dark {
-  --background: hsl(240 5.9% 10%);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  --background: var(--steel-950);
+  --foreground: var(--steel-50);
+
+  --card: var(--steel-900);
+  --card-foreground: var(--steel-50);
+
+  --popover: var(--steel-900);
+  --popover-foreground: var(--steel-50);
+
+  --primary: var(--steel-200);
+  --primary-foreground: var(--steel-950);
+
+  --secondary: var(--steel-800);
+  --secondary-foreground: var(--steel-200);
+
+  --muted: var(--steel-900);
+  --muted-foreground: var(--steel-500);
+
+  --accent: var(--steel-800);
+  --accent-foreground: var(--steel-200);
+
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+
+  --border: var(--steel-800);
+  --input: var(--steel-900);
+  --ring: var(--steel-600);
+
+  /* Dark mode charts */
+  --chart-1: var(--steel-200);
+  --chart-2: var(--steel-400);
+  --chart-3: var(--steel-500);
+  --chart-4: var(--steel-600);
+  --chart-5: var(--steel-700);
+
+  /* Dark mode sidebar */
+  --sidebar: var(--steel-950);
+  --sidebar-foreground: var(--steel-50);
+  --sidebar-primary: var(--steel-200);
+  --sidebar-primary-foreground: var(--steel-950);
+  --sidebar-accent: var(--steel-900);
+  --sidebar-accent-foreground: var(--steel-200);
+  --sidebar-border: var(--steel-800);
+  --sidebar-ring: var(--steel-600);
 }
 
 @layer base {
@@ -400,16 +398,7 @@ a[href*="signUp"] {
   background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
 }
 
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: #6FA8C6; /* lake-blue-400 for dark mode */
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: #8B5A3C; /* mahogany-400 */
-}
+/* Removed duplicate dark mode sidebar - now defined in main .dark block above */
 
 @layer base {
   * {

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { SignIn } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
 import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
+import { AppBar } from '@/components/AppBar'
+import { Footer } from '@/components/Footer'
 
 export default function SignInPage() {
   return (
@@ -16,36 +18,8 @@ export default function SignInPage() {
         <RetroWaterAnimation intensity="medium" />
       </div>
 
-      {/* Navigation - Matching Landing Page */}
-      <nav
-        className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md shadow-sm"
-        style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.98)',
-          borderColor: 'var(--mono-border-gray)'
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div
-              className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-              style={{ backgroundColor: 'var(--accent-brown)' }}
-            >
-              <span className="text-white font-serif italic text-lg font-semibold">
-                w
-              </span>
-            </div>
-            <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
-              wavv
-            </span>
-          </Link>
-          <Link
-            href="/"
-            className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
-          >
-            Back to Home
-          </Link>
-        </div>
-      </nav>
+      {/* Navigation */}
+      <AppBar variant="simple" backLinkText="Back to Home" />
 
       {/* Sign In Section - Better Vertical Centering */}
       <section className="relative flex items-center justify-center min-h-screen py-24 z-10">
@@ -189,6 +163,11 @@ export default function SignInPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   )
 }

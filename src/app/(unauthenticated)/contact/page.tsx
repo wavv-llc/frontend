@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Send, Menu, X } from 'lucide-react'
+import { ArrowLeft, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { signupRequestApi } from '@/lib/api'
 import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation'
+import { AppBar } from '@/components/AppBar'
+import { Footer } from '@/components/Footer'
 import { toast } from 'sonner'
 
 const NAV_ITEMS = [
@@ -19,8 +21,6 @@ const NAV_ITEMS = [
 ]
 
 export default function ContactPage() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [hasScrolled, setHasScrolled] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -57,13 +57,6 @@ export default function ContactPage() {
     }
   }
 
-  // Scroll effect for navbar
-  useEffect(() => {
-    const handleScroll = () => setHasScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
   return (
     <div
       className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
@@ -75,113 +68,16 @@ export default function ContactPage() {
       </div>
 
       {/* Navigation */}
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${hasScrolled
-          ? 'border-b border-[var(--mono-border-gray)] backdrop-blur-md shadow-sm'
-          : 'backdrop-blur-sm'
-          }`}
-        style={{
-          backgroundColor: hasScrolled ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.8)'
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between relative">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group z-10">
-            <div
-              className="w-9 h-9 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
-              style={{ backgroundColor: 'var(--accent-brown)' }}
-            >
-              <span className="text-white font-serif italic text-lg font-semibold">w</span>
-            </div>
-            <span className="text-xl font-serif font-bold tracking-tight text-[var(--mono-black)]">
-              wavv
-            </span>
-          </Link>
-
-          {/* Desktop Nav - Absolutely centered */}
-          <div className="hidden md:flex items-center gap-10 absolute left-1/2 -translate-x-1/2">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="hidden md:flex items-center gap-4 z-10">
-            <Link
-              href="/sign-in"
-              className="text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)] transition-colors"
-            >
-              Login
-            </Link>
-            <Link href="/contact">
-              <Button
-                className="rounded-md px-5 h-10 font-medium transition-all hover:scale-[1.02] hover:brightness-95 shadow-sm"
-                style={{
-                  backgroundColor: 'var(--accent-brown)',
-                  color: 'white',
-                }}
-              >
-                Request Access
-              </Button>
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 text-[var(--mono-black)]"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="md:hidden border-t border-[var(--mono-border-gray)] px-6 py-4 space-y-4"
-            style={{ backgroundColor: 'var(--mono-white)' }}
-          >
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="block text-sm font-medium text-[var(--mono-secondary-gray)] hover:text-[var(--mono-black)]"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
-            ))}
-            <div className="pt-4 border-t border-[var(--mono-border-gray)] space-y-3">
-              <Link href="/sign-in" className="block text-sm font-medium text-[var(--mono-secondary-gray)]">
-                Login
-              </Link>
-              <Link href="/contact" className="block">
-                <Button
-                  className="w-full hover:brightness-95"
-                  style={{ backgroundColor: 'var(--accent-brown)', color: 'white' }}
-                >
-                  Request Access
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </nav>
+      <AppBar navItems={NAV_ITEMS} />
 
       {/* Contact Section */}
       <section className="relative pt-20 pb-16 min-h-screen flex items-center justify-center z-10">
         <div className="max-w-6xl mx-auto px-6 w-full">
-          {/* Semi-transparent backdrop for content */}
-          <div className="bg-[var(--ivory-100)]/70 backdrop-blur-sm rounded-2xl p-6 md:p-10 scale-[0.85]">
+          {/* Backdrop for content */}
+          <div
+            className="rounded-2xl p-6 md:p-10 scale-[0.85]"
+            style={{ backgroundColor: '#ffffff' }}
+          >
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left Column - Text */}
               <div>
@@ -237,8 +133,8 @@ export default function ContactPage() {
                   <div
                     className="relative rounded-2xl p-6 md:p-8 shadow-2xl border scale-[0.968]"
                     style={{
-                      backgroundColor: 'var(--ivory-50)',
-                      borderColor: 'var(--mahogany-300)',
+                      backgroundColor: '#ffffff',
+                      borderColor: '#d4b5a0',
                     }}
                   >
                     {submitted ? (
@@ -276,7 +172,7 @@ export default function ContactPage() {
                               placeholder="Your full name"
                               className="h-12 px-4 rounded-md border transition-colors"
                               style={{
-                                backgroundColor: 'var(--ivory-100)',
+                                backgroundColor: '#ffffff',
                                 borderColor: 'var(--mahogany-300)',
                                 color: 'var(--mahogany-800)',
                               }}
@@ -296,7 +192,7 @@ export default function ContactPage() {
                               placeholder="you@company.com"
                               className="h-12 px-4 rounded-md border transition-colors"
                               style={{
-                                backgroundColor: 'var(--ivory-100)',
+                                backgroundColor: '#ffffff',
                                 borderColor: 'var(--mahogany-300)',
                                 color: 'var(--mahogany-800)',
                               }}
@@ -318,7 +214,7 @@ export default function ContactPage() {
                               placeholder="Your firm name"
                               className="h-12 px-4 rounded-md border transition-colors"
                               style={{
-                                backgroundColor: 'var(--ivory-100)',
+                                backgroundColor: '#ffffff',
                                 borderColor: 'var(--mahogany-300)',
                                 color: 'var(--mahogany-800)',
                               }}
@@ -337,7 +233,7 @@ export default function ContactPage() {
                               placeholder="e.g., 10-50 professionals"
                               className="h-12 px-4 rounded-md border transition-colors"
                               style={{
-                                backgroundColor: 'var(--ivory-100)',
+                                backgroundColor: '#ffffff',
                                 borderColor: 'var(--mahogany-300)',
                                 color: 'var(--mahogany-800)',
                               }}
@@ -397,51 +293,9 @@ export default function ContactPage() {
       </section>
 
       {/* Footer */}
-      <footer
-        className="py-12 border-t relative z-10"
-        style={{
-          backgroundColor: 'var(--ivory-200)',
-          borderColor: 'var(--mahogany-300)',
-        }}
-      >
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded flex items-center justify-center"
-                style={{ backgroundColor: 'var(--mahogany-600)' }}
-              >
-                <span className="text-[var(--ivory-100)] font-serif italic text-sm">w</span>
-              </div>
-              <span className="font-serif font-bold text-[var(--mahogany-700)]">wavv</span>
-            </div>
-
-            {/* Links */}
-            <div className="flex gap-8">
-              <Link
-                href="/privacy"
-                className="text-sm hover:underline"
-                style={{ color: 'var(--mahogany-500)' }}
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
-                className="text-sm hover:underline"
-                style={{ color: 'var(--mahogany-500)' }}
-              >
-                Terms of Service
-              </Link>
-            </div>
-
-            {/* Copyright */}
-            <div className="text-sm" style={{ color: 'var(--mahogany-400)' }}>
-              © 2026 Wavv AI LLC.
-            </div>
-          </div>
-        </div>
-      </footer>
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   )
 }
