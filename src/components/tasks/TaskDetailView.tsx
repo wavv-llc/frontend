@@ -102,13 +102,35 @@ export function TaskDetailView({
                     task.projectId,
                     task.id,
                 );
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
                 const commentsData =
-                    (response as any).data || (response as unknown as any[]);
+                    (response as { data?: unknown[] }).data ||
+                    (response as unknown[]);
 
                 // Transform backend format to frontend format
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const transformComment = (c: any): Comment => ({
+                interface CommentResponse {
+                    id: string;
+                    comment?: string;
+                    content?: string;
+                    postedAt?: string;
+                    createdAt: string;
+                    updatedAt?: string;
+                    postedByUser?: unknown;
+                    user?: unknown;
+                    resolved?: boolean;
+                    resolvedBy?: unknown;
+                    reactions?: Array<{
+                        id: string;
+                        emoji: string;
+                        userId: string;
+                        user: unknown;
+                        commentId: string;
+                        createdAt?: string;
+                    }>;
+                    replies?: CommentResponse[];
+                    parentCommentId?: string;
+                }
+                const transformComment = (c: CommentResponse): Comment => ({
                     id: c.id,
                     content: c.comment || c.content,
                     comment: c.comment || c.content,

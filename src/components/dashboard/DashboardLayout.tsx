@@ -17,11 +17,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     const { isOpen } = useSidebar();
 
     return (
-        <div className="flex h-screen w-full bg-background">
+        <div className="flex h-screen w-full bg-[var(--dashboard-bg)]">
             <AppSidebar />
             <main
                 className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${
-                    isOpen ? 'md:ml-[260px]' : 'md:ml-[60px]'
+                    isOpen ? 'md:ml-[248px]' : 'md:ml-[60px]'
                 }`}
             >
                 {children}

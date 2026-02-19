@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -126,7 +125,7 @@ const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
             <Button
                 variant="ghost"
                 onClick={() => onProjectClick(workspaceId, project.id)}
-                className="flex-1 justify-start gap-2 px-2 py-1.5 text-xs font-normal text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                className="flex-1 justify-start gap-2 px-2 py-1.5 font-figtree text-xs font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
             >
                 <FolderKanban className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="flex-1 truncate text-left">
@@ -199,7 +198,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                                 variant="ghost"
                                 size="icon"
                                 onClick={onWorkspaceClick}
-                                className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)]"
                             >
                                 <Briefcase className="h-5 w-5" />
                             </Button>
@@ -238,7 +237,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent flex-shrink-0"
+                            className="h-8 w-8 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] flex-shrink-0 transition-all duration-150 cursor-pointer"
                         >
                             {isOpen ? (
                                 <ChevronDown className="h-4 w-4" />
@@ -250,7 +249,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                     <Button
                         variant="ghost"
                         onClick={onWorkspaceClick}
-                        className="flex-1 justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        className="flex-1 justify-start gap-2.5 px-2 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                     >
                         <Briefcase className="h-4 w-4 flex-shrink-0" />
                         <span className="flex-1 truncate text-left">
@@ -284,7 +283,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                                 `/workspaces/${workspace.id}?createProject=true`,
                             )
                         }
-                        className="w-full justify-start gap-2 px-2 py-1.5 text-xs font-normal text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                        className="w-full justify-start gap-2 px-2 py-1.5 font-figtree text-xs font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
                     >
                         <Plus className="h-3.5 w-3.5 flex-shrink-0" />
                         <span>Add project</span>
@@ -418,10 +417,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
     const handleProjectClick = (workspaceId: string, projectId: string) => {
         router.push(`/workspaces/${workspaceId}/projects/${projectId}`);
-    };
-
-    const handleWorkspacesClick = () => {
-        router.push('/workspaces');
     };
 
     const handleHomeClick = () => {
@@ -763,10 +758,28 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     };
 
     return (
-        <div className="flex h-full flex-col bg-sidebar">
-            {/* Header */}
+        <div className="flex h-full flex-col bg-[var(--dashboard-bg)]">
+            {/* Brand Header */}
+            {!isCompressed && sidebarView === 'main' && organizationId && (
+                <div className="px-5 py-[22px] border-b border-[var(--dashboard-border)]">
+                    <div className="flex items-center gap-[11px]">
+                        <div className="w-[34px] h-[34px] rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-[17px] font-medium italic text-white">
+                            {userPermissions?.organizations?.[0]?.name?.[0]?.toUpperCase() ||
+                                'O'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="font-cormorant text-[16px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] truncate">
+                                {userPermissions?.organizations?.[0]?.name ||
+                                    'Organization'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Header Controls */}
             <div
-                className={`flex items-center gap-2 p-2 ${isCompressed ? 'flex-col' : ''}`}
+                className={`flex items-center gap-2 p-3.5 ${isCompressed ? 'flex-col' : ''}`}
             >
                 {sidebarView === 'chat-history' ? (
                     // Chat History Header
@@ -774,13 +787,13 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                             onClick={() => setSidebarView('main')}
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         {!isCompressed && (
-                            <h2 className="flex-1 text-sm font-serif font-semibold text-sidebar-foreground">
+                            <h2 className="flex-1 font-cormorant text-sm font-semibold text-[var(--dashboard-text-primary)]">
                                 Chat History
                             </h2>
                         )}
@@ -788,49 +801,73 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 ) : (
                     // Main Header
                     <>
-                        {showToggle && (
+                        {!isCompressed && (
+                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] text-[12px] text-[var(--dashboard-text-muted)]">
+                                <Search className="h-[13px] w-[13px]" />
+                                <span className="flex-1">Search...</span>
+                                <span className="font-source-code text-[10px] text-[var(--dashboard-text-faint)]">
+                                    ⌘K
+                                </span>
+                            </div>
+                        )}
+                        {showToggle && isCompressed && (
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
                                 onClick={onToggleSidebar}
                             >
                                 <PanelLeft className="h-5 w-5" />
                             </Button>
                         )}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleSearch}
-                            className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent"
-                            title="Search"
-                        >
-                            <Search className="h-5 w-5" />
-                        </Button>
-                        <NotificationBell />
+                        {isCompressed && (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleSearch}
+                                    className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
+                                    title="Search"
+                                >
+                                    <Search className="h-5 w-5" />
+                                </Button>
+                                <NotificationBell />
+                            </>
+                        )}
                     </>
                 )}
             </div>
 
-            <Separator className="bg-sidebar-border" />
+            <Separator className="bg-[var(--dashboard-border)]" />
 
             {/* Scrollable Content */}
             <ScrollArea className="flex-1 px-2">
                 {sidebarView === 'main' ? (
                     // Main Sidebar Content
                     <div className="space-y-6 py-4">
+                        {/* Main Section */}
+                        {!isCompressed && (
+                            <div className="px-3 pb-1.5">
+                                <span className="font-source-code text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
+                                    Main
+                                </span>
+                            </div>
+                        )}
+
                         {/* Navigation Group */}
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             {/* Home Link */}
                             <div>
                                 {!isCompressed ? (
                                     <Button
                                         variant="ghost"
                                         onClick={handleHomeClick}
-                                        className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg group cursor-pointer"
                                     >
                                         <Home className="h-4 w-4 flex-shrink-0" />
-                                        <span>Home</span>
+                                        <span>Dashboard</span>
+                                        {/* Active indicator - show when on dashboard */}
+                                        {/* <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-5 bg-[#6A9AB8] rounded-r" /> */}
                                     </Button>
                                 ) : (
                                     <TooltipProvider delayDuration={300}>
@@ -840,7 +877,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={handleHomeClick}
-                                                    className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
                                                     <Home className="h-5 w-5" />
                                                 </Button>
@@ -849,49 +886,12 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                 side="right"
                                                 className="bg-popover text-popover-foreground border-border"
                                             >
-                                                <p>Home</p>
+                                                <p>Dashboard</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
                             </div>
-
-                            {/* Organization Settings Link - Only shown if user has ORG_EDIT, ORG_DELETE, or ORG_MANAGE_MEMBERS permission */}
-                            {canAccessOrgSettings && (
-                                <div>
-                                    {!isCompressed ? (
-                                        <Button
-                                            variant="ghost"
-                                            onClick={handleSettings}
-                                            className="w-full justify-start gap-2 px-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                        >
-                                            <Settings className="h-4 w-4 flex-shrink-0" />
-                                            <span>Organization Settings</span>
-                                        </Button>
-                                    ) : (
-                                        <TooltipProvider delayDuration={300}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={handleSettings}
-                                                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                                    >
-                                                        <Settings className="h-5 w-5" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent
-                                                    side="right"
-                                                    className="bg-popover text-popover-foreground border-border"
-                                                >
-                                                    <p>Organization Settings</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    )}
-                                </div>
-                            )}
 
                             {/* New Chat Link */}
                             <div>
@@ -901,7 +901,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         onClick={() =>
                                             router.push('/chats/new')
                                         }
-                                        className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                     >
                                         <MessageSquarePlus className="h-4 w-4 flex-shrink-0" />
                                         <span>New Chat</span>
@@ -918,7 +918,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                             '/chats/new',
                                                         )
                                                     }
-                                                    className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
                                                     <MessageSquarePlus className="h-5 w-5" />
                                                 </Button>
@@ -942,7 +942,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         onClick={() =>
                                             setSidebarView('chat-history')
                                         }
-                                        className="w-full justify-start gap-2 px-2 py-2 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                     >
                                         <Clock className="h-4 w-4 flex-shrink-0" />
                                         <span>Chat History</span>
@@ -959,7 +959,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                             'chat-history',
                                                         )
                                                     }
-                                                    className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
                                                     <Clock className="h-5 w-5" />
                                                 </Button>
@@ -974,18 +974,53 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                     </TooltipProvider>
                                 )}
                             </div>
+
+                            {/* Organization Settings Link */}
+                            {canAccessOrgSettings && (
+                                <div>
+                                    {!isCompressed ? (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={handleSettings}
+                                            className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                        >
+                                            <Settings className="h-4 w-4 flex-shrink-0" />
+                                            <span>Settings</span>
+                                        </Button>
+                                    ) : (
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={handleSettings}
+                                                        className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
+                                                    >
+                                                        <Settings className="h-5 w-5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent
+                                                    side="right"
+                                                    className="bg-popover text-popover-foreground border-border"
+                                                >
+                                                    <p>Settings</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Workspaces Section */}
                         <div>
                             {!isCompressed && (
-                                <Button
-                                    variant="ghost"
-                                    onClick={handleWorkspacesClick}
-                                    className="w-full justify-start px-2 mb-2 text-xs font-serif font-semibold text-muted-foreground uppercase tracking-wider hover:bg-sidebar-accent/50"
-                                >
-                                    Workspaces
-                                </Button>
+                                <div className="px-3 pb-1.5 pt-4">
+                                    <span className="font-source-code text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
+                                        Workspace
+                                    </span>
+                                </div>
                             )}
                             <div className="space-y-1">
                                 {loading ? (
@@ -1086,7 +1121,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                 handleChatClick(chat.id);
                                                 setSidebarView('main');
                                             }}
-                                            className="w-full justify-start gap-2 px-2 py-3 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                            className="w-full justify-start gap-2.5 px-3 py-3 font-figtree text-sm font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                         >
                                             <MessageSquare className="h-4 w-4 flex-shrink-0" />
                                             <span className="flex-1 truncate text-left">
@@ -1113,7 +1148,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                                 'main',
                                                             );
                                                         }}
-                                                        className="w-full h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                                        className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                     >
                                                         <MessageSquare className="h-5 w-5" />
                                                     </Button>
@@ -1146,27 +1181,24 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 )}
             </ScrollArea>
 
-            <Separator className="bg-sidebar-border" />
+            <Separator className="bg-[var(--dashboard-border)]" />
 
             {/* Footer - Clerk User Profile */}
-            <div className="p-2">
+            <div className="p-3.5 border-t border-[var(--dashboard-border)]">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         {!isCompressed ? (
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start gap-3 px-2 py-6 text-sidebar-foreground hover:bg-sidebar-accent"
+                                className="w-full justify-start gap-2.5 px-2 py-3 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] rounded-lg transition-all duration-150 cursor-pointer"
                             >
-                                <Avatar className="h-8 w-8 flex-shrink-0">
-                                    <AvatarImage src={user?.imageUrl} />
-                                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                                        {user?.firstName?.[0] ||
-                                            user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
-                                            'U'}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col items-start text-sm overflow-hidden">
-                                    <span className="font-medium truncate w-full">
+                                <div className="h-[30px] w-[30px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-xs font-semibold italic text-white flex-shrink-0">
+                                    {user?.firstName?.[0] ||
+                                        user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
+                                        'U'}
+                                </div>
+                                <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
+                                    <span className="font-figtree font-medium text-[12px] truncate w-full text-[var(--dashboard-text-primary)]">
                                         {user?.firstName && user?.lastName
                                             ? `${user.firstName} ${user.lastName}`
                                             : user?.firstName ||
@@ -1174,9 +1206,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                   ?.emailAddress ||
                                               'User'}
                                     </span>
-                                    <span className="text-xs text-muted-foreground truncate w-full">
-                                        {user?.emailAddresses?.[0]
-                                            ?.emailAddress || ''}
+                                    <span className="font-figtree text-[10px] text-[var(--dashboard-text-muted)] truncate w-full">
+                                        Admin
                                     </span>
                                 </div>
                             </Button>
@@ -1184,17 +1215,14 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent"
+                                className="h-10 w-10 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
                                 title={user?.firstName || 'User'}
                             >
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage src={user?.imageUrl} />
-                                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
-                                        {user?.firstName?.[0] ||
-                                            user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
-                                            'U'}
-                                    </AvatarFallback>
-                                </Avatar>
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-xs font-semibold italic text-white">
+                                    {user?.firstName?.[0] ||
+                                        user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
+                                        'U'}
+                                </div>
                             </Button>
                         )}
                     </DropdownMenuTrigger>
@@ -1232,8 +1260,8 @@ export const AppSidebar: React.FC = () => {
         <>
             {/* Desktop Sidebar */}
             <aside
-                className={`hidden md:block fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border transition-all duration-300 ease-in-out ${
-                    isOpen ? 'w-[260px]' : 'w-[60px]'
+                className={`hidden md:block fixed left-0 top-0 z-40 h-screen border-r border-[var(--dashboard-border)] bg-[var(--dashboard-bg)] transition-all duration-300 ease-in-out ${
+                    isOpen ? 'w-[248px]' : 'w-[60px]'
                 }`}
             >
                 <SidebarContent
@@ -1256,7 +1284,7 @@ export const AppSidebar: React.FC = () => {
                     </SheetTrigger>
                     <SheetContent
                         side="left"
-                        className="w-[260px] p-0 bg-sidebar border-sidebar-border"
+                        className="w-[248px] p-0 bg-[var(--dashboard-bg)] border-[var(--dashboard-border)]"
                     >
                         <SidebarContent showToggle={false} />
                     </SheetContent>

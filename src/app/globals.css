@@ -9,6 +9,9 @@
     --color-foreground: var(--foreground);
     --font-sans: var(--font-dm-sans);
     --font-serif: var(--font-dm-serif);
+    --font-cormorant: var(--font-cormorant);
+    --font-figtree: var(--font-figtree);
+    --font-source-code: var(--font-source-code);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -53,6 +56,32 @@
     --color-steel-200: var(--steel-200);
     --color-steel-100: var(--steel-100);
     --color-steel-50: var(--steel-50);
+
+    /* Pure Steel Light Dashboard Tokens */
+    --color-dashboard-bg: var(--dashboard-bg);
+    --color-dashboard-surface: var(--dashboard-surface);
+    --color-dashboard-border: var(--dashboard-border);
+    --color-dashboard-border-light: var(--dashboard-border-light);
+    --color-dashboard-text-primary: var(--dashboard-text-primary);
+    --color-dashboard-text-body: var(--dashboard-text-body);
+    --color-dashboard-text-muted: var(--dashboard-text-muted);
+    --color-dashboard-text-faint: var(--dashboard-text-faint);
+    --color-accent-blue: var(--accent);
+    --color-accent-light: var(--accent-light);
+    --color-accent-subtle: var(--accent-subtle);
+    --color-accent-hover: var(--accent-hover);
+    --color-accent-row-hover: var(--accent-row-hover);
+    --color-status-review: var(--status-review);
+    --color-status-review-bg: var(--status-review-bg);
+    --color-status-pending: var(--status-pending);
+    --color-status-pending-bg: var(--status-pending-bg);
+    --color-status-in-progress: var(--status-in-progress);
+    --color-status-in-progress-bg: var(--status-in-progress-bg);
+    --color-status-complete: var(--status-complete);
+    --color-status-complete-bg: var(--status-complete-bg);
+    --color-status-urgent: var(--status-urgent);
+    --color-status-urgent-bg: var(--status-urgent-bg);
+    --color-status-urgent-text: var(--status-urgent-text);
 }
 
 :root {
@@ -113,15 +142,51 @@
     --chart-4: var(--steel-400);
     --chart-5: var(--steel-300);
 
-    /* Sidebar */
-    --sidebar: #ffffff;
-    --sidebar-foreground: var(--steel-950);
-    --sidebar-primary: var(--steel-800);
-    --sidebar-primary-foreground: var(--steel-50);
-    --sidebar-accent: var(--steel-100);
-    --sidebar-accent-foreground: var(--steel-800);
-    --sidebar-border: var(--steel-200);
-    --sidebar-ring: var(--steel-500);
+    /* Sidebar - Pure Steel Light Integration */
+    --sidebar: var(--dashboard-bg); /* Match dashboard background */
+    --sidebar-foreground: var(--dashboard-text-primary);
+    --sidebar-primary: var(--accent); /* Steel blue accent */
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--accent-subtle); /* Steel blue tinted bg */
+    --sidebar-accent-foreground: var(--accent); /* Steel blue text */
+    --sidebar-border: var(--dashboard-border);
+    --sidebar-ring: var(--accent);
+
+    /* ============ PURE STEEL LIGHT - DASHBOARD SYSTEM ============ */
+    /* Base Palette */
+    --dashboard-bg: #f5f5f3; /* Warm off-white - page & sidebar background */
+    --dashboard-surface: #ffffff; /* Pure white - card backgrounds */
+    --dashboard-border: #e2e2df; /* Soft taupe - primary borders */
+    --dashboard-border-light: #ededeb; /* Subtle inner borders, dividers */
+
+    /* Text Hierarchy */
+    --dashboard-text-primary: #2e3b44; /* Headings, client names, emphasis */
+    --dashboard-text-body: #3d4a52; /* Default body text */
+    --dashboard-text-muted: #8c969e; /* Secondary text, labels */
+    --dashboard-text-faint: #b8c0c6; /* Tertiary text, timestamps */
+
+    /* Steel Blue Accent System */
+    --accent: #5a7f9a; /* Primary interactive color */
+    --accent-light: #7ba3bf; /* Gradient endpoint, lighter variant */
+    --accent-subtle: rgba(90, 127, 154, 0.07); /* Tinted backgrounds */
+    --accent-hover: rgba(90, 127, 154, 0.05); /* Hover state background */
+    --accent-row-hover: rgba(90, 127, 154, 0.025); /* Table row hover */
+
+    /* Status Colors */
+    --status-review: #b5880a; /* Needs Review - warm yellow */
+    --status-review-bg: rgba(181, 136, 10, 0.08);
+    --status-pending: #8494a4; /* Pending - neutral gray-blue */
+    --status-pending-bg: rgba(132, 148, 164, 0.08);
+    --status-in-progress: #5e8ead; /* In Progress - active blue */
+    --status-in-progress-bg: rgba(94, 142, 173, 0.08);
+    --status-complete: #3b9b72; /* Complete - success green */
+    --status-complete-bg: rgba(59, 155, 114, 0.08);
+    --status-urgent: #e05252; /* Urgent/Deadline - alert red */
+    --status-urgent-bg: rgba(224, 82, 82, 0.08);
+    --status-urgent-text: #c53030; /* Darker urgent text */
+
+    /* Scrollbar Styling */
+    --scrollbar-thumb: #d0d0cd;
 }
 
 .dark {
@@ -223,6 +288,98 @@
 
 .animate-pulse-slow {
     animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Pure Steel Light Dashboard Animations */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-fade-up {
+    animation: fadeUp 0.4s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.35s ease-out;
+}
+
+/* Animation Stagger Delays */
+.animate-delay-100 {
+    animation-delay: 100ms;
+}
+
+.animate-delay-140 {
+    animation-delay: 140ms;
+}
+
+.animate-delay-160 {
+    animation-delay: 160ms;
+}
+
+.animate-delay-250 {
+    animation-delay: 250ms;
+}
+
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-slide-in,
+    .animate-bounce-slow,
+    .animate-pulse-slow {
+        animation: none !important;
+    }
+
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Pure Steel Button Ripple Effect */
+@layer components {
+    .pure-steel-ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        transform: scale(0);
+        animation: pure-steel-ripple-animation 600ms
+            cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes pure-steel-ripple-animation {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pure-steel-ripple {
+        animation: none !important;
+        display: none;
+    }
 }
 
 /* Clerk card styling overrides for borderless, full-screen auth */
