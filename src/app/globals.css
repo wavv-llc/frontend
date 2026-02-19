@@ -1,270 +1,270 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans);
-  --font-serif: var(--font-dm-serif);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-steel-950: var(--steel-950);
-  --color-steel-900: var(--steel-900);
-  --color-steel-800: var(--steel-800);
-  --color-steel-700: var(--steel-700);
-  --color-steel-600: var(--steel-600);
-  --color-steel-500: var(--steel-500);
-  --color-steel-400: var(--steel-400);
-  --color-steel-300: var(--steel-300);
-  --color-steel-200: var(--steel-200);
-  --color-steel-100: var(--steel-100);
-  --color-steel-50: var(--steel-50);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-dm-sans);
+    --font-serif: var(--font-dm-serif);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-steel-950: var(--steel-950);
+    --color-steel-900: var(--steel-900);
+    --color-steel-800: var(--steel-800);
+    --color-steel-700: var(--steel-700);
+    --color-steel-600: var(--steel-600);
+    --color-steel-500: var(--steel-500);
+    --color-steel-400: var(--steel-400);
+    --color-steel-300: var(--steel-300);
+    --color-steel-200: var(--steel-200);
+    --color-steel-100: var(--steel-100);
+    --color-steel-50: var(--steel-50);
 }
 
 :root {
-  /* Border Radius Scale - Pure Steel */
-  --radius: 0.5rem; /* 8px base */
-  --radius-sm: 0.375rem; /* 6px */
-  --radius-md: 0.5rem; /* 8px */
-  --radius-lg: 0.75rem; /* 12px */
-  --radius-xl: 1.25rem; /* 20px */
+    /* Border Radius Scale - Pure Steel */
+    --radius: 0.5rem; /* 8px base */
+    --radius-sm: 0.375rem; /* 6px */
+    --radius-md: 0.5rem; /* 8px */
+    --radius-lg: 0.75rem; /* 12px */
+    --radius-xl: 1.25rem; /* 20px */
 
-  /* ============ PURE STEEL COLOR SYSTEM ============ */
-  /* Steel Grayscale - Only Color Palette */
-  --steel-950: #0b1120; /* Deepest black */
-  --steel-900: #0f172a; /* Dark backgrounds */
-  --steel-800: #1e293b; /* Headlines, CTA fills */
-  --steel-700: #334155; /* Strong secondary text */
-  --steel-600: #475569; /* "Unleashed" italic accent */
-  --steel-500: #64748b; /* Body copy, nav links */
-  --steel-400: #94a3b8; /* Muted text, placeholders */
-  --steel-300: #cbd5e1; /* Subtle borders */
-  --steel-200: #e2e8f0; /* Card borders, dividers */
-  --steel-100: #f1f5f9; /* Subtle backgrounds */
-  --steel-50: #f8fafc; /* Card backgrounds */
+    /* ============ PURE STEEL COLOR SYSTEM ============ */
+    /* Steel Grayscale - Only Color Palette */
+    --steel-950: #0b1120; /* Deepest black */
+    --steel-900: #0f172a; /* Dark backgrounds */
+    --steel-800: #1e293b; /* Headlines, CTA fills */
+    --steel-700: #334155; /* Strong secondary text */
+    --steel-600: #475569; /* "Unleashed" italic accent */
+    --steel-500: #64748b; /* Body copy, nav links */
+    --steel-400: #94a3b8; /* Muted text, placeholders */
+    --steel-300: #cbd5e1; /* Subtle borders */
+    --steel-200: #e2e8f0; /* Card borders, dividers */
+    --steel-100: #f1f5f9; /* Subtle backgrounds */
+    --steel-50: #f8fafc; /* Card backgrounds */
 
-  /* Semantic Token Mapping */
-  --background: #FFFFFF;
-  --foreground: var(--steel-950);
+    /* Semantic Token Mapping */
+    --background: #ffffff;
+    --foreground: var(--steel-950);
 
-  --card: #FFFFFF;
-  --card-foreground: var(--steel-950);
+    --card: #ffffff;
+    --card-foreground: var(--steel-950);
 
-  --popover: #FFFFFF;
-  --popover-foreground: var(--steel-950);
+    --popover: #ffffff;
+    --popover-foreground: var(--steel-950);
 
-  --primary: var(--steel-800); /* NO brown */
-  --primary-foreground: var(--steel-50);
+    --primary: var(--steel-800); /* NO brown */
+    --primary-foreground: var(--steel-50);
 
-  --secondary: var(--steel-200);
-  --secondary-foreground: var(--steel-800);
+    --secondary: var(--steel-200);
+    --secondary-foreground: var(--steel-800);
 
-  --muted: var(--steel-100);
-  --muted-foreground: var(--steel-600);
+    --muted: var(--steel-100);
+    --muted-foreground: var(--steel-600);
 
-  --accent: var(--steel-600); /* "Unleashed" only */
-  --accent-foreground: var(--steel-50);
+    --accent: var(--steel-600); /* "Unleashed" only */
+    --accent-foreground: var(--steel-50);
 
-  --destructive: #DC2626; /* Keep red */
-  --destructive-foreground: #FFFFFF;
+    --destructive: #dc2626; /* Keep red */
+    --destructive-foreground: #ffffff;
 
-  --border: var(--steel-200);
-  --input: var(--steel-100);
-  --ring: var(--steel-500);
+    --border: var(--steel-200);
+    --input: var(--steel-100);
+    --ring: var(--steel-500);
 
-  /* Chart Colors - Grayscale only */
-  --chart-1: var(--steel-800);
-  --chart-2: var(--steel-600);
-  --chart-3: var(--steel-500);
-  --chart-4: var(--steel-400);
-  --chart-5: var(--steel-300);
+    /* Chart Colors - Grayscale only */
+    --chart-1: var(--steel-800);
+    --chart-2: var(--steel-600);
+    --chart-3: var(--steel-500);
+    --chart-4: var(--steel-400);
+    --chart-5: var(--steel-300);
 
-  /* Sidebar */
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: var(--steel-950);
-  --sidebar-primary: var(--steel-800);
-  --sidebar-primary-foreground: var(--steel-50);
-  --sidebar-accent: var(--steel-100);
-  --sidebar-accent-foreground: var(--steel-800);
-  --sidebar-border: var(--steel-200);
-  --sidebar-ring: var(--steel-500);
+    /* Sidebar */
+    --sidebar: #ffffff;
+    --sidebar-foreground: var(--steel-950);
+    --sidebar-primary: var(--steel-800);
+    --sidebar-primary-foreground: var(--steel-50);
+    --sidebar-accent: var(--steel-100);
+    --sidebar-accent-foreground: var(--steel-800);
+    --sidebar-border: var(--steel-200);
+    --sidebar-ring: var(--steel-500);
 }
 
 .dark {
-  --background: var(--steel-950);
-  --foreground: var(--steel-50);
+    --background: var(--steel-950);
+    --foreground: var(--steel-50);
 
-  --card: var(--steel-900);
-  --card-foreground: var(--steel-50);
+    --card: var(--steel-900);
+    --card-foreground: var(--steel-50);
 
-  --popover: var(--steel-900);
-  --popover-foreground: var(--steel-50);
+    --popover: var(--steel-900);
+    --popover-foreground: var(--steel-50);
 
-  --primary: var(--steel-200);
-  --primary-foreground: var(--steel-950);
+    --primary: var(--steel-200);
+    --primary-foreground: var(--steel-950);
 
-  --secondary: var(--steel-800);
-  --secondary-foreground: var(--steel-200);
+    --secondary: var(--steel-800);
+    --secondary-foreground: var(--steel-200);
 
-  --muted: var(--steel-900);
-  --muted-foreground: var(--steel-500);
+    --muted: var(--steel-900);
+    --muted-foreground: var(--steel-500);
 
-  --accent: var(--steel-800);
-  --accent-foreground: var(--steel-200);
+    --accent: var(--steel-800);
+    --accent-foreground: var(--steel-200);
 
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
 
-  --border: var(--steel-800);
-  --input: var(--steel-900);
-  --ring: var(--steel-600);
+    --border: var(--steel-800);
+    --input: var(--steel-900);
+    --ring: var(--steel-600);
 
-  /* Dark mode charts */
-  --chart-1: var(--steel-200);
-  --chart-2: var(--steel-400);
-  --chart-3: var(--steel-500);
-  --chart-4: var(--steel-600);
-  --chart-5: var(--steel-700);
+    /* Dark mode charts */
+    --chart-1: var(--steel-200);
+    --chart-2: var(--steel-400);
+    --chart-3: var(--steel-500);
+    --chart-4: var(--steel-600);
+    --chart-5: var(--steel-700);
 
-  /* Dark mode sidebar */
-  --sidebar: var(--steel-950);
-  --sidebar-foreground: var(--steel-50);
-  --sidebar-primary: var(--steel-200);
-  --sidebar-primary-foreground: var(--steel-950);
-  --sidebar-accent: var(--steel-900);
-  --sidebar-accent-foreground: var(--steel-200);
-  --sidebar-border: var(--steel-800);
-  --sidebar-ring: var(--steel-600);
+    /* Dark mode sidebar */
+    --sidebar: var(--steel-950);
+    --sidebar-foreground: var(--steel-50);
+    --sidebar-primary: var(--steel-200);
+    --sidebar-primary-foreground: var(--steel-950);
+    --sidebar-accent: var(--steel-900);
+    --sidebar-accent-foreground: var(--steel-200);
+    --sidebar-border: var(--steel-800);
+    --sidebar-ring: var(--steel-600);
 }
 
 @layer base {
-  * {
-    border-color: var(--border);
-    outline-color: hsl(var(--ring) / 0.5);
-  }
+    * {
+        border-color: var(--border);
+        outline-color: hsl(var(--ring) / 0.5);
+    }
 
-  html {
-    background-color: theme('colors.background');
-    scroll-behavior: smooth;
-    min-height: 100vh;
-  }
+    html {
+        background-color: theme('colors.background');
+        scroll-behavior: smooth;
+        min-height: 100vh;
+    }
 
-  body {
-    background-color: theme('colors.background');
-    color: theme('colors.foreground');
-    min-height: 100vh;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+    body {
+        background-color: theme('colors.background');
+        color: theme('colors.foreground');
+        min-height: 100vh;
+        font-feature-settings:
+            'rlig' 1,
+            'calt' 1;
+    }
 }
 
 @keyframes bounce-slow {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
 
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
+    animation: bounce-slow 2s ease-in-out infinite;
 }
 
 @keyframes pulse-slow {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
 
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
 }
 
 .animate-pulse-slow {
-  animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Clerk card styling overrides for borderless, full-screen auth */
 .cl-card,
 .cl-cardBox,
-[class*="cl-card"] {
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
+[class*='cl-card'] {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
 }
 
 .cl-rootBox {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .cl-main {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Remove any background from Clerk components */
 .cl-form,
 .cl-formBox,
-[class*="cl-formBox"] {
-  background: transparent !important;
+[class*='cl-formBox'] {
+    background: transparent !important;
 }
 
 /* Fix Clerk sign-in page specific styling */
-.cl-main>div,
+.cl-main > div,
 .cl-main__body,
-.cl-main__body>div {
-  background: transparent !important;
+.cl-main__body > div {
+    background: transparent !important;
 }
 
 /* Remove striped patterns and unwanted backgrounds */
-[class*="cl-cardBox"]>div,
-.cl-cardBox>div>div {
-  background: transparent !important;
-  background-image: none !important;
+[class*='cl-cardBox'] > div,
+.cl-cardBox > div > div {
+    background: transparent !important;
+    background-image: none !important;
 }
 
 /* Hide Clerk footer branding and sign-up links */
@@ -272,63 +272,63 @@
 .cl-footerPages__wrapper,
 .cl-footerPages__link,
 .cl-footerPages__linkWrapper,
-[class*="cl-footerPages"],
-[class*="footerPages"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='cl-footerPages'],
+[class*='footerPages'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide "Don't have an account? Sign up" */
 .cl-footerAction,
 .cl-footerActionLink,
 .cl-footerActionText,
-[class*="footerAction"],
-[class*="cl-footerAction"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='footerAction'],
+[class*='cl-footerAction'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide "Secured by clerk" branding - target all possible variations */
-[data-testid*="footer"],
-[class*="branding"],
-[aria-label*="Secured"],
-[aria-label*="Clerk"],
+[data-testid*='footer'],
+[class*='branding'],
+[aria-label*='Secured'],
+[aria-label*='Clerk'],
 .cl-footerPages *,
-[class*="cl-footerPages"] * {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='cl-footerPages'] * {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide development mode badge */
-[data-testid*="dev"],
-[class*="dev-mode"],
-[class*="development"],
+[data-testid*='dev'],
+[class*='dev-mode'],
+[class*='development'],
 .cl-devBadge,
 .cl-environmentBadge,
-[aria-label*="Development"],
-[class*="environment"][class*="mode"],
-[class*="badge"][class*="dev"],
-span[class*="dev"]:not([class*="device"]),
-div[class*="dev-mode"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[aria-label*='Development'],
+[class*='environment'][class*='mode'],
+[class*='badge'][class*='dev'],
+span[class*='dev']:not([class*='device']),
+div[class*='dev-mode'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide Clerk footer entirely except for essential form elements */
 .cl-footer:not(:has(.cl-formButton)):not(:has(.cl-socialButtonsBlockButton)) {
-  display: none !important;
+    display: none !important;
 }
 
 /* TODO: What is this */
@@ -340,22 +340,22 @@ a[href*="signUp"] {
 
 /* Fix social button backgrounds */
 .cl-socialButtonsBlockButton {
-  background: transparent !important;
+    background: transparent !important;
 }
 
 .cl-socialButtonsBlockButton:hover {
-  background: hsl(var(--muted) / 0.3) !important;
+    background: hsl(var(--muted) / 0.3) !important;
 }
 
 /* Ensure form inputs have proper backgrounds */
 .cl-formFieldInput {
-  background: hsl(var(--background)) !important;
+    background: hsl(var(--background)) !important;
 }
 
 /* Remove any pattern overlays */
-[style*="background-image"],
-[style*="background-pattern"] {
-  background-image: none !important;
+[style*='background-image'],
+[style*='background-pattern'] {
+    background-image: none !important;
 }
 
 /* Center Clerk form elements */
@@ -363,49 +363,49 @@ a[href*="signUp"] {
 .cl-main__body,
 .cl-form,
 .cl-formBox {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
 }
 
 .cl-formField,
 .cl-socialButtonsBlockButton,
 .cl-formButton {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Ensure even spacing above social button */
 .cl-main__body,
 .cl-socialButtons,
 .cl-socialButtonsBlockButton:first-child {
-  margin-top: 0 !important;
-  padding-top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
 
 /* UserButton hover styling */
 .cl-userButtonTrigger:hover,
 .cl-userButtonBox:hover,
 .cl-avatarBox:hover,
-[class*="cl-userButton"]:hover {
-  background-color: rgb(239 246 255) !important; /* blue-50 */
+[class*='cl-userButton']:hover {
+    background-color: rgb(239 246 255) !important; /* blue-50 */
 }
 
 .dark .cl-userButtonTrigger:hover,
 .dark .cl-userButtonBox:hover,
 .dark .cl-avatarBox:hover,
-.dark [class*="cl-userButton"]:hover {
-  background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
+.dark [class*='cl-userButton']:hover {
+    background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
 }
 
 /* Removed duplicate dark mode sidebar - now defined in main .dark block above */
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
 
-  body {
-    @apply bg-background text-foreground;
-  }
+    body {
+        @apply bg-background text-foreground;
+    }
 }

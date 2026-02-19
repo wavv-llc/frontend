@@ -1,50 +1,71 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
-import { MessageSquare, ArrowLeft } from 'lucide-react'
-import { chatApi, type Chat } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ChatMessageCard } from '@/components/chat/ChatMessageCard'
-import { ChatResponseCard } from '@/components/chat/ChatResponseCard'
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
+import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { chatApi, type Chat } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChatMessageCard } from '@/components/chat/ChatMessageCard';
+import { ChatThinkingCard } from '@/components/chat/ChatThinkingCard';
+import { ChatStreamingResponseCard } from '@/components/chat/ChatStreamingResponseCard';
+import { useChatPolling } from '@/hooks/useChatPolling';
 
 export default function ChatDetailPage() {
-    const params = useParams()
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const chatId = params.chatId as string
+    const params = useParams();
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const chatId = params.chatId as string;
 
-    const [chat, setChat] = useState<Chat | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [initialChat, setInitialChat] = useState<Chat | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isStreaming, setIsStreaming] = useState(false);
 
     useEffect(() => {
         const fetchChat = async () => {
             try {
-                const token = await getToken()
+                const token = await getToken();
                 if (!token) {
-                    setError('Authentication required')
-                    return
+                    setError('Authentication required');
+                    return;
                 }
 
-                const response = await chatApi.getChat(token, chatId)
+                const response = await chatApi.getChat(token, chatId);
                 if (response.data) {
-                    setChat(response.data)
+                    setInitialChat(response.data);
                 } else {
-                    setError('Chat not found')
+                    setError('Chat not found');
                 }
             } catch (err) {
-                console.error('Failed to fetch chat:', err)
-                setError('Failed to load chat')
+                console.error('Failed to fetch chat:', err);
+                setError('Failed to load chat');
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }
+        };
 
-        fetchChat()
-    }, [getToken, chatId])
+        fetchChat();
+    }, [getToken, chatId]);
+
+    const { chat, isPolling } = useChatPolling({
+        chatId,
+        initialChat: initialChat || {
+            id: chatId,
+            message: '',
+            response: null,
+            createdAt: '',
+            updatedAt: '',
+        },
+        onResponseReady: () => {
+            setIsStreaming(true);
+        },
+        pollingInterval: 1500,
+        maxAttempts: 60,
+    });
+
+    const displayChat = loading ? null : initialChat ? chat : null;
 
     if (loading) {
         return (
@@ -66,10 +87,10 @@ export default function ChatDetailPage() {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
-    if (error || !chat) {
+    if (error || !displayChat) {
         return (
             <div className="relative h-full w-full bg-background overflow-y-auto">
                 <div className="max-w-3xl mx-auto p-4 md:p-8">
@@ -82,7 +103,8 @@ export default function ChatDetailPage() {
                                 {error || 'Chat not found'}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                This conversation doesn't exist or you don't have access to it
+                                This conversation doesn't exist or you don't
+                                have access to it
                             </p>
                         </div>
                         <Button
@@ -95,26 +117,30 @@ export default function ChatDetailPage() {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
     // Format timestamp
     const formatTimestamp = (dateString: string) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor(
+            (now.getTime() - date.getTime()) / 1000,
+        );
 
-        if (diffInSeconds < 60) return 'Just now'
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600)
+            return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400)
+            return `${Math.floor(diffInSeconds / 3600)}h ago`;
 
         return date.toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
+            minute: '2-digit',
+        });
+    };
 
     return (
         <div className="relative h-full w-full bg-background overflow-y-auto">
@@ -138,7 +164,7 @@ export default function ChatDetailPage() {
                                 Chat
                             </h1>
                             <p className="text-xs text-muted-foreground">
-                                {formatTimestamp(chat.createdAt)}
+                                {formatTimestamp(displayChat.createdAt)}
                             </p>
                         </div>
                     </div>
@@ -149,11 +175,14 @@ export default function ChatDetailPage() {
                             Created
                         </span>
                         <span className="text-sm font-medium text-foreground">
-                            {new Date(chat.createdAt).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                            })}
+                            {new Date(displayChat.createdAt).toLocaleDateString(
+                                undefined,
+                                {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                },
+                            )}
                         </span>
                     </div>
                 </div>
@@ -162,16 +191,24 @@ export default function ChatDetailPage() {
                 <div className="space-y-6">
                     {/* User Message */}
                     <ChatMessageCard
-                        message={chat.message}
-                        timestamp={formatTimestamp(chat.createdAt)}
+                        message={displayChat.message}
+                        timestamp={formatTimestamp(displayChat.createdAt)}
                         userName="You"
                     />
 
                     {/* AI Response */}
-                    <ChatResponseCard
-                        response={chat.response}
-                        timestamp={formatTimestamp(chat.createdAt)}
-                    />
+                    {isPolling ? (
+                        <ChatThinkingCard
+                            timestamp={formatTimestamp(displayChat.createdAt)}
+                        />
+                    ) : displayChat.response ? (
+                        <ChatStreamingResponseCard
+                            response={displayChat.response}
+                            timestamp={formatTimestamp(displayChat.createdAt)}
+                            isStreaming={isStreaming}
+                            onStreamComplete={() => setIsStreaming(false)}
+                        />
+                    ) : null}
                 </div>
 
                 {/* New Chat Button */}
@@ -186,5 +223,5 @@ export default function ChatDetailPage() {
                 </div>
             </div>
         </div>
-    )
+    );
 }

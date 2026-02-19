@@ -212,14 +212,13 @@ export interface OrganizationMember {
     roleAssignments: RoleAssignment[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
     success: boolean;
     data?: T;
     error?: {
         message: string;
         code?: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         details?: any;
     };
     meta?: {
@@ -229,10 +228,9 @@ export interface ApiResponse<T = any> {
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiRequest<T = any>(
     endpoint: string,
-    options: RequestInit & { token?: string } = {}
+    options: RequestInit & { token?: string } = {},
 ): Promise<ApiResponse<T>> {
     const { token, ...fetchOptions } = options;
 
@@ -254,8 +252,9 @@ export async function apiRequest<T = any>(
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
         throw new Error(
-            `Expected JSON response but got ${contentType || 'unknown'
-            }. This usually means the API endpoint is not found (404).`
+            `Expected JSON response but got ${
+                contentType || 'unknown'
+            }. This usually means the API endpoint is not found (404).`,
         );
     }
 
@@ -300,17 +299,14 @@ export async function apiRequest<T = any>(
             }
             // If data exists but has no recognizable error format
             else if (Object.keys(data).length > 0) {
-                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
-                    }`;
+                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`;
             }
             // Empty object
             else {
-                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
-                    }`;
+                errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`;
             }
         } else {
-            errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'
-                }`;
+            errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`;
         }
 
         throw new Error(errorMessage);
@@ -345,7 +341,7 @@ export const userApi = {
 
     updateProfile: async (
         token: string,
-        data: { firstName?: string; lastName?: string }
+        data: { firstName?: string; lastName?: string },
     ) => {
         return apiRequest('/api/v1/users/me', {
             method: 'PATCH',
@@ -382,7 +378,7 @@ export const organizationApi = {
     inviteMember: async (
         token: string,
         organizationId: string,
-        email: string
+        email: string,
     ) => {
         return apiRequest<{ message: string }>(
             `/api/v1/organizations/${organizationId}/access-links/member`,
@@ -390,7 +386,7 @@ export const organizationApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify({ email }),
-            }
+            },
         );
     },
 
@@ -400,7 +396,7 @@ export const organizationApi = {
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
     },
 
@@ -408,7 +404,7 @@ export const organizationApi = {
         token: string,
         organizationId: string,
         userId: string,
-        roleId: string
+        roleId: string,
     ) => {
         return apiRequest<RoleAssignment>(
             `/api/v1/organizations/${organizationId}/users/${userId}/role`,
@@ -416,21 +412,21 @@ export const organizationApi = {
                 method: 'PATCH',
                 token,
                 body: JSON.stringify({ roleId }),
-            }
+            },
         );
     },
 
     removeMember: async (
         token: string,
         organizationId: string,
-        userId: string
+        userId: string,
     ) => {
         return apiRequest(
             `/api/v1/organizations/${organizationId}/users/${userId}`,
             {
                 method: 'DELETE',
                 token,
-            }
+            },
         );
     },
 };
@@ -466,7 +462,7 @@ export const sharepointApi = {
 
     saveSelectedSites: async (
         token: string,
-        sites: Array<{ id: string; name: string; webUrl: string }>
+        sites: Array<{ id: string; name: string; webUrl: string }>,
     ) => {
         return apiRequest<{
             selectedSites: Array<{
@@ -532,7 +528,7 @@ export const signupRequestApi = {
     updateRequestStatus: async (
         token: string,
         requestId: string,
-        status: 'PENDING' | 'APPROVED' | 'REJECTED'
+        status: 'PENDING' | 'APPROVED' | 'REJECTED',
     ) => {
         return apiRequest(`/api/v1/signup-requests/${requestId}/status`, {
             method: 'PATCH',
@@ -561,7 +557,7 @@ export const workspaceApi = {
     createWorkspace: async (
         token: string,
         name: string,
-        description?: string
+        description?: string,
     ) => {
         return apiRequest<Workspace>('/api/v1/workspaces', {
             method: 'POST',
@@ -573,7 +569,7 @@ export const workspaceApi = {
     updateWorkspace: async (
         token: string,
         id: string,
-        data: { name?: string; description?: string; order?: number }
+        data: { name?: string; description?: string; order?: number },
     ) => {
         return apiRequest<Workspace>(`/api/v1/workspaces/${id}`, {
             method: 'PATCH',
@@ -588,53 +584,7 @@ export const workspaceApi = {
             {
                 method: 'DELETE',
                 token,
-            }
-        );
-    },
-
-    addMember: async (token: string, workspaceId: string, userId: string) => {
-        return apiRequest<Workspace>(
-            `/api/v1/workspaces/${workspaceId}/members`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ userId }),
-            }
-        );
-    },
-
-    removeMember: async (
-        token: string,
-        workspaceId: string,
-        userId: string
-    ) => {
-        return apiRequest<Workspace>(
-            `/api/v1/workspaces/${workspaceId}/members/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
-        );
-    },
-
-    addOwner: async (token: string, workspaceId: string, userId: string) => {
-        return apiRequest<Workspace>(
-            `/api/v1/workspaces/${workspaceId}/owners`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ userId }),
-            }
-        );
-    },
-
-    removeOwner: async (token: string, workspaceId: string, userId: string) => {
-        return apiRequest<Workspace>(
-            `/api/v1/workspaces/${workspaceId}/owners/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
+            },
         );
     },
 };
@@ -647,7 +597,7 @@ export const projectApi = {
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
     },
 
@@ -662,7 +612,7 @@ export const projectApi = {
         token: string,
         workspaceId: string | undefined,
         name: string,
-        description?: string
+        description?: string,
     ) => {
         return apiRequest<Project>('/api/v1/projects', {
             method: 'POST',
@@ -679,7 +629,7 @@ export const projectApi = {
             description?: string;
             workspaceId?: string;
             order?: number;
-        }
+        },
     ) => {
         return apiRequest<Project>(`/api/v1/projects/${id}`, {
             method: 'PATCH',
@@ -694,49 +644,6 @@ export const projectApi = {
             token,
         });
     },
-
-    addMember: async (token: string, projectId: string, userId: string) => {
-        return apiRequest<Project>(`/api/v1/projects/${projectId}/members`, {
-            method: 'POST',
-            token,
-            body: JSON.stringify({ userId }),
-        });
-    },
-
-    removeMember: async (token: string, projectId: string, userId: string) => {
-        return apiRequest<Project>(
-            `/api/v1/projects/${projectId}/members/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
-        );
-    },
-
-    addOwner: async (token: string, projectId: string, userId: string) => {
-        return apiRequest<Project>(`/api/v1/projects/${projectId}/owners`, {
-            method: 'POST',
-            token,
-            body: JSON.stringify({ userId }),
-        });
-    },
-
-    removeOwner: async (token: string, projectId: string, userId: string) => {
-        return apiRequest<Project>(
-            `/api/v1/projects/${projectId}/owners/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
-        );
-    },
-
-    copyProject: async (token: string, projectId: string) => {
-        return apiRequest<Project>(`/api/v1/projects/${projectId}/copy`, {
-            method: 'POST',
-            token,
-        });
-    },
 };
 
 // Custom Field API functions
@@ -747,7 +654,7 @@ export const customFieldApi = {
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
     },
 
@@ -762,7 +669,7 @@ export const customFieldApi = {
             color?: string;
             required?: boolean;
             customOptions?: string[];
-        }
+        },
     ) => {
         return apiRequest<CustomField>(
             `/api/v1/projects/${projectId}/custom-fields`,
@@ -770,7 +677,7 @@ export const customFieldApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify(data),
-            }
+            },
         );
     },
 
@@ -785,7 +692,7 @@ export const customFieldApi = {
             dataType?: DataType;
             color?: string;
             required?: boolean;
-        }
+        },
     ) => {
         return apiRequest<CustomField>(
             `/api/v1/projects/${projectId}/custom-fields/${fieldId}`,
@@ -793,21 +700,7 @@ export const customFieldApi = {
                 method: 'PATCH',
                 token,
                 body: JSON.stringify(data),
-            }
-        );
-    },
-
-    deleteCustomField: async (
-        token: string,
-        projectId: string,
-        fieldId: string
-    ) => {
-        return apiRequest<{ message: string }>(
-            `/api/v1/projects/${projectId}/custom-fields/${fieldId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
+            },
         );
     },
 };
@@ -837,7 +730,7 @@ export const taskApi = {
             dueAt?: string;
             status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
             customFields?: Record<string, string | number | null>;
-        }
+        },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks`, {
             method: 'POST',
@@ -855,7 +748,7 @@ export const taskApi = {
             description?: string;
             dueAt?: string;
             customFields?: Record<string, string>;
-        }
+        },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
             method: 'PATCH',
@@ -870,132 +763,7 @@ export const taskApi = {
             {
                 method: 'DELETE',
                 token,
-            }
-        );
-    },
-
-    changeStatus: async (
-        token: string,
-        projectId: string,
-        id: string,
-        status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED'
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/status`,
-            {
-                method: 'PATCH',
-                token,
-                body: JSON.stringify({ status }),
-            }
-        );
-    },
-
-    changeDueDate: async (
-        token: string,
-        projectId: string,
-        id: string,
-        dueAt: string | null
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/due-date`,
-            {
-                method: 'PATCH',
-                token,
-                body: JSON.stringify({ dueAt }),
-            }
-        );
-    },
-
-    addPreparer: async (
-        token: string,
-        projectId: string,
-        id: string,
-        userId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/preparers`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ userId }),
-            }
-        );
-    },
-
-    removePreparer: async (
-        token: string,
-        projectId: string,
-        id: string,
-        userId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/preparers/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
-        );
-    },
-
-    addReviewer: async (
-        token: string,
-        projectId: string,
-        id: string,
-        userId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/reviewers`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ userId }),
-            }
-        );
-    },
-
-    removeReviewer: async (
-        token: string,
-        projectId: string,
-        id: string,
-        userId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/reviewers/${userId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
-        );
-    },
-
-    attachFile: async (
-        token: string,
-        projectId: string,
-        id: string,
-        documentId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/files`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ documentId }),
-            }
-        );
-    },
-
-    removeFile: async (
-        token: string,
-        projectId: string,
-        id: string,
-        documentId: string
-    ) => {
-        return apiRequest<Task>(
-            `/api/v1/projects/${projectId}/tasks/${id}/files/${documentId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
+            },
         );
     },
 
@@ -1006,7 +774,7 @@ export const taskApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify({ projectId, id: taskId }),
-            }
+            },
         );
     },
 };
@@ -1016,14 +784,14 @@ export const taskCommentApi = {
     getCommentsByTask: async (
         token: string,
         projectId: string,
-        taskId: string
+        taskId: string,
     ) => {
         return apiRequest<Comment[]>(
             `/api/v1/projects/${projectId}/tasks/${taskId}/comments`,
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
     },
 
@@ -1034,7 +802,7 @@ export const taskCommentApi = {
         data: {
             comment: string;
             parentId?: string;
-        }
+        },
     ) => {
         return apiRequest<Comment>(
             `/api/v1/projects/${projectId}/tasks/${taskId}/comments`,
@@ -1045,7 +813,7 @@ export const taskCommentApi = {
                     comment: data.comment,
                     parentCommentId: data.parentId,
                 }),
-            }
+            },
         );
     },
 
@@ -1053,14 +821,14 @@ export const taskCommentApi = {
         token: string,
         projectId: string,
         taskId: string,
-        id: string
+        id: string,
     ) => {
         return apiRequest<Comment>(
             `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
     },
 
@@ -1069,7 +837,7 @@ export const taskCommentApi = {
         projectId: string,
         taskId: string,
         commentId: string,
-        emoji: string
+        emoji: string,
     ) => {
         return apiRequest<{
             action: 'added' | 'removed';
@@ -1079,41 +847,7 @@ export const taskCommentApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify({ emoji }),
-            }
-        );
-    },
-
-    updateComment: async (
-        token: string,
-        projectId: string,
-        taskId: string,
-        id: string,
-        data: {
-            comment: string;
-        }
-    ) => {
-        return apiRequest<Comment>(
-            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
-            {
-                method: 'PATCH',
-                token,
-                body: JSON.stringify(data),
-            }
-        );
-    },
-
-    deleteComment: async (
-        token: string,
-        projectId: string,
-        taskId: string,
-        id: string
-    ) => {
-        return apiRequest<{ message: string }>(
-            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
-            {
-                method: 'DELETE',
-                token,
-            }
+            },
         );
     },
 
@@ -1122,7 +856,7 @@ export const taskCommentApi = {
         projectId: string,
         taskId: string,
         id: string,
-        resolved: boolean
+        resolved: boolean,
     ) => {
         return apiRequest<Comment>(
             `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/resolved`,
@@ -1130,7 +864,7 @@ export const taskCommentApi = {
                 method: 'PATCH',
                 token,
                 body: JSON.stringify({ resolved }),
-            }
+            },
         );
     },
 
@@ -1138,14 +872,14 @@ export const taskCommentApi = {
         token: string,
         projectId: string,
         taskId: string,
-        id: string
+        id: string,
     ) => {
         return taskCommentApi.setResolvedStatus(
             token,
             projectId,
             taskId,
             id,
-            true
+            true,
         );
     },
 
@@ -1153,47 +887,14 @@ export const taskCommentApi = {
         token: string,
         projectId: string,
         taskId: string,
-        id: string
+        id: string,
     ) => {
         return taskCommentApi.setResolvedStatus(
             token,
             projectId,
             taskId,
             id,
-            false
-        );
-    },
-
-    linkFiles: async (
-        token: string,
-        projectId: string,
-        taskId: string,
-        id: string,
-        documentIds: string[]
-    ) => {
-        return apiRequest<Comment>(
-            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/files`,
-            {
-                method: 'POST',
-                token,
-                body: JSON.stringify({ documentIds }),
-            }
-        );
-    },
-
-    unlinkFile: async (
-        token: string,
-        projectId: string,
-        taskId: string,
-        id: string,
-        documentId: string
-    ) => {
-        return apiRequest<Comment>(
-            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}/files/${documentId}`,
-            {
-                method: 'DELETE',
-                token,
-            }
+            false,
         );
     },
 };
@@ -1257,9 +958,12 @@ export interface AccessLink {
 
 export const accessLinkApi = {
     getAccessLink: async (linkId: string) => {
-        const response = await apiRequest<AccessLink>(`/api/v1/access-links/${linkId}`, {
-            method: 'GET',
-        });
+        const response = await apiRequest<AccessLink>(
+            `/api/v1/access-links/${linkId}`,
+            {
+                method: 'GET',
+            },
+        );
         return response;
     },
 
@@ -1271,9 +975,9 @@ export const accessLinkApi = {
             firstName: string;
             lastName: string;
             clerkId: string;
-        }
+        },
     ) => {
-        console.log('[API] POST /api/v1/access-links/${linkId}/accept', {
+        console.log(`[API] POST /api/v1/access-links/${linkId}/accept`, {
             endpoint: `/api/v1/access-links/${linkId}/accept`,
             method: 'POST',
             data,
@@ -1285,9 +989,12 @@ export const accessLinkApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify(data),
-            }
+            },
         );
-        console.log('[API] POST /api/v1/access-links/${linkId}/accept - Response:', response);
+        console.log(
+            `[API] POST /api/v1/access-links/${linkId}/accept - Response:`,
+            response,
+        );
         return response;
     },
 };
@@ -1296,13 +1003,6 @@ export const accessLinkApi = {
 export const dashboardApi = {
     getMyTasks: async (token: string) => {
         return apiRequest<DashboardTask[]>('/api/v1/dashboard/my-tasks', {
-            method: 'GET',
-            token,
-        });
-    },
-
-    getAssignedTasks: async (token: string) => {
-        return apiRequest<DashboardTask[]>('/api/v1/dashboard/assigned', {
             method: 'GET',
             token,
         });
@@ -1319,7 +1019,7 @@ export const dashboardApi = {
     getCalendarTasks: async (
         token: string,
         startDate?: string,
-        endDate?: string
+        endDate?: string,
     ) => {
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);
@@ -1330,15 +1030,8 @@ export const dashboardApi = {
             {
                 method: 'GET',
                 token,
-            }
+            },
         );
-    },
-
-    getDashboardStats: async (token: string) => {
-        return apiRequest<DashboardStats>('/api/v1/dashboard/stats', {
-            method: 'GET',
-            token,
-        });
     },
 };
 
@@ -1349,7 +1042,14 @@ export interface OrganizationDocument {
     originalName: string;
     filesize: number;
     mimeType: string;
-    status: 'PENDING' | 'PROCESSING' | 'EMBEDDING' | 'READY' | 'COMPLETED' | 'FAILED' | 'ARCHIVED';
+    status:
+        | 'PENDING'
+        | 'PROCESSING'
+        | 'EMBEDDING'
+        | 'READY'
+        | 'COMPLETED'
+        | 'FAILED'
+        | 'ARCHIVED';
     createdAt: string;
     updatedAt: string;
 }
@@ -1371,20 +1071,22 @@ export interface DocumentDetail extends OrganizationDocument {
 
 export const documentsApi = {
     getOrganizationDocuments: async (token: string, organizationId: string) => {
-        return apiRequest<OrganizationDocument[] | OrganizationDocumentsResponse>(
-            `/api/v1/documents/organization/${organizationId}`,
-            {
-                method: 'GET',
-                token,
-            }
-        );
-    },
-
-    getDocument: async (token: string, documentId: string) => {
-        return apiRequest<{ document: DocumentDetail }>(`/api/v1/documents/${documentId}`, {
+        return apiRequest<
+            OrganizationDocument[] | OrganizationDocumentsResponse
+        >(`/api/v1/documents/organization/${organizationId}`, {
             method: 'GET',
             token,
         });
+    },
+
+    getDocument: async (token: string, documentId: string) => {
+        return apiRequest<{ document: DocumentDetail }>(
+            `/api/v1/documents/${documentId}`,
+            {
+                method: 'GET',
+                token,
+            },
+        );
     },
 
     retryDocument: async (token: string, documentId: string) => {
@@ -1393,7 +1095,7 @@ export const documentsApi = {
             {
                 method: 'POST',
                 token,
-            }
+            },
         );
     },
 
@@ -1403,7 +1105,7 @@ export const documentsApi = {
             {
                 method: 'POST',
                 token,
-            }
+            },
         );
     },
 };
@@ -1424,92 +1126,92 @@ export const chatApi = {
         });
     },
 
-    createChat: async (token: string, message: string, externalSearchEnabled: boolean = false) => {
+    createChat: async (
+        token: string,
+        message: string,
+        externalSearchEnabled: boolean = false,
+    ) => {
         return apiRequest<Chat>('/api/v1/chats/', {
             method: 'POST',
             token,
             body: JSON.stringify({ message, externalSearchEnabled }),
         });
     },
+
+    pollChatStatus: async (
+        token: string,
+        chatId: string,
+        onUpdate: (chat: Chat) => void,
+        options: {
+            interval?: number;
+            maxAttempts?: number;
+            onError?: (error: Error) => void;
+        } = {},
+    ): Promise<() => void> => {
+        const { interval = 1500, maxAttempts = 60, onError } = options;
+
+        let attempts = 0;
+        let timeoutId: NodeJS.Timeout | null = null;
+        let isCancelled = false;
+
+        const poll = async () => {
+            if (isCancelled) return;
+
+            attempts++;
+
+            try {
+                const response = await chatApi.getChat(token, chatId);
+
+                if (!response.data) {
+                    throw new Error('Chat not found');
+                }
+
+                if (response.data.response !== null) {
+                    onUpdate(response.data);
+                    return;
+                }
+
+                if (attempts < maxAttempts) {
+                    timeoutId = setTimeout(poll, interval);
+                } else {
+                    if (onError) {
+                        onError(
+                            new Error('Polling timeout: Response not ready'),
+                        );
+                    }
+                }
+            } catch (error) {
+                if (onError) {
+                    onError(
+                        error instanceof Error
+                            ? error
+                            : new Error('Unknown error'),
+                    );
+                }
+            }
+        };
+
+        poll();
+
+        return () => {
+            isCancelled = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    },
 };
 
 // Permission utilities
 export const permissionUtils = {
-    hasOrgPermission: (
-        permissions: UserPermissions | undefined,
-        orgId: string,
-        permission: Permission
-    ): boolean => {
-        if (!permissions?.organizations) return false;
-        const orgPermissions = permissions.organizations[orgId];
-        return orgPermissions?.includes(permission) ?? false;
-    },
-
-    hasProjectPermission: (
-        permissions: UserPermissions | undefined,
-        projectId: string,
-        permission: Permission
-    ): boolean => {
-        if (!permissions?.projects) return false;
-        const projectPermissions = permissions.projects[projectId];
-        return projectPermissions?.includes(permission) ?? false;
-    },
-
     hasAnyOrgPermission: (
         permissions: UserPermissions | undefined,
         orgId: string,
-        requiredPermissions: Permission[]
+        requiredPermissions: Permission[],
     ): boolean => {
         if (!permissions?.organizations) return false;
         const orgPermissions = permissions.organizations[orgId];
         if (!orgPermissions) return false;
         return requiredPermissions.some((p) => orgPermissions.includes(p));
-    },
-
-    hasAllOrgPermissions: (
-        permissions: UserPermissions | undefined,
-        orgId: string,
-        requiredPermissions: Permission[]
-    ): boolean => {
-        if (!permissions?.organizations) return false;
-        const orgPermissions = permissions.organizations[orgId];
-        if (!orgPermissions) return false;
-        return requiredPermissions.every((p) => orgPermissions.includes(p));
-    },
-
-    hasAnyProjectPermission: (
-        permissions: UserPermissions | undefined,
-        projectId: string,
-        requiredPermissions: Permission[]
-    ): boolean => {
-        if (!permissions?.projects) return false;
-        const projectPermissions = permissions.projects[projectId];
-        if (!projectPermissions) return false;
-        return requiredPermissions.some((p) => projectPermissions.includes(p));
-    },
-
-    hasAllProjectPermissions: (
-        permissions: UserPermissions | undefined,
-        projectId: string,
-        requiredPermissions: Permission[]
-    ): boolean => {
-        if (!permissions?.projects) return false;
-        const projectPermissions = permissions.projects[projectId];
-        if (!projectPermissions) return false;
-        return requiredPermissions.every((p) => projectPermissions.includes(p));
-    },
-
-    getOrgPermissions: (
-        permissions: UserPermissions | undefined,
-        orgId: string
-    ): Permission[] => {
-        return permissions?.organizations?.[orgId] ?? [];
-    },
-
-    getProjectPermissions: (
-        permissions: UserPermissions | undefined,
-        projectId: string
-    ): Permission[] => {
-        return permissions?.projects?.[projectId] ?? [];
     },
 };

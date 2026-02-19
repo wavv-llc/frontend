@@ -1,13 +1,10 @@
-'use client'
+'use client';
 
-import { Calendar as CalendarIcon } from 'lucide-react'
-import { type DashboardTask } from '@/lib/api'
-import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView'
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { type DashboardTask } from '@/lib/api';
+import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView';
 
-export function CalendarWidget({ tasks, isLoading }: {
-    tasks: DashboardTask[]
-    isLoading: boolean
-}) {
+export function CalendarWidget({ tasks }: { tasks: DashboardTask[] }) {
     return (
         <div className="h-full bg-background/60 backdrop-blur-xl border border-border/50 shadow-sm rounded-xl overflow-hidden flex flex-col">
             <div className="border-b border-border/40 bg-muted/20 py-3 px-4 shrink-0 cursor-move">
@@ -20,5 +17,5 @@ export function CalendarWidget({ tasks, isLoading }: {
                 <ProjectCalendarView tasks={tasks} compact />
             </div>
         </div>
-    )
+    );
 }

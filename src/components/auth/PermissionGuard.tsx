@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useUser } from "@/contexts/UserContext";
-import { Permission } from "@/lib/api";
-import { useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
+import { useUser } from '@/contexts/UserContext';
+import { Permission } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { ReactNode, useEffect } from 'react';
 
 interface PermissionGuardProps {
     children: ReactNode;
     resourceId?: string;
-    scope: "organization" | "project";
+    scope: 'organization' | 'project';
     permission: Permission;
     fallback?: ReactNode;
     redirectTo?: string;
@@ -25,7 +25,9 @@ export function PermissionGuard({
     const { user, checkPermission, isLoading } = useUser();
     const router = useRouter();
 
-    const targetId = resourceId || (scope === "organization" ? user?.organization?.id : undefined);
+    const targetId =
+        resourceId ||
+        (scope === 'organization' ? user?.organization?.id : undefined);
 
     // We can't check permissions until user is loaded
     // but we also don't want to show fallback immediately if just loading?
@@ -35,9 +37,9 @@ export function PermissionGuard({
     // Assuming access denied or just waiting?
     // For now, if no target ID found, we assume denied (safe default).
 
-    const hasPermission = targetId ? checkPermission(scope, targetId, permission) : false;
-
-    const showContent = !isLoading && hasPermission;
+    const hasPermission = targetId
+        ? checkPermission(scope, targetId, permission)
+        : false;
 
     useEffect(() => {
         if (!isLoading && !hasPermission && redirectTo) {

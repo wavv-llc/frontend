@@ -1,6 +1,6 @@
-import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export function TaskDetailSkeleton({ onBack }: { onBack?: () => void }) {
     return (
@@ -9,7 +9,13 @@ export function TaskDetailSkeleton({ onBack }: { onBack?: () => void }) {
             <div className="flex flex-col gap-6 pb-6 border-b border-border">
                 {/* Back & Breadcrumbs */}
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted -ml-2 cursor-pointer" disabled>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onBack}
+                        className="hover:bg-muted -ml-2 cursor-pointer"
+                        disabled
+                    >
                         <ArrowLeft className="h-5 w-5 opacity-50" />
                     </Button>
                     <div className="flex items-center gap-2">
@@ -94,7 +100,7 @@ export function TaskDetailSkeleton({ onBack }: { onBack?: () => void }) {
                     </div>
 
                     <div className="space-y-6">
-                        {[1, 2, 3].map(i => (
+                        {[1, 2, 3].map((i) => (
                             <div key={i} className="flex gap-4">
                                 <Skeleton className="h-10 w-10 rounded-full shrink-0" />
                                 <div className="flex-1 space-y-2">
@@ -110,5 +116,5 @@ export function TaskDetailSkeleton({ onBack }: { onBack?: () => void }) {
                 </div>
             </div>
         </div>
-    )
+    );
 }

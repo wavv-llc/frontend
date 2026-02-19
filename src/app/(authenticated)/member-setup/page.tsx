@@ -139,7 +139,11 @@ export default function MemberSetupPage() {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={isSubmitting || !firstName.trim() || !lastName.trim()}
+                            disabled={
+                                isSubmitting ||
+                                !firstName.trim() ||
+                                !lastName.trim()
+                            }
                         >
                             {isSubmitting ? (
                                 <>

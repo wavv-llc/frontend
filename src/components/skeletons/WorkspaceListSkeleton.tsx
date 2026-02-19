@@ -1,5 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton"
-import { Folder } from "lucide-react"
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function WorkspaceListSkeleton() {
     return (
@@ -35,5 +34,5 @@ export function WorkspaceListSkeleton() {
                 </div>
             ))}
         </div>
-    )
+    );
 }
