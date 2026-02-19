@@ -1,26 +1,26 @@
-'use client'
+'use client';
 
-import { User } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ChatMessageCardProps {
-    message: string
-    timestamp: string
-    userName?: string
-    className?: string
+    message: string;
+    timestamp: string;
+    userName?: string;
+    className?: string;
 }
 
 export function ChatMessageCard({
     message,
     timestamp,
     userName = 'You',
-    className
+    className,
 }: ChatMessageCardProps) {
     return (
         <div
             className={cn(
-                "rounded-xl border border-border/50 bg-card p-4 md:p-6 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4",
-                className
+                'rounded-xl border border-border/50 bg-card p-4 md:p-6 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4',
+                className,
             )}
         >
             <div className="flex items-start gap-3">
@@ -45,5 +45,5 @@ export function ChatMessageCard({
                 </div>
             </div>
         </div>
-    )
+    );
 }

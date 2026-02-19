@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import { useRef, useEffect, useState } from 'react'
-import { Send, Loader2, Globe } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { useRef, useEffect, useState } from 'react';
+import { Send, Loader2, Globe } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ChatCommandBarProps {
-    message: string
-    onChange: (value: string) => void
-    onSubmit: (e: React.FormEvent, externalSearchEnabled: boolean) => void
-    isSubmitting: boolean
-    placeholder?: string
+    message: string;
+    onChange: (value: string) => void;
+    onSubmit: (e: React.FormEvent, externalSearchEnabled: boolean) => void;
+    isSubmitting: boolean;
+    placeholder?: string;
 }
 
 export function ChatCommandBar({
@@ -18,35 +18,35 @@ export function ChatCommandBar({
     onChange,
     onSubmit,
     isSubmitting,
-    placeholder = 'Ask me anything...'
+    placeholder = 'Ask me anything...',
 }: ChatCommandBarProps) {
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
-    const [externalSearchEnabled, setExternalSearchEnabled] = useState(false)
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
 
     // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
-    }, [message])
+    }, [message]);
 
     // Handle keyboard shortcuts
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            onSubmit(e, externalSearchEnabled)
+            e.preventDefault();
+            onSubmit(e, externalSearchEnabled);
         }
-    }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        onSubmit(e, externalSearchEnabled)
-    }
+        e.preventDefault();
+        onSubmit(e, externalSearchEnabled);
+    };
 
     const toggleExternalSearch = () => {
-        setExternalSearchEnabled(!externalSearchEnabled)
-    }
+        setExternalSearchEnabled(!externalSearchEnabled);
+    };
 
     return (
         <form onSubmit={handleSubmit} className="relative">
@@ -65,12 +65,18 @@ export function ChatCommandBar({
                     <Button
                         type="button"
                         size="icon"
-                        variant={externalSearchEnabled ? "default" : "ghost"}
+                        variant={externalSearchEnabled ? 'default' : 'ghost'}
                         onClick={toggleExternalSearch}
                         className="h-8 w-8 rounded-full transition-all"
-                        title={externalSearchEnabled ? "External search enabled" : "Enable external search"}
+                        title={
+                            externalSearchEnabled
+                                ? 'External search enabled'
+                                : 'Enable external search'
+                        }
                     >
-                        <Globe className={`h-4 w-4 ${externalSearchEnabled ? '' : 'text-muted-foreground'}`} />
+                        <Globe
+                            className={`h-4 w-4 ${externalSearchEnabled ? '' : 'text-muted-foreground'}`}
+                        />
                     </Button>
                 </div>
                 <div className="absolute right-3 bottom-3">
@@ -89,8 +95,9 @@ export function ChatCommandBar({
                 </div>
             </div>
             <p className="text-xs text-muted-foreground/60 text-center mt-3">
-                Press <span className="font-medium">Enter</span> to send • <span className="font-medium">Shift+Enter</span> for new line
+                Press <span className="font-medium">Enter</span> to send •{' '}
+                <span className="font-medium">Shift+Enter</span> for new line
             </p>
         </form>
-    )
+    );
 }

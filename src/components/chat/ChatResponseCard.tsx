@@ -1,27 +1,27 @@
-'use client'
+'use client';
 
-import { Bot } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { ChatActionBar } from './ChatActionBar'
-import { cn } from '@/lib/utils'
+import { Bot } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { ChatActionBar } from './ChatActionBar';
+import { cn } from '@/lib/utils';
 
 interface ChatResponseCardProps {
-    response: string
-    timestamp: string
-    className?: string
+    response: string;
+    timestamp: string;
+    className?: string;
 }
 
 export function ChatResponseCard({
     response,
     timestamp,
-    className
+    className,
 }: ChatResponseCardProps) {
     return (
         <div
             className={cn(
-                "rounded-xl border border-border/50 bg-card p-4 md:p-6 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4",
-                className
+                'rounded-xl border border-border/50 bg-card p-4 md:p-6 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4',
+                className,
             )}
         >
             {/* Header */}
@@ -54,5 +54,5 @@ export function ChatResponseCard({
                 </ReactMarkdown>
             </div>
         </div>
-    )
+    );
 }

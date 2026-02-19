@@ -14,7 +14,7 @@ export default function SignupCallbackPage() {
     const { user } = useUser();
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string>(
-        'Setting up your account...'
+        'Setting up your account...',
     );
     const hasCalledApi = useRef(false);
     const isRedirecting = useRef(false);
@@ -46,10 +46,10 @@ export default function SignupCallbackPage() {
 
                 // Check for pending access link invitation
                 const pendingAccessLinkId = sessionStorage.getItem(
-                    'pendingAccessLinkId'
+                    'pendingAccessLinkId',
                 );
                 const pendingAccessLinkEmail = sessionStorage.getItem(
-                    'pendingAccessLinkEmail'
+                    'pendingAccessLinkEmail',
                 );
 
                 // If there's a pending invite, validate the email matches
@@ -86,7 +86,7 @@ export default function SignupCallbackPage() {
                     }
                 } catch {
                     console.log(
-                        'User not found in Core API, will create new user'
+                        'User not found in Core API, will create new user',
                     );
                 }
 
@@ -109,7 +109,7 @@ export default function SignupCallbackPage() {
                                 firstName: user.firstName || '',
                                 lastName: user.lastName || '',
                                 clerkId: userId,
-                            }
+                            },
                         );
                         toast.success('Invitation accepted!');
 
@@ -132,7 +132,7 @@ export default function SignupCallbackPage() {
                     } catch (inviteErr) {
                         console.error('Error accepting invite:', inviteErr);
                         toast.error(
-                            'Account created, but failed to accept invitation.'
+                            'Account created, but failed to accept invitation.',
                         );
                         // Continue to home anyway since account was created
                         redirect('/home');
@@ -148,7 +148,11 @@ export default function SignupCallbackPage() {
 
                     setStatusMessage('Verifying your account...');
                     redirect('/home');
-                } else if (userExists && userHasOrg && !hasCompletedOnboarding) {
+                } else if (
+                    userExists &&
+                    userHasOrg &&
+                    !hasCompletedOnboarding
+                ) {
                     // User was invited and has org but hasn't completed onboarding
                     // This means they're an invited member - auto-complete onboarding
                     try {
@@ -204,7 +208,9 @@ export default function SignupCallbackPage() {
                 <div className="w-full max-w-md px-6">
                     <div className="relative bg-card border border-border rounded-xl p-8 shadow-sm text-center">
                         <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-6" />
-                        <h2 className="text-xl font-semibold mb-2">{statusMessage}</h2>
+                        <h2 className="text-xl font-semibold mb-2">
+                            {statusMessage}
+                        </h2>
                         <p className="text-muted-foreground text-sm">
                             Please wait while we set up your profile
                         </p>

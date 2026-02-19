@@ -1,6 +1,10 @@
-import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, List as ListIcon, Calendar as CalendarIcon, Plus, Edit2, Trash2, LayoutGrid, CheckCircle2, Clock, AlertCircle } from "lucide-react"
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import {
+    ArrowLeft,
+    List as ListIcon,
+    Calendar as CalendarIcon,
+} from 'lucide-react';
 
 export function ProjectDetailSkeleton() {
     return (
@@ -10,12 +14,19 @@ export function ProjectDetailSkeleton() {
                 <div className="flex items-start justify-between">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 -ml-1" disabled>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 -ml-1"
+                                disabled
+                            >
                                 <ArrowLeft className="h-4 w-4 opacity-50" />
                             </Button>
                             <div className="flex items-center gap-2">
                                 <Skeleton className="h-4 w-24" />
-                                <span className="text-muted-foreground/40">/</span>
+                                <span className="text-muted-foreground/40">
+                                    /
+                                </span>
                                 <Skeleton className="h-4 w-12" />
                             </div>
                         </div>
@@ -28,11 +39,15 @@ export function ProjectDetailSkeleton() {
                         <div className="flex items-center bg-white p-1 rounded-lg border border-border shadow-sm mr-2 opacity-50">
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-foreground">
                                 <ListIcon className="h-4 w-4" />
-                                <span className="text-sm font-medium">List</span>
+                                <span className="text-sm font-medium">
+                                    List
+                                </span>
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground">
                                 <CalendarIcon className="h-4 w-4" />
-                                <span className="text-sm font-medium">Calendar</span>
+                                <span className="text-sm font-medium">
+                                    Calendar
+                                </span>
                             </div>
                         </div>
 
@@ -47,8 +62,11 @@ export function ProjectDetailSkeleton() {
 
                 {/* Stats Row */}
                 <div className="grid grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="bg-white border border-border rounded-xl p-5 flex items-center justify-between shadow-sm">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div
+                            key={i}
+                            className="bg-white border border-border rounded-xl p-5 flex items-center justify-between shadow-sm"
+                        >
                             <div>
                                 <Skeleton className="h-3 w-20 mb-2" />
                                 <Skeleton className="h-8 w-12" />
@@ -76,8 +94,11 @@ export function ProjectDetailSkeleton() {
                 </div>
 
                 <div className="p-0">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="px-8 py-4 border-b border-border/60 flex items-center justify-between">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div
+                            key={i}
+                            className="px-8 py-4 border-b border-border/60 flex items-center justify-between"
+                        >
                             <div className="flex items-center gap-4 w-full">
                                 <Skeleton className="h-4 w-4 rounded-full" />
                                 <div className="space-y-1 flex-1">
@@ -95,5 +116,5 @@ export function ProjectDetailSkeleton() {
                 </div>
             </div>
         </div>
-    )
+    );
 }

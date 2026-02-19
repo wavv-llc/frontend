@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
     MoreVertical,
@@ -9,17 +9,17 @@ import {
     Edit2,
     Trash2,
     Copy,
-} from 'lucide-react'
-import { type Task, type CustomField } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+} from 'lucide-react';
+import { type Task, type CustomField } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
+} from '@/components/ui/dropdown-menu';
 
 export function TaskRow({
     task,
@@ -27,39 +27,47 @@ export function TaskRow({
     onClick,
     onEdit,
     onDelete,
-    onCopy
+    onCopy,
 }: {
-    task: Task,
-    customFields?: CustomField[],
-    onClick: () => void,
-    onEdit: (task: Task) => void
-    onDelete: (id: string) => void
-    onCopy: (task: Task) => void
+    task: Task;
+    customFields?: CustomField[];
+    onClick: () => void;
+    onEdit: (task: Task) => void;
+    onDelete: (id: string) => void;
+    onCopy: (task: Task) => void;
 }) {
     const getStatusIcon = (status: Task['status']) => {
         switch (status) {
-            case 'COMPLETED': return <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            case 'IN_PROGRESS': return <Circle className="h-4 w-4 text-blue-600" />
-            case 'IN_REVIEW': return <AlertCircle className="h-4 w-4 text-amber-600" />
-            default: return <Circle className="h-4 w-4 text-muted-foreground/30" />
+            case 'COMPLETED':
+                return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+            case 'IN_PROGRESS':
+                return <Circle className="h-4 w-4 text-blue-600" />;
+            case 'IN_REVIEW':
+                return <AlertCircle className="h-4 w-4 text-amber-600" />;
+            default:
+                return <Circle className="h-4 w-4 text-muted-foreground/30" />;
         }
-    }
+    };
 
     const getStatusLabel = (status: Task['status']) => {
         switch (status) {
-            case 'COMPLETED': return 'Completed'
-            case 'IN_PROGRESS': return 'In Progress'
-            case 'IN_REVIEW': return 'In Review'
-            default: return 'Pending'
+            case 'COMPLETED':
+                return 'Completed';
+            case 'IN_PROGRESS':
+                return 'In Progress';
+            case 'IN_REVIEW':
+                return 'In Review';
+            default:
+                return 'Pending';
         }
-    }
+    };
 
     // Get custom field value for this task (placeholder - would need task.customFieldValues from API)
-    const getCustomFieldValue = (fieldId: string) => {
+    const getCustomFieldValue = () => {
         // TODO: Once Task type includes customFieldValues, access it here
         // For now return empty/placeholder
-        return '-'
-    }
+        return '-';
+    };
 
     return (
         <div
@@ -75,28 +83,39 @@ export function TaskRow({
             <div className="w-[120px] flex-shrink-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {getStatusIcon(task.status)}
-                    <span className="text-sm text-muted-foreground">{getStatusLabel(task.status)}</span>
+                    <span className="text-sm text-muted-foreground">
+                        {getStatusLabel(task.status)}
+                    </span>
                 </div>
             </div>
 
             <div className="w-[120px] flex-shrink-0 flex items-center -space-x-2">
                 {(task.preparers || []).length > 0 ? (
                     (task.preparers || []).slice(0, 3).map((user, i) => (
-                        <Avatar key={i} className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white">
+                        <Avatar
+                            key={i}
+                            className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white"
+                        >
                             <AvatarFallback className="text-[10px] bg-muted text-foreground font-medium">
-                                {user.firstName?.[0] || user.email[0].toUpperCase()}
+                                {user.firstName?.[0] ||
+                                    user.email[0].toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                     ))
                 ) : (
-                    <span className="text-xs text-muted-foreground/40 italic">Unassigned</span>
+                    <span className="text-xs text-muted-foreground/40 italic">
+                        Unassigned
+                    </span>
                 )}
             </div>
 
             {/* Custom Field Values */}
             {customFields.map((field) => (
-                <div key={field.id} className="w-[120px] flex-shrink-0 text-sm text-muted-foreground truncate">
-                    {getCustomFieldValue(field.id)}
+                <div
+                    key={field.id}
+                    className="w-[120px] flex-shrink-0 text-sm text-muted-foreground truncate"
+                >
+                    {getCustomFieldValue()}
                 </div>
             ))}
 
@@ -116,25 +135,29 @@ export function TaskRow({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation()
-                            onEdit(task)
-                        }}>
+                        <DropdownMenuItem
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(task);
+                            }}
+                        >
                             <Edit2 className="h-4 w-4 mr-2" />
                             Edit Task
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation()
-                            onCopy(task)
-                        }}>
+                        <DropdownMenuItem
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onCopy(task);
+                            }}
+                        >
                             <Copy className="h-4 w-4 mr-2" />
                             Copy Task
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                             onClick={(e) => {
-                                e.stopPropagation()
-                                onDelete(task.id)
+                                e.stopPropagation();
+                                onDelete(task.id);
                             }}
                             className="text-destructive focus:text-destructive"
                         >
@@ -145,5 +168,5 @@ export function TaskRow({
                 </DropdownMenu>
             </div>
         </div>
-    )
+    );
 }

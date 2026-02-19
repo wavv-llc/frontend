@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import { useRef, useState } from "react";
-import { NotificationFeedPopover, useKnockFeed } from "@knocklabs/react";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useRef, useState } from 'react';
+import { NotificationFeedPopover, useKnockFeed } from '@knocklabs/react';
+import { Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const NotificationBell = () => {
     const [isVisible, setIsVisible] = useState(false);

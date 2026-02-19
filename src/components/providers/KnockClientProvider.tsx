@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import { KnockProvider, KnockFeedProvider } from "@knocklabs/react";
-import { useUser } from "@clerk/nextjs";
-import { ReactNode } from "react";
-import "@knocklabs/react/dist/index.css";
+import { KnockProvider, KnockFeedProvider } from '@knocklabs/react';
+import { useUser } from '@clerk/nextjs';
+import { ReactNode } from 'react';
+import '@knocklabs/react/dist/index.css';
 
 export const KnockClientProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useUser();
@@ -16,15 +16,8 @@ export const KnockClientProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return (
-        <KnockProvider
-            apiKey={apiKey}
-            userId={user.id}
-        >
-            <KnockFeedProvider
-                feedId={feedId}
-            >
-                {children}
-            </KnockFeedProvider>
+        <KnockProvider apiKey={apiKey} userId={user.id}>
+            <KnockFeedProvider feedId={feedId}>{children}</KnockFeedProvider>
         </KnockProvider>
     );
 };

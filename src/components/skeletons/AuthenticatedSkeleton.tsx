@@ -1,10 +1,12 @@
-import { Loader2 } from "lucide-react"
+import { Loader2 } from 'lucide-react';
 
 interface AuthenticatedSkeletonProps {
-    message?: string
+    message?: string;
 }
 
-export function AuthenticatedSkeleton({ message = "Loading your workspace..." }: AuthenticatedSkeletonProps) {
+export function AuthenticatedSkeleton({
+    message = 'Loading your workspace...',
+}: AuthenticatedSkeletonProps) {
     return (
         <div className="flex h-screen w-full bg-background items-center justify-center">
             <div className="flex flex-col items-center gap-4">
@@ -12,5 +14,5 @@ export function AuthenticatedSkeleton({ message = "Loading your workspace..." }:
                 <p className="text-muted-foreground text-sm">{message}</p>
             </div>
         </div>
-    )
+    );
 }

@@ -1,7 +1,7 @@
-import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 export function DocumentDetailSkeleton() {
     return (
@@ -35,7 +35,10 @@ export function DocumentDetailSkeleton() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-6">
                                 {[1, 2, 3].map((i) => (
-                                    <div key={i} className="flex items-start gap-3">
+                                    <div
+                                        key={i}
+                                        className="flex items-start gap-3"
+                                    >
                                         <Skeleton className="h-5 w-5 rounded-sm" />
                                         <div className="space-y-2">
                                             <Skeleton className="h-4 w-32" />
@@ -46,7 +49,10 @@ export function DocumentDetailSkeleton() {
                             </div>
                             <div className="space-y-6">
                                 {[1, 2, 3].map((i) => (
-                                    <div key={i} className="flex items-start gap-3">
+                                    <div
+                                        key={i}
+                                        className="flex items-start gap-3"
+                                    >
                                         <Skeleton className="h-5 w-5 rounded-sm" />
                                         <div className="space-y-2">
                                             <Skeleton className="h-4 w-32" />
@@ -84,5 +90,5 @@ export function DocumentDetailSkeleton() {
                 </Card>
             </div>
         </div>
-    )
+    );
 }

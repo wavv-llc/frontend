@@ -1,14 +1,16 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
+import { ChevronRight, MoreVertical, FolderInput } from 'lucide-react';
 import {
-    ChevronRight,
-    MoreVertical,
-    FolderInput,
-} from 'lucide-react'
-import { type Project, type Task, type Workspace, workspaceApi, projectApi } from '@/lib/api'
+    type Project,
+    type Task,
+    type Workspace,
+    workspaceApi,
+    projectApi,
+} from '@/lib/api';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,78 +19,93 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { useSidebar } from '@/contexts/SidebarContext'
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 interface ProjectListViewProps {
-    projects: Project[]
-    tasks: Task[]
-    allTasks?: Task[]
-    onRefresh?: () => void
+    projects: Project[];
+    tasks: Task[];
+    allTasks?: Task[];
+    onRefresh?: () => void;
 }
 
-export function ProjectListView({ projects, tasks, allTasks, onRefresh }: ProjectListViewProps) {
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const { triggerRefresh } = useSidebar()
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+export function ProjectListView({
+    projects,
+    tasks,
+    allTasks,
+    onRefresh,
+}: ProjectListViewProps) {
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const { triggerRefresh } = useSidebar();
+    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
     // Fetch all workspaces for the move menu
     useEffect(() => {
         const fetchWorkspaces = async () => {
             try {
-                const token = await getToken()
-                if (!token) return
+                const token = await getToken();
+                if (!token) return;
 
-                const response = await workspaceApi.getWorkspaces(token)
-                setWorkspaces(response.data || [])
+                const response = await workspaceApi.getWorkspaces(token);
+                setWorkspaces(response.data || []);
             } catch (error) {
-                console.error('Failed to fetch workspaces:', error)
+                console.error('Failed to fetch workspaces:', error);
             }
-        }
+        };
 
-        fetchWorkspaces()
-    }, [getToken])
+        fetchWorkspaces();
+    }, [getToken]);
 
-    const handleMoveProject = async (projectId: string, targetWorkspaceId: string, currentWorkspaceId: string) => {
-        console.log('🔄 Moving project:', { projectId, targetWorkspaceId, currentWorkspaceId });
+    const handleMoveProject = async (
+        projectId: string,
+        targetWorkspaceId: string,
+        currentWorkspaceId: string,
+    ) => {
+        console.log('🔄 Moving project:', {
+            projectId,
+            targetWorkspaceId,
+            currentWorkspaceId,
+        });
 
         if (targetWorkspaceId === currentWorkspaceId) {
-            toast.info('Project is already in this workspace')
-            return
+            toast.info('Project is already in this workspace');
+            return;
         }
 
         try {
-            const token = await getToken()
+            const token = await getToken();
             if (!token) {
-                toast.error('Authentication required')
-                return
+                toast.error('Authentication required');
+                return;
             }
 
             console.log('🔄 Calling API to move project...');
             await projectApi.updateProject(token, projectId, {
                 workspaceId: targetWorkspaceId,
-            })
+            });
 
             console.log('✅ Project moved successfully');
-            toast.success('Project moved successfully')
-            triggerRefresh() // Refresh sidebar
-            onRefresh?.() // Refresh workspace view
+            toast.success('Project moved successfully');
+            triggerRefresh(); // Refresh sidebar
+            onRefresh?.(); // Refresh workspace view
         } catch (error) {
-            console.error('❌ Failed to move project:', error)
-            toast.error('Failed to move project')
+            console.error('❌ Failed to move project:', error);
+            toast.error('Failed to move project');
         }
-    }
+    };
 
     if (projects.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center">
                 <p className="text-muted-foreground mb-4">No projects yet</p>
-                <p className="text-sm text-muted-foreground">Create a project to get started</p>
+                <p className="text-sm text-muted-foreground">
+                    Create a project to get started
+                </p>
             </div>
-        )
+        );
     }
 
     return (
@@ -105,15 +122,19 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
             <div className="border-x border-b border-border rounded-b-lg divide-y divide-border bg-card">
                 {projects.map((project) => {
                     // Use allTasks for stats if available, otherwise use displayed tasks
-                    const statsTasks = (allTasks || tasks).filter(task => task.projectId === project.id)
-                    const taskCount = statsTasks.length
-                    const memberCount = project.members.length
+                    const statsTasks = (allTasks || tasks).filter(
+                        (task) => task.projectId === project.id,
+                    );
+                    const taskCount = statsTasks.length;
+                    const memberCount = project.members.length;
 
                     // Get owner
-                    const owner = project.owners[0]
+                    const owner = project.owners[0];
 
                     // Get other workspaces for move menu
-                    const otherWorkspaces = workspaces.filter(w => w.id !== project.workspaceId)
+                    const otherWorkspaces = workspaces.filter(
+                        (w) => w.id !== project.workspaceId,
+                    );
 
                     return (
                         <div
@@ -125,13 +146,18 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                                 {/* Project Name */}
                                 <div
                                     className="col-span-3 flex items-center gap-3 cursor-pointer"
-                                    onClick={() => router.push(`/workspaces/${project.workspaceId}/projects/${project.id}`)}
+                                    onClick={() =>
+                                        router.push(
+                                            `/workspaces/${project.workspaceId}/projects/${project.id}`,
+                                        )
+                                    }
                                 >
                                     <div className="transition-transform duration-200 text-muted-foreground group-hover:translate-x-1">
                                         <ChevronRight className="h-4 w-4" />
                                     </div>
                                     <div className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                                        {project.name || `Project ${project.id.slice(0, 8)}`}
+                                        {project.name ||
+                                            `Project ${project.id.slice(0, 8)}`}
                                     </div>
                                 </div>
 
@@ -145,14 +171,19 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                                     {owner ? (
                                         <>
                                             <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary ring-1 ring-background shrink-0">
-                                                {owner.firstName?.[0] || owner.email[0].toUpperCase()}
+                                                {owner.firstName?.[0] ||
+                                                    owner.email[0].toUpperCase()}
                                             </div>
                                             <span className="text-sm text-muted-foreground truncate">
-                                                {owner.firstName ? `${owner.firstName} ${owner.lastName || ''}` : owner.email}
+                                                {owner.firstName
+                                                    ? `${owner.firstName} ${owner.lastName || ''}`
+                                                    : owner.email}
                                             </span>
                                         </>
                                     ) : (
-                                        <span className="text-sm text-muted-foreground">-</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            -
+                                        </span>
                                     )}
                                 </div>
 
@@ -163,7 +194,9 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
 
                                 {/* Tasks Count & Options */}
                                 <div className="col-span-2 flex items-center justify-between gap-2">
-                                    <span className="text-sm text-muted-foreground flex-1 text-center">{taskCount}</span>
+                                    <span className="text-sm text-muted-foreground flex-1 text-center">
+                                        {taskCount}
+                                    </span>
 
                                     {/* Options Menu */}
                                     <DropdownMenu>
@@ -172,7 +205,9 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
                                             >
                                                 <MoreVertical className="h-4 w-4" />
                                             </Button>
@@ -184,34 +219,49 @@ export function ProjectListView({ projects, tasks, allTasks, onRefresh }: Projec
                                                     Move to Workspace
                                                 </DropdownMenuSubTrigger>
                                                 <DropdownMenuSubContent>
-                                                    {otherWorkspaces.length > 0 ? (
-                                                        otherWorkspaces.map((workspace) => (
-                                                            <DropdownMenuItem
-                                                                key={workspace.id}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleMoveProject(project.id, workspace.id, project.workspaceId)
-                                                                }}
-                                                            >
-                                                                {workspace.name}
-                                                            </DropdownMenuItem>
-                                                        ))
+                                                    {otherWorkspaces.length >
+                                                    0 ? (
+                                                        otherWorkspaces.map(
+                                                            (workspace) => (
+                                                                <DropdownMenuItem
+                                                                    key={
+                                                                        workspace.id
+                                                                    }
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleMoveProject(
+                                                                            project.id,
+                                                                            workspace.id,
+                                                                            project.workspaceId,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        workspace.name
+                                                                    }
+                                                                </DropdownMenuItem>
+                                                            ),
+                                                        )
                                                     ) : (
-                                                        <DropdownMenuItem disabled>
-                                                            No other workspaces available
+                                                        <DropdownMenuItem
+                                                            disabled
+                                                        >
+                                                            No other workspaces
+                                                            available
                                                         </DropdownMenuItem>
                                                     )}
                                                 </DropdownMenuSubContent>
                                             </DropdownMenuSub>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
-
                                 </div>
                             </div>
                         </div>
-                    )
+                    );
                 })}
             </div>
         </div>
-    )
+    );
 }

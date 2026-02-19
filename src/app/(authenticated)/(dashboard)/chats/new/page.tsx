@@ -1,42 +1,49 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
-import { MessageSquare } from 'lucide-react'
-import { chatApi } from '@/lib/api'
-import { ChatCommandBar } from '@/components/chat/ChatCommandBar'
-import { toast } from 'sonner'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
+import { MessageSquare } from 'lucide-react';
+import { chatApi } from '@/lib/api';
+import { ChatCommandBar } from '@/components/chat/ChatCommandBar';
+import { toast } from 'sonner';
 
 export default function NewChatPage() {
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const [message, setMessage] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const [message, setMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent, externalSearchEnabled: boolean) => {
-        e.preventDefault()
-        if (!message.trim() || isSubmitting) return
+    const handleSubmit = async (
+        e: React.FormEvent,
+        externalSearchEnabled: boolean,
+    ) => {
+        e.preventDefault();
+        if (!message.trim() || isSubmitting) return;
 
         try {
-            setIsSubmitting(true)
-            const token = await getToken()
+            setIsSubmitting(true);
+            const token = await getToken();
             if (!token) {
-                toast.error('Authentication required')
-                return
+                toast.error('Authentication required');
+                return;
             }
 
-            const response = await chatApi.createChat(token, message.trim(), externalSearchEnabled)
+            const response = await chatApi.createChat(
+                token,
+                message.trim(),
+                externalSearchEnabled,
+            );
             if (response.data) {
-                router.push(`/chats/${response.data.id}`)
+                router.push(`/chats/${response.data.id}`);
             }
         } catch (error) {
-            console.error('Failed to create chat:', error)
-            toast.error('Failed to send message')
+            console.error('Failed to create chat:', error);
+            toast.error('Failed to send message');
         } finally {
-            setIsSubmitting(false)
+            setIsSubmitting(false);
         }
-    }
+    };
 
     return (
         <div className="relative h-full w-full bg-background overflow-hidden flex flex-col">
@@ -51,7 +58,8 @@ export default function NewChatPage() {
                             Start a new conversation
                         </h1>
                         <p className="text-sm md:text-base text-muted-foreground">
-                            Ask me anything and I'll help you find the answers you need
+                            Ask me anything and I'll help you find the answers
+                            you need
                         </p>
                     </div>
                 </div>
@@ -69,5 +77,5 @@ export default function NewChatPage() {
                 </div>
             </div>
         </div>
-    )
+    );
 }

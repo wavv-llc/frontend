@@ -1,8 +1,14 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { userApi, MeResponse, Permission } from "@/lib/api";
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useCallback,
+} from 'react';
+import { useAuth } from '@clerk/nextjs';
+import { userApi, MeResponse, Permission } from '@/lib/api';
 
 interface UserContextType {
     user: MeResponse | null;
@@ -10,9 +16,9 @@ interface UserContextType {
     error: Error | null;
     refreshUser: () => Promise<void>;
     checkPermission: (
-        scope: "organization" | "project",
+        scope: 'organization' | 'project',
         resourceId: string,
-        permission: Permission
+        permission: Permission,
     ) => boolean;
 }
 
@@ -44,8 +50,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 setError(null);
             }
         } catch (err) {
-            console.error("Error fetching user:", err);
-            setError(err instanceof Error ? err : new Error("Failed to fetch user"));
+            console.error('Error fetching user:', err);
+            setError(
+                err instanceof Error ? err : new Error('Failed to fetch user'),
+            );
         } finally {
             setIsLoading(false);
         }
@@ -58,25 +66,27 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const checkPermission = useCallback(
         (
-            scope: "organization" | "project",
+            scope: 'organization' | 'project',
             resourceId: string,
-            permission: Permission
+            permission: Permission,
         ): boolean => {
             if (!user) return false;
 
-            if (scope === "organization") {
-                const orgPermissions = user.permissions.organizations[resourceId];
+            if (scope === 'organization') {
+                const orgPermissions =
+                    user.permissions.organizations[resourceId];
                 return orgPermissions?.includes(permission) ?? false;
             }
 
-            if (scope === "project") {
-                const projectPermissions = user.permissions.projects[resourceId];
+            if (scope === 'project') {
+                const projectPermissions =
+                    user.permissions.projects[resourceId];
                 return projectPermissions?.includes(permission) ?? false;
             }
 
             return false;
         },
-        [user]
+        [user],
     );
 
     return (
@@ -97,7 +107,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 export function useUser() {
     const context = useContext(UserContext);
     if (context === undefined) {
-        throw new Error("useUser must be used within a UserProvider");
+        throw new Error('useUser must be used within a UserProvider');
     }
     return context;
 }
