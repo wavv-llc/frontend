@@ -104,9 +104,9 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
             )}
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--dashboard-border)]">
+            <div className="flex items-center justify-between px-[18px] py-3 border-b border-[var(--dashboard-border)]">
                 {/* Title */}
-                <h2 className="font-cormorant text-[15px] font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                <h2 className="font-serif text-[14px] font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
                     Tasks
                 </h2>
 
@@ -117,7 +117,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={cn(
-                                'relative px-3 py-1.5 font-figtree text-xs transition-colors cursor-pointer',
+                                'relative px-3 py-1.5 font-sans text-xs transition-colors cursor-pointer',
                                 activeTab === tab.key
                                     ? 'text-[var(--accent)] font-medium'
                                     : 'text-[var(--dashboard-text-muted)] font-normal hover:text-[var(--dashboard-text-body)]',
@@ -135,30 +135,30 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
             {/* Column Headers */}
             <div
                 className={cn(
-                    'grid px-5 py-2',
+                    'grid px-[18px] py-2',
                     'border-b border-[var(--dashboard-border-light)]',
-                    'grid-cols-[1fr_80px_90px_120px]',
+                    'grid-cols-[1fr_72px_81px_108px]',
                 )}
             >
-                <div className="font-source-code text-[9px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
+                <div className="font-sans text-[8px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
                     Client & Form
                 </div>
-                <div className="font-source-code text-[9px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
+                <div className="font-sans text-[8px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
                     Priority
                 </div>
-                <div className="font-source-code text-[9px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
+                <div className="font-sans text-[8px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
                     Due Date
                 </div>
-                <div className="font-source-code text-[9px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
+                <div className="font-sans text-[8px] font-semibold uppercase tracking-wider text-[var(--dashboard-text-muted)]">
                     Status
                 </div>
             </div>
 
             {/* Task Rows */}
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="max-h-[360px] overflow-y-auto">
                 {sortedTasks.length === 0 ? (
                     <div className="py-10 text-center">
-                        <p className="font-figtree text-[13px] text-[var(--dashboard-text-muted)]">
+                        <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">
                             No tasks found
                         </p>
                     </div>
@@ -173,8 +173,8 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                                 key={task.id}
                                 onClick={() => onTaskClick?.(task)}
                                 className={cn(
-                                    'grid w-full px-5 py-2.5',
-                                    'grid-cols-[1fr_80px_90px_120px]',
+                                    'grid w-full px-[18px] py-2',
+                                    'grid-cols-[1fr_72px_81px_108px]',
                                     'border-b border-[var(--dashboard-border-light)] last:border-0',
                                     'transition-colors duration-150',
                                     'hover:bg-[var(--accent-row-hover)]',
@@ -183,10 +183,10 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                             >
                                 {/* Client & Form */}
                                 <div className="flex flex-col gap-0.5">
-                                    <span className="font-figtree text-[13px] font-[450] text-[var(--dashboard-text-primary)]">
+                                    <span className="font-sans text-[12px] font-[450] text-[var(--dashboard-text-primary)]">
                                         {task.clientName}
                                     </span>
-                                    <span className="font-source-code text-[11px] font-normal text-[var(--dashboard-text-muted)]">
+                                    <span className="font-sans text-[10px] font-normal text-[var(--dashboard-text-muted)]">
                                         {task.formType}
                                     </span>
                                 </div>
@@ -207,7 +207,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                                 <div className="flex items-center">
                                     <span
                                         className={cn(
-                                            'font-source-code text-[11px] font-light',
+                                            'font-sans text-[10px] font-light',
                                             isOverdue
                                                 ? 'text-[var(--status-urgent)]'
                                                 : 'text-[var(--dashboard-text-muted)]',

@@ -9,7 +9,7 @@ import { ButtonSpinner } from './button-loading';
 
 const buttonVariants = cva(
     // Base styles
-    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-figtree font-medium transition-all duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden active:scale-[0.975] [&_svg]:pointer-events-none [&_svg]:shrink-0',
+    'inline-flex items-center justify-center gap-1 whitespace-nowrap font-sans font-medium transition-all duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden active:scale-[0.975] [&_svg]:pointer-events-none [&_svg]:shrink-0',
     {
         variants: {
             variant: {
@@ -35,15 +35,15 @@ const buttonVariants = cva(
                 link: 'text-[var(--accent)] underline-offset-4 hover:underline',
             },
             size: {
-                sm: 'h-8 px-3.5 text-xs rounded-md',
-                md: 'h-10 px-[18px] text-[13px] rounded-lg',
-                lg: 'h-11 px-[22px] text-sm rounded-lg',
-                xl: 'h-12 px-7 text-[15px] rounded-lg',
+                sm: 'h-[29px] px-3 text-xs rounded-md',
+                md: 'h-9 px-4 text-[12px] rounded-lg',
+                lg: 'h-[40px] px-5 text-sm rounded-lg',
+                xl: 'h-[43px] px-[25px] text-[14px] rounded-lg',
                 // Legacy sizes for backward compatibility
-                default: 'h-10 px-[18px] text-[13px] rounded-lg',
-                icon: 'h-9 w-9 rounded-lg',
-                'icon-sm': 'h-8 w-8 rounded-md',
-                'icon-lg': 'h-10 w-10 rounded-lg',
+                default: 'h-9 px-4 text-[12px] rounded-lg',
+                icon: 'h-8 w-8 rounded-lg',
+                'icon-sm': 'h-[29px] w-[29px] rounded-md',
+                'icon-lg': 'h-9 w-9 rounded-lg',
             },
         },
         defaultVariants: {
@@ -112,13 +112,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
             <>
                 {icon && iconPosition === 'left' && (
-                    <span className="[&_svg]:w-[13px] [&_svg]:h-[13px]">
+                    <span className="[&_svg]:w-[12px] [&_svg]:h-[12px]">
                         {icon}
                     </span>
                 )}
                 {children}
                 {icon && iconPosition === 'right' && (
-                    <span className="[&_svg]:w-[13px] [&_svg]:h-[13px]">
+                    <span className="[&_svg]:w-[12px] [&_svg]:h-[12px]">
                         {icon}
                     </span>
                 )}
@@ -134,7 +134,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 onClick={handleClick}
                 {...props}
             >
-                <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
+                <span className="relative z-10 inline-flex items-center justify-center gap-1">
                     {content}
                 </span>
             </Comp>

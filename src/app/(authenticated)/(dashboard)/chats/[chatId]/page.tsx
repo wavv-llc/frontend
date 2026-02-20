@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { MessageSquare, ArrowLeft } from 'lucide-react';
@@ -21,7 +21,8 @@ export default function ChatDetailPage() {
     const [initialChat, setInitialChat] = useState<Chat | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isStreaming, setIsStreaming] = useState(false);
+    const [initiallyHadResponse, setInitiallyHadResponse] = useState(false);
+    const [shouldStream, setShouldStream] = useState(false);
 
     useEffect(() => {
         const fetchChat = async () => {
@@ -35,6 +36,8 @@ export default function ChatDetailPage() {
                 const response = await chatApi.getChat(token, chatId);
                 if (response.data) {
                     setInitialChat(response.data);
+                    // Track if response already existed on initial load
+                    setInitiallyHadResponse(response.data.response !== null);
                 } else {
                     setError('Chat not found');
                 }
@@ -58,14 +61,22 @@ export default function ChatDetailPage() {
             createdAt: '',
             updatedAt: '',
         },
-        onResponseReady: () => {
-            setIsStreaming(true);
+        onResponseReady: (updatedChat) => {
+            // Only stream if response arrived during polling (not if it existed initially)
+            if (!initiallyHadResponse && updatedChat.response !== null) {
+                setShouldStream(true);
+            }
         },
         pollingInterval: 1500,
         maxAttempts: 60,
     });
 
     const displayChat = loading ? null : initialChat ? chat : null;
+
+    // Memoize the callback to prevent unnecessary re-renders
+    const handleStreamComplete = useCallback(() => {
+        // Streaming animation complete
+    }, []);
 
     if (loading) {
         return (
@@ -205,8 +216,8 @@ export default function ChatDetailPage() {
                         <ChatStreamingResponseCard
                             response={displayChat.response}
                             timestamp={formatTimestamp(displayChat.createdAt)}
-                            isStreaming={isStreaming}
-                            onStreamComplete={() => setIsStreaming(false)}
+                            isStreaming={shouldStream}
+                            onStreamComplete={handleStreamComplete}
                         />
                     ) : null}
                 </div>

@@ -85,15 +85,15 @@ export function ActivityFeed({
     return (
         <div
             className={cn(
-                'w-[340px] flex-shrink-0',
+                'w-[306px] flex-shrink-0',
                 'bg-[var(--dashboard-surface)] rounded-xl border border-[var(--dashboard-border)]',
-                'p-5',
+                'p-[18px]',
                 'transition-shadow duration-200 hover:shadow-[0_2px_16px_rgba(90,127,154,0.05)]',
                 className,
             )}
         >
             {/* Title */}
-            <h2 className="font-cormorant text-[15px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] mb-4">
+            <h2 className="font-serif text-[14px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] mb-4">
                 Recent Activity
             </h2>
 
@@ -101,7 +101,7 @@ export function ActivityFeed({
             <div className="space-y-0 mb-4">
                 {activities.length === 0 ? (
                     <div className="py-8 text-center">
-                        <p className="font-figtree text-[13px] text-[var(--dashboard-text-muted)]">
+                        <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">
                             No recent activity
                         </p>
                     </div>
@@ -114,15 +114,15 @@ export function ActivityFeed({
                             <div
                                 key={activity.id}
                                 className={cn(
-                                    'flex gap-3 py-2.5',
+                                    'flex gap-2.5 py-2',
                                     !isLast &&
                                         'border-b border-[var(--dashboard-border-light)]',
                                 )}
                             >
                                 {/* Icon Badge */}
-                                <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-[var(--accent-subtle)] flex items-center justify-center">
+                                <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-[var(--accent-subtle)] flex items-center justify-center">
                                     <Icon
-                                        className="w-3.5 h-3.5 text-[var(--accent)]"
+                                        className="w-3 h-3 text-[var(--accent)]"
                                         strokeWidth={2}
                                     />
                                 </div>
@@ -131,10 +131,10 @@ export function ActivityFeed({
                                 <div className="flex-1 min-w-0">
                                     {/* Action Label + Timestamp */}
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                        <span className="font-figtree text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">
+                                        <span className="font-sans text-[9px] font-semibold uppercase tracking-wide text-[var(--accent)]">
                                             {getActionLabel(activity.type)}
                                         </span>
-                                        <span className="font-source-code text-[10px] font-normal text-[var(--dashboard-text-faint)]">
+                                        <span className="font-sans text-[9px] font-normal text-[var(--dashboard-text-faint)]">
                                             {formatTimestamp(
                                                 activity.timestamp,
                                             )}
@@ -142,7 +142,7 @@ export function ActivityFeed({
                                     </div>
 
                                     {/* Description */}
-                                    <p className="font-figtree text-xs leading-[1.4] text-[var(--dashboard-text-body)]">
+                                    <p className="font-sans text-[11px] leading-[1.4] text-[var(--dashboard-text-body)]">
                                         {activity.description}
                                     </p>
                                 </div>
@@ -154,26 +154,26 @@ export function ActivityFeed({
 
             {/* Footer Stats */}
             {stats.length > 0 && (
-                <div className="pt-3.5 border-t border-[var(--dashboard-border)]">
-                    <div className="grid grid-cols-2 gap-2.5">
+                <div className="pt-3 border-t border-[var(--dashboard-border)]">
+                    <div className="grid grid-cols-2 gap-2">
                         {stats.map((stat, index) => (
                             <div
                                 key={index}
-                                className="px-3.5 py-3 rounded-lg bg-[var(--accent-subtle)]"
+                                className="px-3 py-2.5 rounded-lg bg-[var(--accent-subtle)]"
                             >
                                 {/* Label */}
-                                <div className="font-source-code text-[9px] font-medium uppercase tracking-wider text-[var(--dashboard-text-muted)] mb-1">
+                                <div className="font-sans text-[8px] font-medium uppercase tracking-wider text-[var(--dashboard-text-muted)] mb-1">
                                     {stat.label}
                                 </div>
 
                                 {/* Value */}
-                                <div className="font-cormorant text-xl font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                <div className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
                                     {stat.value}
                                 </div>
 
                                 {/* Sub-label */}
                                 {stat.subLabel && (
-                                    <div className="font-figtree text-[10px] text-[var(--dashboard-text-muted)] mt-0.5">
+                                    <div className="font-sans text-[9px] text-[var(--dashboard-text-muted)] mt-0.5">
                                         {stat.subLabel}
                                     </div>
                                 )}

@@ -21,7 +21,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             <AppSidebar />
             <main
                 className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${
-                    isOpen ? 'md:ml-[248px]' : 'md:ml-[60px]'
+                    isOpen ? 'md:ml-[223px]' : 'md:ml-[54px]'
                 }`}
             >
                 {children}

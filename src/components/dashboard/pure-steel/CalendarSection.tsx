@@ -113,25 +113,25 @@ export function CalendarSection({
             )}
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--dashboard-border)]">
+            <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-[var(--dashboard-border)]">
                 {/* Title */}
-                <h2 className="font-cormorant text-base font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                <h2 className="font-serif text-sm font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
                     Calendar
                 </h2>
 
                 {/* Right: Legend + Navigation */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3.5">
                     {/* Legend */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-sm bg-[rgba(90,127,154,0.15)] border-[1.5px] border-[var(--accent)]" />
-                            <span className="font-source-code text-[10px] text-[var(--dashboard-text-faint)]">
+                            <span className="font-sans text-[9px] text-[var(--dashboard-text-faint)]">
                                 Today
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-1 h-1 rounded-full bg-[#E05252]" />
-                            <span className="font-source-code text-[10px] text-[var(--dashboard-text-faint)]">
+                            <span className="font-sans text-[9px] text-[var(--dashboard-text-faint)]">
                                 Deadline
                             </span>
                         </div>
@@ -146,20 +146,20 @@ export function CalendarSection({
                                 'border border-[var(--dashboard-border)]',
                                 'bg-[var(--dashboard-surface)]',
                                 'text-[var(--dashboard-text-muted)]',
-                                'text-[11px] font-figtree',
+                                'text-[10px] font-sans',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
                             )}
                         >
-                            <ChevronLeft className="w-3.5 h-3.5" />
+                            <ChevronLeft className="w-3 h-3" />
                         </button>
                         <button
                             onClick={() => onNavigate('today')}
                             className={cn(
-                                'px-3 py-1 rounded-md',
+                                'px-2.5 py-1 rounded-md',
                                 'border border-[var(--dashboard-border)]',
                                 'bg-[var(--dashboard-surface)]',
                                 'text-[var(--dashboard-text-muted)]',
-                                'text-[11px] font-figtree font-medium',
+                                'text-[10px] font-sans font-medium',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
                             )}
                         >
@@ -172,26 +172,26 @@ export function CalendarSection({
                                 'border border-[var(--dashboard-border)]',
                                 'bg-[var(--dashboard-surface)]',
                                 'text-[var(--dashboard-text-muted)]',
-                                'text-[11px] font-figtree',
+                                'text-[10px] font-sans',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
                             )}
                         >
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <ChevronRight className="w-3 h-3" />
                         </button>
                     </div>
                 </div>
             </div>
 
             {/* Calendar Grid */}
-            <div className="p-4">
+            <div className="p-3.5">
                 {/* Day Headers */}
-                <div className="grid grid-cols-7 gap-1.5 mb-2">
+                <div className="grid grid-cols-7 gap-1 mb-2">
                     {DAY_NAMES.map((dayName) => (
                         <div
                             key={dayName}
                             className="pb-2 border-b border-[var(--dashboard-border-light)]"
                         >
-                            <span className="font-source-code text-[10px] font-medium text-[var(--dashboard-text-faint)] tracking-wider">
+                            <span className="font-sans text-[9px] font-medium text-[var(--dashboard-text-faint)] tracking-wider">
                                 {dayName}
                             </span>
                         </div>
@@ -199,7 +199,7 @@ export function CalendarSection({
                 </div>
 
                 {/* Week Days Grid */}
-                <div className="grid grid-cols-7 gap-1.5">
+                <div className="grid grid-cols-7 gap-1">
                     {weekDays.map((date) => {
                         const isToday = isSameDay(date, today);
                         const dateEvents =
@@ -212,7 +212,7 @@ export function CalendarSection({
                             <div
                                 key={date.toISOString()}
                                 className={cn(
-                                    'relative min-h-[56px] p-2 rounded-lg',
+                                    'relative min-h-[50px] p-2 rounded-lg',
                                     'border transition-all duration-150 cursor-pointer',
                                     isToday
                                         ? 'border-[1.5px] border-[var(--accent)] bg-[rgba(90,127,154,0.06)]'
@@ -223,7 +223,7 @@ export function CalendarSection({
                                 <div className="mb-1.5">
                                     <span
                                         className={cn(
-                                            'font-source-code text-xs',
+                                            'font-sans text-[11px]',
                                             isToday
                                                 ? 'font-semibold text-[var(--accent)]'
                                                 : deadline
@@ -247,8 +247,8 @@ export function CalendarSection({
                                                     onEventClick?.(event)
                                                 }
                                                 className={cn(
-                                                    'text-left px-1.5 py-0.5 rounded-sm',
-                                                    'text-[9px] font-figtree font-medium',
+                                                    'text-left px-1 py-0.5 rounded-sm',
+                                                    'text-[8px] font-sans font-medium',
                                                     'truncate',
                                                     'transition-opacity hover:opacity-80',
                                                     colors.bg,
@@ -256,7 +256,7 @@ export function CalendarSection({
                                                 )}
                                             >
                                                 {event.startTime && (
-                                                    <span className="font-source-code mr-1">
+                                                    <span className="font-sans mr-1">
                                                         {event.startTime}
                                                     </span>
                                                 )}
@@ -265,7 +265,7 @@ export function CalendarSection({
                                         );
                                     })}
                                     {moreCount > 0 && (
-                                        <span className="text-[9px] font-figtree text-[var(--dashboard-text-faint)] px-1.5">
+                                        <span className="text-[8px] font-sans text-[var(--dashboard-text-faint)] px-1">
                                             +{moreCount} more
                                         </span>
                                     )}

@@ -34,6 +34,7 @@ export function ChatStreamingResponseCard({
             return;
         }
 
+        // Reset state for streaming
         indexRef.current = 0;
         setDisplayedText('');
         setIsComplete(false);
@@ -64,9 +65,10 @@ export function ChatStreamingResponseCard({
         return () => {
             if (streamingRef.current) {
                 clearTimeout(streamingRef.current);
+                streamingRef.current = null;
             }
         };
-    }, [response, isStreaming, onStreamComplete]);
+    }, [response, isStreaming]); // Removed onStreamComplete from deps to prevent restarts
 
     return (
         <div

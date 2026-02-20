@@ -33,7 +33,7 @@ export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
         <header
             className={cn(
                 'sticky top-0 z-10 flex items-center',
-                'px-8 py-4',
+                'px-7 py-3.5',
                 'bg-[rgba(245,245,243,0.85)] backdrop-blur-xl',
                 'border-b border-[var(--dashboard-border)]',
                 className,
@@ -41,10 +41,10 @@ export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
         >
             {/* Greeting */}
             <div className="flex flex-col gap-1">
-                <h1 className="font-cormorant text-[22px] font-medium leading-tight tracking-tight text-[var(--dashboard-text-primary)]">
+                <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-[var(--dashboard-text-primary)]">
                     {greeting}, <span className="italic">{userName}</span>
                 </h1>
-                <p className="font-source-code text-[11px] font-normal text-[var(--dashboard-text-muted)]">
+                <p className="font-sans text-[10px] font-normal text-[var(--dashboard-text-muted)]">
                     {formattedDate}
                 </p>
             </div>

@@ -335,16 +335,21 @@ export default function OnboardingPage() {
             case 0:
                 return (
                     <>
-                        <CardHeader>
-                            <CardTitle>Create Your Organization</CardTitle>
-                            <CardDescription>
+                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
+                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                Create Your Organization
+                            </CardTitle>
+                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
                                 Set up your organization to get started with
                                 Wavv.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-[18px] p-5">
                             <div className="space-y-2">
-                                <Label htmlFor="org-name">
+                                <Label
+                                    htmlFor="org-name"
+                                    className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                >
                                     Organization Name *
                                 </Label>
                                 <Input
@@ -353,9 +358,10 @@ export default function OnboardingPage() {
                                     value={orgName}
                                     onChange={(e) => setOrgName(e.target.value)}
                                     disabled={isOrgCreated}
+                                    className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
                                 />
                             </div>
-                            <div className="flex justify-end pt-4">
+                            <div className="flex justify-end pt-2">
                                 <Button
                                     onClick={handleCreateOrganization}
                                     disabled={
@@ -364,6 +370,7 @@ export default function OnboardingPage() {
                                         isOrgCreated
                                     }
                                     size="lg"
+                                    className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {isSaving ? (
                                         <>
@@ -390,68 +397,76 @@ export default function OnboardingPage() {
             case 1:
                 return (
                     <>
-                        <CardHeader>
-                            <CardTitle>Connect SharePoint Sites</CardTitle>
-                            <CardDescription>
+                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
+                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                Connect SharePoint Sites
+                            </CardTitle>
+                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
                                 Choose the SharePoint sites you want to audit
                                 with AI.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-6">
                             {isLoadingSites ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Loader2 className="h-7 w-7 animate-spin text-[var(--accent)]" />
+                                    <p className="font-sans text-[13px] text-[var(--dashboard-text-muted)] mt-3">
+                                        Loading SharePoint sites...
+                                    </p>
                                 </div>
                             ) : sites.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <p>
+                                <div className="text-center py-10">
+                                    <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-[var(--accent-subtle)] flex items-center justify-center">
+                                        <Share2 className="w-7 h-7 text-[var(--accent)]" />
+                                    </div>
+                                    <p className="font-sans text-[13px] text-[var(--dashboard-text-body)] mb-3">
                                         No SharePoint sites found. Make sure you
                                         have access to SharePoint sites.
                                     </p>
                                     <Button
                                         variant="outline"
                                         onClick={loadSites}
-                                        className="mt-4"
+                                        className="h-8 px-[18px] font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                     >
                                         Retry
                                     </Button>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="max-h-[400px] overflow-y-auto space-y-2">
+                                    <div className="max-h-[280px] overflow-y-auto space-y-2 pr-2">
                                         {sites.map((site) => {
                                             const isSelected =
                                                 selectedSiteIds.has(site.id);
                                             return (
                                                 <div
                                                     key={site.id}
-                                                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                                                    className={`p-2.5 border rounded-lg cursor-pointer transition-all duration-200 ${
                                                         isSelected
-                                                            ? 'border-primary bg-primary/5'
-                                                            : 'border-input hover:bg-muted'
+                                                            ? 'border-[var(--accent)] bg-[var(--accent-subtle)] shadow-sm'
+                                                            : 'border-[var(--dashboard-border)] hover:border-[var(--accent)] hover:bg-[var(--accent-hover)]'
                                                     }`}
                                                     onClick={() =>
                                                         toggleSite(site.id)
                                                     }
                                                 >
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="mt-1">
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="mt-0.5">
                                                             {isSelected ? (
-                                                                <CheckCircle2 className="h-5 w-5 text-primary" />
+                                                                <CheckCircle2 className="h-4 w-4 text-[var(--accent)]" />
                                                             ) : (
-                                                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
+                                                                <div className="h-4 w-4 rounded-full border-2 border-[var(--dashboard-text-muted)]" />
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <h3 className="font-medium truncate">
+                                                            <h3 className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)] truncate">
                                                                 {site.displayName ||
                                                                     site.name}
                                                             </h3>
-                                                            <p className="text-sm text-muted-foreground truncate">
+                                                            <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)] truncate mt-0.5">
                                                                 {site.webUrl}
                                                             </p>
                                                             {site.description && (
-                                                                <p className="text-sm text-muted-foreground mt-1">
+                                                                <p className="font-sans text-[11px] text-[var(--dashboard-text-body)] mt-1 line-clamp-1">
                                                                     {
                                                                         site.description
                                                                     }
@@ -464,18 +479,19 @@ export default function OnboardingPage() {
                                         })}
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-4 border-t">
+                                    <div className="flex items-center justify-between pt-4 border-t border-[var(--dashboard-border-light)]">
                                         <div className="flex items-center gap-2">
                                             <Button
                                                 variant="outline"
                                                 onClick={() =>
                                                     setCurrentStep(0)
                                                 }
+                                                className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                             >
-                                                <ChevronLeft className="mr-2 h-4 w-4" />
+                                                <ChevronLeft className="mr-1.5 h-4 w-4" />
                                                 Back
                                             </Button>
-                                            <p className="text-sm text-muted-foreground">
+                                            <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)]">
                                                 {selectedSiteIds.size} site
                                                 {selectedSiteIds.size !== 1
                                                     ? 's'
@@ -489,9 +505,10 @@ export default function OnboardingPage() {
                                                 selectedSiteIds.size === 0
                                             }
                                             size="lg"
+                                            className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                         >
                                             Continue
-                                            <ChevronRight className="ml-2 h-4 w-4" />
+                                            <ChevronRight className="ml-1.5 h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
@@ -503,15 +520,17 @@ export default function OnboardingPage() {
             case 2:
                 return (
                     <>
-                        <CardHeader>
-                            <CardTitle>Invite Team Members</CardTitle>
-                            <CardDescription>
+                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
+                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                Invite Team Members
+                            </CardTitle>
+                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
                                 Invite colleagues to join your organization
                                 (optional).
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-3">
+                        <CardContent className="space-y-[18px] p-5">
+                            <div className="space-y-2.5">
                                 {memberEmails.map((email, index) => (
                                     <div key={index} className="flex gap-2">
                                         <Input
@@ -524,6 +543,7 @@ export default function OnboardingPage() {
                                                     e.target.value,
                                                 )
                                             }
+                                            className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
                                         />
                                         {memberEmails.length > 1 && (
                                             <Button
@@ -532,8 +552,9 @@ export default function OnboardingPage() {
                                                 onClick={() =>
                                                     handleRemoveEmail(index)
                                                 }
+                                                className="h-9 w-9 border-[var(--dashboard-border)] text-[var(--dashboard-text-muted)] hover:border-[var(--status-urgent)] hover:text-[var(--status-urgent)] hover:bg-[var(--status-urgent-bg)] transition-colors rounded-lg cursor-pointer"
                                             >
-                                                ×
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         )}
                                     </div>
@@ -542,22 +563,25 @@ export default function OnboardingPage() {
                             <Button
                                 variant="outline"
                                 onClick={handleAddEmail}
-                                className="w-full"
+                                className="w-full h-10 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                             >
+                                <UserPlus className="mr-2 h-4 w-4" />
                                 Add Another Email
                             </Button>
-                            <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center justify-between pt-4 border-t border-[var(--dashboard-border-light)]">
                                 <Button
                                     variant="outline"
                                     onClick={() => setCurrentStep(1)}
+                                    className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                 >
-                                    <ChevronLeft className="mr-2 h-4 w-4" />
+                                    <ChevronLeft className="mr-1.5 h-4 w-4" />
                                     Back
                                 </Button>
                                 <Button
                                     onClick={handleFinish}
                                     disabled={isSaving}
                                     size="lg"
+                                    className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {isSaving ? (
                                         <>
@@ -565,7 +589,10 @@ export default function OnboardingPage() {
                                             Finishing...
                                         </>
                                     ) : (
-                                        'Complete Setup'
+                                        <>
+                                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                                            Complete Setup
+                                        </>
                                     )}
                                 </Button>
                             </div>
@@ -579,18 +606,24 @@ export default function OnboardingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-12">
-                <div className="max-w-3xl mx-auto space-y-8">
-                    <div className="text-center space-y-2">
-                        <h1 className="text-4xl font-bold">Welcome to Wavv</h1>
-                        <p className="text-xl text-muted-foreground">
+        <div className="h-screen bg-[var(--dashboard-bg)] flex items-center justify-center overflow-hidden">
+            <div className="container mx-auto px-5">
+                <div className="max-w-4xl mx-auto space-y-5">
+                    {/* Header Section */}
+                    <div className="text-center space-y-2 animate-fade-up">
+                        <h1 className="font-serif text-[32px] font-normal tracking-tight text-[var(--dashboard-text-primary)]">
+                            Welcome to{' '}
+                            <span className="font-serif italic text-[var(--accent)]">
+                                Wavv
+                            </span>
+                        </h1>
+                        <p className="font-sans text-[13px] text-[var(--dashboard-text-body)]">
                             Let's get you set up in just a few steps
                         </p>
                     </div>
 
                     {/* Step Indicator */}
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-2 animate-fade-up animate-delay-100">
                         {STEPS.map((step, index) => {
                             const StepIcon = step.icon;
                             const isActive = currentStep === index;
@@ -603,27 +636,27 @@ export default function OnboardingPage() {
                                     key={step.id}
                                     className="flex items-center"
                                 >
-                                    <div className="flex flex-col items-center gap-2">
+                                    <div className="flex flex-col items-center gap-1">
                                         <div
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 shadow-sm ${
                                                 isActive
-                                                    ? 'bg-primary text-primary-foreground'
+                                                    ? 'bg-[var(--accent)] text-white scale-105'
                                                     : isCompleted
-                                                      ? 'bg-primary/20 text-primary'
-                                                      : 'bg-muted text-muted-foreground'
+                                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] border-2 border-[var(--accent)]'
+                                                      : 'bg-[var(--dashboard-surface)] text-[var(--dashboard-text-muted)] border border-[var(--dashboard-border)]'
                                             }`}
                                         >
                                             {isCompleted ? (
-                                                <CheckCircle2 className="h-6 w-6" />
+                                                <CheckCircle2 className="h-5 w-5" />
                                             ) : (
-                                                <StepIcon className="h-6 w-6" />
+                                                <StepIcon className="h-5 w-5" />
                                             )}
                                         </div>
                                         <span
-                                            className={`text-xs font-medium text-center ${
+                                            className={`font-sans text-[9px] font-medium text-center transition-colors ${
                                                 isActive
-                                                    ? 'text-foreground'
-                                                    : 'text-muted-foreground'
+                                                    ? 'text-[var(--dashboard-text-primary)]'
+                                                    : 'text-[var(--dashboard-text-muted)]'
                                             }`}
                                         >
                                             {step.title}
@@ -631,10 +664,10 @@ export default function OnboardingPage() {
                                     </div>
                                     {index < STEPS.length - 1 && (
                                         <div
-                                            className={`w-16 h-0.5 mb-6 mx-2 transition-colors ${
+                                            className={`w-[58px] h-[2px] mb-5 mx-2 transition-all duration-300 ${
                                                 isCompleted
-                                                    ? 'bg-primary'
-                                                    : 'bg-muted'
+                                                    ? 'bg-[var(--accent)]'
+                                                    : 'bg-[var(--dashboard-border)]'
                                             }`}
                                         />
                                     )}
@@ -644,17 +677,19 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* Step Content Card */}
-                    <Card className="overflow-hidden relative">
+                    <Card className="overflow-hidden relative bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] shadow-[0_2px_16px_rgba(90,127,154,0.08)] rounded-xl animate-fade-up animate-delay-160">
                         {/* Exit Button */}
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowExitDialog(true)}
                             disabled={isExiting || isSaving}
-                            className="absolute top-4 right-4 z-10"
+                            className="absolute top-4 right-4 z-10 text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
                         >
-                            <X className="h-4 w-4 mr-2" />
-                            Exit Setup
+                            <X className="h-3.5 w-3.5 mr-1.5" />
+                            <span className="font-sans text-[11px]">
+                                Exit Setup
+                            </span>
                         </Button>
 
                         <div className="transition-all duration-300">
@@ -667,20 +702,23 @@ export default function OnboardingPage() {
                         open={showExitDialog}
                         onOpenChange={setShowExitDialog}
                     >
-                        <DialogContent>
+                        <DialogContent className="bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] rounded-xl shadow-[0_8px_32px_rgba(90,127,154,0.12)]">
                             <DialogHeader>
-                                <DialogTitle>Exit Setup?</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                    Exit Setup?
+                                </DialogTitle>
+                                <DialogDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
                                     Are you sure you want to exit the setup
                                     process? Any progress you've made will be
                                     lost.
                                 </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter className="gap-2 sm:gap-0">
+                            <DialogFooter className="gap-2 sm:gap-2 mt-5">
                                 <Button
                                     variant="outline"
                                     onClick={() => setShowExitDialog(false)}
                                     disabled={isExiting}
+                                    className="h-8 px-[18px] font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                 >
                                     Continue Setup
                                 </Button>
@@ -688,6 +726,7 @@ export default function OnboardingPage() {
                                     variant="destructive"
                                     onClick={handleExitOnboarding}
                                     disabled={isExiting}
+                                    className="h-8 px-[18px] font-sans text-[13px] font-medium bg-[var(--status-urgent)] hover:bg-[var(--status-urgent-text)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {isExiting ? (
                                         <>

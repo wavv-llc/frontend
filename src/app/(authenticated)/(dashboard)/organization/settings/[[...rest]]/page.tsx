@@ -4,21 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Loader2,
-    Settings as SettingsIcon,
     CheckCircle2,
     RefreshCw,
-    UserPlus,
     Mail,
     FileText,
     RotateCcw,
@@ -26,6 +17,7 @@ import {
     Filter,
     Users,
     Trash2,
+    Building2,
 } from 'lucide-react';
 import {
     sharepointApi,
@@ -73,10 +65,15 @@ interface SelectedSite {
     webUrl: string;
 }
 
+type TabType = 'documents' | 'users' | 'organization';
+
 export default function SettingsPage() {
     const router = useRouter();
     const { isLoaded, getToken } = useAuth();
     const { user, isLoading: isUserLoading } = useUser();
+
+    // Tab state
+    const [activeTab, setActiveTab] = useState<TabType>('documents');
     const [sites, setSites] = useState<SharePointSite[]>([]);
     const [, setSelectedSites] = useState<SelectedSite[]>([]);
     const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(
@@ -509,716 +506,185 @@ export default function SettingsPage() {
         return <SettingsSkeleton />;
     }
 
+    const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
+        {
+            id: 'documents',
+            label: 'Documents',
+            icon: <FileText className="h-4 w-4" />,
+        },
+        { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" /> },
+        {
+            id: 'organization',
+            label: 'Organization',
+            icon: <Building2 className="h-4 w-4" />,
+        },
+    ];
+
     return (
         <PermissionGuard
             scope="organization"
             permission="ORG_EDIT"
             redirectTo="/home"
         >
-            <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-serif font-semibold flex items-center gap-2">
-                            <SettingsIcon className="h-8 w-8" />
-                            Organization Settings
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            Manage your organization settings
-                        </p>
+            <style jsx>{`
+                @keyframes fadeUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes fadeSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                .fade-up-1 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1)
+                        forwards;
+                }
+
+                .fade-up-2 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) 120ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .fade-up-3 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) 180ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .section-header-anim {
+                    animation: fadeUp 450ms cubic-bezier(0.23, 1, 0.32, 1) 60ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .tab-content-enter {
+                    animation: fadeSlideIn 350ms cubic-bezier(0.23, 1, 0.32, 1)
+                        forwards;
+                }
+            `}</style>
+
+            <div className="h-full overflow-auto bg-[#f8f9fa] dark:bg-gray-950 relative">
+                {/* Background gradient */}
+                <div className="fixed inset-0 opacity-20 pointer-events-none">
+                    <div className="absolute w-[55%] h-[40%] top-[20%] left-[30%] bg-[#dce1e8] rounded-full blur-3xl" />
+                    <div className="absolute w-[40%] h-[30%] top-[70%] left-[75%] bg-[#dce1e8]/60 rounded-full blur-3xl" />
+                </div>
+
+                {/* Top Tab Bar */}
+                <header className="sticky top-0 z-10 flex items-center justify-center h-[54px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-[#dce1e8]/60 dark:border-gray-800/60">
+                    <nav className="relative flex items-stretch gap-1">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`relative flex items-center gap-2.5 px-6 py-2.5 text-[13.5px] font-medium transition-all duration-300 ease-out cursor-pointer rounded-lg ${
+                                    activeTab === tab.id
+                                        ? 'text-[#272f3b] dark:text-gray-50 bg-[#f8f9fa]/50 dark:bg-gray-800/50'
+                                        : 'text-[#8d9ab0] dark:text-gray-400 hover:text-[#4e5d74] dark:hover:text-gray-300 hover:bg-[#f8f9fa]/30 dark:hover:bg-gray-800/30'
+                                }`}
+                            >
+                                <span
+                                    className={`flex items-center transition-all duration-300 ${activeTab === tab.id ? 'opacity-100 scale-100' : 'opacity-60 scale-95'}`}
+                                >
+                                    {tab.icon}
+                                </span>
+                                <span className="relative">{tab.label}</span>
+                            </button>
+                        ))}
+                        {/* Sliding active indicator */}
+                        <div
+                            className="absolute bottom-0 h-[2px] bg-gradient-to-r from-[#3a4557] to-[#272f3b] dark:from-gray-100 dark:to-gray-50 rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(58,69,87,0.35)] dark:shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                            style={{
+                                left: `${tabs.findIndex((t) => t.id === activeTab) * (100 / tabs.length)}%`,
+                                width: `${100 / tabs.length}%`,
+                                marginLeft: '0.5rem',
+                                marginRight: '0.5rem',
+                                transform: 'scaleX(0.7)',
+                            }}
+                        />
+                    </nav>
+                </header>
+
+                {/* Tab Content */}
+                <div className="w-full pl-8 pr-8 py-8 pb-16 relative z-[1]">
+                    <div className="max-w-[760px] mx-auto">
+                        <div key={activeTab} className="tab-content-enter">
+                            {activeTab === 'documents' && (
+                                <DocumentsTab
+                                    sites={sites}
+                                    selectedSiteIds={selectedSiteIds}
+                                    isLoadingSites={isLoadingSites}
+                                    error={error}
+                                    isSaving={isSaving}
+                                    toggleSite={toggleSite}
+                                    handleSaveSites={handleSaveSites}
+                                    loadSharePointData={loadSharePointData}
+                                    documents={documents}
+                                    isLoadingDocuments={isLoadingDocuments}
+                                    documentsError={documentsError}
+                                    organizationId={organizationId}
+                                    documentSearch={documentSearch}
+                                    setDocumentSearch={setDocumentSearch}
+                                    statusFilter={statusFilter}
+                                    setStatusFilter={setStatusFilter}
+                                    retryingDocumentId={retryingDocumentId}
+                                    handleRetryDocument={handleRetryDocument}
+                                    handleReembedDocument={
+                                        handleReembedDocument
+                                    }
+                                    loadDocuments={loadDocuments}
+                                    getStatusBadge={getStatusBadge}
+                                    formatFileSize={formatFileSize}
+                                    router={router}
+                                />
+                            )}
+
+                            {activeTab === 'users' && (
+                                <UsersTab
+                                    members={members}
+                                    roles={roles}
+                                    isLoadingMembers={isLoadingMembers}
+                                    membersError={membersError}
+                                    organizationId={organizationId}
+                                    updatingRoleForUserId={
+                                        updatingRoleForUserId
+                                    }
+                                    getMemberRole={getMemberRole}
+                                    isCurrentUser={isCurrentUser}
+                                    handleRoleChange={handleRoleChange}
+                                    setMemberToRemove={setMemberToRemove}
+                                    loadMembers={loadMembers}
+                                    inviteEmail={inviteEmail}
+                                    setInviteEmail={setInviteEmail}
+                                    isInviting={isInviting}
+                                    inviteError={inviteError}
+                                    inviteSuccess={inviteSuccess}
+                                    handleInviteMember={handleInviteMember}
+                                />
+                            )}
+
+                            {activeTab === 'organization' && (
+                                <OrganizationTab
+                                    organizationId={organizationId}
+                                />
+                            )}
+                        </div>
                     </div>
-
-                    {/* SharePoint Sites Management */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle>SharePoint Sites</CardTitle>
-                                    <CardDescription>
-                                        Manage which SharePoint sites are
-                                        selected for AI auditing
-                                    </CardDescription>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={loadSharePointData}
-                                    disabled={isLoadingSites}
-                                >
-                                    <RefreshCw
-                                        className={`h-4 w-4 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`}
-                                    />
-                                    Refresh
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {error && (
-                                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                                    {error}
-                                </div>
-                            )}
-
-                            {isLoadingSites ? (
-                                <div className="space-y-4">
-                                    {[1, 2, 3].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="p-4 border rounded-lg flex items-center gap-3"
-                                        >
-                                            <Skeleton className="h-5 w-5 rounded-full" />
-                                            <div className="flex-1 space-y-2">
-                                                <Skeleton className="h-5 w-40" />
-                                                <Skeleton className="h-4 w-56" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : sites.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <p>
-                                        No SharePoint sites found. Make sure you
-                                        have access to SharePoint sites.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="max-h-[400px] overflow-y-auto space-y-2">
-                                        {sites.map((site) => {
-                                            const isSelected =
-                                                selectedSiteIds.has(site.id);
-                                            return (
-                                                <div
-                                                    key={site.id}
-                                                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                                                        isSelected
-                                                            ? 'border-primary bg-primary/5'
-                                                            : 'border-input hover:bg-muted'
-                                                    }`}
-                                                    onClick={() =>
-                                                        toggleSite(site.id)
-                                                    }
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex items-center justify-center shrink-0">
-                                                            {isSelected ? (
-                                                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                                                            ) : (
-                                                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="font-medium truncate">
-                                                                {site.displayName ||
-                                                                    site.name}
-                                                            </h3>
-                                                            <p className="text-sm text-muted-foreground truncate">
-                                                                {site.webUrl}
-                                                            </p>
-                                                            {site.description && (
-                                                                <p className="text-sm text-muted-foreground mt-1">
-                                                                    {
-                                                                        site.description
-                                                                    }
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-4 border-t">
-                                        <p className="text-sm text-muted-foreground">
-                                            {selectedSiteIds.size} site
-                                            {selectedSiteIds.size !== 1
-                                                ? 's'
-                                                : ''}{' '}
-                                            selected
-                                        </p>
-                                        <Button
-                                            onClick={handleSaveSites}
-                                            disabled={isSaving}
-                                        >
-                                            {isSaving ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                'Save Changes'
-                                            )}
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Invite Members */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <UserPlus className="h-5 w-5" />
-                                <div>
-                                    <CardTitle>Invite Members</CardTitle>
-                                    <CardDescription>
-                                        Invite new members to join your
-                                        organization
-                                    </CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {inviteError && (
-                                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                                    {inviteError}
-                                </div>
-                            )}
-
-                            {inviteSuccess && (
-                                <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    {inviteSuccess}
-                                </div>
-                            )}
-
-                            {!organizationId ? (
-                                <div className="text-center py-4 text-muted-foreground">
-                                    <p>
-                                        Unable to load organization information.
-                                    </p>
-                                </div>
-                            ) : (
-                                <form
-                                    onSubmit={handleInviteMember}
-                                    className="space-y-4"
-                                >
-                                    <div className="space-y-2">
-                                        <Label htmlFor="invite-email">
-                                            Email Address
-                                        </Label>
-                                        <div className="flex gap-2">
-                                            <div className="relative flex-1">
-                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    id="invite-email"
-                                                    type="email"
-                                                    placeholder="colleague@example.com"
-                                                    value={inviteEmail}
-                                                    onChange={(e) =>
-                                                        setInviteEmail(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    className="pl-9"
-                                                    required
-                                                />
-                                            </div>
-                                            <Button
-                                                type="submit"
-                                                disabled={
-                                                    isInviting ||
-                                                    !inviteEmail.trim()
-                                                }
-                                            >
-                                                {isInviting ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Sending...
-                                                    </>
-                                                ) : (
-                                                    'Send Invite'
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        An invitation link will be sent to the
-                                        email address provided.
-                                    </p>
-                                </form>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Members Management */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Users className="h-5 w-5" />
-                                    <div>
-                                        <CardTitle>
-                                            Organization Members
-                                        </CardTitle>
-                                        <CardDescription>
-                                            View and manage member roles and
-                                            access
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={loadMembers}
-                                    disabled={isLoadingMembers}
-                                >
-                                    <RefreshCw
-                                        className={`h-4 w-4 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`}
-                                    />
-                                    Refresh
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {membersError && (
-                                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                                    {membersError}
-                                </div>
-                            )}
-
-                            {!organizationId ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <p>
-                                        Unable to load organization information.
-                                    </p>
-                                </div>
-                            ) : isLoadingMembers ? (
-                                <div className="space-y-2">
-                                    {[1, 2, 3].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center justify-between p-4 border rounded-lg"
-                                        >
-                                            <div className="flex items-center gap-3 flex-1">
-                                                <Skeleton className="h-10 w-10 rounded-full" />
-                                                <div className="space-y-2 flex-1">
-                                                    <Skeleton className="h-5 w-1/3" />
-                                                    <Skeleton className="h-4 w-1/4" />
-                                                </div>
-                                            </div>
-                                            <Skeleton className="h-9 w-32" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : members.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                    <p>
-                                        No members found in your organization.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                    {members.map((member) => {
-                                        const memberRole =
-                                            getMemberRole(member);
-                                        const isMe = isCurrentUser(member);
-                                        const isUpdating =
-                                            updatingRoleForUserId === member.id;
-
-                                        return (
-                                            <div
-                                                key={member.id}
-                                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                                        <span className="text-sm font-medium text-primary">
-                                                            {member.firstName?.[0]?.toUpperCase() ||
-                                                                member.email[0].toUpperCase()}
-                                                        </span>
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="font-medium truncate">
-                                                                {member.firstName &&
-                                                                member.lastName
-                                                                    ? `${member.firstName} ${member.lastName}`
-                                                                    : member.email}
-                                                            </h4>
-                                                            {isMe && (
-                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                                                    You
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground truncate">
-                                                            {member.email}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <Select
-                                                        value={
-                                                            memberRole?.id || ''
-                                                        }
-                                                        onValueChange={(
-                                                            newRoleId,
-                                                        ) =>
-                                                            handleRoleChange(
-                                                                member.id,
-                                                                newRoleId,
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            isMe || isUpdating
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="w-[180px]">
-                                                            <SelectValue placeholder="Select role">
-                                                                {isUpdating ? (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                        Updating...
-                                                                    </div>
-                                                                ) : (
-                                                                    memberRole?.name ||
-                                                                    'No role'
-                                                                )}
-                                                            </SelectValue>
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {roles.map(
-                                                                (role) => (
-                                                                    <SelectItem
-                                                                        key={
-                                                                            role.id
-                                                                        }
-                                                                        value={
-                                                                            role.id
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            role.name
-                                                                        }
-                                                                    </SelectItem>
-                                                                ),
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setMemberToRemove(
-                                                                member,
-                                                            )
-                                                        }
-                                                        disabled={isMe}
-                                                        title={
-                                                            isMe
-                                                                ? 'You cannot remove yourself'
-                                                                : 'Remove member'
-                                                        }
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Organization Documents */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="h-5 w-5" />
-                                    <div>
-                                        <CardTitle>Documents</CardTitle>
-                                        <CardDescription>
-                                            View and manage documents uploaded
-                                            to your organization
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => loadDocuments()}
-                                    disabled={
-                                        isLoadingDocuments || !organizationId
-                                    }
-                                >
-                                    <RefreshCw
-                                        className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`}
-                                    />
-                                    Refresh
-                                </Button>
-                            </div>
-                            {/* Search and Filter */}
-                            {documents.length > 0 && (
-                                <div className="flex items-center gap-3 pt-4">
-                                    <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Search documents..."
-                                            value={documentSearch}
-                                            onChange={(e) =>
-                                                setDocumentSearch(
-                                                    e.target.value,
-                                                )
-                                            }
-                                            className="pl-9"
-                                        />
-                                    </div>
-                                    <Select
-                                        value={statusFilter}
-                                        onValueChange={setStatusFilter}
-                                    >
-                                        <SelectTrigger className="w-[140px]">
-                                            <Filter className="h-4 w-4 mr-2" />
-                                            <SelectValue placeholder="Status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">
-                                                All Status
-                                            </SelectItem>
-                                            <SelectItem value="COMPLETED">
-                                                Completed
-                                            </SelectItem>
-                                            <SelectItem value="PROCESSING">
-                                                Processing
-                                            </SelectItem>
-                                            <SelectItem value="EMBEDDING">
-                                                Embedding
-                                            </SelectItem>
-                                            <SelectItem value="READY">
-                                                Ready
-                                            </SelectItem>
-                                            <SelectItem value="PENDING">
-                                                Pending
-                                            </SelectItem>
-                                            <SelectItem value="FAILED">
-                                                Failed
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                        </CardHeader>
-                        <CardContent>
-                            {documentsError && (
-                                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                                    {documentsError}
-                                </div>
-                            )}
-
-                            {!organizationId ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <p>
-                                        Unable to load organization information.
-                                    </p>
-                                </div>
-                            ) : isLoadingDocuments ? (
-                                <div className="space-y-2">
-                                    {[1, 2, 3, 4, 5].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center justify-between p-4 border rounded-lg"
-                                        >
-                                            <div className="flex items-center gap-3 flex-1">
-                                                <Skeleton className="h-8 w-8 rounded-md" />
-                                                <div className="space-y-2 flex-1">
-                                                    <Skeleton className="h-5 w-1/3" />
-                                                    <Skeleton className="h-4 w-1/4" />
-                                                </div>
-                                            </div>
-                                            <Skeleton className="h-6 w-20 rounded-full" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : documents.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                    <p>
-                                        No documents found in your organization.
-                                    </p>
-                                </div>
-                            ) : (
-                                (() => {
-                                    const filteredDocuments = documents.filter(
-                                        (doc) => {
-                                            const matchesSearch =
-                                                documentSearch === '' ||
-                                                doc.originalName
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        documentSearch.toLowerCase(),
-                                                    );
-                                            const matchesStatus =
-                                                statusFilter === 'all' ||
-                                                doc.status === statusFilter;
-                                            return (
-                                                matchesSearch && matchesStatus
-                                            );
-                                        },
-                                    );
-
-                                    if (filteredDocuments.length === 0) {
-                                        return (
-                                            <div className="text-center py-8 text-muted-foreground">
-                                                <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                                <p>
-                                                    No documents match your
-                                                    search or filter criteria.
-                                                </p>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                            {filteredDocuments.map((doc) => (
-                                                <div
-                                                    key={doc.id}
-                                                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                                                    onClick={() =>
-                                                        router.push(
-                                                            `/documents/${doc.id}`,
-                                                        )
-                                                    }
-                                                >
-                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                                                        <div className="min-w-0 flex-1">
-                                                            <h4
-                                                                className="font-medium truncate"
-                                                                title={
-                                                                    doc.originalName
-                                                                }
-                                                            >
-                                                                {
-                                                                    doc.originalName
-                                                                }
-                                                            </h4>
-                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                                <span>
-                                                                    {formatFileSize(
-                                                                        doc.filesize,
-                                                                    )}
-                                                                </span>
-                                                                <span>•</span>
-                                                                <span>
-                                                                    {
-                                                                        doc.mimeType
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-3 shrink-0">
-                                                        {getStatusBadge(
-                                                            doc.status,
-                                                        )}
-                                                        {(doc.status ===
-                                                            'EMBEDDING' ||
-                                                            doc.status ===
-                                                                'READY') && (
-                                                            <>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={(
-                                                                        e,
-                                                                    ) => {
-                                                                        e.stopPropagation();
-                                                                        handleReembedDocument(
-                                                                            doc.id,
-                                                                        );
-                                                                    }}
-                                                                    disabled={
-                                                                        retryingDocumentId ===
-                                                                        doc.id
-                                                                    }
-                                                                >
-                                                                    {retryingDocumentId ===
-                                                                    doc.id ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <RefreshCw className="h-4 w-4 mr-1" />
-                                                                            Retry
-                                                                            Embed
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={(
-                                                                        e,
-                                                                    ) => {
-                                                                        e.stopPropagation();
-                                                                        handleRetryDocument(
-                                                                            doc.id,
-                                                                        );
-                                                                    }}
-                                                                    disabled={
-                                                                        retryingDocumentId ===
-                                                                        doc.id
-                                                                    }
-                                                                >
-                                                                    {retryingDocumentId ===
-                                                                    doc.id ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        <>
-                                                                            <RotateCcw className="h-4 w-4 mr-1" />
-                                                                            Retry
-                                                                            Process
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                            </>
-                                                        )}
-                                                        {(doc.status ===
-                                                            'FAILED' ||
-                                                            doc.status ===
-                                                                'PROCESSING') && (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    handleRetryDocument(
-                                                                        doc.id,
-                                                                    );
-                                                                }}
-                                                                disabled={
-                                                                    retryingDocumentId ===
-                                                                    doc.id
-                                                                }
-                                                            >
-                                                                {retryingDocumentId ===
-                                                                doc.id ? (
-                                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                                ) : (
-                                                                    <>
-                                                                        <RotateCcw className="h-4 w-4 mr-1" />
-                                                                        Retry
-                                                                        Process
-                                                                    </>
-                                                                )}
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })()
-                            )}
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
@@ -1263,5 +729,856 @@ export default function SettingsPage() {
                 </DialogContent>
             </Dialog>
         </PermissionGuard>
+    );
+}
+
+// Tab Components
+interface DocumentsTabProps {
+    sites: SharePointSite[];
+    selectedSiteIds: Set<string>;
+    isLoadingSites: boolean;
+    error: string | null;
+    isSaving: boolean;
+    toggleSite: (siteId: string) => void;
+    handleSaveSites: () => void;
+    loadSharePointData: () => void;
+    documents: OrganizationDocument[];
+    isLoadingDocuments: boolean;
+    documentsError: string | null;
+    organizationId?: string;
+    documentSearch: string;
+    setDocumentSearch: (value: string) => void;
+    statusFilter: string;
+    setStatusFilter: (value: string) => void;
+    retryingDocumentId: string | null;
+    handleRetryDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string) => void;
+    loadDocuments: () => void;
+    getStatusBadge: (status: OrganizationDocument['status']) => JSX.Element;
+    formatFileSize: (bytes: number) => string;
+    router: ReturnType<typeof useRouter>;
+}
+
+function DocumentsTab({
+    sites,
+    selectedSiteIds,
+    isLoadingSites,
+    error,
+    isSaving,
+    toggleSite,
+    handleSaveSites,
+    loadSharePointData,
+    documents,
+    isLoadingDocuments,
+    documentsError,
+    organizationId,
+    documentSearch,
+    setDocumentSearch,
+    statusFilter,
+    setStatusFilter,
+    retryingDocumentId,
+    handleRetryDocument,
+    handleReembedDocument,
+    loadDocuments,
+    getStatusBadge,
+    formatFileSize,
+    router,
+}: DocumentsTabProps) {
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-6 section-header-anim">
+                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Document Management
+                </h2>
+                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
+                    Configure document sources and indexing behavior
+                </p>
+            </div>
+
+            {/* SharePoint Sites Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden mb-5 fade-up-1">
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div>
+                        <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            SharePoint Sites
+                        </h3>
+                        <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
+                            Select which sites are available for AI auditing
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadSharePointData}
+                        disabled={isLoadingSites}
+                        className="rounded-xl"
+                    >
+                        <RefreshCw
+                            className={`h-3.5 w-3.5 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-2">
+                    {error && (
+                        <div className="mx-2 mt-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    {isLoadingSites ? (
+                        <div className="space-y-0.5 p-1">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="p-3.5 rounded-xl flex items-center gap-3.5 bg-[#f8f9fa] dark:bg-gray-800"
+                                >
+                                    <Skeleton className="h-5 w-5 rounded-full" />
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3.5 w-52" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : sites.length === 0 ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                            <p>
+                                No SharePoint sites found. Make sure you have
+                                access to SharePoint sites.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-0.5 p-1">
+                            {sites.map((site) => {
+                                const isSelected = selectedSiteIds.has(site.id);
+                                return (
+                                    <div
+                                        key={site.id}
+                                        className={`p-3.5 rounded-xl cursor-pointer transition-all duration-200 ${
+                                            isSelected
+                                                ? 'bg-[#eef0f3]/60 dark:bg-gray-800'
+                                                : 'hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50'
+                                        }`}
+                                        onClick={() => toggleSite(site.id)}
+                                    >
+                                        <div className="flex items-start gap-3.5">
+                                            <div className="flex items-center justify-center shrink-0 mt-0.5">
+                                                <div
+                                                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                                        isSelected
+                                                            ? 'border-[#3a4557] bg-[#3a4557] dark:border-gray-100 dark:bg-gray-100'
+                                                            : 'border-[#b8c1ce] dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <div className="h-2 w-2 rounded-full bg-white dark:bg-gray-900" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-semibold text-[#272f3b] dark:text-gray-100">
+                                                    {site.displayName ||
+                                                        site.name}
+                                                </h4>
+                                                <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
+                                                    {site.webUrl}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Card Footer */}
+                {sites.length > 0 && (
+                    <div className="flex items-center justify-between px-6 py-3.5 border-t border-[#eef0f3] dark:border-gray-800">
+                        <span className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400 font-medium">
+                            {selectedSiteIds.size} site
+                            {selectedSiteIds.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleSaveSites}
+                            disabled={isSaving}
+                            className="rounded-xl"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* Documents List Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-3">
+                {/* Card Header */}
+                <div className="px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                                Documents
+                            </h3>
+                            <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
+                                View and manage documents uploaded to your
+                                organization
+                            </p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={loadDocuments}
+                            disabled={isLoadingDocuments || !organizationId}
+                            className="rounded-xl"
+                        >
+                            <RefreshCw
+                                className={`h-3.5 w-3.5 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`}
+                            />
+                            Refresh
+                        </Button>
+                    </div>
+
+                    {/* Search and Filter */}
+                    {documents.length > 0 && (
+                        <div className="flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8d9ab0]" />
+                                <Input
+                                    placeholder="Search documents..."
+                                    value={documentSearch}
+                                    onChange={(e) =>
+                                        setDocumentSearch(e.target.value)
+                                    }
+                                    className="pl-9 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-sm"
+                                />
+                            </div>
+                            <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                            >
+                                <SelectTrigger className="w-[140px] h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700">
+                                    <Filter className="h-3.5 w-3.5 mr-2" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        All Status
+                                    </SelectItem>
+                                    <SelectItem value="COMPLETED">
+                                        Completed
+                                    </SelectItem>
+                                    <SelectItem value="PROCESSING">
+                                        Processing
+                                    </SelectItem>
+                                    <SelectItem value="EMBEDDING">
+                                        Embedding
+                                    </SelectItem>
+                                    <SelectItem value="READY">Ready</SelectItem>
+                                    <SelectItem value="PENDING">
+                                        Pending
+                                    </SelectItem>
+                                    <SelectItem value="FAILED">
+                                        Failed
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
+
+                {/* Card Content */}
+                <div className="p-2">
+                    {documentsError && (
+                        <div className="mx-2 mt-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                            {documentsError}
+                        </div>
+                    )}
+
+                    {!organizationId ? (
+                        <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                            <p>Unable to load organization information.</p>
+                        </div>
+                    ) : isLoadingDocuments ? (
+                        <div className="space-y-0.5 p-1">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div
+                                    key={i}
+                                    className="p-3.5 rounded-xl flex items-center gap-3.5 bg-[#f8f9fa] dark:bg-gray-800"
+                                >
+                                    <Skeleton className="h-5 w-5 rounded" />
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-1/3" />
+                                        <Skeleton className="h-3 w-1/4" />
+                                    </div>
+                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : documents.length === 0 ? (
+                        <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
+                            <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                            <p className="text-sm">
+                                No documents found in your organization.
+                            </p>
+                        </div>
+                    ) : (
+                        (() => {
+                            const filteredDocuments = documents.filter(
+                                (doc) => {
+                                    const matchesSearch =
+                                        documentSearch === '' ||
+                                        doc.originalName
+                                            .toLowerCase()
+                                            .includes(
+                                                documentSearch.toLowerCase(),
+                                            );
+                                    const matchesStatus =
+                                        statusFilter === 'all' ||
+                                        doc.status === statusFilter;
+                                    return matchesSearch && matchesStatus;
+                                },
+                            );
+
+                            if (filteredDocuments.length === 0) {
+                                return (
+                                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
+                                        <Search className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                                        <p className="text-sm">
+                                            No documents match your search or
+                                            filter criteria.
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-0.5 p-1 max-h-[500px] overflow-y-auto">
+                                    {filteredDocuments.map((doc) => (
+                                        <div
+                                            key={doc.id}
+                                            className="p-3.5 rounded-xl hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                                            onClick={() =>
+                                                router.push(
+                                                    `/documents/${doc.id}`,
+                                                )
+                                            }
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <FileText className="h-5 w-5 text-[#8d9ab0] shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4
+                                                            className="text-sm font-semibold text-[#272f3b] dark:text-gray-100 truncate"
+                                                            title={
+                                                                doc.originalName
+                                                            }
+                                                        >
+                                                            {doc.originalName}
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 text-xs text-[#8d9ab0] dark:text-gray-400 mt-0.5">
+                                                            <span>
+                                                                {formatFileSize(
+                                                                    doc.filesize,
+                                                                )}
+                                                            </span>
+                                                            <span>•</span>
+                                                            <span>
+                                                                {doc.mimeType}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {getStatusBadge(doc.status)}
+                                                    {(doc.status ===
+                                                        'EMBEDDING' ||
+                                                        doc.status ===
+                                                            'READY') && (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon-sm"
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    handleReembedDocument(
+                                                                        doc.id,
+                                                                    );
+                                                                }}
+                                                                disabled={
+                                                                    retryingDocumentId ===
+                                                                    doc.id
+                                                                }
+                                                                className="rounded-lg"
+                                                            >
+                                                                {retryingDocumentId ===
+                                                                doc.id ? (
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                ) : (
+                                                                    <RefreshCw className="h-3.5 w-3.5" />
+                                                                )}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon-sm"
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    handleRetryDocument(
+                                                                        doc.id,
+                                                                    );
+                                                                }}
+                                                                disabled={
+                                                                    retryingDocumentId ===
+                                                                    doc.id
+                                                                }
+                                                                className="rounded-lg"
+                                                            >
+                                                                {retryingDocumentId ===
+                                                                doc.id ? (
+                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                ) : (
+                                                                    <RotateCcw className="h-3.5 w-3.5" />
+                                                                )}
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    {(doc.status === 'FAILED' ||
+                                                        doc.status ===
+                                                            'PROCESSING') && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon-sm"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRetryDocument(
+                                                                    doc.id,
+                                                                );
+                                                            }}
+                                                            disabled={
+                                                                retryingDocumentId ===
+                                                                doc.id
+                                                            }
+                                                            className="rounded-lg"
+                                                        >
+                                                            {retryingDocumentId ===
+                                                            doc.id ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                            )}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+interface UsersTabProps {
+    members: OrganizationMember[];
+    roles: Role[];
+    isLoadingMembers: boolean;
+    membersError: string | null;
+    organizationId?: string;
+    updatingRoleForUserId: string | null;
+    getMemberRole: (member: OrganizationMember) => Role | undefined;
+    isCurrentUser: (member: OrganizationMember) => boolean;
+    handleRoleChange: (userId: string, newRoleId: string) => void;
+    setMemberToRemove: (member: OrganizationMember) => void;
+    loadMembers: () => void;
+    inviteEmail: string;
+    setInviteEmail: (value: string) => void;
+    isInviting: boolean;
+    inviteError: string | null;
+    inviteSuccess: string | null;
+    handleInviteMember: (e: React.FormEvent) => void;
+}
+
+function UsersTab({
+    members,
+    roles,
+    isLoadingMembers,
+    membersError,
+    organizationId,
+    updatingRoleForUserId,
+    getMemberRole,
+    isCurrentUser,
+    handleRoleChange,
+    setMemberToRemove,
+    loadMembers,
+    inviteEmail,
+    setInviteEmail,
+    isInviting,
+    inviteError,
+    inviteSuccess,
+    handleInviteMember,
+}: UsersTabProps) {
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-6 section-header-anim">
+                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    User Management
+                </h2>
+                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
+                    Manage team members and their permissions
+                </p>
+            </div>
+
+            {/* Team Members Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div>
+                        <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            Team Members
+                        </h3>
+                        <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
+                            {members.length} member
+                            {members.length !== 1 ? 's' : ''} in your
+                            organization
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadMembers}
+                        disabled={isLoadingMembers}
+                        className="rounded-xl"
+                    >
+                        <RefreshCw
+                            className={`h-3.5 w-3.5 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Error Message */}
+                {membersError && (
+                    <div className="mx-6 mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                        {membersError}
+                    </div>
+                )}
+
+                {/* Table Content */}
+                {!organizationId ? (
+                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                        <p>Unable to load organization information.</p>
+                    </div>
+                ) : isLoadingMembers ? (
+                    <div className="p-5 space-y-0.5">
+                        {[1, 2, 3].map((i) => (
+                            <div
+                                key={i}
+                                className="flex items-center justify-between p-3.5 bg-[#f8f9fa] dark:bg-gray-800 rounded-xl"
+                            >
+                                <div className="flex items-center gap-3 flex-1">
+                                    <Skeleton className="h-8 w-8 rounded-lg" />
+                                    <div className="space-y-2 flex-1">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-40" />
+                                    </div>
+                                </div>
+                                <Skeleton className="h-6 w-24" />
+                            </div>
+                        ))}
+                    </div>
+                ) : members.length === 0 ? (
+                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
+                        <Users className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                        <p className="text-sm">
+                            No members found in your organization.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th className="text-left text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
+                                        Member
+                                    </th>
+                                    <th className="text-left text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
+                                        Role
+                                    </th>
+                                    <th className="text-right text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {members.map((member, idx) => {
+                                    const memberRole = getMemberRole(member);
+                                    const isMe = isCurrentUser(member);
+                                    const isUpdating =
+                                        updatingRoleForUserId === member.id;
+                                    const isLast = idx === members.length - 1;
+
+                                    return (
+                                        <tr
+                                            key={member.id}
+                                            className="group transition-colors duration-150 hover:bg-[#f8f9fa]/50 dark:hover:bg-gray-800/30"
+                                        >
+                                            <td
+                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="h-8 w-8 rounded-lg bg-[#eef0f3] dark:bg-gray-800 flex items-center justify-center shrink-0">
+                                                        <span className="text-[11px] font-bold text-[#4e5d74] dark:text-gray-400">
+                                                            {member.firstName?.[0]?.toUpperCase() ||
+                                                                member.email[0].toUpperCase()}
+                                                            {member.lastName?.[0]?.toUpperCase() ||
+                                                                ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-[13.5px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                                                {member.firstName &&
+                                                                member.lastName
+                                                                    ? `${member.firstName} ${member.lastName}`
+                                                                    : member.email}
+                                                            </div>
+                                                            {isMe && (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                                    You
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
+                                                            {member.email}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td
+                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
+                                            >
+                                                <Select
+                                                    value={memberRole?.id || ''}
+                                                    onValueChange={(
+                                                        newRoleId,
+                                                    ) =>
+                                                        handleRoleChange(
+                                                            member.id,
+                                                            newRoleId,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        isMe || isUpdating
+                                                    }
+                                                >
+                                                    <SelectTrigger className="w-[160px] h-8 rounded-lg border-[#dce1e8] dark:border-gray-700 text-[13px]">
+                                                        <SelectValue>
+                                                            {isUpdating ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    <span className="text-xs">
+                                                                        Updating...
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <span
+                                                                    className={`inline-flex text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full ${
+                                                                        memberRole?.name ===
+                                                                        'Admin'
+                                                                            ? 'bg-[#272f3b] text-white dark:bg-gray-100 dark:text-gray-900'
+                                                                            : 'bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400'
+                                                                    }`}
+                                                                >
+                                                                    {memberRole?.name ||
+                                                                        'No role'}
+                                                                </span>
+                                                            )}
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {roles.map((role) => (
+                                                            <SelectItem
+                                                                key={role.id}
+                                                                value={role.id}
+                                                            >
+                                                                {role.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </td>
+                                            <td
+                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
+                                            >
+                                                <div className="flex items-center justify-end gap-0.5">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        onClick={() =>
+                                                            setMemberToRemove(
+                                                                member,
+                                                            )
+                                                        }
+                                                        disabled={isMe}
+                                                        title={
+                                                            isMe
+                                                                ? 'You cannot remove yourself'
+                                                                : 'Remove member'
+                                                        }
+                                                        className="rounded-lg hover:bg-[#eef0f3] dark:hover:bg-gray-800"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Invite Members Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2 mt-5">
+                {/* Card Header */}
+                <div className="px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
+                    <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                        Invite Members
+                    </h3>
+                    <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
+                        Invite new members to join your organization
+                    </p>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-6">
+                    {inviteError && (
+                        <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                            {inviteError}
+                        </div>
+                    )}
+
+                    {inviteSuccess && (
+                        <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {inviteSuccess}
+                        </div>
+                    )}
+
+                    {!organizationId ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                            <p>Unable to load organization information.</p>
+                        </div>
+                    ) : (
+                        <form
+                            onSubmit={handleInviteMember}
+                            className="space-y-4"
+                        >
+                            <div className="space-y-1.5">
+                                <Label
+                                    htmlFor="invite-email"
+                                    className="text-xs font-semibold text-[#4e5d74] dark:text-gray-300 uppercase tracking-wide"
+                                >
+                                    Email Address
+                                </Label>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8d9ab0]" />
+                                        <Input
+                                            id="invite-email"
+                                            type="email"
+                                            placeholder="colleague@example.com"
+                                            value={inviteEmail}
+                                            onChange={(e) =>
+                                                setInviteEmail(e.target.value)
+                                            }
+                                            className="pl-10 h-10 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        variant="primary"
+                                        size="md"
+                                        disabled={
+                                            isInviting || !inviteEmail.trim()
+                                        }
+                                        className="rounded-xl h-10"
+                                    >
+                                        {isInviting ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            'Send Invite'
+                                        )}
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-[#8d9ab0] dark:text-gray-400 mt-1">
+                                    An invitation link will be sent to the email
+                                    address provided.
+                                </p>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+interface OrganizationTabProps {
+    organizationId?: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function OrganizationTab(_props: OrganizationTabProps) {
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-6 section-header-anim">
+                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Organization
+                </h2>
+                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
+                    General settings for your organization
+                </p>
+            </div>
+
+            {/* Placeholder for future organization settings */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                <div className="p-12 text-center">
+                    <Building2 className="h-12 w-12 mx-auto mb-3 text-[#8d9ab0] opacity-40" />
+                    <p className="text-sm text-[#8d9ab0] dark:text-gray-400">
+                        Organization settings will be available here soon.
+                    </p>
+                </div>
+            </div>
+        </>
     );
 }

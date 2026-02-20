@@ -54,19 +54,19 @@ const statusConfig: Record<
 
 const sizeConfig = {
     sm: {
-        text: 'text-[11px]',
+        text: 'text-[10px]',
         dot: 'w-1 h-1',
-        gap: 'gap-1.5',
+        gap: 'gap-1',
     },
     md: {
-        text: 'text-xs',
-        dot: 'w-1.5 h-1.5',
-        gap: 'gap-1.5',
+        text: 'text-[11px]',
+        dot: 'w-1 h-1',
+        gap: 'gap-1',
     },
     lg: {
-        text: 'text-[13px]',
-        dot: 'w-2 h-2',
-        gap: 'gap-2',
+        text: 'text-[12px]',
+        dot: 'w-1.5 h-1.5',
+        gap: 'gap-1.5',
     },
 };
 
@@ -83,7 +83,7 @@ export function StatusBadge({
     return (
         <div
             className={cn(
-                'inline-flex items-center font-figtree',
+                'inline-flex items-center font-sans',
                 sizeStyles.gap,
                 sizeStyles.text,
                 config.color,

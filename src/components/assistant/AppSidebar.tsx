@@ -125,9 +125,9 @@ const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
             <Button
                 variant="ghost"
                 onClick={() => onProjectClick(workspaceId, project.id)}
-                className="flex-1 justify-start gap-2 px-2 py-1.5 font-figtree text-xs font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
+                className="flex-1 justify-start gap-2 px-2 py-1 font-sans text-[11px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
             >
-                <FolderKanban className="h-3.5 w-3.5 flex-shrink-0" />
+                <FolderKanban className="h-3 w-3 flex-shrink-0" />
                 <span className="flex-1 truncate text-left">
                     {project.name || `Project ${project.id.slice(0, 8)}`}
                 </span>
@@ -200,7 +200,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                                 onClick={onWorkspaceClick}
                                 className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)]"
                             >
-                                <Briefcase className="h-5 w-5" />
+                                <Briefcase className="h-[18px] w-[18px]" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent
@@ -231,13 +231,13 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                         {...listeners}
                         className="cursor-grab active:cursor-grabbing w-0 overflow-hidden opacity-0 group-hover/workspace:w-4 group-hover/workspace:opacity-100 transition-all duration-200"
                     >
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                     </div>
                     <CollapsibleTrigger asChild>
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] flex-shrink-0 transition-all duration-150 cursor-pointer"
+                            className="h-7 w-7 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] flex-shrink-0 transition-all duration-150 cursor-pointer"
                         >
                             {isOpen ? (
                                 <ChevronDown className="h-4 w-4" />
@@ -249,7 +249,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                     <Button
                         variant="ghost"
                         onClick={onWorkspaceClick}
-                        className="flex-1 justify-start gap-2.5 px-2 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                        className="flex-1 justify-start gap-2.5 px-2 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                     >
                         <Briefcase className="h-4 w-4 flex-shrink-0" />
                         <span className="flex-1 truncate text-left">
@@ -272,7 +272,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                         ))}
                     </SortableContext>
                     {projects.length === 0 && (
-                        <p className="px-2 py-1.5 text-xs text-muted-foreground italic">
+                        <p className="px-2 py-1 text-[11px] text-muted-foreground italic">
                             No projects yet
                         </p>
                     )}
@@ -283,9 +283,9 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                                 `/workspaces/${workspace.id}?createProject=true`,
                             )
                         }
-                        className="w-full justify-start gap-2 px-2 py-1.5 font-figtree text-xs font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
+                        className="w-full justify-start gap-2 px-2 py-1 font-sans text-[11px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
                     >
-                        <Plus className="h-3.5 w-3.5 flex-shrink-0" />
+                        <Plus className="h-3 w-3 flex-shrink-0" />
                         <span>Add project</span>
                     </Button>
                 </CollapsibleContent>
@@ -319,6 +319,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         UserPermissions | undefined
     >(undefined);
     const [organizationId, setOrganizationId] = useState<string | null>(null);
+    const [organization, setOrganization] = useState<{
+        id: string;
+        name: string;
+    } | null>(null);
     const [chats, setChats] = useState<Chat[]>([]);
     const [chatsLoading, setChatsLoading] = useState(true);
     const [sidebarView, setSidebarView] = useState<'main' | 'chat-history'>(
@@ -338,6 +342,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                     setUserPermissions(userResponse.data.permissions);
                     if (userResponse.data.organization) {
                         setOrganizationId(userResponse.data.organization.id);
+                        setOrganization(userResponse.data.organization);
                     }
                 }
 
@@ -760,17 +765,15 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     return (
         <div className="flex h-full flex-col bg-[var(--dashboard-bg)]">
             {/* Brand Header */}
-            {!isCompressed && sidebarView === 'main' && organizationId && (
-                <div className="px-5 py-[22px] border-b border-[var(--dashboard-border)]">
+            {!isCompressed && sidebarView === 'main' && organization && (
+                <div className="px-[18px] py-5 border-b border-[var(--dashboard-border)]">
                     <div className="flex items-center gap-[11px]">
-                        <div className="w-[34px] h-[34px] rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-[17px] font-medium italic text-white">
-                            {userPermissions?.organizations?.[0]?.name?.[0]?.toUpperCase() ||
-                                'O'}
+                        <div className="w-[31px] h-[31px] rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[17px] font-medium italic text-white">
+                            {organization.name?.[0]?.toUpperCase() || 'O'}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="font-cormorant text-[16px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] truncate">
-                                {userPermissions?.organizations?.[0]?.name ||
-                                    'Organization'}
+                            <div className="font-serif text-[14px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] truncate">
+                                {organization.name || 'Organization'}
                             </div>
                         </div>
                     </div>
@@ -779,7 +782,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
 
             {/* Header Controls */}
             <div
-                className={`flex items-center gap-2 p-3.5 ${isCompressed ? 'flex-col' : ''}`}
+                className={`flex items-center gap-2 p-3 ${isCompressed ? 'flex-col' : ''}`}
             >
                 {sidebarView === 'chat-history' ? (
                     // Chat History Header
@@ -790,10 +793,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                             className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                             onClick={() => setSidebarView('main')}
                         >
-                            <ArrowLeft className="h-5 w-5" />
+                            <ArrowLeft className="h-[18px] w-[18px]" />
                         </Button>
                         {!isCompressed && (
-                            <h2 className="flex-1 font-cormorant text-sm font-semibold text-[var(--dashboard-text-primary)]">
+                            <h2 className="flex-1 font-serif text-[13px] font-semibold text-[var(--dashboard-text-primary)]">
                                 Chat History
                             </h2>
                         )}
@@ -802,10 +805,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                     // Main Header
                     <>
                         {!isCompressed && (
-                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] text-[12px] text-[var(--dashboard-text-muted)]">
-                                <Search className="h-[13px] w-[13px]" />
+                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] text-[11px] text-[var(--dashboard-text-muted)]">
+                                <Search className="h-[12px] w-[12px]" />
                                 <span className="flex-1">Search...</span>
-                                <span className="font-source-code text-[10px] text-[var(--dashboard-text-faint)]">
+                                <span className="font-sans text-[8px] text-[var(--dashboard-text-faint)]">
                                     ⌘K
                                 </span>
                             </div>
@@ -817,7 +820,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                 className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
                                 onClick={onToggleSidebar}
                             >
-                                <PanelLeft className="h-5 w-5" />
+                                <PanelLeft className="h-[18px] w-[18px]" />
                             </Button>
                         )}
                         {isCompressed && (
@@ -829,7 +832,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                     className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
                                     title="Search"
                                 >
-                                    <Search className="h-5 w-5" />
+                                    <Search className="h-[18px] w-[18px]" />
                                 </Button>
                                 <NotificationBell />
                             </>
@@ -847,8 +850,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                     <div className="space-y-6 py-4">
                         {/* Main Section */}
                         {!isCompressed && (
-                            <div className="px-3 pb-1.5">
-                                <span className="font-source-code text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
+                            <div className="px-2.5 pb-1">
+                                <span className="font-sans text-[8px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
                                     Main
                                 </span>
                             </div>
@@ -862,7 +865,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                     <Button
                                         variant="ghost"
                                         onClick={handleHomeClick}
-                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg group cursor-pointer"
+                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg group cursor-pointer"
                                     >
                                         <Home className="h-4 w-4 flex-shrink-0" />
                                         <span>Dashboard</span>
@@ -879,7 +882,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                     onClick={handleHomeClick}
                                                     className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
-                                                    <Home className="h-5 w-5" />
+                                                    <Home className="h-[18px] w-[18px]" />
                                                 </Button>
                                             </TooltipTrigger>
                                             <TooltipContent
@@ -901,7 +904,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         onClick={() =>
                                             router.push('/chats/new')
                                         }
-                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                     >
                                         <MessageSquarePlus className="h-4 w-4 flex-shrink-0" />
                                         <span>New Chat</span>
@@ -920,7 +923,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                     }
                                                     className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
-                                                    <MessageSquarePlus className="h-5 w-5" />
+                                                    <MessageSquarePlus className="h-[18px] w-[18px]" />
                                                 </Button>
                                             </TooltipTrigger>
                                             <TooltipContent
@@ -942,7 +945,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         onClick={() =>
                                             setSidebarView('chat-history')
                                         }
-                                        className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                     >
                                         <Clock className="h-4 w-4 flex-shrink-0" />
                                         <span>Chat History</span>
@@ -961,7 +964,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                     }
                                                     className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                 >
-                                                    <Clock className="h-5 w-5" />
+                                                    <Clock className="h-[18px] w-[18px]" />
                                                 </Button>
                                             </TooltipTrigger>
                                             <TooltipContent
@@ -982,7 +985,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         <Button
                                             variant="ghost"
                                             onClick={handleSettings}
-                                            className="relative w-full justify-start gap-2.5 px-3 py-2 font-figtree text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                            className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                         >
                                             <Settings className="h-4 w-4 flex-shrink-0" />
                                             <span>Settings</span>
@@ -997,7 +1000,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                         onClick={handleSettings}
                                                         className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                     >
-                                                        <Settings className="h-5 w-5" />
+                                                        <Settings className="h-[18px] w-[18px]" />
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent
@@ -1016,8 +1019,8 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                         {/* Workspaces Section */}
                         <div>
                             {!isCompressed && (
-                                <div className="px-3 pb-1.5 pt-4">
-                                    <span className="font-source-code text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
+                                <div className="px-2.5 pb-1 pt-4">
+                                    <span className="font-sans text-[8px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
                                         Workspace
                                     </span>
                                 </div>
@@ -1088,7 +1091,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                     </DndContext>
                                 ) : (
                                     !isCompressed && (
-                                        <p className="px-2 py-2 text-xs text-muted-foreground italic">
+                                        <p className="px-2 py-2 text-[11px] text-muted-foreground italic">
                                             No workspaces yet
                                         </p>
                                     )
@@ -1121,7 +1124,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                 handleChatClick(chat.id);
                                                 setSidebarView('main');
                                             }}
-                                            className="w-full justify-start gap-2.5 px-3 py-3 font-figtree text-sm font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                            className="w-full justify-start gap-2 px-2.5 py-2.5 font-sans text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
                                         >
                                             <MessageSquare className="h-4 w-4 flex-shrink-0" />
                                             <span className="flex-1 truncate text-left">
@@ -1150,7 +1153,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                         }}
                                                         className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
                                                     >
-                                                        <MessageSquare className="h-5 w-5" />
+                                                        <MessageSquare className="h-[18px] w-[18px]" />
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent
@@ -1169,10 +1172,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                         ) : (
                             <div className="px-4 py-12 text-center">
                                 <MessageSquare className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-[13px] text-muted-foreground">
                                     No chats yet
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-[11px] text-muted-foreground mt-1">
                                     Start a new chat to get started
                                 </p>
                             </div>
@@ -1190,15 +1193,15 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                         {!isCompressed ? (
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start gap-2.5 px-2 py-3 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] rounded-lg transition-all duration-150 cursor-pointer"
+                                className="w-full justify-start gap-2 px-2 py-2.5 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] rounded-lg transition-all duration-150 cursor-pointer"
                             >
-                                <div className="h-[30px] w-[30px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-xs font-semibold italic text-white flex-shrink-0">
+                                <div className="h-[27px] w-[27px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[11px] font-semibold italic text-white flex-shrink-0">
                                     {user?.firstName?.[0] ||
                                         user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
                                         'U'}
                                 </div>
-                                <div className="flex flex-col items-start text-sm overflow-hidden flex-1">
-                                    <span className="font-figtree font-medium text-[12px] truncate w-full text-[var(--dashboard-text-primary)]">
+                                <div className="flex flex-col items-start text-[13px] overflow-hidden flex-1">
+                                    <span className="font-sans font-medium text-[11px] truncate w-full text-[var(--dashboard-text-primary)]">
                                         {user?.firstName && user?.lastName
                                             ? `${user.firstName} ${user.lastName}`
                                             : user?.firstName ||
@@ -1206,7 +1209,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                   ?.emailAddress ||
                                               'User'}
                                     </span>
-                                    <span className="font-figtree text-[10px] text-[var(--dashboard-text-muted)] truncate w-full">
+                                    <span className="font-sans text-[8px] text-[var(--dashboard-text-muted)] truncate w-full">
                                         Admin
                                     </span>
                                 </div>
@@ -1218,7 +1221,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                 className="h-10 w-10 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
                                 title={user?.firstName || 'User'}
                             >
-                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-cormorant text-xs font-semibold italic text-white">
+                                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[11px] font-semibold italic text-white">
                                     {user?.firstName?.[0] ||
                                         user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
                                         'U'}
@@ -1261,7 +1264,7 @@ export const AppSidebar: React.FC = () => {
             {/* Desktop Sidebar */}
             <aside
                 className={`hidden md:block fixed left-0 top-0 z-40 h-screen border-r border-[var(--dashboard-border)] bg-[var(--dashboard-bg)] transition-all duration-300 ease-in-out ${
-                    isOpen ? 'w-[248px]' : 'w-[60px]'
+                    isOpen ? 'w-[223px]' : 'w-[54px]'
                 }`}
             >
                 <SidebarContent
@@ -1279,12 +1282,12 @@ export const AppSidebar: React.FC = () => {
                             size="icon"
                             className="fixed left-4 top-4 z-40 h-9 w-9 text-foreground hover:bg-sidebar-accent"
                         >
-                            <Menu className="h-5 w-5" />
+                            <Menu className="h-[18px] w-[18px]" />
                         </Button>
                     </SheetTrigger>
                     <SheetContent
                         side="left"
-                        className="w-[248px] p-0 bg-[var(--dashboard-bg)] border-[var(--dashboard-border)]"
+                        className="w-[223px] p-0 bg-[var(--dashboard-bg)] border-[var(--dashboard-border)]"
                     >
                         <SidebarContent showToggle={false} />
                     </SheetContent>
