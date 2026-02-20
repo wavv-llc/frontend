@@ -31,17 +31,17 @@ const TABS: { key: TabType; label: string }[] = [
 const PRIORITY_CONFIG = {
     high: {
         icon: ArrowUp,
-        color: 'text-[#E05252]',
+        color: 'text-[#e05252]',
         label: 'High',
     },
     medium: {
         icon: Minus,
-        color: 'text-[#B5880A]',
+        color: 'text-[#b5880a]',
         label: 'Medium',
     },
     low: {
         icon: ArrowDown,
-        color: 'text-[var(--dashboard-text-faint)]',
+        color: 'text-[var(--dashboard-text-steel-alt-800aint)]',
         label: 'Low',
     },
 };
@@ -120,7 +120,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                                 'relative px-3 py-1.5 font-sans text-xs transition-colors cursor-pointer',
                                 activeTab === tab.key
                                     ? 'text-[var(--accent)] font-medium'
-                                    : 'text-[var(--dashboard-text-muted)] font-normal hover:text-[var(--dashboard-text-body)]',
+                                    : 'text-[var(--dashboard-text-muted)] font-normal hover:text-[var(--dashboard-text-steel-alt-800ody)]',
                             )}
                         >
                             {tab.label}
@@ -175,7 +175,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
                                 className={cn(
                                     'grid w-full px-[18px] py-2',
                                     'grid-cols-[1fr_72px_81px_108px]',
-                                    'border-b border-[var(--dashboard-border-light)] last:border-0',
+                                    'border-b border-[var(--dashboard-border-light)] last:border-steel-alt-100',
                                     'transition-colors duration-150',
                                     'hover:bg-[var(--accent-row-hover)]',
                                     'text-left',

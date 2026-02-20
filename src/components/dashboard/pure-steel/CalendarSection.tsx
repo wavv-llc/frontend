@@ -28,19 +28,19 @@ const EVENT_TYPE_COLORS: Record<
 > = {
     deadline: {
         bg: 'bg-[rgba(224,82,82,0.07)]',
-        text: 'text-[#E05252]',
+        text: 'text-[#e05252]',
     },
     task: {
         bg: 'bg-[rgba(94,142,173,0.07)]',
-        text: 'text-[#5E8EAD]',
+        text: 'text-[#5e8ead]',
     },
     meeting: {
         bg: 'bg-[rgba(181,136,10,0.07)]',
-        text: 'text-[#B5880A]',
+        text: 'text-[#b5880a]',
     },
     internal: {
         bg: 'bg-[rgba(132,148,164,0.07)]',
-        text: 'text-[#8494A4]',
+        text: 'text-[#8494a4]',
     },
 };
 
@@ -125,13 +125,13 @@ export function CalendarSection({
                     <div className="flex items-center gap-2.5">
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-sm bg-[rgba(90,127,154,0.15)] border-[1.5px] border-[var(--accent)]" />
-                            <span className="font-sans text-[9px] text-[var(--dashboard-text-faint)]">
+                            <span className="font-sans text-[9px] text-[var(--dashboard-text-steel-alt-800aint)]">
                                 Today
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-1 h-1 rounded-full bg-[#E05252]" />
-                            <span className="font-sans text-[9px] text-[var(--dashboard-text-faint)]">
+                            <div className="w-1 h-1 rounded-full bg-[#e05252]" />
+                            <span className="font-sans text-[9px] text-[var(--dashboard-text-steel-alt-800aint)]">
                                 Deadline
                             </span>
                         </div>
@@ -191,7 +191,7 @@ export function CalendarSection({
                             key={dayName}
                             className="pb-2 border-b border-[var(--dashboard-border-light)]"
                         >
-                            <span className="font-sans text-[9px] font-medium text-[var(--dashboard-text-faint)] tracking-wider">
+                            <span className="font-sans text-[9px] font-medium text-[var(--dashboard-text-steel-alt-800aint)] tracking-wider">
                                 {dayName}
                             </span>
                         </div>
@@ -228,7 +228,7 @@ export function CalendarSection({
                                                 ? 'font-semibold text-[var(--accent)]'
                                                 : deadline
                                                   ? 'font-normal text-[var(--status-urgent-text)]'
-                                                  : 'font-normal text-[var(--dashboard-text-body)]',
+                                                  : 'font-normal text-[var(--dashboard-text-steel-alt-800ody)]',
                                         )}
                                     >
                                         {date.getDate()}
@@ -265,7 +265,7 @@ export function CalendarSection({
                                         );
                                     })}
                                     {moreCount > 0 && (
-                                        <span className="text-[8px] font-sans text-[var(--dashboard-text-faint)] px-1">
+                                        <span className="text-[8px] font-sans text-[var(--dashboard-text-steel-alt-800aint)] px-1">
                                             +{moreCount} more
                                         </span>
                                     )}
@@ -274,7 +274,7 @@ export function CalendarSection({
                                 {/* Deadline Dot */}
                                 {deadline && (
                                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
-                                        <div className="w-1 h-1 rounded-full bg-[#E05252]" />
+                                        <div className="w-1 h-1 rounded-full bg-[#e05252]" />
                                     </div>
                                 )}
                             </div>

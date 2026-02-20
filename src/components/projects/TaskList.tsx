@@ -1125,7 +1125,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         };
 
         return (
-            <div className="w-full h-full border border-border rounded-lg bg-card overflow-hidden flex flex-col min-w-0">
+            <div className="w-full h-full border border-border rounded-lg bg-steel-alt-200ard overflow-hidden flex flex-col min-w-0">
                 <div className="flex-1 overflow-auto relative scroll-smooth">
                     <div className="min-w-max h-full">
                         {/* Table Header - Sticky Top */}
@@ -1150,7 +1150,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleBulkDelete}
-                                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
+                                            className="h-8 text-steel-alt-400estructive hover:text-steel-alt-400estructive hover:bg-steel-alt-200estructive/10 gap-2"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             Delete
@@ -1386,7 +1386,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="w-full justify-start text-muted-foreground hover:text-foreground"
+                                            className="w-full justify-start text-muted-foreground hover:text-steel-alt-800oreground"
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
                                             New field
@@ -1669,7 +1669,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               return (
                                                   <div key={groupName}>
                                                       {/* Group Header */}
-                                                      <div className="sticky left-0 min-w-full bg-secondary/30 border-y border-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-foreground">
+                                                      <div className="sticky left-0 min-w-full bg-secondary/30 border-y border-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-steel-alt-800oreground">
                                                           <button
                                                               onClick={() =>
                                                                   toggleGroup(
@@ -1709,7 +1709,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
                                                                       <div
-                                                                          className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
+                                                                          className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-steel-alt-200ard group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
                                                                           onClick={() => {
                                                                               // Open side panel
                                                                               onTaskClick(
@@ -1837,7 +1837,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                               task.id,
                                                                                           );
                                                                                       }}
-                                                                                      className="text-destructive focus:text-destructive"
+                                                                                      className="text-steel-alt-400estructive focus:text-steel-alt-400estructive"
                                                                                   >
                                                                                       <Trash2 className="h-4 w-4 mr-2" />
                                                                                       Delete
@@ -1862,7 +1862,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                       >
                                           {/* Task Name - Sticky */}
                                           <div
-                                              className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-card group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
+                                              className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-steel-alt-200ard group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
                                               onClick={() => {
                                                   onTaskClick(task);
                                               }}
@@ -1959,7 +1959,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                   task.id,
                                                               );
                                                           }}
-                                                          className="text-destructive focus:text-destructive"
+                                                          className="text-steel-alt-400estructive focus:text-steel-alt-400estructive"
                                                       >
                                                           <Trash2 className="h-4 w-4 mr-2" />
                                                           Delete Task
@@ -2000,7 +2000,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         setNewTaskName('');
                                     }}
                                 >
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-card group-hover:bg-muted/30 transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-2 text-sm text-muted-foreground group-hover:text-foreground">
+                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-steel-alt-200ard group-hover:bg-muted/30 transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-2 text-sm text-muted-foreground group-hover:text-steel-alt-800oreground">
                                         <Plus className="h-4 w-4" />
                                         Add task
                                     </div>

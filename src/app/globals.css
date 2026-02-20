@@ -54,6 +54,18 @@
     --color-steel-100: var(--steel-100);
     --color-steel-50: var(--steel-50);
 
+    --color-steel-alt-950: var(--steel-alt-950);
+    --color-steel-alt-900: var(--steel-alt-900);
+    --color-steel-alt-800: var(--steel-alt-800);
+    --color-steel-alt-700: var(--steel-alt-700);
+    --color-steel-alt-600: var(--steel-alt-600);
+    --color-steel-alt-500: var(--steel-alt-500);
+    --color-steel-alt-400: var(--steel-alt-400);
+    --color-steel-alt-300: var(--steel-alt-300);
+    --color-steel-alt-200: var(--steel-alt-200);
+    --color-steel-alt-100: var(--steel-alt-100);
+    --color-steel-alt-50: var(--steel-alt-50);
+
     /* Pure Steel Light Dashboard Tokens */
     --color-dashboard-bg: var(--dashboard-bg);
     --color-dashboard-surface: var(--dashboard-surface);
@@ -102,6 +114,19 @@
     --steel-200: #e2e8f0; /* Card borders, dividers */
     --steel-100: #f1f5f9; /* Subtle backgrounds */
     --steel-50: #f8fafc; /* Card backgrounds */
+
+    /* Alternative Steel Palette (Chat & Additional Components) */
+    --steel-alt-950: #0e1117;
+    --steel-alt-900: #181d25;
+    --steel-alt-800: #272f3b;
+    --steel-alt-700: #3a4557;
+    --steel-alt-600: #4e5d74;
+    --steel-alt-500: #6b7a94;
+    --steel-alt-400: #8d9ab0;
+    --steel-alt-300: #b8c1ce;
+    --steel-alt-200: #dce1e8;
+    --steel-alt-100: #eef0f3;
+    --steel-alt-50: #f8f9fa;
 
     /* Semantic Token Mapping */
     --background: #ffffff;

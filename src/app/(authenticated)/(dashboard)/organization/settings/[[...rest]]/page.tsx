@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Loader2,
     CheckCircle2,
@@ -18,6 +16,8 @@ import {
     Users,
     Trash2,
     Building2,
+    Database,
+    Table,
 } from 'lucide-react';
 import {
     sharepointApi,
@@ -65,15 +65,19 @@ interface SelectedSite {
     webUrl: string;
 }
 
-type TabType = 'documents' | 'users' | 'organization';
+type TabType = 'documents' | 'users' | 'sharepoint' | 'organization';
 
 export default function SettingsPage() {
-    const router = useRouter();
     const { isLoaded, getToken } = useAuth();
     const { user, isLoading: isUserLoading } = useUser();
 
     // Tab state
     const [activeTab, setActiveTab] = useState<TabType>('documents');
+    const [indicatorStyle, setIndicatorStyle] = useState({
+        left: 0,
+        width: 0,
+    });
+    const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
     const [sites, setSites] = useState<SharePointSite[]>([]);
     const [, setSelectedSites] = useState<SelectedSite[]>([]);
     const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(
@@ -112,6 +116,18 @@ export default function SettingsPage() {
     >(null);
 
     const organizationId = user?.organization?.id;
+
+    // Update indicator position when active tab changes
+    useEffect(() => {
+        const activeTabElement = tabRefs.current[activeTab];
+        if (activeTabElement) {
+            const { offsetLeft, offsetWidth } = activeTabElement;
+            setIndicatorStyle({
+                left: offsetLeft,
+                width: offsetWidth,
+            });
+        }
+    }, [activeTab]);
 
     useEffect(() => {
         if (isLoaded && organizationId) {
@@ -205,44 +221,36 @@ export default function SettingsPage() {
     const getStatusBadge = (status: OrganizationDocument['status']) => {
         switch (status) {
             case 'COMPLETED':
+            case 'READY':
                 return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        Completed
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        Ready
                     </span>
                 );
             case 'PROCESSING':
-                return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                        Processing
-                    </span>
-                );
             case 'EMBEDDING':
                 return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-                        Embedding
-                    </span>
-                );
-            case 'READY':
-                return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                        Ready
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        Processing
                     </span>
                 );
             case 'PENDING':
                 return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
                         Pending
                     </span>
                 );
             case 'FAILED':
                 return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                        Failed
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#272f3b]10 text-[#272f3b] dark:bg-red-900/30 dark:text-red-400">
+                        Error
                     </span>
                 );
             default:
                 return (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
                         {status}
                     </span>
                 );
@@ -510,13 +518,18 @@ export default function SettingsPage() {
         {
             id: 'documents',
             label: 'Documents',
-            icon: <FileText className="h-4 w-4" />,
+            icon: <FileText className="h-3 w-3" />,
         },
-        { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" /> },
+        { id: 'users', label: 'Users', icon: <Users className="h-3 w-3" /> },
+        {
+            id: 'sharepoint',
+            label: 'SharePoint',
+            icon: <Building2 className="h-3 w-3" />,
+        },
         {
             id: 'organization',
             label: 'Organization',
-            icon: <Building2 className="h-4 w-4" />,
+            icon: <Building2 className="h-3 w-3" />,
         },
     ];
 
@@ -586,13 +599,16 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Top Tab Bar */}
-                <header className="sticky top-0 z-10 flex items-center justify-center h-[54px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-[#dce1e8]/60 dark:border-gray-800/60">
+                <header className="sticky top-0 z-10 flex items-center justify-center h-[43px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-[#dce1e8]/60 dark:border-gray-800/60">
                     <nav className="relative flex items-stretch gap-1">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
+                                ref={(el) => {
+                                    tabRefs.current[tab.id] = el;
+                                }}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`relative flex items-center gap-2.5 px-6 py-2.5 text-[13.5px] font-medium transition-all duration-300 ease-out cursor-pointer rounded-lg ${
+                                className={`relative flex items-center gap-2 px-5 py-2 text-[11px] font-medium transition-all duration-300 ease-out cursor-pointer rounded-lg ${
                                     activeTab === tab.id
                                         ? 'text-[#272f3b] dark:text-gray-50 bg-[#f8f9fa]/50 dark:bg-gray-800/50'
                                         : 'text-[#8d9ab0] dark:text-gray-400 hover:text-[#4e5d74] dark:hover:text-gray-300 hover:bg-[#f8f9fa]/30 dark:hover:bg-gray-800/30'
@@ -610,30 +626,19 @@ export default function SettingsPage() {
                         <div
                             className="absolute bottom-0 h-[2px] bg-gradient-to-r from-[#3a4557] to-[#272f3b] dark:from-gray-100 dark:to-gray-50 rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(58,69,87,0.35)] dark:shadow-[0_0_12px_rgba(255,255,255,0.25)]"
                             style={{
-                                left: `${tabs.findIndex((t) => t.id === activeTab) * (100 / tabs.length)}%`,
-                                width: `${100 / tabs.length}%`,
-                                marginLeft: '0.5rem',
-                                marginRight: '0.5rem',
-                                transform: 'scaleX(0.7)',
+                                left: `${indicatorStyle.left + indicatorStyle.width * 0.15}px`,
+                                width: `${indicatorStyle.width * 0.7}px`,
                             }}
                         />
                     </nav>
                 </header>
 
                 {/* Tab Content */}
-                <div className="w-full pl-8 pr-8 py-8 pb-16 relative z-[1]">
-                    <div className="max-w-[760px] mx-auto">
+                <div className="w-full pl-6 pr-6 py-6 pb-12 relative z-[1]">
+                    <div className="max-w-[900px] mx-auto">
                         <div key={activeTab} className="tab-content-enter">
                             {activeTab === 'documents' && (
                                 <DocumentsTab
-                                    sites={sites}
-                                    selectedSiteIds={selectedSiteIds}
-                                    isLoadingSites={isLoadingSites}
-                                    error={error}
-                                    isSaving={isSaving}
-                                    toggleSite={toggleSite}
-                                    handleSaveSites={handleSaveSites}
-                                    loadSharePointData={loadSharePointData}
                                     documents={documents}
                                     isLoadingDocuments={isLoadingDocuments}
                                     documentsError={documentsError}
@@ -650,7 +655,6 @@ export default function SettingsPage() {
                                     loadDocuments={loadDocuments}
                                     getStatusBadge={getStatusBadge}
                                     formatFileSize={formatFileSize}
-                                    router={router}
                                 />
                             )}
 
@@ -675,6 +679,19 @@ export default function SettingsPage() {
                                     inviteError={inviteError}
                                     inviteSuccess={inviteSuccess}
                                     handleInviteMember={handleInviteMember}
+                                />
+                            )}
+
+                            {activeTab === 'sharepoint' && (
+                                <SharePointTab
+                                    sites={sites}
+                                    selectedSiteIds={selectedSiteIds}
+                                    isLoadingSites={isLoadingSites}
+                                    error={error}
+                                    isSaving={isSaving}
+                                    toggleSite={toggleSite}
+                                    handleSaveSites={handleSaveSites}
+                                    loadSharePointData={loadSharePointData}
                                 />
                             )}
 
@@ -734,14 +751,6 @@ export default function SettingsPage() {
 
 // Tab Components
 interface DocumentsTabProps {
-    sites: SharePointSite[];
-    selectedSiteIds: Set<string>;
-    isLoadingSites: boolean;
-    error: string | null;
-    isSaving: boolean;
-    toggleSite: (siteId: string) => void;
-    handleSaveSites: () => void;
-    loadSharePointData: () => void;
     documents: OrganizationDocument[];
     isLoadingDocuments: boolean;
     documentsError: string | null;
@@ -758,18 +767,9 @@ interface DocumentsTabProps {
         status: OrganizationDocument['status'],
     ) => React.ReactElement;
     formatFileSize: (bytes: number) => string;
-    router: ReturnType<typeof useRouter>;
 }
 
 function DocumentsTab({
-    sites,
-    selectedSiteIds,
-    isLoadingSites,
-    error,
-    isSaving,
-    toggleSite,
-    handleSaveSites,
-    loadSharePointData,
     documents,
     isLoadingDocuments,
     documentsError,
@@ -784,234 +784,103 @@ function DocumentsTab({
     loadDocuments,
     getStatusBadge,
     formatFileSize,
-    router,
 }: DocumentsTabProps) {
+    // Helper to get file icon and colors based on file type
+    const getFileIcon = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) {
+            return {
+                icon: Table,
+                color: '#4e5d74',
+                bg: '#4e5d7412',
+            };
+        }
+        return {
+            icon: FileText,
+            color: '#6b7a94',
+            bg: '#6b7a9410',
+        };
+    };
+
+    // Helper to get file type label
+    const getFileType = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        return ext.toUpperCase();
+    };
+
     return (
         <>
             {/* Section Header */}
-            <div className="mb-6 section-header-anim">
-                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
                     Document Management
                 </h2>
-                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
-                    Configure document sources and indexing behavior
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                    View and manage documents uploaded to your organization
                 </p>
             </div>
 
-            {/* SharePoint Sites Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden mb-5 fade-up-1">
-                {/* Card Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
-                    <div>
-                        <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
-                            SharePoint Sites
-                        </h3>
-                        <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
-                            Select which sites are available for AI auditing
-                        </p>
-                    </div>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={loadSharePointData}
-                        disabled={isLoadingSites}
-                        className="rounded-xl"
-                    >
-                        <RefreshCw
-                            className={`h-3.5 w-3.5 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`}
-                        />
-                        Refresh
-                    </Button>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-2">
-                    {error && (
-                        <div className="mx-2 mt-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {isLoadingSites ? (
-                        <div className="space-y-0.5 p-1">
-                            {[1, 2, 3].map((i) => (
-                                <div
-                                    key={i}
-                                    className="p-3.5 rounded-xl flex items-center gap-3.5 bg-[#f8f9fa] dark:bg-gray-800"
-                                >
-                                    <Skeleton className="h-5 w-5 rounded-full" />
-                                    <div className="flex-1 space-y-2">
-                                        <Skeleton className="h-4 w-32" />
-                                        <Skeleton className="h-3.5 w-52" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : sites.length === 0 ? (
-                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-sm">
-                            <p>
-                                No SharePoint sites found. Make sure you have
-                                access to SharePoint sites.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-0.5 p-1">
-                            {sites.map((site) => {
-                                const isSelected = selectedSiteIds.has(site.id);
-                                return (
-                                    <div
-                                        key={site.id}
-                                        className={`p-3.5 rounded-xl cursor-pointer transition-all duration-200 ${
-                                            isSelected
-                                                ? 'bg-[#eef0f3]/60 dark:bg-gray-800'
-                                                : 'hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50'
-                                        }`}
-                                        onClick={() => toggleSite(site.id)}
-                                    >
-                                        <div className="flex items-start gap-3.5">
-                                            <div className="flex items-center justify-center shrink-0 mt-0.5">
-                                                <div
-                                                    className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                                                        isSelected
-                                                            ? 'border-[#3a4557] bg-[#3a4557] dark:border-gray-100 dark:bg-gray-100'
-                                                            : 'border-[#b8c1ce] dark:border-gray-600'
-                                                    }`}
-                                                >
-                                                    {isSelected && (
-                                                        <div className="h-2 w-2 rounded-full bg-white dark:bg-gray-900" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-semibold text-[#272f3b] dark:text-gray-100">
-                                                    {site.displayName ||
-                                                        site.name}
-                                                </h4>
-                                                <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
-                                                    {site.webUrl}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Card Footer */}
-                {sites.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-3.5 border-t border-[#eef0f3] dark:border-gray-800">
-                        <span className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400 font-medium">
-                            {selectedSiteIds.size} site
-                            {selectedSiteIds.size !== 1 ? 's' : ''} selected
-                        </span>
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handleSaveSites}
-                            disabled={isSaving}
-                            className="rounded-xl"
-                        >
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                'Save Changes'
-                            )}
-                        </Button>
-                    </div>
-                )}
-            </div>
-
             {/* Documents List Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-3">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
                 {/* Card Header */}
-                <div className="px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
-                                Documents
-                            </h3>
-                            <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
-                                View and manage documents uploaded to your
-                                organization
-                            </p>
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    {/* Search and Filter */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8d9ab0]" />
+                            <Input
+                                placeholder="Search documents..."
+                                value={documentSearch}
+                                onChange={(e) =>
+                                    setDocumentSearch(e.target.value)
+                                }
+                                className="pl-9 h-8 rounded-md border border-[#dce1e8] dark:border-gray-700 text-[11px] focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20 bg-white dark:bg-gray-900"
+                            />
                         </div>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-[120px] h-8 rounded-md border border-[#dce1e8] dark:border-gray-700 text-[11px] bg-white dark:bg-gray-900">
+                                <div className="flex items-center gap-1.5">
+                                    <Filter className="h-3 w-3" />
+                                    <SelectValue />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All</SelectItem>
+                                <SelectItem value="ready">Ready</SelectItem>
+                                <SelectItem value="in-progress">
+                                    In Progress
+                                </SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                            </SelectContent>
+                        </Select>
                         <Button
                             variant="secondary"
                             size="sm"
                             onClick={loadDocuments}
                             disabled={isLoadingDocuments || !organizationId}
-                            className="rounded-xl"
+                            className="rounded-md h-8"
                         >
                             <RefreshCw
-                                className={`h-3.5 w-3.5 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`}
+                                className={`h-3 w-3 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`}
                             />
                             Refresh
                         </Button>
                     </div>
-
-                    {/* Search and Filter */}
-                    {documents.length > 0 && (
-                        <div className="flex items-center gap-3">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8d9ab0]" />
-                                <Input
-                                    placeholder="Search documents..."
-                                    value={documentSearch}
-                                    onChange={(e) =>
-                                        setDocumentSearch(e.target.value)
-                                    }
-                                    className="pl-9 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-sm"
-                                />
-                            </div>
-                            <Select
-                                value={statusFilter}
-                                onValueChange={setStatusFilter}
-                            >
-                                <SelectTrigger className="w-[140px] h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700">
-                                    <Filter className="h-3.5 w-3.5 mr-2" />
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        All Status
-                                    </SelectItem>
-                                    <SelectItem value="COMPLETED">
-                                        Completed
-                                    </SelectItem>
-                                    <SelectItem value="PROCESSING">
-                                        Processing
-                                    </SelectItem>
-                                    <SelectItem value="EMBEDDING">
-                                        Embedding
-                                    </SelectItem>
-                                    <SelectItem value="READY">Ready</SelectItem>
-                                    <SelectItem value="PENDING">
-                                        Pending
-                                    </SelectItem>
-                                    <SelectItem value="FAILED">
-                                        Failed
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
                 </div>
 
                 {/* Card Content */}
-                <div className="p-2">
+                <div className="p-1.5">
                     {documentsError && (
-                        <div className="mx-2 mt-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                        <div className="mx-1.5 mt-1.5 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[11px]">
                             {documentsError}
                         </div>
                     )}
 
                     {!organizationId ? (
-                        <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                             <p>Unable to load organization information.</p>
                         </div>
                     ) : isLoadingDocuments ? (
@@ -1019,21 +888,21 @@ function DocumentsTab({
                             {[1, 2, 3, 4, 5].map((i) => (
                                 <div
                                     key={i}
-                                    className="p-3.5 rounded-xl flex items-center gap-3.5 bg-[#f8f9fa] dark:bg-gray-800"
+                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
                                 >
-                                    <Skeleton className="h-5 w-5 rounded" />
-                                    <div className="flex-1 space-y-2">
-                                        <Skeleton className="h-4 w-1/3" />
-                                        <Skeleton className="h-3 w-1/4" />
+                                    <Skeleton className="h-4 w-4 rounded" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-3 w-1/3" />
+                                        <Skeleton className="h-2.5 w-1/4" />
                                     </div>
-                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                    <Skeleton className="h-5 w-16 rounded-full" />
                                 </div>
                             ))}
                         </div>
                     ) : documents.length === 0 ? (
-                        <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
-                            <FileText className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                            <p className="text-sm">
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                            <FileText className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                            <p className="text-[11px]">
                                 No documents found in your organization.
                             </p>
                         </div>
@@ -1048,18 +917,37 @@ function DocumentsTab({
                                             .includes(
                                                 documentSearch.toLowerCase(),
                                             );
-                                    const matchesStatus =
-                                        statusFilter === 'all' ||
-                                        doc.status === statusFilter;
+
+                                    // Map filter categories to actual statuses
+                                    let matchesStatus = true;
+                                    if (statusFilter === 'ready') {
+                                        matchesStatus = [
+                                            'COMPLETED',
+                                            'READY',
+                                        ].includes(doc.status);
+                                    } else if (statusFilter === 'in-progress') {
+                                        matchesStatus = [
+                                            'PROCESSING',
+                                            'EMBEDDING',
+                                            'PENDING',
+                                        ].includes(doc.status);
+                                    } else if (statusFilter === 'failed') {
+                                        matchesStatus = [
+                                            'FAILED',
+                                            'ARCHIVED',
+                                        ].includes(doc.status);
+                                    }
+                                    // 'all' filter shows everything
+
                                     return matchesSearch && matchesStatus;
                                 },
                             );
 
                             if (filteredDocuments.length === 0) {
                                 return (
-                                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
-                                        <Search className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                                        <p className="text-sm">
+                                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                                        <Search className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                                        <p className="text-[11px]">
                                             No documents match your search or
                                             filter criteria.
                                         </p>
@@ -1068,129 +956,196 @@ function DocumentsTab({
                             }
 
                             return (
-                                <div className="space-y-0.5 p-1 max-h-[500px] overflow-y-auto">
-                                    {filteredDocuments.map((doc) => (
-                                        <div
-                                            key={doc.id}
-                                            className="p-3.5 rounded-xl hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/documents/${doc.id}`,
-                                                )
-                                            }
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                    <FileText className="h-5 w-5 text-[#8d9ab0] shrink-0" />
-                                                    <div className="min-w-0 flex-1">
-                                                        <h4
-                                                            className="text-sm font-semibold text-[#272f3b] dark:text-gray-100 truncate"
-                                                            title={
-                                                                doc.originalName
-                                                            }
+                                <div className="overflow-hidden">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-[240px_140px_80px_1fr] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Name
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Source
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Size
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Status
+                                        </div>
+                                    </div>
+
+                                    {/* Table Body */}
+                                    <div className="max-h-[400px] overflow-y-auto">
+                                        {filteredDocuments.map((doc) => {
+                                            const fileIcon = getFileIcon(
+                                                doc.originalName,
+                                            );
+                                            const FileIconComponent =
+                                                fileIcon.icon;
+
+                                            return (
+                                                <div
+                                                    key={doc.id}
+                                                    className="grid grid-cols-[240px_140px_80px_1fr] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors"
+                                                >
+                                                    {/* File Name */}
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div
+                                                            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform hover:scale-105"
+                                                            style={{
+                                                                background:
+                                                                    fileIcon.bg,
+                                                                color: fileIcon.color,
+                                                            }}
                                                         >
-                                                            {doc.originalName}
-                                                        </h4>
-                                                        <div className="flex items-center gap-2 text-xs text-[#8d9ab0] dark:text-gray-400 mt-0.5">
-                                                            <span>
-                                                                {formatFileSize(
-                                                                    doc.filesize,
+                                                            <FileIconComponent
+                                                                size={14}
+                                                            />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div
+                                                                className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100 truncate"
+                                                                title={
+                                                                    doc.originalName
+                                                                }
+                                                            >
+                                                                {
+                                                                    doc.originalName
+                                                                }
+                                                            </div>
+                                                            <div className="text-[9px] text-[#8d9ab0] dark:text-gray-400 mt-0.5">
+                                                                {getFileType(
+                                                                    doc.originalName,
                                                                 )}
-                                                            </span>
-                                                            <span>•</span>
-                                                            <span>
-                                                                {doc.mimeType}
-                                                            </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    {getStatusBadge(doc.status)}
-                                                    {(doc.status ===
-                                                        'EMBEDDING' ||
-                                                        doc.status ===
-                                                            'READY') && (
-                                                        <>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    handleReembedDocument(
-                                                                        doc.id,
-                                                                    );
-                                                                }}
-                                                                disabled={
-                                                                    retryingDocumentId ===
-                                                                    doc.id
-                                                                }
-                                                                className="rounded-lg"
-                                                            >
-                                                                {retryingDocumentId ===
-                                                                doc.id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                ) : (
-                                                                    <RefreshCw className="h-3.5 w-3.5" />
-                                                                )}
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    handleRetryDocument(
-                                                                        doc.id,
-                                                                    );
-                                                                }}
-                                                                disabled={
-                                                                    retryingDocumentId ===
-                                                                    doc.id
-                                                                }
-                                                                className="rounded-lg"
-                                                            >
-                                                                {retryingDocumentId ===
-                                                                doc.id ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                ) : (
-                                                                    <RotateCcw className="h-3.5 w-3.5" />
-                                                                )}
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    {(doc.status === 'FAILED' ||
-                                                        doc.status ===
-                                                            'PROCESSING') && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon-sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleRetryDocument(
-                                                                    doc.id,
-                                                                );
-                                                            }}
-                                                            disabled={
-                                                                retryingDocumentId ===
-                                                                doc.id
+
+                                                    {/* Source */}
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="text-[#8d9ab0] dark:text-gray-400 flex-shrink-0">
+                                                            <Database
+                                                                size={11}
+                                                            />
+                                                        </span>
+                                                        <span
+                                                            className="text-[10px] font-medium text-[#6b7a94] dark:text-gray-400 truncate"
+                                                            title={
+                                                                doc
+                                                                    .sharepointSite
+                                                                    ?.siteName ||
+                                                                'SharePoint'
                                                             }
-                                                            className="rounded-lg"
                                                         >
-                                                            {retryingDocumentId ===
-                                                            doc.id ? (
-                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            ) : (
-                                                                <RotateCcw className="h-3.5 w-3.5" />
-                                                            )}
-                                                        </Button>
-                                                    )}
+                                                            {doc.sharepointSite
+                                                                ?.siteName ||
+                                                                'SharePoint'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Size */}
+                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                        {formatFileSize(
+                                                            doc.filesize,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Status with Action Buttons */}
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusBadge(
+                                                            doc.status,
+                                                        )}
+                                                        {(doc.status ===
+                                                            'FAILED' ||
+                                                            doc.status ===
+                                                                'COMPLETED' ||
+                                                            doc.status ===
+                                                                'READY') && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleRetryDocument(
+                                                                            doc.id,
+                                                                        );
+                                                                    }}
+                                                                    disabled={
+                                                                        retryingDocumentId ===
+                                                                        doc.id
+                                                                    }
+                                                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                                                >
+                                                                    {retryingDocumentId ===
+                                                                    doc.id ? (
+                                                                        <>
+                                                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                                            <span>
+                                                                                Processing...
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <RotateCcw
+                                                                                size={
+                                                                                    12
+                                                                                }
+                                                                                className="mr-1.5"
+                                                                            />
+                                                                            <span>
+                                                                                Retry
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleReembedDocument(
+                                                                            doc.id,
+                                                                        );
+                                                                    }}
+                                                                    disabled={
+                                                                        retryingDocumentId ===
+                                                                        doc.id
+                                                                    }
+                                                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                                                >
+                                                                    {retryingDocumentId ===
+                                                                    doc.id ? (
+                                                                        <>
+                                                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                                            <span>
+                                                                                Embedding...
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <RefreshCw
+                                                                                size={
+                                                                                    12
+                                                                                }
+                                                                                className="mr-1.5"
+                                                                            />
+                                                                            <span>
+                                                                                Re-embed
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             );
                         })()
@@ -1232,7 +1187,6 @@ function UsersTab({
     isCurrentUser,
     handleRoleChange,
     setMemberToRemove,
-    loadMembers,
     inviteEmail,
     setInviteEmail,
     isInviting,
@@ -1240,313 +1194,306 @@ function UsersTab({
     inviteSuccess,
     handleInviteMember,
 }: UsersTabProps) {
+    const [memberSearch, setMemberSearch] = useState('');
+    const [selectedRole, setSelectedRole] = useState('');
+
+    // Filter members based on search
+    const filteredMembers = members.filter((member) => {
+        const matchesSearch =
+            memberSearch === '' ||
+            member.email.toLowerCase().includes(memberSearch.toLowerCase()) ||
+            (member.firstName &&
+                member.firstName
+                    .toLowerCase()
+                    .includes(memberSearch.toLowerCase())) ||
+            (member.lastName &&
+                member.lastName
+                    .toLowerCase()
+                    .includes(memberSearch.toLowerCase()));
+
+        return matchesSearch;
+    });
+
     return (
         <>
-            {/* Section Header */}
-            <div className="mb-6 section-header-anim">
-                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
-                    User Management
-                </h2>
-                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
-                    Manage team members and their permissions
-                </p>
-            </div>
-
             {/* Team Members Card */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
-                {/* Card Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
-                    <div>
-                        <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
-                            Team Members
-                        </h3>
-                        <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
-                            {members.length} member
-                            {members.length !== 1 ? 's' : ''} in your
-                            organization
-                        </p>
-                    </div>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={loadMembers}
-                        disabled={isLoadingMembers}
-                        className="rounded-xl"
-                    >
-                        <RefreshCw
-                            className={`h-3.5 w-3.5 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`}
+                {/* Search Bar */}
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8d9ab0]" />
+                        <Input
+                            placeholder="Search members..."
+                            value={memberSearch}
+                            onChange={(e) => setMemberSearch(e.target.value)}
+                            className="pl-9 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px] focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20"
                         />
-                        Refresh
-                    </Button>
+                    </div>
                 </div>
 
                 {/* Error Message */}
                 {membersError && (
-                    <div className="mx-6 mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    <div className="mx-5 mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[11px]">
                         {membersError}
                     </div>
                 )}
 
-                {/* Table Content */}
+                {/* Card Content */}
                 {!organizationId ? (
-                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                         <p>Unable to load organization information.</p>
                     </div>
                 ) : isLoadingMembers ? (
-                    <div className="p-5 space-y-0.5">
+                    <div className="p-4 space-y-0.5">
                         {[1, 2, 3].map((i) => (
                             <div
                                 key={i}
-                                className="flex items-center justify-between p-3.5 bg-[#f8f9fa] dark:bg-gray-800 rounded-xl"
+                                className="flex items-center justify-between p-4 bg-[#f8f9fa] dark:bg-gray-800 rounded-xl"
                             >
                                 <div className="flex items-center gap-3 flex-1">
-                                    <Skeleton className="h-8 w-8 rounded-lg" />
+                                    <Skeleton className="h-10 w-10 rounded-full" />
                                     <div className="space-y-2 flex-1">
-                                        <Skeleton className="h-4 w-32" />
-                                        <Skeleton className="h-3 w-40" />
+                                        <Skeleton className="h-3 w-28" />
+                                        <Skeleton className="h-2.5 w-32" />
                                     </div>
                                 </div>
-                                <Skeleton className="h-6 w-24" />
+                                <Skeleton className="h-5 w-20" />
                             </div>
                         ))}
                     </div>
-                ) : members.length === 0 ? (
-                    <div className="text-center py-16 text-[#8d9ab0] dark:text-gray-400">
-                        <Users className="h-12 w-12 mx-auto mb-3 opacity-40" />
-                        <p className="text-sm">
-                            No members found in your organization.
+                ) : filteredMembers.length === 0 ? (
+                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                        <Users className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                        <p className="text-[11px]">
+                            {memberSearch
+                                ? 'No members match your search.'
+                                : 'No members found in your organization.'}
                         </p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr>
-                                    <th className="text-left text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
-                                        Member
-                                    </th>
-                                    <th className="text-left text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
-                                        Role
-                                    </th>
-                                    <th className="text-right text-[11px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 px-5 py-3 border-b border-[#eef0f3] dark:border-gray-800">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {members.map((member, idx) => {
-                                    const memberRole = getMemberRole(member);
-                                    const isMe = isCurrentUser(member);
-                                    const isUpdating =
-                                        updatingRoleForUserId === member.id;
-                                    const isLast = idx === members.length - 1;
+                    <div className="p-4 space-y-2">
+                        {filteredMembers.map((member) => {
+                            const memberRole = getMemberRole(member);
+                            const isMe = isCurrentUser(member);
+                            const isUpdating =
+                                updatingRoleForUserId === member.id;
 
-                                    return (
-                                        <tr
-                                            key={member.id}
-                                            className="group transition-colors duration-150 hover:bg-[#f8f9fa]/50 dark:hover:bg-gray-800/30"
+                            // Get initials for avatar
+                            const initials =
+                                member.firstName && member.lastName
+                                    ? `${member.firstName[0]}${member.lastName[0]}`.toUpperCase()
+                                    : member.email
+                                          .substring(0, 2)
+                                          .toUpperCase();
+
+                            return (
+                                <div
+                                    key={member.id}
+                                    className="flex items-center justify-between p-4 rounded-xl hover:bg-[#f8f9fa]/50 dark:hover:bg-gray-800/30 transition-colors"
+                                >
+                                    {/* Left: Avatar + Info */}
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        {/* Circular Avatar */}
+                                        <div className="h-10 w-10 rounded-full bg-[#272f3b] dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-[11px] font-bold text-white dark:text-gray-200">
+                                                {initials}
+                                            </span>
+                                        </div>
+
+                                        {/* Name and Email + Badge + Status */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                                    {member.firstName &&
+                                                    member.lastName
+                                                        ? `${member.firstName} ${member.lastName}`
+                                                        : member.email}
+                                                </div>
+                                                {isMe && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-[#eef0f3] text-[#6b7a94] dark:bg-gray-800 dark:text-gray-400 uppercase">
+                                                        YOU
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-[11px] text-[#8d9ab0] dark:text-gray-400 truncate">
+                                                {member.email}
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                {/* Status Dot + Text */}
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                    <span className="text-[10px] text-[#6b7a94] dark:text-gray-400">
+                                                        Active
+                                                    </span>
+                                                </div>
+                                                <span className="text-[#dce1e8] dark:text-gray-700">
+                                                    •
+                                                </span>
+                                                <span className="text-[10px] text-[#6b7a94] dark:text-gray-400">
+                                                    {new Date(
+                                                        member.createdAt,
+                                                    ).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Role Dropdown + Actions */}
+                                    <div className="flex items-center gap-2 ml-4">
+                                        <Select
+                                            value={memberRole?.id || ''}
+                                            onValueChange={(newRoleId) =>
+                                                handleRoleChange(
+                                                    member.id,
+                                                    newRoleId,
+                                                )
+                                            }
+                                            disabled={isMe || isUpdating}
                                         >
-                                            <td
-                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
-                                            >
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="h-8 w-8 rounded-lg bg-[#eef0f3] dark:bg-gray-800 flex items-center justify-center shrink-0">
-                                                        <span className="text-[11px] font-bold text-[#4e5d74] dark:text-gray-400">
-                                                            {member.firstName?.[0]?.toUpperCase() ||
-                                                                member.email[0].toUpperCase()}
-                                                            {member.lastName?.[0]?.toUpperCase() ||
-                                                                ''}
+                                            <SelectTrigger className="w-[140px] h-8 rounded-lg border-[#dce1e8] dark:border-gray-700 text-[11px]">
+                                                <SelectValue>
+                                                    {isUpdating ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                            <span className="text-[10px]">
+                                                                Updating...
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[11px] font-medium text-[#272f3b] dark:text-gray-100">
+                                                            {memberRole?.name ||
+                                                                'No role'}
                                                         </span>
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-[13.5px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
-                                                                {member.firstName &&
-                                                                member.lastName
-                                                                    ? `${member.firstName} ${member.lastName}`
-                                                                    : member.email}
-                                                            </div>
-                                                            {isMe && (
-                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                                    You
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-xs text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
-                                                            {member.email}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td
-                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
-                                            >
-                                                <Select
-                                                    value={memberRole?.id || ''}
-                                                    onValueChange={(
-                                                        newRoleId,
-                                                    ) =>
-                                                        handleRoleChange(
-                                                            member.id,
-                                                            newRoleId,
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        isMe || isUpdating
-                                                    }
-                                                >
-                                                    <SelectTrigger className="w-[160px] h-8 rounded-lg border-[#dce1e8] dark:border-gray-700 text-[13px]">
-                                                        <SelectValue>
-                                                            {isUpdating ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                                    <span className="text-xs">
-                                                                        Updating...
-                                                                    </span>
-                                                                </div>
-                                                            ) : (
-                                                                <span
-                                                                    className={`inline-flex text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full ${
-                                                                        memberRole?.name ===
-                                                                        'Admin'
-                                                                            ? 'bg-[#272f3b] text-white dark:bg-gray-100 dark:text-gray-900'
-                                                                            : 'bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400'
-                                                                    }`}
-                                                                >
-                                                                    {memberRole?.name ||
-                                                                        'No role'}
-                                                                </span>
-                                                            )}
-                                                        </SelectValue>
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {roles.map((role) => (
-                                                            <SelectItem
-                                                                key={role.id}
-                                                                value={role.id}
-                                                            >
-                                                                {role.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </td>
-                                            <td
-                                                className={`px-5 py-3.5 ${!isLast ? 'border-b border-[#eef0f3]/40 dark:border-gray-800/40' : ''}`}
-                                            >
-                                                <div className="flex items-center justify-end gap-0.5">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        onClick={() =>
-                                                            setMemberToRemove(
-                                                                member,
-                                                            )
-                                                        }
-                                                        disabled={isMe}
-                                                        title={
-                                                            isMe
-                                                                ? 'You cannot remove yourself'
-                                                                : 'Remove member'
-                                                        }
-                                                        className="rounded-lg hover:bg-[#eef0f3] dark:hover:bg-gray-800"
+                                                    )}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {roles.map((role) => (
+                                                    <SelectItem
+                                                        key={role.id}
+                                                        value={role.id}
                                                     >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                                        {role.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            onClick={() =>
+                                                setMemberToRemove(member)
+                                            }
+                                            disabled={isMe}
+                                            title={
+                                                isMe
+                                                    ? 'You cannot remove yourself'
+                                                    : 'Remove member'
+                                            }
+                                            className="rounded-lg hover:bg-[#eef0f3] dark:hover:bg-gray-800 h-8 w-8"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
             {/* Invite Members Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2 mt-5">
-                {/* Card Header */}
-                <div className="px-6 py-5 border-b border-[#eef0f3] dark:border-gray-800">
-                    <h3 className="text-[15px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
-                        Invite Members
-                    </h3>
-                    <p className="text-[12.5px] text-[#8d9ab0] dark:text-gray-400">
-                        Invite new members to join your organization
-                    </p>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2 mt-4">
+                <div className="p-5">
                     {inviteError && (
-                        <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                        <div className="mb-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[11px]">
                             {inviteError}
                         </div>
                     )}
 
                     {inviteSuccess && (
-                        <div className="mb-4 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
+                        <div className="mb-3 p-2.5 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[11px] flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3 w-3" />
                             {inviteSuccess}
                         </div>
                     )}
 
                     {!organizationId ? (
-                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-sm">
+                        <div className="text-center py-10 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                             <p>Unable to load organization information.</p>
                         </div>
                     ) : (
-                        <form
-                            onSubmit={handleInviteMember}
-                            className="space-y-4"
-                        >
-                            <div className="space-y-1.5">
-                                <Label
-                                    htmlFor="invite-email"
-                                    className="text-xs font-semibold text-[#4e5d74] dark:text-gray-300 uppercase tracking-wide"
-                                >
-                                    Email Address
-                                </Label>
-                                <div className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8d9ab0]" />
+                        <div className="flex items-start gap-4">
+                            {/* Mail Icon */}
+                            <div className="w-12 h-12 rounded-xl bg-[#f8f9fa] dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                <Mail className="h-5 w-5 text-[#6b7a94] dark:text-gray-400" />
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-[13px] font-semibold text-[#272f3b] dark:text-gray-100 mb-1">
+                                    Invite a team member
+                                </h3>
+                                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400 mb-3">
+                                    They'll receive a link to join your
+                                    organization
+                                </p>
+
+                                {/* Single Row Form */}
+                                <form onSubmit={handleInviteMember}>
+                                    <div className="flex items-center gap-2">
                                         <Input
-                                            id="invite-email"
                                             type="email"
-                                            placeholder="colleague@example.com"
+                                            placeholder="email@example.com"
                                             value={inviteEmail}
                                             onChange={(e) =>
                                                 setInviteEmail(e.target.value)
                                             }
-                                            className="pl-10 h-10 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-sm"
+                                            className="flex-1 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]"
                                             required
                                         />
+                                        <Select
+                                            value={selectedRole}
+                                            onValueChange={setSelectedRole}
+                                        >
+                                            <SelectTrigger className="w-[140px] h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]">
+                                                <SelectValue placeholder="Select role" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {roles.map((role) => (
+                                                    <SelectItem
+                                                        key={role.id}
+                                                        value={role.id}
+                                                    >
+                                                        {role.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="submit"
+                                            variant="primary"
+                                            size="md"
+                                            disabled={
+                                                isInviting ||
+                                                !inviteEmail.trim()
+                                            }
+                                            className="rounded-xl h-9 text-[11px] px-4"
+                                        >
+                                            {isInviting ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                'Send Invite'
+                                            )}
+                                        </Button>
                                     </div>
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        size="md"
-                                        disabled={
-                                            isInviting || !inviteEmail.trim()
-                                        }
-                                        className="rounded-xl h-10"
-                                    >
-                                        {isInviting ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                                Sending...
-                                            </>
-                                        ) : (
-                                            'Send Invite'
-                                        )}
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-[#8d9ab0] dark:text-gray-400 mt-1">
-                                    An invitation link will be sent to the email
-                                    address provided.
-                                </p>
+                                </form>
                             </div>
-                        </form>
+                        </div>
                     )}
                 </div>
             </div>
@@ -1563,23 +1510,187 @@ function OrganizationTab(_props: OrganizationTabProps) {
     return (
         <>
             {/* Section Header */}
-            <div className="mb-6 section-header-anim">
-                <h2 className="text-2xl font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
                     Organization
                 </h2>
-                <p className="text-[13.5px] text-[#8d9ab0] dark:text-gray-400">
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
                     General settings for your organization
                 </p>
             </div>
 
             {/* Placeholder for future organization settings */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
-                <div className="p-12 text-center">
-                    <Building2 className="h-12 w-12 mx-auto mb-3 text-[#8d9ab0] opacity-40" />
-                    <p className="text-sm text-[#8d9ab0] dark:text-gray-400">
+                <div className="p-10 text-center">
+                    <Building2 className="h-10 w-10 mx-auto mb-2.5 text-[#8d9ab0] opacity-40" />
+                    <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
                         Organization settings will be available here soon.
                     </p>
                 </div>
+            </div>
+        </>
+    );
+}
+
+interface SharePointTabProps {
+    sites: SharePointSite[];
+    selectedSiteIds: Set<string>;
+    isLoadingSites: boolean;
+    error: string | null;
+    isSaving: boolean;
+    toggleSite: (siteId: string) => void;
+    handleSaveSites: () => void;
+    loadSharePointData: () => void;
+}
+
+function SharePointTab({
+    sites,
+    selectedSiteIds,
+    isLoadingSites,
+    error,
+    isSaving,
+    toggleSite,
+    handleSaveSites,
+    loadSharePointData,
+}: SharePointTabProps) {
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    SharePoint Integration
+                </h2>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                    Configure SharePoint sites for AI auditing
+                </p>
+            </div>
+
+            {/* SharePoint Sites Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div>
+                        <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            SharePoint Sites
+                        </h3>
+                        <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                            Select which sites are available for AI auditing
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadSharePointData}
+                        disabled={isLoadingSites}
+                        className="rounded-xl"
+                    >
+                        <RefreshCw
+                            className={`h-3 w-3 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-1.5">
+                    {error && (
+                        <div className="mx-1.5 mt-1.5 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[11px]">
+                            {error}
+                        </div>
+                    )}
+
+                    {isLoadingSites ? (
+                        <div className="space-y-0.5 p-1">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
+                                >
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-3 w-28" />
+                                        <Skeleton className="h-2.5 w-40" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : sites.length === 0 ? (
+                        <div className="text-center py-10 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
+                            <p>
+                                No SharePoint sites found. Make sure you have
+                                access to SharePoint sites.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-0.5 p-1">
+                            {sites.map((site) => {
+                                const isSelected = selectedSiteIds.has(site.id);
+                                return (
+                                    <div
+                                        key={site.id}
+                                        className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                                            isSelected
+                                                ? 'bg-[#eef0f3]/60 dark:bg-gray-800'
+                                                : 'hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50'
+                                        }`}
+                                        onClick={() => toggleSite(site.id)}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex items-center justify-center shrink-0 mt-0.5">
+                                                <div
+                                                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                                        isSelected
+                                                            ? 'border-[#3a4557] bg-[#3a4557] dark:border-gray-100 dark:bg-gray-100'
+                                                            : 'border-[#b8c1ce] dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-gray-900" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100">
+                                                    {site.displayName ||
+                                                        site.name}
+                                                </h4>
+                                                <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
+                                                    {site.webUrl}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Card Footer */}
+                {sites.length > 0 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-[#eef0f3] dark:border-gray-800">
+                        <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400 font-medium">
+                            {selectedSiteIds.size} site
+                            {selectedSiteIds.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleSaveSites}
+                            disabled={isSaving}
+                            className="rounded-xl text-[10px] h-7 px-3"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </Button>
+                    </div>
+                )}
             </div>
         </>
     );

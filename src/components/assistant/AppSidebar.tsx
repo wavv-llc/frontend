@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,7 +14,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
 import {
     Tooltip,
     TooltipContent,
@@ -23,276 +22,29 @@ import {
 } from '@/components/ui/tooltip';
 
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
-    PanelLeft,
     Plus,
     Menu,
     Settings,
     LogOut,
     User,
-    Search,
-    ChevronRight,
-    ChevronDown,
-    FolderKanban,
     Briefcase,
-    GripVertical,
     Home,
-    MessageSquarePlus,
     MessageSquare,
-    Clock,
     ArrowLeft,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/contexts/SidebarContext';
 import {
     workspaceApi,
-    projectApi,
     userApi,
     chatApi,
     permissionUtils,
     type Workspace,
-    type Project,
     type UserPermissions,
     type Chat,
 } from '@/lib/api';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    DragEndEvent,
-    DragOverEvent,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { toast } from 'sonner';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
-
-// Sortable Project Item
-interface SortableProjectItemProps {
-    project: Project;
-    workspaceId: string;
-    onProjectClick: (workspaceId: string, projectId: string) => void;
-}
-
-const SortableProjectItem: React.FC<SortableProjectItemProps> = ({
-    project,
-    workspaceId,
-    onProjectClick,
-}) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: project.id,
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className="flex items-center gap-1 group/project"
-        >
-            <div
-                {...attributes}
-                {...listeners}
-                className="cursor-grab active:cursor-grabbing opacity-0 group-hover/project:opacity-100 transition-opacity"
-            >
-                <GripVertical className="h-3 w-3 text-muted-foreground" />
-            </div>
-            <Button
-                variant="ghost"
-                onClick={() => onProjectClick(workspaceId, project.id)}
-                className="flex-1 justify-start gap-2 px-2 py-1 font-sans text-[11px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
-            >
-                <FolderKanban className="h-3 w-3 flex-shrink-0" />
-                <span className="flex-1 truncate text-left">
-                    {project.name || `Project ${project.id.slice(0, 8)}`}
-                </span>
-            </Button>
-        </div>
-    );
-};
-
-// Sortable Workspace Item Component with expandable projects
-interface WorkspaceItemProps {
-    workspace: Workspace;
-    projects: Project[];
-    workspaces: Workspace[];
-    isCompressed: boolean;
-    onWorkspaceClick: () => void;
-    onProjectClick: (workspaceId: string, projectId: string) => void;
-    onProjectsReorder: (workspaceId: string, projectIds: string[]) => void;
-    onMoveProject: (projectId: string, targetWorkspaceId: string) => void;
-    isDraggingProject?: boolean;
-    dragOverWorkspaceId?: string | null;
-}
-
-const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
-    workspace,
-    projects,
-    isCompressed,
-    onWorkspaceClick,
-    onProjectClick,
-    isDraggingProject = false,
-    dragOverWorkspaceId = null,
-}) => {
-    const router = useRouter();
-    const [isOpen, setIsOpen] = useState(false);
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: workspace.id,
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
-    // Check if this workspace is being hovered over
-    const isOver = dragOverWorkspaceId === workspace.id;
-
-    // Auto-expand when dragging a project over this workspace
-    React.useEffect(() => {
-        if (isOver && isDraggingProject && !isOpen) {
-            setIsOpen(true);
-        }
-    }, [isOver, isDraggingProject, isOpen, workspace.name]);
-
-    if (isCompressed) {
-        return (
-            <div ref={setNodeRef} style={style}>
-                <TooltipProvider delayDuration={300}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onWorkspaceClick}
-                                className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)]"
-                            >
-                                <Briefcase className="h-[18px] w-[18px]" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                            side="right"
-                            className="bg-popover text-popover-foreground border-border"
-                        >
-                            <p>{workspace.name}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        );
-    }
-
-    return (
-        <div ref={setNodeRef} style={style}>
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <div
-                    className={cn(
-                        'flex items-center group/workspace rounded-md transition-all duration-200',
-                        isOver &&
-                            isDraggingProject &&
-                            'bg-blue-50 border-2 border-blue-400 px-1 -mx-1',
-                    )}
-                >
-                    <div
-                        {...attributes}
-                        {...listeners}
-                        className="cursor-grab active:cursor-grabbing w-0 overflow-hidden opacity-0 group-hover/workspace:w-4 group-hover/workspace:opacity-100 transition-all duration-200"
-                    >
-                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    </div>
-                    <CollapsibleTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] flex-shrink-0 transition-all duration-150 cursor-pointer"
-                        >
-                            {isOpen ? (
-                                <ChevronDown className="h-4 w-4" />
-                            ) : (
-                                <ChevronRight className="h-4 w-4" />
-                            )}
-                        </Button>
-                    </CollapsibleTrigger>
-                    <Button
-                        variant="ghost"
-                        onClick={onWorkspaceClick}
-                        className="flex-1 justify-start gap-2.5 px-2 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
-                    >
-                        <Briefcase className="h-4 w-4 flex-shrink-0" />
-                        <span className="flex-1 truncate text-left">
-                            {workspace.name}
-                        </span>
-                    </Button>
-                </div>
-                <CollapsibleContent className="ml-6 mt-1 space-y-1">
-                    <SortableContext
-                        items={projects.map((p) => p.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {projects.map((project) => (
-                            <SortableProjectItem
-                                key={project.id}
-                                project={project}
-                                workspaceId={workspace.id}
-                                onProjectClick={onProjectClick}
-                            />
-                        ))}
-                    </SortableContext>
-                    {projects.length === 0 && (
-                        <p className="px-2 py-1 text-[11px] text-muted-foreground italic">
-                            No projects yet
-                        </p>
-                    )}
-                    <Button
-                        variant="ghost"
-                        onClick={() =>
-                            router.push(
-                                `/workspaces/${workspace.id}?createProject=true`,
-                            )
-                        }
-                        className="w-full justify-start gap-2 px-2 py-1 font-sans text-[11px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-md cursor-pointer"
-                    >
-                        <Plus className="h-3 w-3 flex-shrink-0" />
-                        <span>Add project</span>
-                    </Button>
-                </CollapsibleContent>
-            </Collapsible>
-        </div>
-    );
-};
 
 // Sidebar Content Component
 interface SidebarContentProps {
@@ -302,18 +54,15 @@ interface SidebarContentProps {
 }
 
 const SidebarContent: React.FC<SidebarContentProps> = ({
-    showToggle = true,
     onToggleSidebar,
     isCompressed = false,
 }) => {
     const router = useRouter();
+    const pathname = usePathname();
     const { getToken, signOut } = useAuth();
     const { user } = useUser();
-    const { refreshTrigger, triggerRefresh } = useSidebar();
+    const { refreshTrigger } = useSidebar();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [projectsByWorkspace, setProjectsByWorkspace] = useState<
-        Record<string, Project[]>
-    >({});
     const [loading, setLoading] = useState(true);
     const [userPermissions, setUserPermissions] = useState<
         UserPermissions | undefined
@@ -351,29 +100,6 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                     await workspaceApi.getWorkspaces(token);
                 const workspacesData = workspacesResponse.data || [];
                 setWorkspaces(workspacesData);
-
-                // Fetch projects for each workspace
-                const projectsData: Record<string, Project[]> = {};
-                await Promise.all(
-                    workspacesData.map(async (workspace) => {
-                        try {
-                            const projectsResponse =
-                                await projectApi.getProjectsByWorkspace(
-                                    token,
-                                    workspace.id,
-                                );
-                            projectsData[workspace.id] =
-                                projectsResponse.data || [];
-                        } catch (error) {
-                            console.error(
-                                `Failed to fetch projects for workspace ${workspace.id}:`,
-                                error,
-                            );
-                            projectsData[workspace.id] = [];
-                        }
-                    }),
-                );
-                setProjectsByWorkspace(projectsData);
             } catch (error) {
                 console.error('Failed to fetch workspaces:', error);
             } finally {
@@ -407,21 +133,13 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         router.push(`/chats/${chatId}`);
     };
 
-    const handleSearch = () => {
-        console.log('Opening search...');
-        // TODO: Implement search
-    };
-
-    const handleSettings = () => {
-        router.push('/organization/settings');
+    const handleNewChat = () => {
+        router.push('/chats/new');
+        setSidebarView('main');
     };
 
     const handleWorkspaceClick = (workspaceId: string) => {
         router.push(`/workspaces/${workspaceId}`);
-    };
-
-    const handleProjectClick = (workspaceId: string, projectId: string) => {
-        router.push(`/workspaces/${workspaceId}/projects/${projectId}`);
     };
 
     const handleHomeClick = () => {
@@ -442,502 +160,118 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           ])
         : false;
 
-    // Track if we're currently dragging a project
-    const [isDraggingProject, setIsDraggingProject] = useState(false);
-    const [dragOverWorkspaceId, setDragOverWorkspaceId] = useState<
-        string | null
-    >(null);
-
-    // Drag and drop sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        }),
-    );
-
-    // Handle drag start to detect if dragging a project
-    const handleDragStart = (event: DragEndEvent) => {
-        const { active } = event;
-
-        // Check if dragging a project (not a workspace)
-        const isWorkspace = workspaces.some((w) => w.id === active.id);
-        const isDraggingProj = !isWorkspace;
-
-        setIsDraggingProject(isDraggingProj);
-    };
-
-    // Handle drag over to detect which workspace we're hovering
-    const handleDragOver = (event: DragOverEvent) => {
-        const { over } = event;
-
-        if (!isDraggingProject || !over) {
-            setDragOverWorkspaceId(null);
-            return;
-        }
-
-        // Check if we're over a workspace directly
-        let targetWorkspace = workspaces.find((w) => w.id === over.id);
-
-        // If not directly over a workspace, check if we're over a project
-        // and find which workspace that project belongs to
-        if (!targetWorkspace) {
-            for (const [wsId, projects] of Object.entries(
-                projectsByWorkspace,
-            )) {
-                if (projects.some((p) => p.id === over.id)) {
-                    targetWorkspace = workspaces.find((w) => w.id === wsId);
-                    break;
-                }
-            }
-        }
-
-        if (targetWorkspace) {
-            setDragOverWorkspaceId(targetWorkspace.id);
+    const handleSettings = () => {
+        // Navigate to organization settings if user has permissions, otherwise to user settings
+        if (canAccessOrgSettings) {
+            router.push('/organization/settings');
         } else {
-            setDragOverWorkspaceId(null);
-        }
-    };
-
-    // Unified drag handler for both workspaces and projects
-    const handleAllDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        // Reset dragging state
-        setIsDraggingProject(false);
-        setDragOverWorkspaceId(null);
-
-        if (!over || active.id === over.id) return;
-
-        // Check if dragging a workspace
-        const isWorkspace = workspaces.some((w) => w.id === active.id);
-
-        if (isWorkspace) {
-            // Handle workspace reordering
-            setWorkspaces((items) => {
-                const oldIndex = items.findIndex((w) => w.id === active.id);
-                const newIndex = items.findIndex((w) => w.id === over.id);
-                return arrayMove(items, oldIndex, newIndex);
-            });
-            // TODO: Call API to persist workspace order
-        } else {
-            // Handle project dragging
-            // Find which workspace the project belongs to
-            let sourceWorkspaceId: string | null = null;
-            let project: Project | null = null;
-
-            for (const [wsId, projects] of Object.entries(
-                projectsByWorkspace,
-            )) {
-                const found = projects.find((p) => p.id === active.id);
-                if (found) {
-                    sourceWorkspaceId = wsId;
-                    project = found;
-                    break;
-                }
-            }
-
-            if (!sourceWorkspaceId || !project) return;
-
-            // Check if dropped on another project (reorder within workspace)
-            let targetWorkspaceId: string | null = null;
-            for (const [wsId, projects] of Object.entries(
-                projectsByWorkspace,
-            )) {
-                if (projects.some((p) => p.id === over.id)) {
-                    targetWorkspaceId = wsId;
-                    break;
-                }
-            }
-
-            // If dropped on a workspace droppable, extract the workspace ID
-            if (
-                !targetWorkspaceId &&
-                typeof over.id === 'string' &&
-                over.id.startsWith('workspace-droppable-')
-            ) {
-                targetWorkspaceId = over.id.replace('workspace-droppable-', '');
-            }
-
-            // Fallback: check if dropped directly on a workspace
-            if (!targetWorkspaceId) {
-                const workspace = workspaces.find((w) => w.id === over.id);
-                if (workspace) {
-                    targetWorkspaceId = workspace.id;
-                }
-            }
-
-            if (!targetWorkspaceId) return;
-
-            if (sourceWorkspaceId === targetWorkspaceId) {
-                // Reorder within same workspace
-                const projects = projectsByWorkspace[sourceWorkspaceId] || [];
-                const oldIndex = projects.findIndex((p) => p.id === active.id);
-                const newIndex = projects.findIndex((p) => p.id === over.id);
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    const reorderedProjects = arrayMove(
-                        projects,
-                        oldIndex,
-                        newIndex,
-                    );
-                    setProjectsByWorkspace((prev) => ({
-                        ...prev,
-                        [sourceWorkspaceId!]: reorderedProjects,
-                    }));
-
-                    // Call API to persist project order
-                    try {
-                        const token = await getToken();
-                        if (token) {
-                            await projectApi.updateProject(
-                                token,
-                                active.id as string,
-                                {
-                                    order: newIndex,
-                                },
-                            );
-                        }
-                    } catch (e) {
-                        console.error('Failed to reorder project', e);
-                        triggerRefresh(); // Revert on failure
-                    }
-                }
-            } else {
-                // Move to different workspace
-                let order: number | undefined = undefined;
-
-                // Calculate new index in target workspace
-                const targetProjects =
-                    projectsByWorkspace[targetWorkspaceId] || [];
-                const overIndex = targetProjects.findIndex(
-                    (p) => p.id === over.id,
-                );
-
-                if (overIndex !== -1) {
-                    order = overIndex;
-                } else {
-                    // Append to end (or 0 if empty)
-                    order = targetProjects.length;
-                }
-
-                await handleMoveProject(
-                    active.id as string,
-                    targetWorkspaceId,
-                    order,
-                );
-            }
-        }
-    };
-
-    // Handle project reordering within a workspace (called from WorkspaceItem and handleAllDragEnd)
-    const handleProjectsReorder = async (
-        workspaceId: string,
-        projectIds: string[],
-    ) => {
-        // Optimistic update
-        setProjectsByWorkspace((prev) => {
-            const projects = prev[workspaceId] || [];
-            const reorderedProjects = projectIds
-                .map((id) => projects.find((p) => p.id === id))
-                .filter((p): p is Project => p !== undefined);
-
-            return {
-                ...prev,
-                [workspaceId]: reorderedProjects,
-            };
-        });
-
-        // Call API to persist project order
-        try {
-            const token = await getToken();
-            if (!token) return;
-
-            // We only need to update the moved item, but since we have the new list,
-            // we should ideally update orders.
-            // However, handleAllDragEnd passes us the *result* of arrayMove via projectIds?
-            // Wait, handleProjectsReorder argument is `projectIds` array in new order.
-            // Doing bulk update might be heavy.
-            // Usually DnD updates via `active` and `over` in `onDragEnd`.
-            // Here `handleProjectsReorder` is called by `WorkspaceItem`?
-            // No, `WorkspaceItem` doesn't call it. `WorkspaceItem` prop `onProjectsReorder` is unused in `WorkspaceItem` definition I saw previously?
-            // Line 139: `onProjectsReorder`. But `SortableProjectItem` doesn't invoke it. `DndContext` is in parent.
-            // Thus `handleProjectsReorder` is only used if `WorkspaceItem` did something custom.
-            // But `handleAllDragEnd` is the one doing the logic.
-
-            // Actually `handleAllDragEnd` at line 465 handles reordering in same workspace.
-            // It updates state locally.
-            // It should also call API.
-            // Let's modify `handleAllDragEnd` (above chunk) to call a helper that calls API.
-
-            // Let's leave handleProjectsReorder as is for now, but update handleAllDragEnd to call API.
-            // I will add the API call logic *inside* handleAllDragEnd's section for reordering, not here.
-            // But actually `handleAllDragEnd` in my previous thought didn't include the same-workspace API call logic.
-            // I should have edited that chunk too.
-            // But the chunks are separate.
-
-            // Let's redefine `handleProjectsReorder` to actually perform the API update for a single moved item if possible.
-            // But reordering assumes list index = order.
-            // I will assume `handleAllDragEnd` (which I didn't fully replace, just the `else` block) needs work.
-            // The `if (sourceWorkspaceId === targetWorkspaceId)` block (lines 465-478) needs to call API.
-
-            // I'll skip editing `handleProjectsReorder` logic for now as it seems unused or secondary,
-            // and focus on `handleMoveProject` which I am editing.
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    // Handle moving a project to another workspace
-    const handleMoveProject = async (
-        projectId: string,
-        targetWorkspaceId: string,
-        order?: number,
-    ) => {
-        try {
-            const token = await getToken();
-            if (!token) {
-                toast.error('Authentication required');
-                return;
-            }
-
-            // Find the project and its current workspace
-            let sourceWorkspaceId: string | null = null;
-            let project: Project | null = null;
-
-            for (const [wsId, projects] of Object.entries(
-                projectsByWorkspace,
-            )) {
-                const found = projects.find((p) => p.id === projectId);
-                if (found) {
-                    sourceWorkspaceId = wsId;
-                    project = found;
-                    break;
-                }
-            }
-
-            if (!sourceWorkspaceId || !project) {
-                toast.error('Project not found');
-                return;
-            }
-
-            // Optimistic update
-            setProjectsByWorkspace((prev) => {
-                const newState = { ...prev };
-
-                // Remove from source workspace
-                newState[sourceWorkspaceId] = (
-                    prev[sourceWorkspaceId] || []
-                ).filter((p) => p.id !== projectId);
-
-                // Add to target workspace
-                const targetList = [...(prev[targetWorkspaceId] || [])];
-                if (
-                    order !== undefined &&
-                    order >= 0 &&
-                    order <= targetList.length
-                ) {
-                    targetList.splice(order, 0, project!);
-                } else {
-                    targetList.push(project!);
-                }
-                newState[targetWorkspaceId] = targetList;
-
-                return newState;
-            });
-
-            // Call API to update project workspace and order
-            await projectApi.updateProject(token, projectId, {
-                workspaceId: targetWorkspaceId,
-                order,
-            });
-
-            toast.success('Project moved successfully');
-        } catch (error) {
-            console.error('Failed to move project:', error);
-            toast.error('Failed to move project');
-
-            // Revert optimistic update by refetching
-            triggerRefresh(); // Simplest revert
+            router.push('/user/settings');
         }
     };
 
     return (
-        <div className="flex h-full flex-col bg-[var(--dashboard-bg)]">
-            {/* Brand Header */}
-            {!isCompressed && sidebarView === 'main' && organization && (
-                <div className="px-[18px] py-5 border-b border-[var(--dashboard-border)]">
-                    <div className="flex items-center gap-[11px]">
-                        <div className="w-[31px] h-[31px] rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[17px] font-medium italic text-white">
-                            {organization.name?.[0]?.toUpperCase() || 'O'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="font-serif text-[14px] font-semibold tracking-tight text-[var(--dashboard-text-primary)] truncate">
-                                {organization.name || 'Organization'}
+        <div className="flex h-full flex-col bg-[var(--dashboard-surface)]">
+            {/* Header with Brand and Collapse Button */}
+            {!isCompressed && sidebarView === 'main' && (
+                <div className="px-4 pt-4 pb-4 border-b border-[var(--dashboard-border)]">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            <div
+                                className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
+                                style={{ backgroundColor: '#1e293b' }}
+                            >
+                                <span className="text-white font-serif italic text-sm">
+                                    w
+                                </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-[13px] text-[var(--dashboard-text-primary)] tracking-tight leading-tight truncate">
+                                    {user?.firstName && user?.lastName
+                                        ? `${user.firstName} ${user.lastName}`
+                                        : user?.firstName || 'User'}
+                                </div>
+                                <div className="text-[10px] text-[var(--dashboard-text-muted)] font-normal tracking-tight leading-tight truncate mt-0.5">
+                                    {organization?.name || 'Tax Professional'}
+                                </div>
                             </div>
                         </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={onToggleSidebar}
+                            className="h-7 w-7 text-[var(--dashboard-text-faint)] hover:text-[var(--dashboard-text-primary)] hover:bg-transparent transition-colors rounded-sm cursor-pointer flex-shrink-0"
+                        >
+                            <PanelLeftClose className="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
             )}
 
-            {/* Header Controls */}
-            <div
-                className={`flex items-center gap-2 p-3 ${isCompressed ? 'flex-col' : ''}`}
-            >
-                {sidebarView === 'chat-history' ? (
-                    // Chat History Header
-                    <>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                            onClick={() => setSidebarView('main')}
-                        >
-                            <ArrowLeft className="h-[18px] w-[18px]" />
-                        </Button>
-                        {!isCompressed && (
-                            <h2 className="flex-1 font-serif text-[13px] font-semibold text-[var(--dashboard-text-primary)]">
-                                Chat History
-                            </h2>
-                        )}
-                    </>
-                ) : (
-                    // Main Header
-                    <>
-                        {!isCompressed && (
-                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] text-[11px] text-[var(--dashboard-text-muted)]">
-                                <Search className="h-[12px] w-[12px]" />
-                                <span className="flex-1">Search...</span>
-                                <span className="font-sans text-[8px] text-[var(--dashboard-text-faint)]">
-                                    ⌘K
-                                </span>
-                            </div>
-                        )}
-                        {showToggle && isCompressed && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
-                                onClick={onToggleSidebar}
-                            >
-                                <PanelLeft className="h-[18px] w-[18px]" />
-                            </Button>
-                        )}
-                        {isCompressed && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleSearch}
-                                    className="h-9 w-9 flex-shrink-0 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
-                                    title="Search"
-                                >
-                                    <Search className="h-[18px] w-[18px]" />
-                                </Button>
-                                <NotificationBell />
-                            </>
-                        )}
-                    </>
-                )}
-            </div>
-
-            <Separator className="bg-[var(--dashboard-border)]" />
+            {/* Collapsed State Brand */}
+            {isCompressed && (
+                <div className="px-2 pt-4 pb-4 border-b border-[var(--dashboard-border)] flex flex-col items-center gap-3">
+                    <div
+                        className="w-8 h-8 rounded flex items-center justify-center"
+                        style={{ backgroundColor: '#1e293b' }}
+                    >
+                        <span className="text-white font-serif italic text-base">
+                            w
+                        </span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onToggleSidebar}
+                        className="h-7 w-7 text-[var(--dashboard-text-faint)] hover:text-[var(--dashboard-text-primary)] hover:bg-transparent transition-colors rounded-sm cursor-pointer"
+                    >
+                        <PanelLeftOpen className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
 
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1 px-2">
+            <ScrollArea className="flex-1 px-3 py-4">
                 {sidebarView === 'main' ? (
                     // Main Sidebar Content
-                    <div className="space-y-6 py-4">
-                        {/* Main Section */}
-                        {!isCompressed && (
-                            <div className="px-2.5 pb-1">
-                                <span className="font-sans text-[8px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
-                                    Main
-                                </span>
-                            </div>
-                        )}
-
+                    <div className="space-y-6">
                         {/* Navigation Group */}
-                        <div className="space-y-0.5">
+                        <nav className="space-y-1">
                             {/* Home Link */}
                             <div>
                                 {!isCompressed ? (
                                     <Button
                                         variant="ghost"
                                         onClick={handleHomeClick}
-                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg group cursor-pointer"
+                                        className={cn(
+                                            'w-full justify-start gap-3 px-3 py-2 text-[13px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                            pathname === '/home'
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
                                     >
-                                        <Home className="h-4 w-4 flex-shrink-0" />
-                                        <span>Dashboard</span>
-                                        {/* Active indicator - show when on dashboard */}
-                                        {/* <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-5 bg-[#6A9AB8] rounded-r" /> */}
+                                        <Home className="h-[16px] w-[16px] flex-shrink-0" />
+                                        <span className="tracking-tight">
+                                            Home
+                                        </span>
                                     </Button>
                                 ) : (
-                                    <TooltipProvider delayDuration={300}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={handleHomeClick}
-                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                                                >
-                                                    <Home className="h-[18px] w-[18px]" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent
-                                                side="right"
-                                                className="bg-popover text-popover-foreground border-border"
-                                            >
-                                                <p>Dashboard</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                            </div>
-
-                            {/* New Chat Link */}
-                            <div>
-                                {!isCompressed ? (
                                     <Button
                                         variant="ghost"
-                                        onClick={() =>
-                                            router.push('/chats/new')
-                                        }
-                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                        size="icon"
+                                        onClick={handleHomeClick}
+                                        className={cn(
+                                            'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                            pathname === '/home'
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
                                     >
-                                        <MessageSquarePlus className="h-4 w-4 flex-shrink-0" />
-                                        <span>New Chat</span>
+                                        <Home className="h-[18px] w-[18px]" />
                                     </Button>
-                                ) : (
-                                    <TooltipProvider delayDuration={300}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() =>
-                                                        router.push(
-                                                            '/chats/new',
-                                                        )
-                                                    }
-                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                                                >
-                                                    <MessageSquarePlus className="h-[18px] w-[18px]" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent
-                                                side="right"
-                                                className="bg-popover text-popover-foreground border-border"
-                                            >
-                                                <p>New Chat</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
                                 )}
                             </div>
 
-                            {/* Chat History Link */}
+                            {/* Conversations Link */}
                             <div>
                                 {!isCompressed ? (
                                     <Button
@@ -945,238 +279,297 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                         onClick={() =>
                                             setSidebarView('chat-history')
                                         }
-                                        className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
+                                        className={cn(
+                                            'w-full justify-start gap-3 px-3 py-2 text-[13px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                            pathname?.startsWith('/chats')
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
                                     >
-                                        <Clock className="h-4 w-4 flex-shrink-0" />
-                                        <span>Chat History</span>
+                                        <MessageSquare className="h-[16px] w-[16px] flex-shrink-0" />
+                                        <span className="tracking-tight">
+                                            Conversations
+                                        </span>
                                     </Button>
                                 ) : (
-                                    <TooltipProvider delayDuration={300}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() =>
-                                                        setSidebarView(
-                                                            'chat-history',
-                                                        )
-                                                    }
-                                                    className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                                                >
-                                                    <Clock className="h-[18px] w-[18px]" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent
-                                                side="right"
-                                                className="bg-popover text-popover-foreground border-border"
-                                            >
-                                                <p>Chat History</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                            setSidebarView('chat-history')
+                                        }
+                                        className={cn(
+                                            'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                            pathname?.startsWith('/chats')
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
+                                    >
+                                        <MessageSquare className="h-[18px] w-[18px]" />
+                                    </Button>
                                 )}
                             </div>
 
-                            {/* Organization Settings Link */}
-                            {canAccessOrgSettings && (
-                                <div>
-                                    {!isCompressed ? (
-                                        <Button
-                                            variant="ghost"
-                                            onClick={handleSettings}
-                                            className="relative w-full justify-start gap-2 px-2.5 py-2 font-sans text-[12px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
-                                        >
-                                            <Settings className="h-4 w-4 flex-shrink-0" />
-                                            <span>Settings</span>
-                                        </Button>
-                                    ) : (
-                                        <TooltipProvider delayDuration={300}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={handleSettings}
-                                                        className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                                                    >
-                                                        <Settings className="h-[18px] w-[18px]" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent
-                                                    side="right"
-                                                    className="bg-popover text-popover-foreground border-border"
-                                                >
-                                                    <p>Settings</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                            {/* Settings Link */}
+                            <div>
+                                {!isCompressed ? (
+                                    <Button
+                                        variant="ghost"
+                                        onClick={handleSettings}
+                                        className={cn(
+                                            'w-full justify-start gap-3 px-3 py-2 text-[13px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                            pathname?.startsWith(
+                                                '/user/settings',
+                                            ) ||
+                                                pathname?.startsWith(
+                                                    '/organization/settings',
+                                                )
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
+                                    >
+                                        <Settings className="h-[16px] w-[16px] flex-shrink-0" />
+                                        <span className="tracking-tight">
+                                            Settings
+                                        </span>
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleSettings}
+                                        className={cn(
+                                            'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                            pathname?.startsWith(
+                                                '/user/settings',
+                                            ) ||
+                                                pathname?.startsWith(
+                                                    '/organization/settings',
+                                                )
+                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                        )}
+                                    >
+                                        <Settings className="h-[18px] w-[18px]" />
+                                    </Button>
+                                )}
+                            </div>
+                        </nav>
 
                         {/* Workspaces Section */}
-                        <div>
+                        <div className="space-y-1">
                             {!isCompressed && (
-                                <div className="px-2.5 pb-1 pt-4">
-                                    <span className="font-sans text-[8px] font-semibold uppercase tracking-[0.1em] text-[var(--dashboard-text-faint)]">
-                                        Workspace
-                                    </span>
+                                <div className="border-t border-[var(--dashboard-border-light)] pt-4 pb-2">
+                                    <div className="px-3 flex items-center gap-2">
+                                        <div className="h-px flex-1 bg-[var(--dashboard-border-light)]" />
+                                        <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--dashboard-text-faint)]">
+                                            Workspaces
+                                        </span>
+                                        <div className="h-px flex-1 bg-[var(--dashboard-border-light)]" />
+                                    </div>
                                 </div>
                             )}
                             <div className="space-y-1">
-                                {loading ? (
-                                    !isCompressed && (
-                                        <div className="space-y-2 px-2 py-1">
-                                            {[1, 2, 3].map((i) => (
-                                                <div
-                                                    key={i}
-                                                    className="flex items-center gap-2"
-                                                >
-                                                    <Skeleton className="h-4 w-4 rounded-sm" />
-                                                    <Skeleton className="h-4 w-32 rounded-sm" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )
-                                ) : workspaces.length > 0 ? (
-                                    <DndContext
-                                        sensors={sensors}
-                                        collisionDetection={closestCenter}
-                                        onDragStart={handleDragStart}
-                                        onDragOver={handleDragOver}
-                                        onDragEnd={handleAllDragEnd}
-                                    >
-                                        <SortableContext
-                                            items={workspaces.map((w) => w.id)}
-                                            strategy={
-                                                verticalListSortingStrategy
-                                            }
-                                        >
-                                            {workspaces.map((workspace) => (
-                                                <WorkspaceItem
-                                                    key={workspace.id}
-                                                    workspace={workspace}
-                                                    projects={
-                                                        projectsByWorkspace[
-                                                            workspace.id
-                                                        ] || []
-                                                    }
-                                                    workspaces={workspaces}
-                                                    isCompressed={isCompressed}
-                                                    onWorkspaceClick={() =>
-                                                        handleWorkspaceClick(
-                                                            workspace.id,
-                                                        )
-                                                    }
-                                                    onProjectClick={
-                                                        handleProjectClick
-                                                    }
-                                                    onProjectsReorder={
-                                                        handleProjectsReorder
-                                                    }
-                                                    onMoveProject={
-                                                        handleMoveProject
-                                                    }
-                                                    isDraggingProject={
-                                                        isDraggingProject
-                                                    }
-                                                    dragOverWorkspaceId={
-                                                        dragOverWorkspaceId
-                                                    }
-                                                />
-                                            ))}
-                                        </SortableContext>
-                                    </DndContext>
-                                ) : (
-                                    !isCompressed && (
-                                        <p className="px-2 py-2 text-[11px] text-muted-foreground italic">
-                                            No workspaces yet
-                                        </p>
-                                    )
-                                )}
+                                {loading
+                                    ? !isCompressed && (
+                                          <div className="space-y-2 px-3 py-1">
+                                              {[1, 2].map((i) => (
+                                                  <div
+                                                      key={i}
+                                                      className="flex items-center gap-2 animate-pulse"
+                                                  >
+                                                      <Skeleton className="h-2 w-2 rounded-full" />
+                                                      <Skeleton className="h-3.5 flex-1 rounded-sm" />
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      )
+                                    : workspaces.length > 0
+                                      ? workspaces.map((workspace) => (
+                                            <div key={workspace.id}>
+                                                {!isCompressed ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                            handleWorkspaceClick(
+                                                                workspace.id,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'w-full justify-start gap-3 px-3 py-2 text-[12.5px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                                            pathname?.includes(
+                                                                `/workspaces/${workspace.id}`,
+                                                            )
+                                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                                : 'text-[var(--dashboard-text-body)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                        )}
+                                                    >
+                                                        <div
+                                                            className={cn(
+                                                                'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
+                                                                pathname?.includes(
+                                                                    `/workspaces/${workspace.id}`,
+                                                                )
+                                                                    ? 'bg-[var(--accent)]'
+                                                                    : 'bg-[var(--dashboard-border)]',
+                                                            )}
+                                                        />
+                                                        <span className="truncate tracking-tight">
+                                                            {workspace.name}
+                                                        </span>
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() =>
+                                                            handleWorkspaceClick(
+                                                                workspace.id,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                                            pathname?.includes(
+                                                                `/workspaces/${workspace.id}`,
+                                                            )
+                                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                        )}
+                                                    >
+                                                        <Briefcase className="h-[18px] w-[18px]" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        ))
+                                      : !isCompressed && (
+                                            <p className="px-3 py-3 text-[11px] text-[var(--dashboard-text-faint)] text-center">
+                                                No workspaces
+                                            </p>
+                                        )}
                             </div>
                         </div>
                     </div>
                 ) : (
                     // Chat History Content
-                    <div className="space-y-1 py-4">
+                    <div className="space-y-4">
+                        {/* Back Button */}
+                        {!isCompressed && (
+                            <Button
+                                variant="ghost"
+                                onClick={() => setSidebarView('main')}
+                                className="w-full justify-start gap-3 px-3 py-2 text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--dashboard-bg)] hover:text-[var(--dashboard-text-primary)] transition-colors rounded-sm cursor-pointer"
+                            >
+                                <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+                                <span className="tracking-tight">
+                                    Back to menu
+                                </span>
+                            </Button>
+                        )}
+
+                        {/* New Chat Button */}
+                        {!isCompressed ? (
+                            <Button
+                                variant="default"
+                                onClick={handleNewChat}
+                                className="w-full justify-center gap-2 px-3 py-2.5 text-[13px] font-medium bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-all rounded-md cursor-pointer shadow-sm"
+                            >
+                                <Plus className="h-4 w-4 flex-shrink-0" />
+                                <span className="tracking-tight">New Chat</span>
+                            </Button>
+                        ) : (
+                            <TooltipProvider delayDuration={300}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="default"
+                                            size="icon"
+                                            onClick={handleNewChat}
+                                            className="w-full h-10 bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90 transition-all rounded-sm cursor-pointer shadow-sm"
+                                        >
+                                            <Plus className="h-5 w-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                        side="right"
+                                        sideOffset={5}
+                                        className="bg-popover text-popover-foreground border-border"
+                                    >
+                                        <p>New Chat</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+
                         {chatsLoading ? (
-                            <div className="space-y-2 px-2 py-1">
-                                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                            <div className="space-y-2 px-3 py-1">
+                                {[1, 2, 3, 4, 5].map((i) => (
                                     <div
                                         key={i}
-                                        className="flex items-center gap-2"
+                                        className="flex items-center gap-2 animate-pulse"
                                     >
-                                        <Skeleton className="h-4 w-4 rounded-sm" />
-                                        <Skeleton className="h-4 flex-1 rounded-sm" />
+                                        <Skeleton className="h-3.5 flex-1 rounded" />
                                     </div>
                                 ))}
                             </div>
                         ) : chats.length > 0 ? (
-                            chats.map((chat) => (
-                                <div key={chat.id}>
-                                    {!isCompressed ? (
-                                        <Button
-                                            variant="ghost"
-                                            onClick={() => {
-                                                handleChatClick(chat.id);
-                                                setSidebarView('main');
-                                            }}
-                                            className="w-full justify-start gap-2 px-2.5 py-2.5 font-sans text-[13px] font-normal text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] transition-all duration-150 rounded-lg cursor-pointer"
-                                        >
-                                            <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                                            <span className="flex-1 truncate text-left">
-                                                {chat.message.length > 40
-                                                    ? chat.message.slice(
-                                                          0,
-                                                          40,
-                                                      ) + '...'
-                                                    : chat.message}
-                                            </span>
-                                        </Button>
-                                    ) : (
-                                        <TooltipProvider delayDuration={300}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => {
-                                                            handleChatClick(
-                                                                chat.id,
-                                                            );
-                                                            setSidebarView(
-                                                                'main',
-                                                            );
-                                                        }}
-                                                        className="w-full h-10 text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:text-[var(--accent)] cursor-pointer"
-                                                    >
-                                                        <MessageSquare className="h-[18px] w-[18px]" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent
-                                                    side="right"
-                                                    className="bg-popover text-popover-foreground border-border"
-                                                >
-                                                    <p className="max-w-[200px] truncate">
-                                                        {chat.message}
-                                                    </p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    )}
-                                </div>
-                            ))
+                            <div className="space-y-1">
+                                {chats.map((chat) => (
+                                    <div key={chat.id}>
+                                        {!isCompressed ? (
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    handleChatClick(chat.id);
+                                                    setSidebarView('main');
+                                                }}
+                                                className={cn(
+                                                    'w-full justify-start gap-3 px-3 py-2 text-[12.5px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                                    pathname ===
+                                                        `/chats/${chat.id}`
+                                                        ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                        : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                )}
+                                            >
+                                                <MessageSquare className="h-[15px] w-[15px] flex-shrink-0" />
+                                                <span className="flex-1 truncate text-left tracking-tight">
+                                                    {chat.message.length > 30
+                                                        ? chat.message.slice(
+                                                              0,
+                                                              30,
+                                                          ) + '...'
+                                                        : chat.message}
+                                                </span>
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    handleChatClick(chat.id);
+                                                    setSidebarView('main');
+                                                }}
+                                                className={cn(
+                                                    'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                                    pathname ===
+                                                        `/chats/${chat.id}`
+                                                        ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                        : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                )}
+                                            >
+                                                <MessageSquare className="h-[18px] w-[18px]" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
-                            <div className="px-4 py-12 text-center">
-                                <MessageSquare className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                <p className="text-[13px] text-muted-foreground">
-                                    No chats yet
+                            <div className="px-4 py-16 text-center">
+                                <MessageSquare className="h-10 w-10 mx-auto mb-4 text-[var(--dashboard-border)] opacity-50" />
+                                <p className="text-[12px] text-[var(--dashboard-text-muted)] font-medium">
+                                    No conversations
                                 </p>
-                                <p className="text-[11px] text-muted-foreground mt-1">
-                                    Start a new chat to get started
+                                <p className="text-[11px] text-[var(--dashboard-text-faint)] mt-1.5">
+                                    Start a new conversation to begin
                                 </p>
                             </div>
                         )}
@@ -1184,24 +577,22 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                 )}
             </ScrollArea>
 
-            <Separator className="bg-[var(--dashboard-border)]" />
-
-            {/* Footer - Clerk User Profile */}
-            <div className="p-3.5 border-t border-[var(--dashboard-border)]">
+            {/* Footer - User Profile */}
+            <div className="p-3 mt-auto border-t border-[var(--dashboard-border)]">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         {!isCompressed ? (
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start gap-2 px-2 py-2.5 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] rounded-lg transition-all duration-150 cursor-pointer"
+                                className="w-full justify-start gap-2.5 px-2 py-2 hover:bg-[var(--dashboard-bg)] rounded-sm transition-colors cursor-pointer h-auto"
                             >
-                                <div className="h-[27px] w-[27px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[11px] font-semibold italic text-white flex-shrink-0">
+                                <div className="h-8 w-8 rounded-md bg-gradient-to-br from-[#3d4a52] to-[#2e3b44] flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0 shadow-sm">
                                     {user?.firstName?.[0] ||
                                         user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
                                         'U'}
                                 </div>
-                                <div className="flex flex-col items-start text-[13px] overflow-hidden flex-1">
-                                    <span className="font-sans font-medium text-[11px] truncate w-full text-[var(--dashboard-text-primary)]">
+                                <div className="flex flex-col items-start overflow-hidden flex-1 min-w-0">
+                                    <span className="font-medium text-[11.5px] truncate w-full text-[var(--dashboard-text-primary)] tracking-tight">
                                         {user?.firstName && user?.lastName
                                             ? `${user.firstName} ${user.lastName}`
                                             : user?.firstName ||
@@ -1209,8 +600,9 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                                   ?.emailAddress ||
                                               'User'}
                                     </span>
-                                    <span className="font-sans text-[8px] text-[var(--dashboard-text-muted)] truncate w-full">
-                                        Admin
+                                    <span className="text-[10px] text-[var(--dashboard-text-muted)] truncate w-full font-normal tracking-tight">
+                                        {organization?.name ||
+                                            'Tax Professional'}
                                     </span>
                                 </div>
                             </Button>
@@ -1218,10 +610,10 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer"
+                                className="h-10 w-10 hover:bg-[var(--dashboard-bg)] cursor-pointer rounded-sm transition-colors"
                                 title={user?.firstName || 'User'}
                             >
-                                <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-light)] flex items-center justify-center font-serif text-[11px] font-semibold italic text-white">
+                                <div className="h-8 w-8 rounded-md bg-gradient-to-br from-[#3d4a52] to-[#2e3b44] flex items-center justify-center text-[11px] font-semibold text-white shadow-sm">
                                     {user?.firstName?.[0] ||
                                         user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
                                         'U'}
@@ -1231,22 +623,22 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                         align="end"
-                        className="w-56 bg-popover border-border text-popover-foreground"
+                        className="w-52 bg-popover border-border text-popover-foreground"
                     >
                         <DropdownMenuItem
-                            className="cursor-pointer focus:bg-sky-100 focus:text-foreground"
+                            className="cursor-pointer focus:bg-[var(--dashboard-bg)] focus:text-foreground transition-colors text-[13px] py-2.5"
                             onClick={() => router.push('/user/settings')}
                         >
-                            <User className="mr-2 h-4 w-4" />
-                            Profile
+                            <User className="mr-2.5 h-4 w-4" />
+                            <span>Profile Settings</span>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        <DropdownMenuSeparator className="bg-[var(--dashboard-border-light)]" />
                         <DropdownMenuItem
-                            className="cursor-pointer text-destructive focus:text-destructive focus:bg-sky-100"
+                            className="cursor-pointer text-destructive focus:text-destructive focus:bg-red-50 transition-colors text-[13px] py-2.5"
                             onClick={handleSignOut}
                         >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Logout
+                            <LogOut className="mr-2.5 h-4 w-4" />
+                            <span>Sign Out</span>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -1263,14 +655,24 @@ export const AppSidebar: React.FC = () => {
         <>
             {/* Desktop Sidebar */}
             <aside
-                className={`hidden md:block fixed left-0 top-0 z-40 h-screen border-r border-[var(--dashboard-border)] bg-[var(--dashboard-bg)] transition-all duration-300 ease-in-out ${
-                    isOpen ? 'w-[223px]' : 'w-[54px]'
-                }`}
+                className={cn(
+                    'hidden md:block fixed left-0 top-0 z-40 h-screen bg-[var(--dashboard-surface)] border-r border-[var(--dashboard-border)] shadow-sm overflow-hidden',
+                    'transition-[width] duration-300 ease-in-out will-change-[width]',
+                    isOpen ? 'w-[240px]' : 'w-[56px]',
+                )}
+                style={{ transitionProperty: 'width' }}
             >
-                <SidebarContent
-                    onToggleSidebar={toggle}
-                    isCompressed={!isOpen}
-                />
+                <div
+                    className={cn(
+                        'h-full transition-[width] duration-300 ease-in-out',
+                        isOpen ? 'w-[240px]' : 'w-[56px]',
+                    )}
+                >
+                    <SidebarContent
+                        onToggleSidebar={toggle}
+                        isCompressed={!isOpen}
+                    />
+                </div>
             </aside>
 
             {/* Mobile Sidebar (Sheet) */}
@@ -1280,14 +682,14 @@ export const AppSidebar: React.FC = () => {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="fixed left-4 top-4 z-40 h-9 w-9 text-foreground hover:bg-sidebar-accent"
+                            className="fixed left-3 top-3 z-40 h-8 w-8 text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] cursor-pointer rounded-lg"
                         >
-                            <Menu className="h-[18px] w-[18px]" />
+                            <Menu className="h-5 w-5" />
                         </Button>
                     </SheetTrigger>
                     <SheetContent
                         side="left"
-                        className="w-[223px] p-0 bg-[var(--dashboard-bg)] border-[var(--dashboard-border)]"
+                        className="w-[240px] p-0 bg-[var(--dashboard-surface)] border-[var(--dashboard-border)]"
                     >
                         <SidebarContent showToggle={false} />
                     </SheetContent>

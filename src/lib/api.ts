@@ -1052,6 +1052,9 @@ export interface OrganizationDocument {
         | 'ARCHIVED';
     createdAt: string;
     updatedAt: string;
+    sharepointSite?: {
+        siteName: string;
+    };
 }
 
 export interface OrganizationDocumentsResponse {

@@ -18,14 +18,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen w-full bg-[var(--dashboard-bg)]">
-            <AppSidebar />
-            <main
-                className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${
-                    isOpen ? 'md:ml-[223px]' : 'md:ml-[54px]'
+            {/* Spacer to account for fixed sidebar - automatically matches sidebar width */}
+            <div
+                className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${
+                    isOpen ? 'w-[240px]' : 'w-[56px]'
                 }`}
-            >
-                {children}
-            </main>
+            />
+            <AppSidebar />
+            {/* Main content now automatically takes remaining space */}
+            <main className="flex-1 min-w-0 overflow-hidden">{children}</main>
         </div>
     );
 }
