@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import parser from '@typescript-eslint/parser';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import prettierConfig from 'eslint-config-prettier';
 
 const eslintConfig = [
     // JS base config
@@ -73,38 +74,13 @@ const eslintConfig = [
             'no-var': 'error',
             'no-eval': 'error',
 
-            // Async/await (important for Express)
+            // Async/await
             'no-async-promise-executor': 'error',
-
-            // Code style
-            'arrow-spacing': [
-                'error',
-                {
-                    before: true,
-                    after: true,
-                },
-            ],
-            'block-spacing': 'error',
-            'brace-style': ['error', 'stroustrup'],
-            'comma-dangle': ['error', 'only-multiline'],
-            'comma-spacing': 'error',
-            'eol-last': 'error',
-            semi: ['error', 'always'],
-            quotes: [
-                'error',
-                'single',
-                {
-                    allowTemplateLiterals: true,
-                },
-            ],
-            'no-extra-semi': 'error',
-            'object-curly-spacing': ['error', 'always'],
-            indent: ['error', 4],
-            'key-spacing': ['error', { afterColon: true }],
-            'keyword-spacing': ['error', { before: true, after: true }],
-            'space-before-blocks': 'error',
         },
     },
+
+    // Prettier config - disables conflicting ESLint formatting rules
+    prettierConfig,
 
     // Ignore patterns
     {
