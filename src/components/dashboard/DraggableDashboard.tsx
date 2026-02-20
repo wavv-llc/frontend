@@ -95,12 +95,7 @@ function SortableWidget({
                     />
                 );
             case 'calendar':
-                return (
-                    <CalendarWidget
-                        tasks={data.calendar}
-                        isLoading={data.loading}
-                    />
-                );
+                return <CalendarWidget tasks={data.calendar} />;
             default:
                 return null;
         }

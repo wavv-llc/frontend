@@ -29,7 +29,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { cn } from '@/lib/utils';
-import { type Task, type Comment, taskApi, taskCommentApi } from '@/lib/api';
+import {
+    type Task,
+    type Comment,
+    type User,
+    taskApi,
+    taskCommentApi,
+} from '@/lib/api';
 import { format } from 'date-fns';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
@@ -103,9 +109,8 @@ export function TaskDetailView({
                     task.id,
                 );
 
-                const commentsData =
-                    (response as { data?: unknown[] }).data ||
-                    (response as unknown[]);
+                const commentsData = (response.data ||
+                    []) as unknown as CommentResponse[];
 
                 // Transform backend format to frontend format
                 interface CommentResponse {
@@ -115,28 +120,28 @@ export function TaskDetailView({
                     postedAt?: string;
                     createdAt: string;
                     updatedAt?: string;
-                    postedByUser?: unknown;
-                    user?: unknown;
+                    postedByUser?: User;
+                    user?: User;
                     resolved?: boolean;
-                    resolvedBy?: unknown;
+                    resolvedBy?: User;
                     reactions?: Array<{
                         id: string;
                         emoji: string;
                         userId: string;
-                        user: unknown;
+                        user: User;
                         commentId: string;
-                        createdAt?: string;
+                        createdAt: string;
                     }>;
                     replies?: CommentResponse[];
                     parentCommentId?: string;
                 }
                 const transformComment = (c: CommentResponse): Comment => ({
                     id: c.id,
-                    content: c.comment || c.content,
-                    comment: c.comment || c.content,
+                    content: c.comment || c.content || '',
+                    comment: c.comment || c.content || '',
                     createdAt: c.postedAt || c.createdAt,
-                    updatedAt: c.updatedAt,
-                    user: c.postedByUser || c.user,
+                    updatedAt: c.updatedAt || c.createdAt,
+                    user: c.postedByUser || c.user || { id: '', email: '' },
                     status: (c.resolved ? 'RESOLVED' : 'OPEN') as
                         | 'OPEN'
                         | 'RESOLVED',
@@ -144,22 +149,14 @@ export function TaskDetailView({
                     resolvedBy: c.resolvedBy,
 
                     reactions:
-                        c.reactions?.map(
-                            (r: {
-                                id: string;
-                                emoji: string;
-                                userId: string;
-                                user: unknown;
-                                commentId: string;
-                            }) => ({
-                                id: r.id,
-                                emoji: r.emoji,
-                                userId: r.userId,
-                                user: r.user,
-                                commentId: r.commentId,
-                                createdAt: r.createdAt,
-                            }),
-                        ) || [],
+                        c.reactions?.map((r) => ({
+                            id: r.id,
+                            emoji: r.emoji,
+                            userId: r.userId,
+                            user: r.user,
+                            commentId: r.commentId,
+                            createdAt: r.createdAt,
+                        })) || [],
                     replies: c.replies?.map(transformComment) || [],
                     parentId: c.parentCommentId,
                 });

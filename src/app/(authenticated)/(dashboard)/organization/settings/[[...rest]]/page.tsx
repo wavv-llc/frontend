@@ -754,7 +754,9 @@ interface DocumentsTabProps {
     handleRetryDocument: (documentId: string) => void;
     handleReembedDocument: (documentId: string) => void;
     loadDocuments: () => void;
-    getStatusBadge: (status: OrganizationDocument['status']) => JSX.Element;
+    getStatusBadge: (
+        status: OrganizationDocument['status'],
+    ) => React.ReactElement;
     formatFileSize: (bytes: number) => string;
     router: ReturnType<typeof useRouter>;
 }

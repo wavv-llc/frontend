@@ -1,1 +1,5 @@
+echo "Running type check..."
+yarn type-check
+
+echo "Running lint-staged..."
 npx lint-staged

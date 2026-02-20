@@ -42,7 +42,7 @@ export function CreateTaskDialog({
                 name: string;
                 description?: string;
                 dueAt?: string;
-                status: string;
+                status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
                 customFields: Record<string, string | number | null>;
             },
         ) => taskApi.createTask(token, projectId, data),
@@ -64,7 +64,7 @@ export function CreateTaskDialog({
             description: '',
             dueDate: new Date(),
         },
-        validate: (values) => {
+        validate: (values): Record<string, string> | null => {
             if (!values.name.trim()) {
                 return { name: 'Please enter a task name' };
             }

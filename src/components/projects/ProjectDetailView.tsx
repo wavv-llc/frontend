@@ -416,10 +416,13 @@ export function ProjectDetailView({
             let count = 0;
             for (const row of jsonData as Record<string, unknown>[]) {
                 const taskName = row['Task Name'] || row['Name'] || row['Task'];
-                if (!taskName) continue;
+                if (!taskName || typeof taskName !== 'string') continue;
 
                 // Try to map custom fields
-                const customFieldsPayload: Record<string, string> = {};
+                const customFieldsPayload: Record<
+                    string,
+                    string | number | null
+                > = {};
 
                 customFields.forEach((field) => {
                     if (row[field.name]) {
@@ -427,7 +430,13 @@ export function ProjectDetailView({
                         // For User fields, we'd need email lookup which might not be in row.
                         // For now, only string/number/date fields might import cleanly directly.
                         // Use as is.
-                        customFieldsPayload[field.id] = row[field.name];
+                        const value = row[field.name];
+                        if (
+                            typeof value === 'string' ||
+                            typeof value === 'number'
+                        ) {
+                            customFieldsPayload[field.id] = value;
+                        }
                     }
                 });
 

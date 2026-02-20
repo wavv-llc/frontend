@@ -695,13 +695,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const handleSaveTaskName = async (taskId: string, name: string) => {
             const trimmedName = name.trim();
             if (!trimmedName) {
-                setEditingTaskId(null);
                 return;
             }
 
             const task = tasks.find((t) => t.id === taskId);
             if (!task || task.name === trimmedName) {
-                setEditingTaskId(null);
                 return;
             }
 
@@ -716,12 +714,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     name: trimmedName,
                 });
 
-                setEditingTaskId(null);
                 onTaskCreated();
             } catch (error) {
                 console.error('Failed to update task:', error);
                 toast.error('Failed to update task');
-                setEditingTaskId(null);
             }
         };
 

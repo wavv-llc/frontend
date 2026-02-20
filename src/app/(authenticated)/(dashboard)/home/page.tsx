@@ -79,15 +79,13 @@ export default function HomePage() {
         return data.tasks.map((task) => ({
             id: task.id,
             clientName: task.project.name,
-            formType: task.taskType || 'Task',
-            priority:
-                (task.priority?.toLowerCase() as 'high' | 'medium' | 'low') ||
-                'medium',
+            formType: 'Task',
+            priority: 'medium' as const,
             status:
                 (task.status
                     ?.toLowerCase()
                     .replace(' ', '-') as Task['status']) || 'pending',
-            dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+            dueDate: task.dueAt ? new Date(task.dueAt) : new Date(),
         }));
     }, [data.tasks]);
 
@@ -95,8 +93,8 @@ export default function HomePage() {
         return data.calendar.map((task) => ({
             id: task.id,
             title: task.name || task.project.name,
-            date: task.dueDate ? new Date(task.dueDate) : new Date(),
-            type: task.taskType === 'Deadline' ? 'deadline' : 'task',
+            date: task.dueAt ? new Date(task.dueAt) : new Date(),
+            type: 'task' as const,
             status: task.status
                 ?.toLowerCase()
                 .replace(' ', '-') as CalendarEvent['status'],
@@ -110,11 +108,9 @@ export default function HomePage() {
             title: item.name,
             description: `${item.name}${item.parentName ? ` in ${item.parentName}` : ''}`,
             user: {
-                name: item.userName || 'Unknown',
+                name: 'Unknown',
             },
-            timestamp: item.lastModified
-                ? new Date(item.lastModified)
-                : new Date(),
+            timestamp: new Date(item.updatedAt),
         }));
     }, [data.recents]);
 

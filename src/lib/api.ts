@@ -938,7 +938,7 @@ export interface DashboardStats {
 export interface Chat {
     id: string;
     message: string;
-    response: string;
+    response: string | null;
     createdAt: string;
     updatedAt: string;
 }
