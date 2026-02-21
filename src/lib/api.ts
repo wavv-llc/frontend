@@ -1205,6 +1205,113 @@ export const chatApi = {
     },
 };
 
+// Tax Library Document types
+export interface TaxLibraryDocument {
+    id: string;
+    organizationId: string;
+    documentId: string;
+    createdAt: string;
+    updatedAt: string;
+    document: {
+        id: string;
+        filename: string;
+        originalName: string;
+        filesize: number;
+        mimeType: string;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+        uploadedByUser: {
+            id: string;
+            email: string;
+        } | null;
+        sharepointSite: {
+            id: string;
+            siteId: string;
+            siteName: string;
+        } | null;
+    };
+}
+
+export interface TaxLibraryDocumentsResponse {
+    taxLibraryDocuments: TaxLibraryDocument[];
+}
+
+// Tax Library API functions
+export const taxLibraryApi = {
+    getOrganizationDocuments: async (token: string, organizationId: string) => {
+        return apiRequest<TaxLibraryDocumentsResponse>(
+            `/api/v1/tax-library-documents/organization/${organizationId}`,
+            {
+                method: 'GET',
+                token,
+            },
+        );
+    },
+
+    uploadDocument: async (
+        token: string,
+        organizationId: string,
+        file: File,
+    ) => {
+        // Step 1: Get signed S3 upload URL from Core API
+        const uploadUrlResponse = await fetch(
+            `${API_BASE_URL}/api/v1/documents/upload`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    files: [file.name],
+                    organizationId,
+                    source: 'library',
+                }),
+            },
+        );
+
+        if (!uploadUrlResponse.ok) {
+            throw new Error('Failed to get upload URL');
+        }
+
+        const uploadUrlData = await uploadUrlResponse.json();
+        const signedUrl =
+            uploadUrlData.data?.[0]?.signedUrl ||
+            uploadUrlData.signedUrl ||
+            uploadUrlData[0]?.signedUrl;
+
+        if (!signedUrl) {
+            throw new Error('No signed URL returned from server');
+        }
+
+        // Step 2: Upload file directly to S3 using the signed URL
+        const s3Response = await fetch(signedUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type || 'application/octet-stream',
+            },
+            body: file,
+        });
+
+        if (!s3Response.ok) {
+            throw new Error('Failed to upload file to S3');
+        }
+
+        return uploadUrlData;
+    },
+
+    deleteDocument: async (token: string, documentId: string) => {
+        return apiRequest<{ message: string }>(
+            `/api/v1/tax-library-documents/${documentId}`,
+            {
+                method: 'DELETE',
+                token,
+            },
+        );
+    },
+};
+
 // Permission utilities
 export const permissionUtils = {
     hasAnyOrgPermission: (

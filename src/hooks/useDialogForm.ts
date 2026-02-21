@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 
 /**
  * Validation function that returns error messages keyed by field name
@@ -203,6 +204,7 @@ export function useDialogForm<TFormData extends Record<string, any>>({
                 const validationErrors = validate(values);
                 if (validationErrors) {
                     setErrors(validationErrors);
+                    toast.error('Please fix the errors in the form');
                     return;
                 }
             }

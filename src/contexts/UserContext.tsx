@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { userApi, MeResponse, Permission } from '@/lib/api';
+import { toast } from 'sonner';
 
 interface UserContextType {
     user: MeResponse | null;
@@ -51,9 +52,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (err) {
             console.error('Error fetching user:', err);
-            setError(
-                err instanceof Error ? err : new Error('Failed to fetch user'),
-            );
+            const error =
+                err instanceof Error ? err : new Error('Failed to fetch user');
+            setError(error);
+            toast.error('Failed to load user information');
         } finally {
             setIsLoading(false);
         }

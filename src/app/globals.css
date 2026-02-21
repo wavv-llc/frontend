@@ -150,8 +150,9 @@
     --accent: var(--steel-600); /* "Unleashed" only */
     --accent-foreground: var(--steel-50);
 
-    --destructive: #dc2626; /* Keep red */
+    --destructive: #ef4444; /* Modern red */
     --destructive-foreground: #ffffff;
+    --destructive-border: #fca5a5; /* Light red border */
 
     --border: var(--steel-200);
     --input: var(--steel-100);
@@ -233,8 +234,9 @@
     --accent: var(--steel-800);
     --accent-foreground: var(--steel-200);
 
-    --destructive: #dc2626;
+    --destructive: #ef4444; /* Modern red */
     --destructive-foreground: #ffffff;
+    --destructive-border: #f87171; /* Light red border for dark mode */
 
     --border: var(--steel-800);
     --input: var(--steel-900);

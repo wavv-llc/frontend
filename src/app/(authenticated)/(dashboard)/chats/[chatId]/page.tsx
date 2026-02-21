@@ -17,6 +17,7 @@ import {
 import { chatApi, type Chat } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { colors } from '@/lib/colors';
+import { toast } from 'sonner';
 
 // ─── Design Tokens ───────────────────────────────────
 const ease = 'cubic-bezier(0.23, 1, 0.32, 1)';
@@ -128,6 +129,7 @@ export default function ChatDetailPage() {
                 const token = await getToken();
                 if (!token) {
                     setError('Authentication required');
+                    toast.error('Authentication required');
                     return;
                 }
 
@@ -155,6 +157,7 @@ export default function ChatDetailPage() {
                                 onError: (err) => {
                                     console.error('Polling error:', err);
                                     setError('Failed to receive response');
+                                    toast.error('Failed to receive response');
                                     setIsThinking(false);
                                 },
                             },
@@ -165,10 +168,12 @@ export default function ChatDetailPage() {
                     }
                 } else {
                     setError('Chat not found');
+                    toast.error('Chat not found');
                 }
             } catch (err) {
                 console.error('Failed to fetch chat:', err);
                 setError('Failed to load chat');
+                toast.error('Failed to load chat');
             } finally {
                 setLoading(false);
             }

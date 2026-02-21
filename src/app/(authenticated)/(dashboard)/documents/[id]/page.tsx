@@ -62,9 +62,10 @@ export default function DocumentDetailPage() {
             }
         } catch (err) {
             console.error('Error loading document:', err);
-            setError(
-                err instanceof Error ? err.message : 'Failed to load document',
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load document';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -83,9 +84,10 @@ export default function DocumentDetailPage() {
             await loadDocument();
         } catch (err) {
             console.error('Error retrying document:', err);
-            setError(
-                err instanceof Error ? err.message : 'Failed to retry document',
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to retry document';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsRetrying(false);
         }
@@ -104,11 +106,12 @@ export default function DocumentDetailPage() {
             await loadDocument();
         } catch (err) {
             console.error('Error re-embedding document:', err);
-            setError(
+            const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : 'Failed to re-embed document',
-            );
+                    : 'Failed to re-embed document';
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsReembedding(false);
         }

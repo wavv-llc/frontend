@@ -359,7 +359,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                         {/* Workspaces Section */}
                         <div className="space-y-1">
                             {!isCompressed && (
-                                <div className="border-t border-[var(--dashboard-border-light)] pt-4 pb-2">
+                                <div className="pt-4 pb-2">
                                     <div className="px-3 flex items-center gap-2">
                                         <div className="h-px flex-1 bg-[var(--dashboard-border-light)]" />
                                         <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--dashboard-text-faint)]">
