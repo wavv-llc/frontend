@@ -8,78 +8,55 @@ import {
 
 export function ProjectDetailSkeleton() {
     return (
-        <div className="flex flex-col h-full space-y-8 p-8">
-            {/* Header Section */}
-            <div className="flex flex-col gap-8">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 -ml-1"
-                                disabled
-                            >
-                                <ArrowLeft className="h-4 w-4 opacity-50" />
-                            </Button>
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-24" />
-                                <span className="text-muted-foreground/40">
-                                    /
-                                </span>
-                                <Skeleton className="h-4 w-12" />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Skeleton className="h-9 w-64" />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {/* View Toggle Skeleton */}
-                        <div className="flex items-center bg-white p-1 rounded-lg border border-border shadow-sm mr-2 opacity-50">
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-foreground">
-                                <ListIcon className="h-4 w-4" />
-                                <span className="text-sm font-medium">
-                                    List
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground">
-                                <CalendarIcon className="h-4 w-4" />
-                                <span className="text-sm font-medium">
-                                    Calendar
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <Skeleton className="h-9 w-9 rounded-md" />
-                        <Skeleton className="h-9 w-9 rounded-md" />
-                        <Skeleton className="h-9 w-9 rounded-md" />
-                        <div className="w-px h-6 bg-border mx-1" />
-                        <Skeleton className="h-9 w-28 rounded-md" />
-                    </div>
-                </div>
-
-                {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                        <div
-                            key={i}
-                            className="bg-white border border-border rounded-xl p-5 flex items-center justify-between shadow-sm"
+        <div className="flex flex-col h-full bg-dashboard-bg">
+            {/* Sticky Header Skeleton */}
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex items-start justify-between shrink-0">
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 -ml-1 text-dashboard-text-muted"
+                            disabled
                         >
-                            <div>
-                                <Skeleton className="h-3 w-20 mb-2" />
-                                <Skeleton className="h-8 w-12" />
-                            </div>
-                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <ArrowLeft className="h-4 w-4 opacity-50" />
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Skeleton className="h-4 w-24" />
+                            <span className="text-(--dashboard-text-muted)/40">
+                                /
+                            </span>
+                            <Skeleton className="h-4 w-12" />
                         </div>
-                    ))}
+                    </div>
+                    <Skeleton className="h-7 w-64 mb-1" />
+                    <Skeleton className="h-4 w-48" />
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                    {/* View Toggle Skeleton */}
+                    <div className="flex items-center bg-dashboard-surface p-1 rounded-lg border border-dashboard-border shadow-sm mr-2 opacity-50">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-accent-subtle text-dashboard-text-primary">
+                            <ListIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium">List</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 text-dashboard-text-muted">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium">
+                                Calendar
+                            </span>
+                        </div>
+                    </div>
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <div className="w-px h-6 bg-dashboard-border mx-1" />
+                    <Skeleton className="h-9 w-28 rounded-md" />
                 </div>
             </div>
 
             {/* Content Controls Skeleton */}
-            <div className="flex items-center justify-between pb-2">
-                <Skeleton className="h-9 w-72 rounded-md" />
+            <div className="flex items-center justify-between px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50">
+                <Skeleton className="h-8 w-72 rounded-md" />
                 <div className="flex items-center gap-2">
                     <Skeleton className="h-8 w-24 rounded-md" />
                     <Skeleton className="h-8 w-24 rounded-md" />
@@ -87,9 +64,9 @@ export function ProjectDetailSkeleton() {
             </div>
 
             {/* Main Content Skeleton (Table) */}
-            <div className="flex-1 min-h-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 bg-dashboard-surface overflow-hidden flex flex-col">
                 {/* Table Header */}
-                <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-border/60">
+                <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-dashboard-border bg-[#f8f9fa]">
                     <Skeleton className="col-span-12 h-4 w-full" />
                 </div>
 
@@ -97,7 +74,7 @@ export function ProjectDetailSkeleton() {
                     {[1, 2, 3, 4, 5].map((i) => (
                         <div
                             key={i}
-                            className="px-8 py-4 border-b border-border/60 flex items-center justify-between"
+                            className="px-8 py-4 border-b border-dashboard-border flex items-center justify-between"
                         >
                             <div className="flex items-center gap-4 w-full">
                                 <Skeleton className="h-4 w-4 rounded-full" />
@@ -107,8 +84,8 @@ export function ProjectDetailSkeleton() {
                                 <Skeleton className="h-6 w-20 rounded-full" />
                                 <Skeleton className="h-4 w-24" />
                                 <div className="flex -space-x-2">
-                                    <Skeleton className="h-8 w-8 rounded-full border-2 border-background" />
-                                    <Skeleton className="h-8 w-8 rounded-full border-2 border-background" />
+                                    <Skeleton className="h-8 w-8 rounded-full border-2 border-dashboard-surface" />
+                                    <Skeleton className="h-8 w-8 rounded-full border-2 border-dashboard-surface" />
                                 </div>
                             </div>
                         </div>

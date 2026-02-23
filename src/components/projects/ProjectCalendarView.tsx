@@ -184,13 +184,13 @@ export function ProjectCalendarView({
     const getStatusColor = (status: Task['status']) => {
         switch (status) {
             case 'COMPLETED':
-                return 'bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600/20 text-white shadow-emerald-500/20';
+                return 'bg-status-complete-bg border-status-complete/20 text-status-complete';
             case 'IN_PROGRESS':
-                return 'bg-gradient-to-r from-blue-500 to-blue-600 border-blue-600/20 text-white shadow-blue-500/20';
+                return 'bg-status-in-progress-bg border-status-in-progress/20 text-status-in-progress';
             case 'IN_REVIEW':
-                return 'bg-gradient-to-r from-orange-400 to-orange-500 border-orange-500/20 text-white shadow-orange-500/20';
+                return 'bg-status-review-bg border-status-review/20 text-status-review';
             default:
-                return 'bg-gradient-to-r from-gray-500 to-gray-600 border-gray-600/20 text-white shadow-gray-500/20';
+                return 'bg-status-pending-bg border-status-pending/20 text-status-pending';
         }
     };
 
@@ -295,13 +295,13 @@ export function ProjectCalendarView({
                             }
                             setCurrentDate(newDate);
                         }}
-                        className="h-8 w-8 hover:bg-muted/50"
+                        className="h-8 w-8 hover:bg-accent-hover text-dashboard-text-muted"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
 
                     <div className="flex items-center gap-2 px-2">
-                        <span className="font-semibold text-lg text-foreground min-w-[140px] text-center font-serif">
+                        <span className="font-semibold text-lg text-dashboard-text-primary min-w-35 text-center font-serif">
                             {viewMode === 'week'
                                 ? weekDates[0].toLocaleDateString('en-US', {
                                       month: 'long',
@@ -315,7 +315,7 @@ export function ProjectCalendarView({
                         {(viewMode === 'week'
                             ? weekDates.some((date) => isToday(date))
                             : isToday(currentDate)) && (
-                            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                            <span className="text-xs font-medium text-accent-blue bg-accent-subtle px-2 py-0.5 rounded-full border border-accent-blue/20">
                                 Today
                             </span>
                         )}
@@ -333,19 +333,19 @@ export function ProjectCalendarView({
                             }
                             setCurrentDate(newDate);
                         }}
-                        className="h-8 w-8 hover:bg-muted/50"
+                        className="h-8 w-8 hover:bg-accent-hover text-dashboard-text-muted"
                     >
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/20">
+                    <div className="flex items-center bg-dashboard-surface p-1 rounded-lg border border-dashboard-border">
                         <Select
                             value={viewMode}
                             onValueChange={(v) => setViewMode(v as ViewMode)}
                         >
-                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium focus:outline-none">
+                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium focus:outline-none text-dashboard-text-body">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -359,7 +359,7 @@ export function ProjectCalendarView({
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentDate(new Date())}
-                        className="ml-2 h-9 bg-transparent hover:bg-muted/50"
+                        className="ml-2 h-9 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
                     >
                         Today
                     </Button>
@@ -373,14 +373,14 @@ export function ProjectCalendarView({
                         {/* Week View - Timeline Header */}
                         <div
                             className={cn(
-                                'border-b border-border/40 sticky top-0 z-20 bg-background/95 backdrop-blur-sm shadow-sm',
+                                'border-b border-dashboard-border sticky top-0 z-20 bg-white/95 backdrop-blur-sm shadow-sm',
                                 compact
                                     ? 'grid grid-cols-7'
                                     : 'grid grid-cols-[250px_1fr]',
                             )}
                         >
                             {!compact && (
-                                <div className="p-4 flex items-end font-medium text-xs text-muted-foreground uppercase tracking-wider border-r border-border/40">
+                                <div className="p-4 flex items-end font-medium text-xs text-dashboard-text-muted uppercase tracking-wider border-r border-dashboard-border">
                                     Task Name
                                 </div>
                             )}

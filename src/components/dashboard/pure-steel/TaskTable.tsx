@@ -98,7 +98,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
         <div
             className={cn(
                 'bg-[var(--dashboard-surface)] rounded-xl border border-[var(--dashboard-border)]',
-                'overflow-hidden',
+                'overflow-hidden flex flex-col',
                 'transition-shadow duration-200 hover:shadow-[0_2px_16px_rgba(90,127,154,0.05)]',
                 className,
             )}
@@ -155,7 +155,7 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
             </div>
 
             {/* Task Rows */}
-            <div className="max-h-[360px] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
                 {sortedTasks.length === 0 ? (
                     <div className="py-10 text-center">
                         <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">

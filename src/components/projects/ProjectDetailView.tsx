@@ -712,203 +712,199 @@ export function ProjectDetailView({
     }
 
     return (
-        <div className="flex flex-col h-full space-y-8 animate-in fade-in duration-500 p-8">
-            {/* Header Section */}
-            <div className="flex flex-col gap-8">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Link href={`/workspaces/${project.workspaceId}`}>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                                    onClick={() => window.history.back()}
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                </Button>
+        <div className="flex flex-col h-full bg-dashboard-bg animate-in fade-in duration-500">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex items-start justify-between shrink-0">
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Link href={`/workspaces/${project.workspaceId}`}>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 -ml-1 text-dashboard-text-muted hover:text-dashboard-text-primary cursor-pointer"
+                                onClick={() => window.history.back()}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div className="flex items-center gap-2 text-sm text-dashboard-text-muted">
+                            <Link
+                                href={`/workspaces/${project.workspaceId}`}
+                                className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
+                            >
+                                {project.workspace.name}
                             </Link>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Link
-                                    href={`/workspaces/${project.workspaceId}`}
-                                    className="hover:text-foreground hover:underline transition-colors cursor-pointer"
-                                >
-                                    {project.workspace.name}
-                                </Link>
-                                <span className="text-muted-foreground/40">
-                                    /
-                                </span>
-                                <span className="font-medium text-foreground">
-                                    {project.name}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-1 max-w-2xl">
-                            <EditableContent
-                                value={localProject.name}
-                                onSave={(val) =>
-                                    handleUpdateProjectField({ name: val })
-                                }
-                                className="w-fit"
-                                textStyle="text-3xl font-serif font-semibold tracking-tight text-foreground"
-                                inputClassName="text-3xl font-serif font-semibold h-auto py-1 px-2"
-                                placeholder="Project Name"
-                            />
-                            <EditableContent
-                                value={localProject.description || ''}
-                                onSave={(val) =>
-                                    handleUpdateProjectField({
-                                        description: val,
-                                    })
-                                }
-                                className="w-full mt-1"
-                                textStyle="text-sm text-muted-foreground"
-                                inputClassName="text-sm min-h-[80px]"
-                                isTextarea
-                                placeholder="Add a description..."
-                            />
+                            <span className="text-(--dashboard-text-muted)/40">
+                                /
+                            </span>
+                            <span className="font-medium text-dashboard-text-primary">
+                                {project.name}
+                            </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center bg-white p-1 rounded-lg border border-border shadow-sm mr-2">
-                            <button
-                                onClick={() => setView('list')}
-                                className={cn(
-                                    'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer',
-                                    view === 'list'
-                                        ? 'bg-muted text-foreground'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                                )}
-                            >
-                                <ListIcon className="h-4 w-4" />
-                                List
-                            </button>
-                            <button
-                                onClick={() => setView('calendar')}
-                                className={cn(
-                                    'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer',
-                                    view === 'calendar'
-                                        ? 'bg-muted text-foreground'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                                )}
-                            >
-                                <CalendarIcon className="h-4 w-4" />
-                                Calendar
-                            </button>
-                        </div>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-9 w-9 bg-white border-border hover:bg-muted shadow-sm cursor-pointer"
-                                    title="Project Settings"
-                                >
-                                    <Settings className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info('Invite feature coming soon')
-                                    }
-                                >
-                                    <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Invite with email</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleExportProject}>
-                                    <Download className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Export board to Excel</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        document
-                                            .getElementById('import-file-input')
-                                            ?.click()
-                                    }
-                                >
-                                    <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Import tasks</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleCopyProject}>
-                                    <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Copy Project</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info(
-                                            'Activity log feature coming soon',
-                                        )
-                                    }
-                                >
-                                    <Activity className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Activity log</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info(
-                                            'Notifications feature coming soon',
-                                        )
-                                    }
-                                >
-                                    <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Notifications</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info(
-                                            'Permissions feature coming soon',
-                                        )
-                                    }
-                                >
-                                    <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Permissions</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuSeparator />
-
-                                <DropdownMenuItem
-                                    onClick={() => setDeleteDialogOpen(true)}
-                                    className="text-destructive focus:text-destructive"
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Delete</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info(
-                                            'Archive feature coming soon',
-                                        )
-                                    }
-                                >
-                                    <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Archive</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Hidden import input available globally for the menu item */}
-                        <input
-                            id="import-file-input"
-                            type="file"
-                            accept=".xlsx, .xls, .csv"
-                            className="hidden"
-                            onChange={handleImportProject}
+                    <div className="flex flex-col gap-1 max-w-2xl">
+                        <EditableContent
+                            value={localProject.name}
+                            onSave={(val) =>
+                                handleUpdateProjectField({ name: val })
+                            }
+                            className="w-fit"
+                            textStyle="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary"
+                            inputClassName="text-2xl font-serif font-semibold h-auto py-1 px-2"
+                            placeholder="Project Name"
+                        />
+                        <EditableContent
+                            value={localProject.description || ''}
+                            onSave={(val) =>
+                                handleUpdateProjectField({
+                                    description: val,
+                                })
+                            }
+                            className="w-full mt-0.5"
+                            textStyle="text-sm text-dashboard-text-muted"
+                            inputClassName="text-sm min-h-[80px]"
+                            isTextarea
+                            placeholder="Add a description..."
                         />
                     </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center bg-dashboard-surface p-1 rounded-lg border border-dashboard-border shadow-sm mr-2">
+                        <button
+                            onClick={() => setView('list')}
+                            className={cn(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer',
+                                view === 'list'
+                                    ? 'bg-accent-subtle text-dashboard-text-primary'
+                                    : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+                            )}
+                        >
+                            <ListIcon className="h-4 w-4" />
+                            List
+                        </button>
+                        <button
+                            onClick={() => setView('calendar')}
+                            className={cn(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer',
+                                view === 'calendar'
+                                    ? 'bg-accent-subtle text-dashboard-text-primary'
+                                    : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+                            )}
+                        >
+                            <CalendarIcon className="h-4 w-4" />
+                            Calendar
+                        </button>
+                    </div>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 bg-dashboard-surface border-dashboard-border hover:bg-accent-subtle hover:border-accent-blue shadow-sm cursor-pointer"
+                                title="Project Settings"
+                            >
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    toast.info('Invite feature coming soon')
+                                }
+                            >
+                                <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Invite with email</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportProject}>
+                                <Download className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Export board to Excel</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    document
+                                        .getElementById('import-file-input')
+                                        ?.click()
+                                }
+                            >
+                                <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Import tasks</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleCopyProject}>
+                                <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Copy Project</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    toast.info(
+                                        'Activity log feature coming soon',
+                                    )
+                                }
+                            >
+                                <Activity className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Activity log</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    toast.info(
+                                        'Notifications feature coming soon',
+                                    )
+                                }
+                            >
+                                <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Notifications</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    toast.info(
+                                        'Permissions feature coming soon',
+                                    )
+                                }
+                            >
+                                <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Permissions</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem
+                                onClick={() => setDeleteDialogOpen(true)}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    toast.info('Archive feature coming soon')
+                                }
+                            >
+                                <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Archive</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Hidden import input available globally for the menu item */}
+                    <input
+                        id="import-file-input"
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        className="hidden"
+                        onChange={handleImportProject}
+                    />
                 </div>
             </div>
 
             {/* Content Controls */}
             {view === 'list' && (
-                <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center justify-between px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50">
                     <div className="flex items-center gap-2">
                         <Button
-                            className="bg-blue-600 hover:bg-blue-700 text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
+                            className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
                             onClick={() =>
                                 toast.info('New Section feature coming soon')
                             }
@@ -916,10 +912,10 @@ export function ProjectDetailView({
                             New <Plus className="ml-1 h-4 w-4" />
                         </Button>
                         <div className="relative w-72">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />
                             <Input
                                 placeholder="Search tasks..."
-                                className="pl-9 bg-white border-border shadow-sm"
+                                className="pl-9 bg-dashboard-surface border-dashboard-border shadow-sm text-dashboard-text-body placeholder:text-dashboard-text-muted"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
@@ -930,7 +926,7 @@ export function ProjectDetailView({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary cursor-pointer"
                                 onClick={() => setStatusFilter('ALL')}
                             >
                                 <X className="h-3.5 w-3.5" />
@@ -942,7 +938,7 @@ export function ProjectDetailView({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="gap-2 text-muted-foreground hover:text-foreground bg-white cursor-pointer"
+                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
                                 >
                                     <Filter className="h-3.5 w-3.5" />
                                     Status
@@ -1007,15 +1003,15 @@ export function ProjectDetailView({
                                     variant="outline"
                                     size="sm"
                                     className={cn(
-                                        'gap-2 text-muted-foreground hover:text-foreground bg-white cursor-pointer',
+                                        'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
                                         groupByField &&
-                                            'text-primary border-primary/50 bg-primary/5',
+                                            'text-accent-blue border-accent-blue/50 bg-accent-subtle',
                                     )}
                                 >
                                     <Layers className="h-3.5 w-3.5" />
                                     Group
                                     {groupByField && (
-                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-normal">
+                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
                                             1
                                         </span>
                                     )}
@@ -1061,7 +1057,7 @@ export function ProjectDetailView({
             )}
 
             {/* Main Content */}
-            <div className="flex-1 min-h-0 min-w-0 bg-white rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 min-w-0 bg-dashboard-surface rounded-none border-0 overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
                     <div className="flex-1 min-h-0">
                         <ProjectCalendarView tasks={tasks} />

@@ -226,33 +226,33 @@ export default function WorkspaceDetailsPage() {
 
     return (
         <>
-            <div className="flex flex-col h-full bg-background overflow-hidden animate-in fade-in duration-300">
+            <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden animate-in fade-in duration-300">
                 {/* Header */}
-                <div className="border-b px-6 py-4 flex items-center justify-between shrink-0 bg-background z-10">
+                <div className="sticky top-0 z-10 border-b border-dashboard-border px-6 py-4 flex items-center justify-between shrink-0 bg-white/95 backdrop-blur-xl">
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
                             <Link href="/workspaces">
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 -ml-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                                    className="h-6 w-6 -ml-1 text-dashboard-text-muted hover:text-dashboard-text-primary cursor-pointer"
                                 >
                                     <ArrowLeft className="h-4 w-4" />
                                 </Button>
                             </Link>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-dashboard-text-muted">
                                 <Link
                                     href={`/workspaces/${workspaceId}`}
-                                    className="hover:text-foreground hover:underline transition-colors cursor-pointer"
+                                    className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                                 >
                                     {workspace.name}
                                 </Link>
-                                <span className="text-muted-foreground/40">
+                                <span className="text-(--dashboard-text-muted)/40">
                                     /
                                 </span>
                             </div>
                         </div>
-                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-foreground">
+                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary">
                             {workspace.name}
                         </h1>
                     </div>
@@ -261,7 +261,7 @@ export default function WorkspaceDetailsPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2 hover:bg-muted"
+                                className="gap-2 hover:bg-accent-hover text-dashboard-text-muted hover:text-dashboard-text-primary"
                             >
                                 <MoreHorizontal className="h-4 w-4" />
                                 Options
@@ -300,12 +300,12 @@ export default function WorkspaceDetailsPage() {
                 </div>
 
                 {/* Toolbar */}
-                <div className="px-6 py-4 flex items-center justify-between shrink-0">
+                <div className="px-6 py-3 flex items-center justify-between shrink-0 border-b border-dashboard-border bg-dashboard-surface/50">
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            className="gap-2 h-8 bg-background hover:bg-muted font-medium transition-all"
+                            className="gap-2 h-8 bg-dashboard-surface border-dashboard-border text-dashboard-text-body hover:bg-accent-subtle hover:text-dashboard-text-primary hover:border-accent-blue font-medium transition-all"
                             onClick={handleCreateProject}
                         >
                             <Plus className="h-3.5 w-3.5" />
@@ -315,7 +315,7 @@ export default function WorkspaceDetailsPage() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto px-6 pb-6">
+                <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
                     <ProjectListView
                         projects={projects}
                         tasks={filteredTasks}

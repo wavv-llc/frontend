@@ -23,12 +23,12 @@ const Toaster = ({ errorClassName, ...props }: ToasterProps) => {
                 closeButton
                 toastOptions={{
                     classNames: {
-                        toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
-                        description: 'group-[.toast]:text-muted-foreground',
+                        toast: 'group toast group-[.toaster]:bg-dashboard-surface group-[.toaster]:text-dashboard-text-body group-[.toaster]:border-dashboard-border group-[.toaster]:shadow-lg',
+                        description: 'group-[.toast]:text-dashboard-text-muted',
                         actionButton:
-                            'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+                            'group-[.toast]:bg-accent-blue group-[.toast]:text-white',
                         cancelButton:
-                            'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+                            'group-[.toast]:bg-dashboard-surface group-[.toast]:text-dashboard-text-muted',
                         closeButton:
                             'group-[.toaster]:!bg-transparent group-[.toaster]:!border-none group-[.toaster]:!text-current group-[.toaster]:hover:!bg-black/5',
                         error:
