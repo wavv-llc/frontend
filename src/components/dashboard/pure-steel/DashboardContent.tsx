@@ -58,12 +58,17 @@ export function DashboardContent({
     };
 
     return (
-        <div className={cn('min-h-screen bg-[var(--dashboard-bg)]', className)}>
+        <div
+            className={cn(
+                'h-full flex flex-col bg-[var(--dashboard-bg)]',
+                className,
+            )}
+        >
             {/* Header - Sticky */}
             <DashboardHeader userName={userName} className="animate-fade-up" />
 
             {/* Main Content Area */}
-            <main className="px-8 py-6">
+            <main className="px-8 py-6 flex-1 min-h-0 flex flex-col">
                 {/* Calendar - Full Width */}
                 <CalendarSection
                     events={events}
@@ -74,7 +79,7 @@ export function DashboardContent({
                 />
 
                 {/* Bottom Row - Tasks + Activity */}
-                <div className="mt-4 grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_340px]">
+                <div className="mt-4 flex-1 min-h-0 grid grid-cols-1 gap-3.5 lg:grid-cols-[2fr_1fr]">
                     <TaskTable
                         tasks={tasks}
                         onTaskClick={onTaskClick}

@@ -1125,11 +1125,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         };
 
         return (
-            <div className="w-full h-full border border-border rounded-lg bg-steel-alt-200ard overflow-hidden flex flex-col min-w-0">
+            <div className="w-full h-full overflow-hidden flex flex-col min-w-0">
                 <div className="flex-1 overflow-auto relative scroll-smooth">
                     <div className="min-w-max h-full">
                         {/* Table Header - Sticky Top */}
-                        <div className="sticky top-0 z-30 flex border-b border-border bg-muted">
+                        <div className="sticky top-0 z-30 flex border-b border-dashboard-border bg-[#f8f9fa]">
                             {/* Bulk Action Bar Overlay */}
                             {selectedTaskIds.size > 0 && (
                                 <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-between px-4 border-b border-primary/20">
@@ -1150,7 +1150,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleBulkDelete}
-                                            className="h-8 text-steel-alt-400estructive hover:text-steel-alt-400estructive hover:bg-steel-alt-200estructive/10 gap-2"
+                                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             Delete
@@ -1170,7 +1170,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </div>
                             )}
                             {/* Task Name Column Header - Sticky Left & Top */}
-                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-muted flex items-center justify-between text-sm font-medium text-muted-foreground shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] group">
+                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-[#f8f9fa] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-dashboard-text-muted shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="flex items-center"
@@ -1278,7 +1278,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 return (
                                     <div
                                         key={field.id}
-                                        className="w-[150px] shrink-0 px-4 py-3 border-r border-border flex items-center justify-between text-sm font-medium text-muted-foreground bg-muted group"
+                                        className="w-[150px] shrink-0 px-4 py-3 border-r border-dashboard-border flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-dashboard-text-muted bg-[#f8f9fa] group"
                                     >
                                         <div className="flex flex-col min-w-0 flex-1 overflow-visible">
                                             <div className="min-w-0 overflow-visible">
@@ -1386,7 +1386,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="w-full justify-start text-muted-foreground hover:text-steel-alt-800oreground"
+                                            className="w-full justify-start text-dashboard-text-muted hover:text-dashboard-text-primary"
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
                                             New field
@@ -1669,7 +1669,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               return (
                                                   <div key={groupName}>
                                                       {/* Group Header */}
-                                                      <div className="sticky left-0 min-w-full bg-secondary/30 border-y border-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-steel-alt-800oreground">
+                                                      <div className="sticky left-0 min-w-full bg-[#f0f2f5] border-y border-dashboard-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-dashboard-text-body">
                                                           <button
                                                               onClick={() =>
                                                                   toggleGroup(
@@ -1702,14 +1702,14 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       key={
                                                                           task.id
                                                                       }
-                                                                      className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max relative"
+                                                                      className="flex border-b border-dashboard-border hover:bg-accent-hover transition-colors group min-w-max relative"
                                                                   >
                                                                       {/* Same Task Row Content as below, duplicate logic or extract component? 
                                                         For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
                                                                       <div
-                                                                          className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-steel-alt-200ard group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
+                                                                          className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3 cursor-pointer"
                                                                           onClick={() => {
                                                                               // Open side panel
                                                                               onTaskClick(
@@ -1767,7 +1767,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   key={
                                                                                       field.id
                                                                                   }
-                                                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-border flex items-center"
+                                                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border flex items-center"
                                                                               >
                                                                                   <div className="w-full">
                                                                                       {renderCustomFieldCell(
@@ -1837,7 +1837,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                               task.id,
                                                                                           );
                                                                                       }}
-                                                                                      className="text-steel-alt-400estructive focus:text-steel-alt-400estructive"
+                                                                                      className="text-destructive focus:text-destructive"
                                                                                   >
                                                                                       <Trash2 className="h-4 w-4 mr-2" />
                                                                                       Delete
@@ -1858,11 +1858,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                   tasks.map((task) => (
                                       <div
                                           key={task.id}
-                                          className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max"
+                                          className="flex border-b border-dashboard-border hover:bg-accent-hover transition-colors group min-w-max"
                                       >
                                           {/* Task Name - Sticky */}
                                           <div
-                                              className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-steel-alt-200ard group-hover:bg-[hsl(35,15%,97%)] transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-3"
+                                              className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3 cursor-pointer"
                                               onClick={() => {
                                                   onTaskClick(task);
                                               }}
@@ -1906,7 +1906,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                           {displayedFields.map((field) => (
                                               <div
                                                   key={field.id}
-                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-border flex items-center"
+                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border flex items-center"
                                               >
                                                   <div className="w-full">
                                                       {renderCustomFieldCell(
@@ -1959,7 +1959,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                   task.id,
                                                               );
                                                           }}
-                                                          className="text-steel-alt-400estructive focus:text-steel-alt-400estructive"
+                                                          className="text-destructive focus:text-destructive"
                                                       >
                                                           <Trash2 className="h-4 w-4 mr-2" />
                                                           Delete Task
@@ -1972,8 +1972,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
                             {/* New Task Row - Only shown when creating */}
                             {isCreatingTask ? (
-                                <div className="flex border-b border-border bg-muted/20 min-w-max">
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-border bg-muted shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))]">
+                                <div className="flex border-b border-dashboard-border bg-accent-subtle min-w-max">
+                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-accent-subtle shadow-[1px_0_0_0_var(--dashboard-border)]">
                                         <EditableContent
                                             value={newTaskName}
                                             onSave={(name) =>
@@ -1987,20 +1987,20 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     {displayedFields.map((field) => (
                                         <div
                                             key={field.id}
-                                            className="w-[150px] shrink-0 px-4 py-4 border-r border-border"
+                                            className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border"
                                         />
                                     ))}
                                     <div className="w-[150px] shrink-0 px-4 py-4" />
                                 </div>
                             ) : (
                                 <div
-                                    className="flex border-b border-border hover:bg-muted/30 transition-colors group min-w-max cursor-pointer"
+                                    className="flex border-b border-dashboard-border hover:bg-accent-hover transition-colors group min-w-max cursor-pointer"
                                     onClick={() => {
                                         setIsCreatingTask(true);
                                         setNewTaskName('');
                                     }}
                                 >
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-border bg-steel-alt-200ard group-hover:bg-muted/30 transition-colors shadow-[1px_0_0_0_hsl(var(--border,_theme(colors.border)))] flex items-center gap-2 text-sm text-muted-foreground group-hover:text-steel-alt-800oreground">
+                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-sm text-dashboard-text-muted group-hover:text-accent-blue">
                                         <Plus className="h-4 w-4" />
                                         Add task
                                     </div>
@@ -2008,7 +2008,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     {displayedFields.map((field) => (
                                         <div
                                             key={field.id}
-                                            className="w-[150px] shrink-0 border-r border-border"
+                                            className="w-[150px] shrink-0 border-r border-dashboard-border"
                                         />
                                     ))}
                                     <div className="w-[150px] shrink-0" />

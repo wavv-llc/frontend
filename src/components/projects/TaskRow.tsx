@@ -39,11 +39,13 @@ export function TaskRow({
     const getStatusIcon = (status: Task['status']) => {
         switch (status) {
             case 'COMPLETED':
-                return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+                return (
+                    <CheckCircle2 className="h-4 w-4 text-status-complete" />
+                );
             case 'IN_PROGRESS':
-                return <Circle className="h-4 w-4 text-blue-600" />;
+                return <Circle className="h-4 w-4 text-status-in-progress" />;
             case 'IN_REVIEW':
-                return <AlertCircle className="h-4 w-4 text-amber-600" />;
+                return <AlertCircle className="h-4 w-4 text-status-review" />;
             default:
                 return <Circle className="h-4 w-4 text-muted-foreground/30" />;
         }

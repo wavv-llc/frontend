@@ -253,15 +253,15 @@ export function TaskDetailView({
         }
     };
 
-    // Determine status color
+    // Determine status color using design tokens
     const statusColor =
         task.status === 'COMPLETED'
-            ? 'text-emerald-600 border-emerald-200'
+            ? 'text-status-complete border-status-complete/30 bg-status-complete-bg'
             : task.status === 'IN_REVIEW'
-              ? 'text-amber-600 border-amber-200'
+              ? 'text-status-review border-status-review/30 bg-status-review-bg'
               : task.status === 'IN_PROGRESS'
-                ? 'text-blue-600 border-blue-200'
-                : 'text-muted-foreground border-border';
+                ? 'text-status-in-progress border-status-in-progress/30 bg-status-in-progress-bg'
+                : 'text-status-pending border-dashboard-border bg-status-pending-bg';
 
     const statusLabel =
         task.status === 'COMPLETED'
@@ -273,35 +273,37 @@ export function TaskDetailView({
                 : 'Pending';
 
     return (
-        <div className="flex flex-col h-full bg-background animate-in fade-in slide-in-from-bottom-4 duration-300 p-8">
-            {/* Header Section */}
-            <div className="flex flex-col gap-6 pb-6 border-b border-border">
+        <div className="flex flex-col h-full bg-dashboard-bg animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex flex-col gap-4 shrink-0">
                 {/* Back & Breadcrumbs */}
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={onBack}
-                        className="hover:bg-muted -ml-2 cursor-pointer"
+                        className="hover:bg-accent-hover text-dashboard-text-muted hover:text-dashboard-text-primary -ml-2 cursor-pointer"
                     >
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <div className="text-sm text-dashboard-text-muted flex items-center gap-2">
                         {workspaceId ? (
                             <Link
                                 href={`/workspaces/${workspaceId}`}
-                                className="hover:text-foreground hover:underline transition-colors cursor-pointer"
+                                className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                             >
                                 {workspaceName || 'Workspace'}
                             </Link>
                         ) : (
                             <span>{workspaceName || 'Workspace'}</span>
                         )}
-                        <span className="text-muted-foreground/40">/</span>
+                        <span className="text-(--dashboard-text-muted)/40">
+                            /
+                        </span>
                         {workspaceId && (projectId || task.projectId) ? (
                             <Link
                                 href={`/workspaces/${workspaceId}/projects/${projectId || task.projectId}`}
-                                className="hover:text-foreground hover:underline transition-colors cursor-pointer"
+                                className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                             >
                                 {projectName ||
                                     task.project?.description ||
@@ -314,8 +316,10 @@ export function TaskDetailView({
                                     'Project'}
                             </span>
                         )}
-                        <span className="text-muted-foreground/40">/</span>
-                        <span className="font-medium text-foreground">
+                        <span className="text-(--dashboard-text-muted)/40">
+                            /
+                        </span>
+                        <span className="font-medium text-dashboard-text-primary">
                             {task.name}
                         </span>
                     </div>
@@ -323,23 +327,25 @@ export function TaskDetailView({
 
                 {/* Title & Meta */}
                 <div className="flex items-start justify-between">
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                    <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary">
                         {task.name}
                     </h1>
                     <div className="flex items-center gap-3">
-                        <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px] transition-colors">
-                            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">
+                        <div className="px-4 py-2 rounded-lg border border-dashboard-border bg-dashboard-surface shadow-sm flex flex-col items-start min-w-35 transition-colors">
+                            <span className="text-[10px] uppercase font-semibold text-dashboard-text-muted tracking-wider mb-0.5">
                                 Status
                             </span>
                             <span
                                 className={cn(
                                     'font-semibold text-sm',
                                     task.status === 'COMPLETED' &&
-                                        'text-emerald-600',
+                                        'text-status-complete',
                                     task.status === 'IN_PROGRESS' &&
-                                        'text-blue-600',
+                                        'text-status-in-progress',
                                     task.status === 'IN_REVIEW' &&
-                                        'text-amber-600',
+                                        'text-status-review',
+                                    task.status === 'PENDING' &&
+                                        'text-status-pending',
                                 )}
                             >
                                 {statusLabel}
@@ -347,12 +353,12 @@ export function TaskDetailView({
                         </div>
 
                         {/* Open Comments Card */}
-                        <div className="px-4 py-2 rounded-xl border border-border bg-card shadow-sm flex flex-col items-start min-w-[140px]">
-                            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider mb-0.5">
+                        <div className="px-4 py-2 rounded-lg border border-dashboard-border bg-dashboard-surface shadow-sm flex flex-col items-start min-w-35">
+                            <span className="text-[10px] uppercase font-semibold text-dashboard-text-muted tracking-wider mb-0.5">
                                 To Resolve
                             </span>
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm">
+                                <span className="font-semibold text-sm text-dashboard-text-body">
                                     {openCommentsCount}{' '}
                                     {openCommentsCount === 1
                                         ? 'Thread'
@@ -367,9 +373,9 @@ export function TaskDetailView({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 ml-2 cursor-pointer"
+                                    className="h-8 w-8 ml-2 cursor-pointer hover:bg-accent-hover"
                                 >
-                                    <MoreVertical className="h-5 w-5 text-muted-foreground" />
+                                    <MoreVertical className="h-5 w-5 text-dashboard-text-muted" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -398,8 +404,8 @@ export function TaskDetailView({
 
                 {/* Assignees */}
                 <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                        <span className="text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <span className="text-dashboard-text-muted">
                             Assigned to:
                         </span>
                         {task.preparers && task.preparers.length > 0 ? (
@@ -407,35 +413,37 @@ export function TaskDetailView({
                                 {task.preparers.map((u) => (
                                     <span
                                         key={u.id}
-                                        className="font-medium text-foreground"
+                                        className="font-medium text-dashboard-text-primary"
                                     >
                                         {u.firstName} {u.lastName}
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <span className="text-muted-foreground italic">
+                            <span className="text-dashboard-text-muted italic">
                                 Unassigned
                             </span>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-                        <span className="text-muted-foreground w-px h-4 bg-border mx-2" />
-                        <span className="text-muted-foreground">Reviewer:</span>
+                    <div className="flex items-center gap-2">
+                        <span className="w-px h-4 bg-dashboard-border mx-1" />
+                        <span className="text-dashboard-text-muted">
+                            Reviewer:
+                        </span>
                         {task.reviewers && task.reviewers.length > 0 ? (
                             <div className="flex items-center gap-2">
                                 {task.reviewers.map((u) => (
                                     <span
                                         key={u.id}
-                                        className="font-medium text-foreground"
+                                        className="font-medium text-dashboard-text-primary"
                                     >
                                         {u.firstName} {u.lastName}
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <span className="text-muted-foreground italic">
+                            <span className="text-dashboard-text-muted italic">
                                 No Reviewer
                             </span>
                         )}
@@ -444,7 +452,7 @@ export function TaskDetailView({
                     <Badge
                         variant="outline"
                         className={cn(
-                            'ml-2 font-normal bg-transparent cursor-pointer hover:bg-muted/50',
+                            'ml-2 font-normal bg-transparent',
                             statusColor,
                         )}
                     >
@@ -454,32 +462,32 @@ export function TaskDetailView({
             </div>
 
             {/* Main Content */}
-            <div className="flex flex-col gap-8 mt-8 pb-20">
+            <div className="flex flex-col gap-6 p-8 pb-20">
                 {/* Description and Files Split Card */}
-                <div className="bg-card rounded-xl border border-border shadow-sm grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border overflow-hidden">
+                <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-dashboard-border overflow-hidden">
                     {/* Left Column: Description */}
                     <div className="p-8">
                         <div className="flex items-center gap-2 mb-6">
-                            <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100">
+                            <div className="h-8 w-8 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
                                 <AlignLeft className="h-4 w-4" />
                             </div>
-                            <h3 className="font-semibold text-lg">
+                            <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary">
                                 Description
                             </h3>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-sm lg:text-base">
+                        <p className="text-dashboard-text-muted leading-relaxed whitespace-pre-line text-sm lg:text-base">
                             {task.description || 'No description provided.'}
                         </p>
                     </div>
 
                     {/* Right Column: Files */}
-                    <div className="p-8 bg-muted/5 lg:bg-transparent">
+                    <div className="p-8">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                                <div className="h-8 w-8 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
                                     <Paperclip className="h-4 w-4" />
                                 </div>
-                                <h3 className="font-semibold text-lg">
+                                <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary">
                                     Attachments
                                 </h3>
                             </div>
@@ -487,7 +495,7 @@ export function TaskDetailView({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setUploadDialogOpen(true)}
-                                className="h-8"
+                                className="h-8 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
                             >
                                 <Upload className="h-3.5 w-3.5 mr-2" />
                                 Upload
@@ -499,17 +507,17 @@ export function TaskDetailView({
                                 task.linkedFiles.map((file) => (
                                     <div
                                         key={file.id}
-                                        className="group flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer"
+                                        className="group flex items-center justify-between p-3 rounded-lg border border-dashboard-border bg-dashboard-surface hover:border-accent-blue/30 hover:bg-accent-hover hover:shadow-sm transition-all cursor-pointer"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                                            <div className="h-10 w-10 bg-accent-subtle rounded-lg flex items-center justify-center text-accent-blue transition-colors">
                                                 <FileText className="h-5 w-5" />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                                                <p className="font-medium text-sm text-dashboard-text-body group-hover:text-accent-blue transition-colors">
                                                     {file.originalName}
                                                 </p>
-                                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                                <p className="text-[10px] text-dashboard-text-muted uppercase tracking-wider">
                                                     {(
                                                         file.filesize / 1024
                                                     ).toFixed(0)}{' '}
@@ -520,8 +528,8 @@ export function TaskDetailView({
                                     </div>
                                 ))
                             ) : (
-                                <div className="p-12 text-center border border-dashed border-border rounded-xl bg-muted/30">
-                                    <p className="text-sm text-muted-foreground">
+                                <div className="p-12 text-center border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/50">
+                                    <p className="text-sm text-dashboard-text-muted">
                                         No files attached yet
                                     </p>
                                 </div>
@@ -533,11 +541,11 @@ export function TaskDetailView({
                 {/* Comments Section */}
                 <div className="w-full">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                        <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary flex items-center gap-2">
                             <span>Comments</span>
                             <Badge
                                 variant="secondary"
-                                className="rounded-full px-2 h-5 text-xs"
+                                className="rounded-full px-2 h-5 text-xs bg-accent-subtle text-accent-blue border-dashboard-border"
                             >
                                 {comments.length}
                             </Badge>
@@ -546,7 +554,7 @@ export function TaskDetailView({
                             onClick={() => setIsComposing(!isComposing)}
                             size="sm"
                             variant="outline"
-                            className="gap-2"
+                            className="gap-2 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
                         >
                             <PlusIcon className="h-4 w-4" />
                             New Comment
@@ -556,20 +564,21 @@ export function TaskDetailView({
                     {/* New Comment Input */}
                     {isComposing && (
                         <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
+                            <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
                                 <Textarea
                                     value={newCommentContent}
                                     onChange={(e) =>
                                         setNewCommentContent(e.target.value)
                                     }
                                     placeholder="Write a new comment..."
-                                    className="min-h-[100px] border-none focus-visible:ring-0 resize-none p-4 text-sm"
+                                    className="min-h-[100px] border-none focus-visible:ring-0 resize-none p-4 text-sm text-dashboard-text-body placeholder:text-dashboard-text-muted"
                                     autoFocus
                                 />
-                                <div className="flex items-center justify-end gap-2 p-2 bg-muted/30 border-t border-border/50">
+                                <div className="flex items-center justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
                                     <Button
                                         size="sm"
                                         variant="ghost"
+                                        className="text-dashboard-text-muted hover:text-dashboard-text-primary"
                                         onClick={() => setIsComposing(false)}
                                     >
                                         Cancel
@@ -584,7 +593,7 @@ export function TaskDetailView({
                                             !newCommentContent.trim() ||
                                             isSubmitting
                                         }
-                                        className="gap-2"
+                                        className="gap-2 bg-accent-blue hover:bg-accent-light text-white"
                                     >
                                         <Send className="h-3.5 w-3.5" />
                                         Post Comment
@@ -603,17 +612,17 @@ export function TaskDetailView({
                                         key={i}
                                         className="flex gap-4 animate-pulse"
                                     >
-                                        <div className="h-10 w-10 bg-muted rounded-full" />
+                                        <div className="h-10 w-10 bg-accent-subtle rounded-full" />
                                         <div className="flex-1 space-y-2">
-                                            <div className="h-4 bg-muted rounded w-1/4" />
-                                            <div className="h-20 bg-muted rounded-xl" />
+                                            <div className="h-4 bg-accent-subtle rounded w-1/4" />
+                                            <div className="h-20 bg-accent-subtle rounded-xl" />
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : comments.length === 0 && !isComposing ? (
-                            <div className="text-center text-muted-foreground py-12 border border-dashed border-border rounded-xl">
-                                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                            <div className="text-center text-dashboard-text-muted py-12 border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/30">
+                                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-dashboard-text-muted opacity-30" />
                                 <p className="text-sm">
                                     No comments yet. Start the conversation!
                                 </p>
@@ -788,12 +797,12 @@ function CommentItem({
         <div
             className={cn(
                 'relative',
-                !isRoot && 'pl-4 ml-2 border-l-2 border-border/50',
+                !isRoot && 'pl-4 ml-2 border-l-2 border-dashboard-border',
             )}
         >
             {/* Thread line visual connector if not root */}
             {!isRoot && (
-                <div className="absolute top-4 left-[-2px] w-4 h-[2px] bg-border/50"></div>
+                <div className="absolute top-4 left-[-2px] w-4 h-[2px] bg-dashboard-border"></div>
             )}
 
             <div
@@ -805,11 +814,11 @@ function CommentItem({
                 <div className="flex gap-4">
                     <Avatar
                         className={cn(
-                            'border border-border shrink-0 cursor-default',
+                            'border border-dashboard-border shrink-0 cursor-default',
                             isRoot ? 'h-10 w-10' : 'h-8 w-8',
                         )}
                     >
-                        <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
+                        <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
                             {comment.user.firstName?.[0]}
                             {comment.user.lastName?.[0]}
                         </AvatarFallback>
@@ -818,10 +827,10 @@ function CommentItem({
                     <div className="flex-1 min-w-0">
                         {/* Header */}
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm truncate">
+                            <span className="font-semibold text-sm text-dashboard-text-primary truncate">
                                 {comment.user.firstName} {comment.user.lastName}
                             </span>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            <span className="text-xs text-dashboard-text-muted whitespace-nowrap">
                                 {format(
                                     new Date(comment.createdAt),
                                     'MMM d, h:mm a',
@@ -830,7 +839,7 @@ function CommentItem({
                         </div>
 
                         {/* Content */}
-                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                        <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap break-words">
                             {commentContent}
                         </div>
 
@@ -848,9 +857,9 @@ function CommentItem({
                                             variant="outline"
                                             size="sm"
                                             className={cn(
-                                                'h-5 px-1.5 text-[10px] gap-1 rounded-full border bg-transparent hover:bg-muted/50 transition-colors',
+                                                'h-5 px-1.5 text-[10px] gap-1 rounded-full border border-dashboard-border bg-transparent hover:bg-accent-hover transition-colors',
                                                 hasReacted &&
-                                                    'bg-blue-50 border-blue-200 hover:bg-blue-100',
+                                                    'bg-accent-subtle border-accent-blue/30 hover:bg-accent-subtle',
                                             )}
                                             onClick={() =>
                                                 handleReaction(emoji)
@@ -861,8 +870,8 @@ function CommentItem({
                                                 className={cn(
                                                     'font-medium',
                                                     hasReacted
-                                                        ? 'text-blue-600'
-                                                        : 'text-muted-foreground',
+                                                        ? 'text-accent-blue'
+                                                        : 'text-dashboard-text-muted',
                                                 )}
                                             >
                                                 {reactions?.length}
@@ -879,7 +888,7 @@ function CommentItem({
                                         variant="ghost"
                                         size="sm"
                                         className={cn(
-                                            'h-6 w-6 rounded-full p-0 text-muted-foreground hover:bg-muted transition-all opacity-0 group-hover:opacity-100 focus:opacity-100',
+                                            'h-6 w-6 rounded-full p-0 text-dashboard-text-muted hover:bg-accent-hover transition-all opacity-0 group-hover:opacity-100 focus:opacity-100',
                                             Object.keys(reactionGroups).length >
                                                 0 && 'opacity-100',
                                         )}
@@ -906,7 +915,7 @@ function CommentItem({
                                         ].map((emoji) => (
                                             <button
                                                 key={emoji}
-                                                className="p-1.5 hover:bg-muted rounded-md text-lg transition-colors leading-none"
+                                                className="p-1.5 hover:bg-accent-hover rounded-md text-lg transition-colors leading-none"
                                                 onClick={() =>
                                                     handleReaction(emoji)
                                                 }
@@ -922,7 +931,7 @@ function CommentItem({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1"
+                                className="h-6 px-2 text-xs text-dashboard-text-muted hover:text-dashboard-text-primary opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1"
                                 onClick={() => setIsReplying(!isReplying)}
                             >
                                 Reply
@@ -932,7 +941,7 @@ function CommentItem({
                         {/* Reply Input */}
                         {isReplying && (
                             <div className="mt-3 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
+                                <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
                                     <Textarea
                                         value={replyContent}
                                         onChange={(e) =>
@@ -942,10 +951,11 @@ function CommentItem({
                                         className="min-h-[60px] text-sm resize-none border-none focus-visible:ring-0 p-3"
                                         autoFocus
                                     />
-                                    <div className="flex justify-end gap-2 p-2 bg-muted/30 border-t border-border/30">
+                                    <div className="flex justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
                                         <Button
                                             size="sm"
                                             variant="ghost"
+                                            className="text-dashboard-text-muted hover:text-dashboard-text-primary"
                                             onClick={() => {
                                                 setIsReplying(false);
                                                 setReplyContent('');
@@ -955,6 +965,7 @@ function CommentItem({
                                         </Button>
                                         <Button
                                             size="sm"
+                                            className="bg-accent-blue hover:bg-accent-light text-white"
                                             onClick={handleReply}
                                             disabled={
                                                 !replyContent.trim() ||
@@ -1094,23 +1105,22 @@ function CommentThread({
     // If resolved, show collapsed view by default
     if (isResolved && !isOpen) {
         return (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 overflow-hidden">
+            <div className="rounded-xl border border-status-complete/30 bg-status-complete-bg overflow-hidden">
                 <div
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-emerald-50 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-status-complete-bg/70 transition-colors"
                     onClick={() => setIsOpen(true)}
                 >
                     <div className="flex items-center gap-3">
-                        {/* ... existing resolved header content ... */}
-                        <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                        <div className="h-6 w-6 rounded-full bg-status-complete-bg text-status-complete flex items-center justify-center border border-status-complete/30">
                             <Check className="h-3.5 w-3.5" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-semibold text-emerald-900">
+                                <h4 className="text-sm font-semibold text-dashboard-text-primary">
                                     Comment #{index} - Resolved
                                 </h4>
                             </div>
-                            <p className="text-xs text-emerald-700">
+                            <p className="text-xs text-status-complete">
                                 {comment.resolvedBy?.firstName
                                     ? `${comment.resolvedBy.firstName} resolved this comment`
                                     : 'Resolved'}
@@ -1120,7 +1130,7 @@ function CommentThread({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                        className="h-8 w-8 text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover"
                     >
                         <ChevronDown className="h-4 w-4" />
                     </Button>
@@ -1134,8 +1144,8 @@ function CommentThread({
             className={cn(
                 'rounded-xl border overflow-hidden transition-all duration-300',
                 isResolved
-                    ? 'border-emerald-200 bg-emerald-50/30'
-                    : 'border-blue-200 bg-card',
+                    ? 'border-status-complete/30 bg-status-complete-bg/30'
+                    : 'border-dashboard-border bg-dashboard-surface',
             )}
         >
             {/* Header */}
@@ -1143,45 +1153,31 @@ function CommentThread({
                 className={cn(
                     'flex items-center justify-between px-4 py-3 border-b cursor-pointer transition-colors',
                     isResolved
-                        ? 'bg-emerald-50 border-emerald-200'
-                        : 'bg-blue-50/50 border-blue-100 hover:bg-blue-50',
+                        ? 'bg-status-complete-bg/50 border-status-complete/20 hover:bg-status-complete-bg/70'
+                        : 'bg-accent-subtle border-dashboard-border hover:bg-accent-hover',
                 )}
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <div className="flex items-center gap-3">
                     {/* Icon */}
                     {isResolved ? (
-                        <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center border border-emerald-200">
+                        <div className="h-6 w-6 rounded-full bg-status-complete-bg text-status-complete flex items-center justify-center border border-status-complete/30">
                             <Check className="h-3.5 w-3.5" />
                         </div>
                     ) : (
-                        <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center border border-blue-200">
+                        <div className="h-6 w-6 rounded-full bg-accent-subtle text-accent-blue flex items-center justify-center border border-accent-blue/20">
                             <MessageSquare className="h-3.5 w-3.5" />
                         </div>
                     )}
                     {/* Text */}
                     <div>
                         <div className="flex items-center gap-2">
-                            <h4
-                                className={cn(
-                                    'text-sm font-semibold',
-                                    isResolved
-                                        ? 'text-emerald-900'
-                                        : 'text-blue-900',
-                                )}
-                            >
+                            <h4 className="text-sm font-semibold text-dashboard-text-primary">
                                 Comment #{index} -{' '}
                                 {isResolved ? 'Resolved' : 'Open'}
                             </h4>
                         </div>
-                        <p
-                            className={cn(
-                                'text-xs',
-                                isResolved
-                                    ? 'text-emerald-700'
-                                    : 'text-blue-700/80',
-                            )}
-                        >
+                        <p className="text-xs text-dashboard-text-muted">
                             {comment.replies?.length || 0} responses •{' '}
                             {isResolved ? 'Resolved' : 'Needs resolution'}
                         </p>
@@ -1190,7 +1186,7 @@ function CommentThread({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 opacity-50 hover:opacity-100"
+                    className="h-8 w-8 text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover opacity-70 hover:opacity-100"
                 >
                     {isOpen ? (
                         <ChevronUp className="h-4 w-4" />
@@ -1202,7 +1198,7 @@ function CommentThread({
 
             {/* Content Body */}
             {isOpen && (
-                <div className="bg-card/50">
+                <div className="bg-dashboard-surface">
                     <div className="p-6 pb-2">
                         {/* Render Root Comment Item (which handles its own content and replies recursively) */}
                         <CommentItem
@@ -1214,12 +1210,12 @@ function CommentThread({
                         />
 
                         {/* Thread Footer Actions (Resolve/Reopen) */}
-                        <div className="flex items-center justify-between pt-4 border-t border-border mt-2 mb-2">
+                        <div className="flex items-center justify-between pt-4 border-t border-dashboard-border mt-2 mb-2">
                             <div className="flex items-center gap-3">
                                 {!isResolved ? (
                                     <Button
                                         size="sm"
-                                        className="bg-primary text-primary-foreground hover:bg-primary/50 shadow-sm"
+                                        className="bg-status-complete text-white hover:bg-status-complete/80 shadow-sm"
                                         onClick={handleResolve}
                                         disabled={isSubmitting}
                                     >
@@ -1230,7 +1226,7 @@ function CommentThread({
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                        className="border-dashboard-border text-dashboard-text-muted hover:bg-status-review-bg hover:text-status-review hover:border-status-review/30"
                                         onClick={handleReopen}
                                         disabled={isSubmitting}
                                     >
@@ -1245,7 +1241,7 @@ function CommentThread({
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-muted-foreground hover:text-foreground"
+                                    className="text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover"
                                     onClick={() => setIsReplying(true)}
                                 >
                                     Reply to Thread
@@ -1256,26 +1252,28 @@ function CommentThread({
                         {/* Footer Reply Input Area (If triggered from footer) */}
                         {isReplying && (
                             <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="rounded-xl border border-border/30 bg-card shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-primary/3 transition-all">
+                                <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
                                     <Textarea
                                         value={replyContent}
                                         onChange={(e) =>
                                             setReplyContent(e.target.value)
                                         }
                                         placeholder="Write a reply to the thread..."
-                                        className="min-h-[80px] text-sm border-none focus-visible:ring-0 p-3 resize-none"
+                                        className="min-h-[80px] text-sm border-none focus-visible:ring-0 p-3 resize-none text-dashboard-text-body placeholder:text-dashboard-text-muted"
                                         autoFocus
                                     />
-                                    <div className="flex justify-end gap-2 p-2 bg-muted/30 border-t border-border/30">
+                                    <div className="flex justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
                                         <Button
                                             size="sm"
                                             variant="ghost"
+                                            className="text-dashboard-text-muted hover:text-dashboard-text-primary"
                                             onClick={() => setIsReplying(false)}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             size="sm"
+                                            className="bg-accent-blue hover:bg-accent-light text-white"
                                             onClick={handleReply}
                                             disabled={
                                                 !replyContent.trim() ||

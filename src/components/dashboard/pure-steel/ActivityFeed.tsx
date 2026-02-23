@@ -85,10 +85,11 @@ export function ActivityFeed({
     return (
         <div
             className={cn(
-                'w-[306px] flex-shrink-0',
+                'flex flex-col',
                 'bg-[var(--dashboard-surface)] rounded-xl border border-[var(--dashboard-border)]',
                 'p-[18px]',
                 'transition-shadow duration-200 hover:shadow-[0_2px_16px_rgba(90,127,154,0.05)]',
+                'overflow-hidden',
                 className,
             )}
         >
@@ -98,7 +99,7 @@ export function ActivityFeed({
             </h2>
 
             {/* Activity List */}
-            <div className="space-y-0 mb-4">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-0 mb-4">
                 {activities.length === 0 ? (
                     <div className="py-8 text-center">
                         <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">

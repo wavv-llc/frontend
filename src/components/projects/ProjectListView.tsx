@@ -100,8 +100,10 @@ export function ProjectListView({
     if (projects.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-center">
-                <p className="text-muted-foreground mb-4">No projects yet</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-dashboard-text-muted mb-4">
+                    No projects yet
+                </p>
+                <p className="text-sm text-dashboard-text-muted">
                     Create a project to get started
                 </p>
             </div>
@@ -111,7 +113,7 @@ export function ProjectListView({
     return (
         <div className="w-full">
             {/* Projects Table Header */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-border text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-muted/20 rounded-t-lg">
+            <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-dashboard-border text-[11px] font-semibold uppercase tracking-wider text-dashboard-text-muted bg-[#f8f9fa] rounded-t-lg">
                 <div className="col-span-3 pl-2">Project Name</div>
                 <div className="col-span-4">Description</div>
                 <div className="col-span-2">Owner</div>
@@ -119,7 +121,7 @@ export function ProjectListView({
                 <div className="col-span-2 text-center">Tasks</div>
             </div>
 
-            <div className="border-x border-b border-border rounded-b-lg divide-y divide-border bg-card">
+            <div className="border-x border-b border-dashboard-border rounded-b-lg divide-y divide-dashboard-border bg-dashboard-surface">
                 {projects.map((project) => {
                     // Use allTasks for stats if available, otherwise use displayed tasks
                     const statsTasks = (allTasks || tasks).filter(
@@ -142,7 +144,7 @@ export function ProjectListView({
                             className="group transition-all duration-200"
                         >
                             {/* Project Row */}
-                            <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center hover:bg-muted/50 transition-colors">
+                            <div className="grid grid-cols-12 gap-4 px-4 py-4 items-center hover:bg-accent-hover transition-colors">
                                 {/* Project Name */}
                                 <div
                                     className="col-span-3 flex items-center gap-3 cursor-pointer"
@@ -152,17 +154,17 @@ export function ProjectListView({
                                         )
                                     }
                                 >
-                                    <div className="transition-transform duration-200 text-muted-foreground group-hover:translate-x-1">
+                                    <div className="transition-transform duration-200 text-dashboard-text-muted group-hover:translate-x-1">
                                         <ChevronRight className="h-4 w-4" />
                                     </div>
-                                    <div className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                                    <div className="font-medium text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
                                         {project.name ||
                                             `Project ${project.id.slice(0, 8)}`}
                                     </div>
                                 </div>
 
                                 {/* Description */}
-                                <div className="col-span-4 text-sm text-muted-foreground truncate">
+                                <div className="col-span-4 text-sm text-dashboard-text-muted truncate">
                                     {project.description || '-'}
                                 </div>
 
@@ -170,31 +172,31 @@ export function ProjectListView({
                                 <div className="col-span-2 flex items-center gap-2">
                                     {owner ? (
                                         <>
-                                            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary ring-1 ring-background shrink-0">
+                                            <div className="h-6 w-6 rounded-full bg-accent-subtle flex items-center justify-center text-xs font-bold text-accent-blue ring-1 ring-dashboard-surface shrink-0">
                                                 {owner.firstName?.[0] ||
                                                     owner.email[0].toUpperCase()}
                                             </div>
-                                            <span className="text-sm text-muted-foreground truncate">
+                                            <span className="text-sm text-dashboard-text-muted truncate">
                                                 {owner.firstName
                                                     ? `${owner.firstName} ${owner.lastName || ''}`
                                                     : owner.email}
                                             </span>
                                         </>
                                     ) : (
-                                        <span className="text-sm text-muted-foreground">
+                                        <span className="text-sm text-dashboard-text-muted">
                                             -
                                         </span>
                                     )}
                                 </div>
 
                                 {/* Members Count */}
-                                <div className="col-span-1 text-sm text-muted-foreground text-center">
+                                <div className="col-span-1 text-sm text-dashboard-text-muted text-center">
                                     {memberCount}
                                 </div>
 
                                 {/* Tasks Count & Options */}
                                 <div className="col-span-2 flex items-center justify-between gap-2">
-                                    <span className="text-sm text-muted-foreground flex-1 text-center">
+                                    <span className="text-sm text-dashboard-text-muted flex-1 text-center">
                                         {taskCount}
                                     </span>
 
