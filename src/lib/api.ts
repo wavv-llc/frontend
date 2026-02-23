@@ -1043,13 +1043,18 @@ export interface OrganizationDocument {
     filesize: number;
     mimeType: string;
     status:
-        | 'PENDING'
+        | 'UPLOADING'
         | 'PROCESSING'
         | 'EMBEDDING'
         | 'READY'
-        | 'COMPLETED'
         | 'FAILED'
-        | 'ARCHIVED';
+        | 'FAILED_CORRUPTED'
+        | 'FAILED_UNSUPPORTED'
+        | 'FAILED_TOO_LARGE'
+        | 'FAILED_PROCESSING'
+        | 'FAILED_EMBEDDING'
+        | 'DELETING'
+        | 'DELETED';
     createdAt: string;
     updatedAt: string;
     sharepointSite?: {
@@ -1107,6 +1112,60 @@ export const documentsApi = {
             `/api/v1/documents/${documentId}/reembed`,
             {
                 method: 'POST',
+                token,
+            },
+        );
+    },
+};
+
+// Job types
+export type ServiceJobStatus =
+    | 'PENDING'
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'FAILED';
+export type DocumentStatusPhase = 'UPLOADING' | 'PROCESSING' | 'EMBEDDING';
+
+export interface ServiceJobChild {
+    id: string;
+    taskName: string;
+    status: ServiceJobStatus;
+    resolved: boolean;
+    createdAt: string;
+}
+
+export interface ServiceJob {
+    id: string;
+    taskName: string;
+    description: string;
+    resolved: boolean;
+    status: ServiceJobStatus;
+    documentStatusPhase: DocumentStatusPhase | null;
+    triggeredBy: string;
+    documentId: string | null;
+    organizationId: string;
+    parentTaskId: string | null;
+    sharepointSiteId: string | null;
+    version: number;
+    createdAt: string;
+    updatedAt: string;
+    organization: {
+        id: string;
+        name: string;
+    };
+    parentTask: {
+        id: string;
+        taskName: string;
+    } | null;
+    childTasks: ServiceJobChild[];
+}
+
+export const jobsApi = {
+    getJobsByDocument: async (token: string, documentId: string) => {
+        return apiRequest<ServiceJob[]>(
+            `/api/v1/jobs/by-document/${documentId}`,
+            {
+                method: 'GET',
                 token,
             },
         );
@@ -1276,14 +1335,13 @@ export const taxLibraryApi = {
         }
 
         const uploadUrlData = await uploadUrlResponse.json();
-        const signedUrl =
-            uploadUrlData.data?.[0]?.signedUrl ||
-            uploadUrlData.signedUrl ||
-            uploadUrlData[0]?.signedUrl;
+        const uploadInfo = uploadUrlData.data.uploadUrls?.[0];
 
-        if (!signedUrl) {
+        if (!uploadInfo?.url) {
             throw new Error('No signed URL returned from server');
         }
+
+        const signedUrl = uploadInfo.url;
 
         // Step 2: Upload file directly to S3 using the signed URL
         const s3Response = await fetch(signedUrl, {

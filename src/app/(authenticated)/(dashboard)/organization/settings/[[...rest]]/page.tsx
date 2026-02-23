@@ -21,6 +21,15 @@ import {
     Upload,
     X,
     Check,
+    ArrowLeft,
+    Clock,
+    ChevronDown,
+    ChevronRight,
+    ChevronUp,
+    Briefcase,
+    CheckCircle,
+    XCircle,
+    AlertCircle,
 } from 'lucide-react';
 import {
     sharepointApi,
@@ -33,6 +42,9 @@ import {
     Role,
     taxLibraryApi,
     TaxLibraryDocument,
+    jobsApi,
+    ServiceJob,
+    DocumentDetail,
 } from '@/lib/api';
 import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton';
 import {
@@ -110,6 +122,9 @@ export default function SettingsPage() {
     );
     const [documentSearch, setDocumentSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+        null,
+    );
 
     // Members state
     const [members, setMembers] = useState<OrganizationMember[]>([]);
@@ -224,11 +239,17 @@ export default function SettingsPage() {
 
     const getStatusBadge = (status: OrganizationDocument['status']) => {
         switch (status) {
-            case 'COMPLETED':
             case 'READY':
                 return (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
                         Ready
+                    </span>
+                );
+            case 'UPLOADING':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        Uploading
                     </span>
                 );
             case 'PROCESSING':
@@ -239,17 +260,22 @@ export default function SettingsPage() {
                         Processing
                     </span>
                 );
-            case 'PENDING':
-                return (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
-                        Pending
-                    </span>
-                );
             case 'FAILED':
+            case 'FAILED_CORRUPTED':
+            case 'FAILED_UNSUPPORTED':
+            case 'FAILED_TOO_LARGE':
+            case 'FAILED_PROCESSING':
+            case 'FAILED_EMBEDDING':
                 return (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#272f3b]10 text-[#272f3b] dark:bg-red-900/30 dark:text-red-400">
                         Error
+                    </span>
+                );
+            case 'DELETING':
+            case 'DELETED':
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        {status === 'DELETING' ? 'Deleting' : 'Deleted'}
                     </span>
                 );
             default:
@@ -645,25 +671,48 @@ export default function SettingsPage() {
                 <div className="w-full pl-6 pr-6 py-6 pb-12 relative z-[1]">
                     <div className="max-w-[900px] mx-auto">
                         <div key={activeTab} className="tab-content-enter">
-                            {activeTab === 'documents' && (
-                                <DocumentsTab
-                                    documents={documents}
-                                    isLoadingDocuments={isLoadingDocuments}
-                                    organizationId={organizationId}
-                                    documentSearch={documentSearch}
-                                    setDocumentSearch={setDocumentSearch}
-                                    statusFilter={statusFilter}
-                                    setStatusFilter={setStatusFilter}
-                                    retryingDocumentId={retryingDocumentId}
-                                    handleRetryDocument={handleRetryDocument}
-                                    handleReembedDocument={
-                                        handleReembedDocument
-                                    }
-                                    loadDocuments={loadDocuments}
-                                    getStatusBadge={getStatusBadge}
-                                    formatFileSize={formatFileSize}
-                                />
-                            )}
+                            {activeTab === 'documents' &&
+                                (selectedDocumentId ? (
+                                    <DocumentDetailView
+                                        documentId={selectedDocumentId}
+                                        onBack={() =>
+                                            setSelectedDocumentId(null)
+                                        }
+                                        handleRetryDocument={
+                                            handleRetryDocument
+                                        }
+                                        handleReembedDocument={
+                                            handleReembedDocument
+                                        }
+                                        retryingDocumentId={retryingDocumentId}
+                                        getStatusBadge={getStatusBadge}
+                                        formatFileSize={formatFileSize}
+                                        getToken={getToken}
+                                    />
+                                ) : (
+                                    <DocumentsTab
+                                        documents={documents}
+                                        isLoadingDocuments={isLoadingDocuments}
+                                        organizationId={organizationId}
+                                        documentSearch={documentSearch}
+                                        setDocumentSearch={setDocumentSearch}
+                                        statusFilter={statusFilter}
+                                        setStatusFilter={setStatusFilter}
+                                        retryingDocumentId={retryingDocumentId}
+                                        handleRetryDocument={
+                                            handleRetryDocument
+                                        }
+                                        handleReembedDocument={
+                                            handleReembedDocument
+                                        }
+                                        loadDocuments={loadDocuments}
+                                        getStatusBadge={getStatusBadge}
+                                        formatFileSize={formatFileSize}
+                                        onDocumentClick={(id) =>
+                                            setSelectedDocumentId(id)
+                                        }
+                                    />
+                                ))}
 
                             {activeTab === 'users' && (
                                 <UsersTab
@@ -778,6 +827,7 @@ interface DocumentsTabProps {
         status: OrganizationDocument['status'],
     ) => React.ReactElement;
     formatFileSize: (bytes: number) => string;
+    onDocumentClick: (documentId: string) => void;
 }
 
 function DocumentsTab({
@@ -794,6 +844,7 @@ function DocumentsTab({
     loadDocuments,
     getStatusBadge,
     formatFileSize,
+    onDocumentClick,
 }: DocumentsTabProps) {
     // Helper to get file icon and colors based on file type
     const getFileIcon = (fileName: string) => {
@@ -869,7 +920,7 @@ function DocumentsTab({
                         <Button
                             variant="secondary"
                             size="sm"
-                            onClick={loadDocuments}
+                            onClick={() => loadDocuments()}
                             disabled={isLoadingDocuments || !organizationId}
                             className="rounded-md h-8"
                         >
@@ -925,20 +976,21 @@ function DocumentsTab({
                                     // Map filter categories to actual statuses
                                     let matchesStatus = true;
                                     if (statusFilter === 'ready') {
-                                        matchesStatus = [
-                                            'COMPLETED',
-                                            'READY',
-                                        ].includes(doc.status);
+                                        matchesStatus = doc.status === 'READY';
                                     } else if (statusFilter === 'in-progress') {
                                         matchesStatus = [
+                                            'UPLOADING',
                                             'PROCESSING',
                                             'EMBEDDING',
-                                            'PENDING',
                                         ].includes(doc.status);
                                     } else if (statusFilter === 'failed') {
                                         matchesStatus = [
                                             'FAILED',
-                                            'ARCHIVED',
+                                            'FAILED_CORRUPTED',
+                                            'FAILED_UNSUPPORTED',
+                                            'FAILED_TOO_LARGE',
+                                            'FAILED_PROCESSING',
+                                            'FAILED_EMBEDDING',
                                         ].includes(doc.status);
                                     }
                                     // 'all' filter shows everything
@@ -989,7 +1041,10 @@ function DocumentsTab({
                                             return (
                                                 <div
                                                     key={doc.id}
-                                                    className="grid grid-cols-[240px_140px_80px_1fr] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors"
+                                                    onClick={() =>
+                                                        onDocumentClick(doc.id)
+                                                    }
+                                                    className="grid grid-cols-[240px_140px_80px_1fr] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors cursor-pointer"
                                                 >
                                                     {/* File Name */}
                                                     <div className="flex items-center gap-3 min-w-0">
@@ -1059,11 +1114,17 @@ function DocumentsTab({
                                                             doc.status,
                                                         )}
                                                         {(doc.status ===
-                                                            'FAILED' ||
+                                                            'FAILED_PROCESSING' ||
                                                             doc.status ===
-                                                                'COMPLETED' ||
+                                                                'PROCESSING' ||
                                                             doc.status ===
-                                                                'READY') && (
+                                                                'FAILED' ||
+                                                            doc.status ===
+                                                                'FAILED_EMBEDDING' ||
+                                                            doc.status ===
+                                                                'READY' ||
+                                                            doc.status ===
+                                                                'EMBEDDING') && (
                                                             <div className="flex items-center gap-1.5">
                                                                 <Button
                                                                     variant="ghost"
@@ -1104,45 +1165,54 @@ function DocumentsTab({
                                                                         </>
                                                                     )}
                                                                 </Button>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={(
-                                                                        e,
-                                                                    ) => {
-                                                                        e.stopPropagation();
-                                                                        handleReembedDocument(
-                                                                            doc.id,
-                                                                        );
-                                                                    }}
-                                                                    disabled={
-                                                                        retryingDocumentId ===
-                                                                        doc.id
-                                                                    }
-                                                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
-                                                                >
-                                                                    {retryingDocumentId ===
-                                                                    doc.id ? (
-                                                                        <>
-                                                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
-                                                                            <span>
-                                                                                Embedding...
-                                                                            </span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <RefreshCw
-                                                                                size={
-                                                                                    12
-                                                                                }
-                                                                                className="mr-1.5"
-                                                                            />
-                                                                            <span>
-                                                                                Re-embed
-                                                                            </span>
-                                                                        </>
-                                                                    )}
-                                                                </Button>
+                                                                {(doc.status ===
+                                                                    'FAILED' ||
+                                                                    doc.status ===
+                                                                        'FAILED_EMBEDDING' ||
+                                                                    doc.status ===
+                                                                        'READY' ||
+                                                                    doc.status ===
+                                                                        'EMBEDDING') && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            e.stopPropagation();
+                                                                            handleReembedDocument(
+                                                                                doc.id,
+                                                                            );
+                                                                        }}
+                                                                        disabled={
+                                                                            retryingDocumentId ===
+                                                                            doc.id
+                                                                        }
+                                                                        className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                                                    >
+                                                                        {retryingDocumentId ===
+                                                                        doc.id ? (
+                                                                            <>
+                                                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                                                <span>
+                                                                                    Embedding...
+                                                                                </span>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <RefreshCw
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    className="mr-1.5"
+                                                                                />
+                                                                                <span>
+                                                                                    Re-embed
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </Button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -1157,6 +1227,626 @@ function DocumentsTab({
                 </div>
             </div>
         </>
+    );
+}
+
+// Document Detail View
+interface DocumentDetailViewProps {
+    documentId: string;
+    onBack: () => void;
+    handleRetryDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string) => void;
+    retryingDocumentId: string | null;
+    getStatusBadge: (
+        status: OrganizationDocument['status'],
+    ) => React.ReactElement;
+    formatFileSize: (bytes: number) => string;
+    getToken: () => Promise<string | null>;
+}
+
+function DocumentDetailView({
+    documentId,
+    onBack,
+    handleRetryDocument,
+    handleReembedDocument,
+    retryingDocumentId,
+    getStatusBadge,
+    formatFileSize,
+    getToken,
+}: DocumentDetailViewProps) {
+    const [document, setDocument] = useState<DocumentDetail | null>(null);
+    const [jobs, setJobs] = useState<ServiceJob[]>([]);
+    const [isLoadingDocument, setIsLoadingDocument] = useState(true);
+    const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+    const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [jobSortOrder, setJobSortOrder] = useState<'desc' | 'asc'>('desc');
+
+    useEffect(() => {
+        loadDocument();
+        loadJobs();
+    }, [documentId]);
+
+    const loadDocument = async () => {
+        try {
+            setIsLoadingDocument(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await documentsApi.getDocument(token, documentId);
+            if (response.data) {
+                setDocument(response.data.document);
+            }
+        } catch (err) {
+            console.error('Error loading document:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load document';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingDocument(false);
+        }
+    };
+
+    const loadJobs = async () => {
+        try {
+            setIsLoadingJobs(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await jobsApi.getJobsByDocument(token, documentId);
+            if (response.data) {
+                const jobsData = Array.isArray(response.data)
+                    ? response.data
+                    : [];
+                setJobs(jobsData);
+            }
+        } catch (err) {
+            console.error('Error loading jobs:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load jobs';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingJobs(false);
+        }
+    };
+
+    const toggleJobExpanded = (jobId: string) => {
+        setExpandedJobIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(jobId)) {
+                next.delete(jobId);
+            } else {
+                next.add(jobId);
+            }
+            return next;
+        });
+    };
+
+    const getJobStatusBadge = (status: ServiceJob['status']) => {
+        switch (status) {
+            case 'COMPLETED':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <CheckCircle size={10} />
+                        Completed
+                    </span>
+                );
+            case 'IN_PROGRESS':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        In Progress
+                    </span>
+                );
+            case 'PENDING':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#8d9ab0] dark:bg-gray-800 dark:text-gray-400">
+                        <Clock size={10} />
+                        Pending
+                    </span>
+                );
+            case 'FAILED':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                        <XCircle size={10} />
+                        Failed
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        {status}
+                    </span>
+                );
+        }
+    };
+
+    const getPhaseBadge = (phase: ServiceJob['documentStatusPhase']) => {
+        if (!phase) return null;
+        const colors: Record<string, string> = {
+            UPLOADING:
+                'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+            PROCESSING:
+                'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+            EMBEDDING:
+                'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+        };
+        return (
+            <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold ${colors[phase] || 'bg-[#eef0f3] text-[#4e5d74]'}`}
+            >
+                {phase.charAt(0) + phase.slice(1).toLowerCase()}
+            </span>
+        );
+    };
+
+    const getFileIcon = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) {
+            return { icon: Table, color: '#4e5d74', bg: '#4e5d7412' };
+        }
+        return { icon: FileText, color: '#6b7a94', bg: '#6b7a9410' };
+    };
+
+    const getFileType = (fileName: string) => {
+        return (fileName.split('.').pop()?.toLowerCase() || '').toUpperCase();
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    if (isLoadingDocument) {
+        return (
+            <div className="space-y-5">
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-8 w-36" />
+                </div>
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] p-6">
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="h-10 w-10 rounded-lg" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-1/3" />
+                            <Skeleton className="h-3 w-1/4" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] p-6">
+                    <Skeleton className="h-4 w-24 mb-4" />
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex items-center gap-3 py-3">
+                            <Skeleton className="h-3 w-3 rounded" />
+                            <Skeleton className="h-3 w-1/3" />
+                            <Skeleton className="h-5 w-16 rounded-full ml-auto" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (!document) {
+        return (
+            <div className="space-y-5">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 text-[11px] font-medium text-[#6b7a94] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+                >
+                    <ArrowLeft size={14} />
+                    Back to Documents
+                </button>
+                <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                    <AlertCircle className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                    <p className="text-[11px]">Document not found.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const fileIcon = getFileIcon(document.originalName);
+    const FileIconComponent = fileIcon.icon;
+    const showRetryProcessing =
+        document.status === 'FAILED_PROCESSING' ||
+        document.status === 'PROCESSING' ||
+        document.status === 'FAILED' ||
+        document.status === 'FAILED_EMBEDDING' ||
+        document.status === 'READY' ||
+        document.status === 'EMBEDDING';
+    const showReembed =
+        document.status === 'FAILED' ||
+        document.status === 'FAILED_EMBEDDING' ||
+        document.status === 'READY' ||
+        document.status === 'EMBEDDING';
+
+    return (
+        <div className="space-y-5 section-header-anim">
+            {/* Back Button */}
+            <button
+                onClick={onBack}
+                className="flex items-center gap-2 text-[11px] font-medium text-[#6b7a94] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+            >
+                <ArrowLeft size={14} />
+                Back to Documents
+            </button>
+
+            {/* Document Info Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                <div className="px-5 py-5">
+                    <div className="flex items-start gap-4">
+                        <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{
+                                background: fileIcon.bg,
+                                color: fileIcon.color,
+                            }}
+                        >
+                            <FileIconComponent size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-[14px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                {document.originalName}
+                            </h2>
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#f0f1f4] text-[#6b7a94] dark:bg-gray-800 dark:text-gray-400">
+                                    {getFileType(document.originalName)}
+                                </span>
+                                {getStatusBadge(document.status)}
+                                <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                                    {formatFileSize(document.filesize)}
+                                </span>
+                                <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400 flex items-center gap-1">
+                                    <Clock size={10} />
+                                    {formatDate(document.createdAt)}
+                                </span>
+                            </div>
+                        </div>
+                        {/* Retry / Re-embed Buttons */}
+                        {showRetryProcessing && (
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                        handleRetryDocument(document.id)
+                                    }
+                                    disabled={
+                                        retryingDocumentId === document.id
+                                    }
+                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                >
+                                    {retryingDocumentId === document.id ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RotateCcw
+                                                size={12}
+                                                className="mr-1.5"
+                                            />
+                                            <span>Retry</span>
+                                        </>
+                                    )}
+                                </Button>
+                                {showReembed && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                            handleReembedDocument(document.id)
+                                        }
+                                        disabled={
+                                            retryingDocumentId === document.id
+                                        }
+                                        className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                    >
+                                        {retryingDocumentId === document.id ? (
+                                            <>
+                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                <span>Embedding...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw
+                                                    size={12}
+                                                    className="mr-1.5"
+                                                />
+                                                <span>Re-embed</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Jobs Section */}
+            <div>
+                <h3 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Processing Jobs
+                </h3>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400 mb-4">
+                    All jobs associated with this document
+                </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Jobs Header */}
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Briefcase size={14} className="text-[#6b7a94]" />
+                        <span className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100">
+                            Jobs
+                        </span>
+                        {!isLoadingJobs && (
+                            <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                                ({jobs.length})
+                            </span>
+                        )}
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadJobs}
+                        disabled={isLoadingJobs}
+                        className="rounded-md h-8"
+                    >
+                        <RefreshCw
+                            className={`h-3 w-3 mr-2 ${isLoadingJobs ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Jobs Content */}
+                <div className="p-1.5">
+                    {isLoadingJobs ? (
+                        <div className="space-y-0.5 p-1">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
+                                >
+                                    <Skeleton className="h-4 w-4 rounded" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-3 w-1/3" />
+                                        <Skeleton className="h-2.5 w-1/2" />
+                                    </div>
+                                    <Skeleton className="h-5 w-16 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : jobs.length === 0 ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                            <Briefcase className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                            <p className="text-[11px]">
+                                No jobs found for this document.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="overflow-hidden">
+                            {/* Table Header */}
+                            <div className="grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Task
+                                </div>
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Phase
+                                </div>
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Status
+                                </div>
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Resolved
+                                </div>
+                                <button
+                                    onClick={() =>
+                                        setJobSortOrder((prev) =>
+                                            prev === 'desc' ? 'asc' : 'desc',
+                                        )
+                                    }
+                                    className="flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+                                >
+                                    Date
+                                    {jobSortOrder === 'desc' ? (
+                                        <ChevronDown size={10} />
+                                    ) : (
+                                        <ChevronUp size={10} />
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Table Body */}
+                            <div className="max-h-[500px] overflow-y-auto">
+                                {[...jobs]
+                                    .sort((a, b) => {
+                                        const diff =
+                                            new Date(a.createdAt).getTime() -
+                                            new Date(b.createdAt).getTime();
+                                        return jobSortOrder === 'asc'
+                                            ? diff
+                                            : -diff;
+                                    })
+                                    .map((job) => {
+                                        const hasChildren =
+                                            job.childTasks.length > 0;
+                                        const isChildJob =
+                                            job.parentTask !== null;
+                                        const isExpanded = expandedJobIds.has(
+                                            job.id,
+                                        );
+
+                                        return (
+                                            <div key={job.id}>
+                                                <div
+                                                    className={`grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors ${hasChildren ? 'cursor-pointer' : ''}`}
+                                                    onClick={
+                                                        hasChildren
+                                                            ? () =>
+                                                                  toggleJobExpanded(
+                                                                      job.id,
+                                                                  )
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {/* Task Name & Description */}
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        {hasChildren && (
+                                                            <span className="flex-shrink-0 text-[#8d9ab0]">
+                                                                {isExpanded ? (
+                                                                    <ChevronDown
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                ) : (
+                                                                    <ChevronRight
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <div className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                                                {job.taskName}
+                                                            </div>
+                                                            <div
+                                                                className="text-[9px] text-[#8d9ab0] dark:text-gray-400 mt-0.5 truncate"
+                                                                title={
+                                                                    job.description
+                                                                }
+                                                            >
+                                                                {isChildJob ? (
+                                                                    <>
+                                                                        <span className="text-[#6b7a94] dark:text-gray-500">
+                                                                            Parent:{' '}
+                                                                        </span>
+                                                                        {
+                                                                            job
+                                                                                .parentTask!
+                                                                                .taskName
+                                                                        }
+                                                                    </>
+                                                                ) : (
+                                                                    job.description
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Phase */}
+                                                    <div>
+                                                        {getPhaseBadge(
+                                                            job.documentStatusPhase,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Status */}
+                                                    <div>
+                                                        {getJobStatusBadge(
+                                                            job.status,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Resolved */}
+                                                    <div>
+                                                        {job.resolved ? (
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                                                <CheckCircle
+                                                                    size={11}
+                                                                />
+                                                                Yes
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#8d9ab0] dark:text-gray-400">
+                                                                <AlertCircle
+                                                                    size={11}
+                                                                />
+                                                                No
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Date */}
+                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                        {formatDate(
+                                                            job.createdAt,
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded Child Tasks */}
+                                                {hasChildren && isExpanded && (
+                                                    <div className="bg-[#f8f9fa]/60 dark:bg-gray-800/20 border-b border-[#eef0f3]66 dark:border-gray-800/40">
+                                                        {job.childTasks.map(
+                                                            (child) => (
+                                                                <div
+                                                                    key={
+                                                                        child.id
+                                                                    }
+                                                                    className="grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center pl-12 pr-5 py-2.5 border-b border-[#eef0f3]33 dark:border-gray-800/20 last:border-b-0"
+                                                                >
+                                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 truncate">
+                                                                        {
+                                                                            child.taskName
+                                                                        }
+                                                                    </div>
+                                                                    <div />
+                                                                    <div>
+                                                                        {getJobStatusBadge(
+                                                                            child.status,
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        {child.resolved ? (
+                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                                                                <CheckCircle
+                                                                                    size={
+                                                                                        11
+                                                                                    }
+                                                                                />
+                                                                                Yes
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#8d9ab0] dark:text-gray-400">
+                                                                                <AlertCircle
+                                                                                    size={
+                                                                                        11
+                                                                                    }
+                                                                                />
+                                                                                No
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                                        {formatDate(
+                                                                            child.createdAt,
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }
 
