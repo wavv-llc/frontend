@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type DashboardTask } from '@/lib/api';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StatusIcon } from '../shared';
@@ -43,7 +42,7 @@ export function TasksWidget({
     }, [tasks, activeTab]);
 
     if (isLoading) {
-        return <Skeleton className="h-full w-full rounded-xl" />;
+        return null;
     }
 
     return (

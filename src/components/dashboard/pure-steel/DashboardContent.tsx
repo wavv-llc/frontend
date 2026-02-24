@@ -20,6 +20,7 @@ interface DashboardContentProps {
     onTaskClick?: (task: Task) => void;
     onEventClick?: (event: CalendarEvent) => void;
     className?: string;
+    isLoading?: boolean;
 }
 
 function getWeekStart(date: Date): Date {
@@ -38,6 +39,7 @@ export function DashboardContent({
     onTaskClick,
     onEventClick,
     className,
+    isLoading = false,
 }: DashboardContentProps) {
     const [currentWeekStart, setCurrentWeekStart] = useState(() =>
         getWeekStart(new Date()),
@@ -83,11 +85,13 @@ export function DashboardContent({
                     <TaskTable
                         tasks={tasks}
                         onTaskClick={onTaskClick}
+                        isLoading={isLoading}
                         className="animate-fade-up animate-delay-140"
                     />
                     <ActivityFeed
                         activities={activities}
                         stats={stats}
+                        isLoading={isLoading}
                         className="animate-fade-up animate-delay-160"
                     />
                 </div>

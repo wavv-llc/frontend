@@ -25,7 +25,6 @@ import {
     X,
 } from 'lucide-react';
 import { sharepointApi, userApi, organizationApi } from '@/lib/api';
-import { OnboardingSkeleton } from '@/components/skeletons/OnboardingSkeleton';
 import {
     Dialog,
     DialogContent,
@@ -323,7 +322,7 @@ export default function OnboardingPage() {
     };
 
     if (!isLoaded || isLoading) {
-        return <OnboardingSkeleton />;
+        return null;
     }
 
     if (!isSignedIn) {

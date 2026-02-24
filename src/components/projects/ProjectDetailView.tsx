@@ -6,6 +6,7 @@ import {
     useRef,
     useLayoutEffect,
     useCallback,
+    useMemo,
 } from 'react';
 import type { TaskListRef } from './TaskList';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -41,13 +42,15 @@ import {
     customFieldApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { ProjectCalendarView } from './ProjectCalendarView';
+import {
+    CalendarSection,
+    type CalendarEvent,
+} from '@/components/dashboard/pure-steel/CalendarSection';
 import { TaskDetailView } from '@/components/tasks/TaskDetailView';
 import { TaskList } from './TaskList';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton';
 
 import {
     DropdownMenu,
@@ -251,6 +254,69 @@ function placeCaretAtEnd(el: HTMLElement) {
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
+}
+
+function getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    return new Date(d.setDate(diff));
+}
+
+/** Wrapper to convert Task[] to CalendarEvent[] and provide week navigation for CalendarSection */
+function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
+    const [currentWeekStart, setCurrentWeekStart] = useState(() =>
+        getWeekStart(new Date()),
+    );
+
+    const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
+        if (direction === 'today') {
+            setCurrentWeekStart(getWeekStart(new Date()));
+        } else if (direction === 'prev') {
+            const newDate = new Date(currentWeekStart);
+            newDate.setDate(newDate.getDate() - 7);
+            setCurrentWeekStart(newDate);
+        } else {
+            const newDate = new Date(currentWeekStart);
+            newDate.setDate(newDate.getDate() + 7);
+            setCurrentWeekStart(newDate);
+        }
+    };
+
+    const calendarEvents: CalendarEvent[] = useMemo(
+        () =>
+            tasks.map((task) => ({
+                id: task.id,
+                title: task.name,
+                date: task.dueAt
+                    ? new Date(task.dueAt)
+                    : new Date(task.createdAt),
+                type: (task.status === 'COMPLETED'
+                    ? 'task'
+                    : task.dueAt && new Date(task.dueAt) < new Date()
+                      ? 'deadline'
+                      : 'task') as CalendarEvent['type'],
+                status: (task.status === 'COMPLETED'
+                    ? 'complete'
+                    : task.status === 'IN_REVIEW'
+                      ? 'review'
+                      : task.status === 'IN_PROGRESS'
+                        ? 'in-progress'
+                        : 'pending') as CalendarEvent['status'],
+            })),
+        [tasks],
+    );
+
+    return (
+        <div className="flex-1 min-h-0 p-4">
+            <CalendarSection
+                events={calendarEvents}
+                currentWeekStart={currentWeekStart}
+                onNavigate={handleNavigate}
+                className="h-full"
+            />
+        </div>
+    );
 }
 
 export function ProjectDetailView({
@@ -1059,27 +1125,10 @@ export function ProjectDetailView({
             {/* Main Content */}
             <div className="flex-1 min-h-0 min-w-0 bg-dashboard-surface rounded-none border-0 overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
-                    <div className="flex-1 min-h-0">
-                        <ProjectCalendarView tasks={tasks} />
-                    </div>
+                    <CalendarViewWrapper tasks={tasks} />
                 ) : (
                     <div className="flex flex-col h-full w-full max-w-full">
-                        {/* Loading state */}
-                        {isLoadingCustomFields ? (
-                            <div className="flex flex-col gap-2 p-4">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="flex items-center gap-4"
-                                    >
-                                        <Skeleton className="h-4 w-4 rounded-full" />
-                                        <Skeleton className="h-4 flex-1" />
-                                        <Skeleton className="h-4 w-24" />
-                                        <Skeleton className="h-8 w-8 rounded-full" />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
+                        {!isLoadingCustomFields && (
                             <div className="flex-1 overflow-hidden">
                                 <TaskList
                                     ref={taskListRef}

@@ -46,7 +46,6 @@ import {
     ServiceJob,
     DocumentDetail,
 } from '@/lib/api';
-import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton';
 import {
     Select,
     SelectContent,
@@ -54,7 +53,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/UserContext';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { toast } from 'sonner';
@@ -540,7 +538,7 @@ export default function SettingsPage() {
     };
 
     if (!isLoaded || isUserLoading) {
-        return <SettingsSkeleton />;
+        return null;
     }
 
     const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
@@ -938,23 +936,7 @@ function DocumentsTab({
                         <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                             <p>Unable to load organization information.</p>
                         </div>
-                    ) : isLoadingDocuments ? (
-                        <div className="space-y-0.5 p-1">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <div
-                                    key={i}
-                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
-                                >
-                                    <Skeleton className="h-4 w-4 rounded" />
-                                    <div className="flex-1 space-y-1.5">
-                                        <Skeleton className="h-3 w-1/3" />
-                                        <Skeleton className="h-2.5 w-1/4" />
-                                    </div>
-                                    <Skeleton className="h-5 w-16 rounded-full" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : documents.length === 0 ? (
+                    ) : isLoadingDocuments ? null : documents.length === 0 ? (
                         <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
                             <FileText className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
                             <p className="text-[11px]">
@@ -1402,32 +1384,7 @@ function DocumentDetailView({
     };
 
     if (isLoadingDocument) {
-        return (
-            <div className="space-y-5">
-                <div className="flex items-center gap-3">
-                    <Skeleton className="h-8 w-36" />
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] p-6">
-                    <div className="flex items-center gap-4">
-                        <Skeleton className="h-10 w-10 rounded-lg" />
-                        <div className="space-y-2 flex-1">
-                            <Skeleton className="h-4 w-1/3" />
-                            <Skeleton className="h-3 w-1/4" />
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] p-6">
-                    <Skeleton className="h-4 w-24 mb-4" />
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex items-center gap-3 py-3">
-                            <Skeleton className="h-3 w-3 rounded" />
-                            <Skeleton className="h-3 w-1/3" />
-                            <Skeleton className="h-5 w-16 rounded-full ml-auto" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+        return null;
     }
 
     if (!document) {
@@ -1608,23 +1565,7 @@ function DocumentDetailView({
 
                 {/* Jobs Content */}
                 <div className="p-1.5">
-                    {isLoadingJobs ? (
-                        <div className="space-y-0.5 p-1">
-                            {[1, 2, 3].map((i) => (
-                                <div
-                                    key={i}
-                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
-                                >
-                                    <Skeleton className="h-4 w-4 rounded" />
-                                    <div className="flex-1 space-y-1.5">
-                                        <Skeleton className="h-3 w-1/3" />
-                                        <Skeleton className="h-2.5 w-1/2" />
-                                    </div>
-                                    <Skeleton className="h-5 w-16 rounded-full" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : jobs.length === 0 ? (
+                    {isLoadingJobs ? null : jobs.length === 0 ? (
                         <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
                             <Briefcase className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
                             <p className="text-[11px]">
@@ -1926,25 +1867,7 @@ function UsersTab({
                     <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                         <p>Unable to load organization information.</p>
                     </div>
-                ) : isLoadingMembers ? (
-                    <div className="p-4 space-y-0.5">
-                        {[1, 2, 3].map((i) => (
-                            <div
-                                key={i}
-                                className="flex items-center justify-between p-4 bg-[#f8f9fa] dark:bg-gray-800 rounded-xl"
-                            >
-                                <div className="flex items-center gap-3 flex-1">
-                                    <Skeleton className="h-10 w-10 rounded-full" />
-                                    <div className="space-y-2 flex-1">
-                                        <Skeleton className="h-3 w-28" />
-                                        <Skeleton className="h-2.5 w-32" />
-                                    </div>
-                                </div>
-                                <Skeleton className="h-5 w-20" />
-                            </div>
-                        ))}
-                    </div>
-                ) : filteredMembers.length === 0 ? (
+                ) : isLoadingMembers ? null : filteredMembers.length === 0 ? (
                     <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
                         <Users className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
                         <p className="text-[11px]">
@@ -2276,22 +2199,7 @@ function SharePointTab({
                         </div>
                     )}
 
-                    {isLoadingSites ? (
-                        <div className="space-y-0.5 p-1">
-                            {[1, 2, 3].map((i) => (
-                                <div
-                                    key={i}
-                                    className="p-3 rounded-xl flex items-center gap-3 bg-[#f8f9fa] dark:bg-gray-800"
-                                >
-                                    <Skeleton className="h-4 w-4 rounded-full" />
-                                    <div className="flex-1 space-y-1.5">
-                                        <Skeleton className="h-3 w-28" />
-                                        <Skeleton className="h-2.5 w-40" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : sites.length === 0 ? (
+                    {isLoadingSites ? null : sites.length === 0 ? (
                         <div className="text-center py-10 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
                             <p>
                                 No SharePoint sites found. Make sure you have

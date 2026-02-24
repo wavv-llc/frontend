@@ -15,9 +15,9 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import { chatApi, type Chat } from '@/lib/api';
-import { Skeleton } from '@/components/ui/skeleton';
 import { colors } from '@/lib/colors';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // ─── Design Tokens ───────────────────────────────────
 const ease = 'cubic-bezier(0.23, 1, 0.32, 1)';
@@ -286,26 +286,40 @@ export default function ChatDetailPage() {
 
     if (loading) {
         return (
-            <div className="cr-root">
+            <>
                 <style>{styles}</style>
-                <div className="cr-right">
-                    <div className="main-bg" />
-                    <header className="top-bar">
-                        <Skeleton className="h-9 w-9 rounded-lg" />
-                        <div className="flex-1 space-y-2">
-                            <Skeleton className="h-4 w-64" />
-                            <Skeleton className="h-3 w-32" />
-                        </div>
-                        <Skeleton className="h-8 w-28 rounded-full" />
-                    </header>
-                    <div className="messages-scroll">
-                        <div className="messages-inner">
-                            <Skeleton className="h-24 w-full rounded-2xl" />
-                            <Skeleton className="h-48 w-full rounded-2xl" />
+                <div className="cr-root">
+                    <div className="cr-right">
+                        <div className="main-bg" />
+                        {/* Top bar skeleton */}
+                        <header className="top-bar">
+                            <Skeleton className="h-7 w-7 rounded-lg shrink-0" />
+                            <div className="flex flex-col gap-1 flex-1">
+                                <Skeleton className="h-3 w-48" />
+                                <Skeleton className="h-2 w-24" />
+                            </div>
+                            <Skeleton className="h-5 w-16 rounded-full" />
+                        </header>
+                        {/* Messages skeleton */}
+                        <div className="messages-scroll">
+                            <div className="messages-inner">
+                                {/* User message skeleton */}
+                                <div className="flex justify-end py-1">
+                                    <Skeleton className="h-12 w-64 rounded-[13px_13px_3px_13px]" />
+                                </div>
+                                {/* Assistant message skeleton */}
+                                <div className="py-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Skeleton className="h-6 w-6 rounded-md shrink-0" />
+                                        <Skeleton className="h-3 w-12" />
+                                    </div>
+                                    <Skeleton className="h-28 w-full rounded-[13px]" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </>
         );
     }
 
@@ -422,7 +436,7 @@ export default function ChatDetailPage() {
                                                         size={10}
                                                         className={
                                                             isRetrying
-                                                                ? 'spinning'
+                                                                ? 'animate-spin'
                                                                 : ''
                                                         }
                                                     />
@@ -740,19 +754,6 @@ const styles = `
   .retry-btn:disabled {
     cursor: not-allowed;
     opacity: 0.5;
-  }
-
-  .retry-btn .spinning {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   /* ── ASSISTANT MESSAGE ── */

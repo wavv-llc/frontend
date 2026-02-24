@@ -6,6 +6,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { Globe, Paperclip, Send, Loader2 } from 'lucide-react';
 import { chatApi, type Chat } from '@/lib/api';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function NewChatPage() {
     const router = useRouter();
@@ -123,50 +124,72 @@ export default function NewChatPage() {
                     </div>
 
                     {/* Recent Conversations */}
-                    {!isLoading && recentChats.length > 0 && (
+                    {(isLoading || recentChats.length > 0) && (
                         <div className="space-y-3.5 animate-fade-up animate-delay-100">
                             <h2 className="font-sans text-[11px] font-medium uppercase tracking-wider text-[var(--dashboard-text-muted)] px-1">
                                 Recent Conversations
                             </h2>
                             <div className="space-y-2">
-                                {recentChats.map((chat) => (
-                                    <button
-                                        key={chat.id}
-                                        onClick={() =>
-                                            router.push(`/chats/${chat.id}`)
-                                        }
-                                        className="w-full text-left group cursor-pointer"
-                                    >
-                                        <div className="flex items-start gap-3.5 p-3.5 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] hover:border-[var(--accent)] hover:shadow-sm transition-all duration-200">
-                                            <div className="flex-shrink-0 mt-1.5">
-                                                <div className="w-2 h-2 rounded-full bg-[var(--dashboard-text-muted)] group-hover:bg-[var(--accent)] transition-colors" />
+                                {isLoading ? (
+                                    <>
+                                        {[...Array(3)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex items-start gap-3.5 p-3.5 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)]"
+                                            >
+                                                <Skeleton className="h-2 w-2 rounded-full mt-1.5 shrink-0" />
+                                                <div className="flex-1 space-y-2">
+                                                    <Skeleton className="h-3.5 w-3/4" />
+                                                    <Skeleton className="h-3 w-1/2" />
+                                                </div>
+                                                <Skeleton className="h-3 w-12 shrink-0" />
                                             </div>
-                                            <div className="flex-1 min-w-0 space-y-1">
-                                                <h3 className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)] group-hover:text-[var(--accent)] transition-colors">
-                                                    {truncateText(
-                                                        chat.message,
-                                                        60,
-                                                    )}
-                                                </h3>
-                                                <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)] line-clamp-1">
-                                                    {chat.response
-                                                        ? truncateText(
-                                                              chat.response,
-                                                              80,
-                                                          )
-                                                        : 'Processing...'}
-                                                </p>
-                                            </div>
-                                            <div className="flex-shrink-0">
-                                                <span className="font-sans text-[11px] text-[var(--dashboard-text-faint)]">
-                                                    {formatTimestamp(
-                                                        chat.updatedAt,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                        ))}
+                                    </>
+                                ) : (
+                                    <>
+                                        {recentChats.map((chat) => (
+                                            <button
+                                                key={chat.id}
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/chats/${chat.id}`,
+                                                    )
+                                                }
+                                                className="w-full text-left group cursor-pointer"
+                                            >
+                                                <div className="flex items-start gap-3.5 p-3.5 rounded-lg bg-[var(--dashboard-surface)] border border-[var(--dashboard-border)] hover:border-[var(--accent)] hover:shadow-sm transition-all duration-200">
+                                                    <div className="flex-shrink-0 mt-1.5">
+                                                        <div className="w-2 h-2 rounded-full bg-[var(--dashboard-text-muted)] group-hover:bg-[var(--accent)] transition-colors" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 space-y-1">
+                                                        <h3 className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)] group-hover:text-[var(--accent)] transition-colors">
+                                                            {truncateText(
+                                                                chat.message,
+                                                                60,
+                                                            )}
+                                                        </h3>
+                                                        <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)] line-clamp-1">
+                                                            {chat.response
+                                                                ? truncateText(
+                                                                      chat.response,
+                                                                      80,
+                                                                  )
+                                                                : 'Processing...'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <span className="font-sans text-[11px] text-[var(--dashboard-text-faint)]">
+                                                            {formatTimestamp(
+                                                                chat.updatedAt,
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

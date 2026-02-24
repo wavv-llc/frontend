@@ -6,7 +6,6 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { dashboardApi, type RecentItem, type DashboardTask } from '@/lib/api';
 import {
     DashboardContent,
-    DashboardLoading,
     type Task,
     type CalendarEvent,
     type ActivityItem,
@@ -129,10 +128,6 @@ export default function HomePage() {
         ];
     }, [data.tasks.length, data.calendar.length]);
 
-    if (loading) {
-        return <DashboardLoading />;
-    }
-
     return (
         <DashboardContent
             userName={user?.firstName || 'User'}
@@ -142,6 +137,7 @@ export default function HomePage() {
             stats={stats}
             onTaskClick={handleTaskClick}
             onEventClick={handleEventClick}
+            isLoading={loading}
         />
     );
 }

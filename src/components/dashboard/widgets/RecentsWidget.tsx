@@ -2,7 +2,6 @@
 
 import { Clock } from 'lucide-react';
 import { type RecentItem } from '@/lib/api';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ItemIcon } from '../shared';
@@ -17,7 +16,7 @@ export function RecentsWidget({
     onItemClick: (item: RecentItem) => void;
 }) {
     if (isLoading) {
-        return <Skeleton className="h-full w-full rounded-xl" />;
+        return null;
     }
 
     return (

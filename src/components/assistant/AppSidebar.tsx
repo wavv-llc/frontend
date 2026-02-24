@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     DropdownMenu,
@@ -370,82 +369,68 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                                 </div>
                             )}
                             <div className="space-y-1">
-                                {loading
-                                    ? !isCompressed && (
-                                          <div className="space-y-2 px-3 py-1">
-                                              {[1, 2].map((i) => (
-                                                  <div
-                                                      key={i}
-                                                      className="flex items-center gap-2 animate-pulse"
+                                {!loading && workspaces.length > 0
+                                    ? workspaces.map((workspace) => (
+                                          <div key={workspace.id}>
+                                              {!isCompressed ? (
+                                                  <Button
+                                                      variant="ghost"
+                                                      onClick={() =>
+                                                          handleWorkspaceClick(
+                                                              workspace.id,
+                                                          )
+                                                      }
+                                                      className={cn(
+                                                          'w-full justify-start gap-3 px-3 py-2 text-[12.5px] font-normal transition-colors rounded-sm cursor-pointer relative',
+                                                          pathname?.includes(
+                                                              `/workspaces/${workspace.id}`,
+                                                          )
+                                                              ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
+                                                              : 'text-[var(--dashboard-text-body)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                      )}
                                                   >
-                                                      <Skeleton className="h-2 w-2 rounded-full" />
-                                                      <Skeleton className="h-3.5 flex-1 rounded-sm" />
-                                                  </div>
-                                              ))}
+                                                      <div
+                                                          className={cn(
+                                                              'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
+                                                              pathname?.includes(
+                                                                  `/workspaces/${workspace.id}`,
+                                                              )
+                                                                  ? 'bg-[var(--accent)]'
+                                                                  : 'bg-[var(--dashboard-border)]',
+                                                          )}
+                                                      />
+                                                      <span className="truncate tracking-tight">
+                                                          {workspace.name}
+                                                      </span>
+                                                  </Button>
+                                              ) : (
+                                                  <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      onClick={() =>
+                                                          handleWorkspaceClick(
+                                                              workspace.id,
+                                                          )
+                                                      }
+                                                      className={cn(
+                                                          'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
+                                                          pathname?.includes(
+                                                              `/workspaces/${workspace.id}`,
+                                                          )
+                                                              ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
+                                                              : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
+                                                      )}
+                                                  >
+                                                      <Briefcase className="h-[18px] w-[18px]" />
+                                                  </Button>
+                                              )}
                                           </div>
-                                      )
-                                    : workspaces.length > 0
-                                      ? workspaces.map((workspace) => (
-                                            <div key={workspace.id}>
-                                                {!isCompressed ? (
-                                                    <Button
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            handleWorkspaceClick(
-                                                                workspace.id,
-                                                            )
-                                                        }
-                                                        className={cn(
-                                                            'w-full justify-start gap-3 px-3 py-2 text-[12.5px] font-normal transition-colors rounded-sm cursor-pointer relative',
-                                                            pathname?.includes(
-                                                                `/workspaces/${workspace.id}`,
-                                                            )
-                                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-[var(--accent)] before:rounded-r'
-                                                                : 'text-[var(--dashboard-text-body)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
-                                                        )}
-                                                    >
-                                                        <div
-                                                            className={cn(
-                                                                'h-1.5 w-1.5 rounded-full flex-shrink-0 transition-colors',
-                                                                pathname?.includes(
-                                                                    `/workspaces/${workspace.id}`,
-                                                                )
-                                                                    ? 'bg-[var(--accent)]'
-                                                                    : 'bg-[var(--dashboard-border)]',
-                                                            )}
-                                                        />
-                                                        <span className="truncate tracking-tight">
-                                                            {workspace.name}
-                                                        </span>
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() =>
-                                                            handleWorkspaceClick(
-                                                                workspace.id,
-                                                            )
-                                                        }
-                                                        className={cn(
-                                                            'w-full h-10 transition-colors rounded-sm cursor-pointer relative',
-                                                            pathname?.includes(
-                                                                `/workspaces/${workspace.id}`,
-                                                            )
-                                                                ? 'text-[var(--dashboard-text-primary)] bg-[var(--dashboard-bg)] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-6 before:bg-[var(--accent)] before:rounded-r'
-                                                                : 'text-[var(--dashboard-text-muted)] hover:text-[var(--dashboard-text-primary)] hover:bg-[var(--dashboard-bg)]',
-                                                        )}
-                                                    >
-                                                        <Briefcase className="h-[18px] w-[18px]" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        ))
-                                      : !isCompressed && (
-                                            <p className="px-3 py-3 text-[11px] text-[var(--dashboard-text-faint)] text-center">
-                                                No workspaces
-                                            </p>
-                                        )}
+                                      ))
+                                    : !isCompressed && (
+                                          <p className="px-3 py-3 text-[11px] text-[var(--dashboard-text-faint)] text-center">
+                                              No workspaces
+                                          </p>
+                                      )}
                             </div>
                         </div>
                     </div>
@@ -500,18 +485,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
                             </TooltipProvider>
                         )}
 
-                        {chatsLoading ? (
-                            <div className="space-y-2 px-3 py-1">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="flex items-center gap-2 animate-pulse"
-                                    >
-                                        <Skeleton className="h-3.5 flex-1 rounded" />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : chats.length > 0 ? (
+                        {chatsLoading ? null : chats.length > 0 ? (
                             <div className="space-y-1">
                                 {chats.map((chat) => (
                                     <div key={chat.id}>

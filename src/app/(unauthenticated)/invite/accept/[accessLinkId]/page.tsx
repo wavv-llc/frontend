@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { accessLinkApi, AccessLink } from '@/lib/api';
 import { toast } from 'sonner';
-import { InviteSkeleton } from '@/components/skeletons/InviteSkeleton';
 
 type InviteStatus =
     | 'loading'
@@ -191,7 +190,7 @@ export default function InviteAcceptPage() {
 
     // Loading state
     if (status === 'loading' || (isSignedIn && isAccepting)) {
-        return <InviteSkeleton />;
+        return null;
     }
 
     // Error states

@@ -18,6 +18,7 @@ interface TaskTableProps {
     tasks: Task[];
     onTaskClick?: (task: Task) => void;
     className?: string;
+    isLoading?: boolean;
 }
 
 type TabType = 'all' | 'my-tasks' | 'overdue';
@@ -67,7 +68,12 @@ function formatDueDate(date: Date): string {
     }
 }
 
-export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
+export function TaskTable({
+    tasks,
+    onTaskClick,
+    className,
+    isLoading = false,
+}: TaskTableProps) {
     const [activeTab, setActiveTab] = useState<TabType>('all');
 
     // Filter tasks based on active tab
@@ -156,7 +162,28 @@ export function TaskTable({ tasks, onTaskClick, className }: TaskTableProps) {
 
             {/* Task Rows */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-                {sortedTasks.length === 0 ? (
+                {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="grid px-4.5 py-2 grid-cols-[1fr_72px_81px_108px] border-b border-dashboard-border-light"
+                        >
+                            <div className="flex flex-col gap-1 justify-center">
+                                <div className="h-3 w-28 rounded bg-dashboard-border animate-pulse" />
+                                <div className="h-2.5 w-14 rounded bg-dashboard-border animate-pulse" />
+                            </div>
+                            <div className="flex items-center">
+                                <div className="h-2.5 w-2.5 rounded bg-dashboard-border animate-pulse" />
+                            </div>
+                            <div className="flex items-center">
+                                <div className="h-2.5 w-10 rounded bg-dashboard-border animate-pulse" />
+                            </div>
+                            <div className="flex items-center">
+                                <div className="h-4 w-16 rounded-full bg-dashboard-border animate-pulse" />
+                            </div>
+                        </div>
+                    ))
+                ) : sortedTasks.length === 0 ? (
                     <div className="py-10 text-center">
                         <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">
                             No tasks found

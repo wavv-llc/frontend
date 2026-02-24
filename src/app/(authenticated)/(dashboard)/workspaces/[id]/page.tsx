@@ -20,7 +20,6 @@ import {
     Edit2,
     Trash2,
 } from 'lucide-react';
-import { WorkspaceDetailSkeleton } from '@/components/skeletons/WorkspaceDetailSkeleton';
 import Link from 'next/link';
 import {
     workspaceApi,
@@ -50,6 +49,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function WorkspaceDetailsPage() {
     const params = useParams();
@@ -62,7 +62,6 @@ export default function WorkspaceDetailsPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showSkeleton, setShowSkeleton] = useState(false);
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(
         searchParams.get('createProject') === 'true',
     );
@@ -129,11 +128,6 @@ export default function WorkspaceDetailsPage() {
     useEffect(() => {
         fetchData();
     }, [workspaceId]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setShowSkeleton(true), 150);
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleCreateProject = () => {
         setShowCreateProjectDialog(true);
@@ -215,8 +209,28 @@ export default function WorkspaceDetailsPage() {
     };
 
     if (isLoading) {
-        if (!showSkeleton) return null;
-        return <WorkspaceDetailSkeleton />;
+        return (
+            <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden">
+                {/* Header skeleton */}
+                <div className="sticky top-0 z-10 border-b border-dashboard-border px-6 py-4 flex items-center justify-between shrink-0 bg-white/95">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-7 w-52" />
+                    </div>
+                    <Skeleton className="h-8 w-24 rounded-lg" />
+                </div>
+                {/* Toolbar skeleton */}
+                <div className="px-6 py-3 flex items-center shrink-0 border-b border-dashboard-border">
+                    <Skeleton className="h-8 w-28 rounded-lg" />
+                </div>
+                {/* Content skeleton */}
+                <div className="flex-1 overflow-auto px-6 pb-6 pt-4 space-y-3">
+                    {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     if (!workspace) {

@@ -4,7 +4,6 @@ import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { userApi } from '@/lib/api';
-import { AuthenticatedSkeleton } from '@/components/skeletons/AuthenticatedSkeleton';
 import { UserProvider, useUser } from '@/contexts/UserContext';
 
 const EXCLUDED_PATHS = [
@@ -132,17 +131,11 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
     ]);
 
     if (!isLoaded || !isSignedIn) {
-        return <AuthenticatedSkeleton />;
+        return null;
     }
 
-    // While loading user data (if not cached/excluded handled above)
-    // Actually, checkStatus handles the logic. If isLoading is true, we return Skeleton?
-    // But checkStatus returns early if isLoading is true.
-    // And isAuthorized defaults to false.
-    // So if isAuthorized is false, we show Skeleton.
-
     if (!isAuthorized) {
-        return <AuthenticatedSkeleton />;
+        return null;
     }
 
     return <>{children}</>;

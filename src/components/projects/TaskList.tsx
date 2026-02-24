@@ -319,11 +319,12 @@ function placeCaretAtEnd(el: HTMLElement) {
 interface EditableHeaderProps {
     initialValue: string;
     icon?: React.ComponentType<{ className?: string }>;
+    className?: string;
     onSave: (value: string) => void;
     placeholder?: string;
 }
 
-/** Elevated popout header for column names with enhanced styling */
+/** Notion-style inline editable header using contentEditable for seamless editing */
 const EditableHeader = ({
     initialValue,
     icon: Icon,
@@ -331,88 +332,117 @@ const EditableHeader = ({
     placeholder = 'Field name...',
 }: EditableHeaderProps) => {
     const [isEditing, setIsEditing] = useState(false);
-    const [value, setValue] = useState(initialValue);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [displayValue, setDisplayValue] = useState(initialValue);
+    const [prevValue, setPrevValue] = useState(initialValue);
+    // Derived state pattern to sync value from props when not editing
+    if (initialValue !== prevValue && !isEditing) {
+        setPrevValue(initialValue);
+        setDisplayValue(initialValue);
+    }
 
-    // Sync with prop changes when not editing
+    const [editEmpty, setEditEmpty] = useState(false);
+    const headerRef = useRef<HTMLDivElement>(null);
+    const discardOnBlurRef = useRef(false);
+
     useLayoutEffect(() => {
-        if (!isEditing) {
-            setValue(initialValue);
-        }
-    }, [initialValue, isEditing]);
-
-    // Auto-focus and select all text when entering edit mode
-    useLayoutEffect(() => {
-        if (isEditing && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [isEditing]);
-
-    const handleSave = () => {
-        const trimmed = value.trim();
-        if (trimmed && trimmed !== initialValue) {
-            onSave(trimmed);
-        } else if (!trimmed) {
-            setValue(initialValue);
-        }
-        setIsEditing(false);
-    };
-
-    const handleCancel = () => {
-        setValue(initialValue);
-        setIsEditing(false);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSave();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            handleCancel();
-        }
-    };
+        if (!isEditing || !headerRef.current) return;
+        const el = headerRef.current;
+        el.focus();
+        el.textContent = '';
+        el.textContent = displayValue;
+        placeCaretAtEnd(el);
+    }, [isEditing, displayValue]);
 
     const handleBlur = () => {
-        handleSave();
+        if (discardOnBlurRef.current) {
+            discardOnBlurRef.current = false;
+            setDisplayValue(initialValue);
+            setIsEditing(false);
+            return;
+        }
+        const el = headerRef.current;
+        const raw = el?.textContent ?? '';
+        const trimmed = raw.trim();
+        if (trimmed && trimmed !== initialValue) {
+            onSave(trimmed);
+        }
+        setDisplayValue(trimmed || initialValue);
+        setIsEditing(false);
+    };
+
+    const handleInput = () => {
+        const raw = headerRef.current?.textContent ?? '';
+        setEditEmpty(!raw.trim());
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            (e.target as HTMLDivElement).blur();
+        }
+        if (e.key === 'Escape') {
+            discardOnBlurRef.current = true;
+            if (headerRef.current) headerRef.current.textContent = displayValue;
+            (e.target as HTMLDivElement).blur();
+        }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text/plain');
+        document.execCommand('insertText', false, text);
+        queueMicrotask(handleInput);
+    };
+
+    const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        if (!isEditing) {
+            setIsEditing(true);
+            setEditEmpty(!displayValue.trim());
+        }
     };
 
     if (isEditing) {
         return (
             <div
                 className={cn(
-                    'relative flex items-center gap-2 min-w-0',
-                    'animate-in fade-in-0 zoom-in-95 duration-150',
+                    'relative flex items-center gap-2 min-w-0 flex-1',
                 )}
             >
                 {Icon && (
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground z-10" />
+                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onBlur={handleBlur}
-                    placeholder={placeholder}
-                    className={cn(
-                        'absolute left-0 right-0 -top-1 -bottom-1',
-                        Icon ? '-left-2 pl-8' : '-left-3 pl-3',
-                        'pr-3 py-2.5',
-                        'text-sm font-medium',
-                        'bg-background',
-                        'border-2 border-[#2563eb]',
-                        'rounded-md',
-                        'shadow-[0_4px_12px_rgba(37,99,235,0.15),0_2px_4px_rgba(0,0,0,0.1)]',
-                        'outline-none',
-                        'z-50',
-                        'transition-all duration-150',
-                        'min-w-[180px]',
+                <div className="relative flex-1 min-w-0">
+                    <div
+                        ref={headerRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        onBlur={handleBlur}
+                        onInput={handleInput}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        className={cn(
+                            'outline-none cursor-text',
+                            'rounded px-1 py-0.5 -mx-1 -my-0.5',
+                            'bg-muted/40 focus:bg-muted/60',
+                            'transition-colors duration-150',
+                            'text-sm font-medium truncate',
+                            'min-h-[1.5em]',
+                        )}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    {editEmpty && (
+                        <div
+                            className={cn(
+                                'pointer-events-none absolute left-0 top-0 px-1 py-0.5',
+                                'text-sm font-medium text-muted-foreground/50 italic',
+                            )}
+                            aria-hidden
+                        >
+                            {placeholder}
+                        </div>
                     )}
-                    onClick={(e) => e.stopPropagation()}
-                />
+                </div>
             </div>
         );
     }
@@ -421,20 +451,17 @@ const EditableHeader = ({
         <div
             role="button"
             tabIndex={0}
-            onClick={(e) => {
-                e.stopPropagation();
-                setIsEditing(true);
-            }}
+            onClick={handleClick}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setIsEditing(true);
+                    handleClick(e);
                 }
             }}
             className={cn(
                 'flex items-center gap-2 min-w-0 flex-1',
                 'group/header cursor-pointer',
-                'rounded px-1 py-1 -mx-1 -my-1',
+                'rounded px-1 py-0.5 -mx-1 -my-0.5',
                 'hover:bg-muted/50 active:bg-muted/70',
                 'transition-colors duration-150',
                 'relative',
@@ -447,10 +474,10 @@ const EditableHeader = ({
             <span
                 className={cn(
                     'text-sm font-medium truncate',
-                    !value && 'text-muted-foreground/50 italic',
+                    !displayValue && 'text-muted-foreground/50 italic',
                 )}
             >
-                {value || placeholder}
+                {displayValue || placeholder}
             </span>
             <Pencil className="h-3 w-3 text-muted-foreground/40 opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0 absolute right-0" />
         </div>
@@ -1610,14 +1637,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
                         {/* Table Body */}
                         <div className="min-w-max pb-20">
-                            {tasks.length === 0 && !isCreatingTask && (
-                                <div className="flex flex-col items-center justify-center h-32 text-center px-8 sticky left-0 w-full min-w-[300px]">
-                                    <p className="text-muted-foreground text-sm">
-                                        No tasks found
-                                    </p>
-                                </div>
-                            )}
-
                             {groupByField
                                 ? // Render Grouped Tasks
                                   (() => {
@@ -1970,7 +1989,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                       </div>
                                   ))}
 
-                            {/* New Task Row - Only shown when creating */}
+                            {/* New Task Row / Add Task - always directly after tasks */}
                             {isCreatingTask ? (
                                 <div className="flex border-b border-dashboard-border bg-accent-subtle min-w-max">
                                     <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-accent-subtle shadow-[1px_0_0_0_var(--dashboard-border)]">
@@ -2012,6 +2031,16 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         />
                                     ))}
                                     <div className="w-[150px] shrink-0" />
+                                </div>
+                            )}
+
+                            {/* Empty state message - shown below the add task row */}
+                            {tasks.length === 0 && !isCreatingTask && (
+                                <div className="flex flex-col items-center justify-center h-24 text-center px-8 sticky left-0 w-full min-w-[300px]">
+                                    <p className="text-muted-foreground text-sm">
+                                        No tasks yet. Click &quot;Add task&quot;
+                                        above to get started.
+                                    </p>
                                 </div>
                             )}
                         </div>

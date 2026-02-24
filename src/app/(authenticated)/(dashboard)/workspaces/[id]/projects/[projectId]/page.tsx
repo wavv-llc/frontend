@@ -6,18 +6,14 @@ import { useAuth } from '@clerk/nextjs';
 import { ProjectDetailView } from '@/components/projects/ProjectDetailView';
 import { projectApi, taskApi, type Project, type Task } from '@/lib/api';
 import { toast } from 'sonner';
-import { ProjectDetailSkeleton } from '@/components/skeletons/ProjectDetailSkeleton';
-import { TaskDetailSkeleton } from '@/components/skeletons/TaskDetailSkeleton';
-import { useSearchParams } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProjectPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
     const { getToken } = useAuth();
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showSkeleton, setShowSkeleton] = useState(false);
     const projectId = params.projectId as string;
 
     const fetchData = async () => {
@@ -59,19 +55,34 @@ export default function ProjectPage() {
         }
     }, [projectId]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => setShowSkeleton(true), 150);
-        return () => clearTimeout(timer);
-    }, []);
-
     if (isLoading) {
-        // If we have a taskId in the URL, show the task skeleton
-        if (searchParams.get('taskId')) {
-            return showSkeleton ? (
-                <TaskDetailSkeleton onBack={() => {}} />
-            ) : null;
-        }
-        return showSkeleton ? <ProjectDetailSkeleton /> : null;
+        return (
+            <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden">
+                {/* Header skeleton */}
+                <div className="sticky top-0 z-10 border-b border-dashboard-border px-6 py-4 flex items-center justify-between shrink-0 bg-white/95">
+                    <div className="flex flex-col gap-2">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-7 w-56" />
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-8 w-20 rounded-lg" />
+                        <Skeleton className="h-8 w-24 rounded-lg" />
+                    </div>
+                </div>
+                {/* Toolbar skeleton */}
+                <div className="px-6 py-3 flex items-center gap-2 shrink-0 border-b border-dashboard-border">
+                    <Skeleton className="h-8 w-20 rounded-lg" />
+                    <Skeleton className="h-8 w-20 rounded-lg" />
+                    <Skeleton className="h-8 w-20 rounded-lg" />
+                </div>
+                {/* Content skeleton — task rows */}
+                <div className="flex-1 overflow-auto px-6 pb-6 pt-4 space-y-2">
+                    {[...Array(8)].map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     if (!project) {

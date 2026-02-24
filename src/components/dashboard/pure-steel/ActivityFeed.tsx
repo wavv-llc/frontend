@@ -34,6 +34,7 @@ interface ActivityFeedProps {
     activities: ActivityItem[];
     stats: ActivityStat[];
     className?: string;
+    isLoading?: boolean;
 }
 
 const ACTIVITY_ICONS: Record<ActivityItem['type'], LucideIcon> = {
@@ -81,6 +82,7 @@ export function ActivityFeed({
     activities,
     stats,
     className,
+    isLoading = false,
 }: ActivityFeedProps) {
     return (
         <div
@@ -100,7 +102,23 @@ export function ActivityFeed({
 
             {/* Activity List */}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-0 mb-4">
-                {activities.length === 0 ? (
+                {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="flex gap-2.5 py-2 border-b border-dashboard-border-light"
+                        >
+                            <div className="shrink-0 w-6 h-6 rounded-lg bg-dashboard-border animate-pulse" />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                    <div className="h-2 w-12 rounded bg-dashboard-border animate-pulse" />
+                                    <div className="h-2 w-8 rounded bg-dashboard-border animate-pulse" />
+                                </div>
+                                <div className="h-3 w-full rounded bg-dashboard-border animate-pulse" />
+                            </div>
+                        </div>
+                    ))
+                ) : activities.length === 0 ? (
                     <div className="py-8 text-center">
                         <p className="font-sans text-[12px] text-[var(--dashboard-text-muted)]">
                             No recent activity
@@ -154,32 +172,43 @@ export function ActivityFeed({
             </div>
 
             {/* Footer Stats */}
-            {stats.length > 0 && (
+            {(isLoading || stats.length > 0) && (
                 <div className="pt-3 border-t border-[var(--dashboard-border)]">
                     <div className="grid grid-cols-2 gap-2">
-                        {stats.map((stat, index) => (
-                            <div
-                                key={index}
-                                className="px-3 py-2.5 rounded-lg bg-[var(--accent-subtle)]"
-                            >
-                                {/* Label */}
-                                <div className="font-sans text-[8px] font-medium uppercase tracking-wider text-[var(--dashboard-text-muted)] mb-1">
-                                    {stat.label}
-                                </div>
+                        {isLoading
+                            ? Array.from({ length: 2 }).map((_, i) => (
+                                  <div
+                                      key={i}
+                                      className="px-3 py-2.5 rounded-lg bg-accent-subtle"
+                                  >
+                                      <div className="h-2 w-16 rounded bg-dashboard-border animate-pulse mb-2" />
+                                      <div className="h-6 w-8 rounded bg-dashboard-border animate-pulse mb-1" />
+                                      <div className="h-2 w-10 rounded bg-dashboard-border animate-pulse" />
+                                  </div>
+                              ))
+                            : stats.map((stat, index) => (
+                                  <div
+                                      key={index}
+                                      className="px-3 py-2.5 rounded-lg bg-[var(--accent-subtle)]"
+                                  >
+                                      {/* Label */}
+                                      <div className="font-sans text-[8px] font-medium uppercase tracking-wider text-[var(--dashboard-text-muted)] mb-1">
+                                          {stat.label}
+                                      </div>
 
-                                {/* Value */}
-                                <div className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
-                                    {stat.value}
-                                </div>
+                                      {/* Value */}
+                                      <div className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                          {stat.value}
+                                      </div>
 
-                                {/* Sub-label */}
-                                {stat.subLabel && (
-                                    <div className="font-sans text-[9px] text-[var(--dashboard-text-muted)] mt-0.5">
-                                        {stat.subLabel}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                      {/* Sub-label */}
+                                      {stat.subLabel && (
+                                          <div className="font-sans text-[9px] text-[var(--dashboard-text-muted)] mt-0.5">
+                                              {stat.subLabel}
+                                          </div>
+                                      )}
+                                  </div>
+                              ))}
                     </div>
                 </div>
             )}
