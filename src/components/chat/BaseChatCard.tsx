@@ -6,6 +6,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatActionBar } from './ChatActionBar';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 
 type ChatCardVariant = 'user' | 'assistant' | 'streaming' | 'thinking';
 
@@ -43,7 +48,6 @@ export function BaseChatCard({
             return;
         }
 
-        // Reset state for streaming
         indexRef.current = 0;
         setDisplayedText('');
         setIsComplete(false);
@@ -59,7 +63,6 @@ export function BaseChatCard({
                 );
                 setDisplayedText(content.slice(0, nextIndex));
                 indexRef.current = nextIndex;
-
                 streamingRef.current = setTimeout(stream, intervalMs);
             } else {
                 setIsComplete(true);
@@ -84,103 +87,120 @@ export function BaseChatCard({
         variant === 'assistant' || (variant === 'streaming' && isComplete);
 
     return (
-        <div
+        <Card
             className={cn(
-                'rounded-xl border border-border/50 bg-card p-4 md:p-6 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4',
+                'border-border/50 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4',
                 className,
             )}
         >
             {isUserMessage ? (
-                // User message layout
-                <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className="shrink-0 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                    </div>
+                <CardContent className="p-4 md:p-6">
+                    <div className="flex items-start gap-3">
+                        <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                                <User className="h-3.5 w-3.5" />
+                            </AvatarFallback>
+                        </Avatar>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-semibold text-foreground">
-                                {userName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                                {timestamp}
-                            </span>
-                        </div>
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-                            {content}
-                        </p>
-                    </div>
-                </div>
-            ) : (
-                // Assistant message layout
-                <>
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4 pb-3 border-b border-border/30">
-                        <div className="flex items-center gap-3">
-                            {/* Avatar */}
-                            <div className="shrink-0 h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                                <Bot className="h-3.5 w-3.5 text-muted-foreground" />
-                            </div>
-
-                            {/* Label & Timestamp */}
-                            <div>
-                                <span className="text-xs font-semibold text-foreground block">
-                                    Assistant
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-semibold text-foreground">
+                                    {userName}
                                 </span>
-                                <span className="text-xs text-muted-foreground">
+                                <Separator
+                                    orientation="vertical"
+                                    className="h-3"
+                                />
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/50"
+                                >
                                     {timestamp}
-                                </span>
+                                </Badge>
                             </div>
+                            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap wrap-break-word">
+                                {content}
+                            </p>
                         </div>
-
-                        {/* Action Bar */}
-                        {showActionBar && <ChatActionBar content={content} />}
                     </div>
+                </CardContent>
+            ) : (
+                <>
+                    <CardHeader className="p-4 md:p-6 pb-3">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-7 w-7 shrink-0">
+                                    <AvatarFallback className="bg-muted text-muted-foreground">
+                                        <Bot className="h-3.5 w-3.5" />
+                                    </AvatarFallback>
+                                </Avatar>
 
-                    {/* Content */}
-                    {variant === 'thinking' ? (
-                        // Thinking Animation
-                        <div className="flex items-center gap-3">
-                            <Sparkles className="h-4 w-4 text-primary/60 animate-pulse" />
-                            <div className="flex items-center gap-1">
-                                <span className="text-sm text-muted-foreground">
-                                    Thinking
-                                </span>
-                                <span className="flex gap-1">
-                                    <span
-                                        className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"
-                                        style={{ animationDelay: '0ms' }}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-foreground">
+                                        Assistant
+                                    </span>
+                                    <Separator
+                                        orientation="vertical"
+                                        className="h-3"
                                     />
-                                    <span
-                                        className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"
-                                        style={{ animationDelay: '150ms' }}
-                                    />
-                                    <span
-                                        className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"
-                                        style={{ animationDelay: '300ms' }}
-                                    />
-                                </span>
+                                    <Badge
+                                        variant="outline"
+                                        className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground border-border/50"
+                                    >
+                                        {timestamp}
+                                    </Badge>
+                                </div>
                             </div>
+
+                            {showActionBar && (
+                                <ChatActionBar content={content} />
+                            )}
                         </div>
-                    ) : (
-                        // Markdown Content
-                        <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6 first:prose-headings:mt-0 prose-p:text-foreground prose-p:leading-relaxed prose-p:mb-4 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-2 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:p-4 prose-pre:rounded-xl prose-pre:my-4 prose-ul:text-foreground prose-ul:my-4 prose-ol:text-foreground prose-ol:my-4 prose-li:text-foreground prose-li:my-1 prose-li:marker:text-muted-foreground prose-blockquote:border-l-2 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-4 prose-hr:border-border prose-hr:my-6 prose-table:text-sm prose-th:text-foreground prose-th:font-semibold prose-th:p-2 prose-th:border prose-th:border-border prose-td:text-foreground prose-td:p-2 prose-td:border prose-td:border-border prose-img:rounded-lg prose-img:my-4">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {variant === 'streaming'
-                                    ? displayedText
-                                    : content}
-                            </ReactMarkdown>
-                            {variant === 'streaming' &&
-                                isStreaming &&
-                                !isComplete && (
-                                    <span className="inline-block w-2 h-4 ml-1 bg-primary/60 animate-pulse" />
-                                )}
-                        </div>
-                    )}
+                        <Separator className="mt-3" />
+                    </CardHeader>
+
+                    <CardContent className="px-4 md:px-6 pb-4 md:pb-6 pt-0">
+                        {variant === 'thinking' ? (
+                            <div className="flex items-center gap-3">
+                                <Spinner
+                                    size="sm"
+                                    className="text-primary/60"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-primary/60 animate-pulse" />
+                                    <span className="text-sm text-muted-foreground">
+                                        Thinking
+                                    </span>
+                                    <span className="flex gap-1">
+                                        {[0, 150, 300].map((delay) => (
+                                            <span
+                                                key={delay}
+                                                className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"
+                                                style={{
+                                                    animationDelay: `${delay}ms`,
+                                                }}
+                                            />
+                                        ))}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6 first:prose-headings:mt-0 prose-p:text-foreground prose-p:leading-relaxed prose-p:mb-4 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-2 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:p-4 prose-pre:rounded-xl prose-pre:my-4 prose-ul:text-foreground prose-ul:my-4 prose-ol:text-foreground prose-ol:my-4 prose-li:text-foreground prose-li:my-1 prose-li:marker:text-muted-foreground prose-blockquote:border-l-2 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-4 prose-hr:border-border prose-hr:my-6 prose-table:text-sm prose-th:text-foreground prose-th:font-semibold prose-th:p-2 prose-th:border prose-th:border-border prose-td:text-foreground prose-td:p-2 prose-td:border prose-td:border-border prose-img:rounded-lg prose-img:my-4">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {variant === 'streaming'
+                                        ? displayedText
+                                        : content}
+                                </ReactMarkdown>
+                                {variant === 'streaming' &&
+                                    isStreaming &&
+                                    !isComplete && (
+                                        <span className="inline-block w-2 h-4 ml-1 bg-primary/60 animate-pulse" />
+                                    )}
+                            </div>
+                        )}
+                    </CardContent>
                 </>
             )}
-        </div>
+        </Card>
     );
 }

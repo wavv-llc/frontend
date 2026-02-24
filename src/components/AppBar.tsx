@@ -2,9 +2,22 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+    NavigationMenu,
+    NavigationMenuList,
+    NavigationMenuItem,
+    NavigationMenuLink,
+} from '@/components/ui/navigation-menu';
+import {
+    Sheet,
+    SheetTrigger,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 
 /**
  * AppBar component for unauthenticated pages (landing, sign-in, contact, etc.)
@@ -96,18 +109,25 @@ export function AppBar({
                     </span>
                 </Link>
 
-                {/* Desktop Nav - Absolutely centered */}
+                {/* Desktop Nav - NavigationMenu absolutely centered */}
                 {navItems.length > 0 && (
-                    <div className="hidden md:flex items-center gap-10 absolute left-1/2 -translate-x-1/2">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className="font-sans text-sm font-medium text-steel-500 hover:text-steel-950 transition-colors"
-                            >
-                                {item.name}
-                            </Link>
-                        ))}
+                    <div className="hidden md:flex items-center absolute left-1/2 -translate-x-1/2">
+                        <NavigationMenu viewport={false}>
+                            <NavigationMenuList className="gap-6">
+                                {navItems.map((item) => (
+                                    <NavigationMenuItem key={item.name}>
+                                        <NavigationMenuLink
+                                            asChild
+                                            className="font-sans text-sm font-medium text-steel-500 hover:text-steel-950 transition-colors bg-transparent hover:bg-transparent focus:bg-transparent px-0 py-0 rounded-none"
+                                        >
+                                            <Link href={item.href}>
+                                                {item.name}
+                                            </Link>
+                                        </NavigationMenuLink>
+                                    </NavigationMenuItem>
+                                ))}
+                            </NavigationMenuList>
+                        </NavigationMenu>
                     </div>
                 )}
 
@@ -130,56 +150,107 @@ export function AppBar({
                     )}
                 </div>
 
-                {/* Mobile Menu Button */}
-                <button
-                    className="md:hidden p-2 text-steel-950"
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-                >
-                    {isMobileMenuOpen ? (
-                        <X className="w-6 h-6" />
-                    ) : (
-                        <Menu className="w-6 h-6" />
-                    )}
-                </button>
-            </div>
-
-            {/* Mobile Menu */}
-            {isMobileMenuOpen && (
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="md:hidden border-t border-steel-200 px-6 py-4 space-y-4 bg-white"
-                >
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className="block font-sans text-sm font-medium text-steel-500 hover:text-steel-950"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
-                    <div className="pt-4 border-t border-steel-200 space-y-3">
-                        {showLoginLink && (
-                            <Link
-                                href="/sign-in"
-                                className="block font-sans text-sm font-medium text-steel-700"
+                {/* Mobile Menu - Sheet */}
+                <div className="md:hidden z-10">
+                    <Sheet
+                        open={isMobileMenuOpen}
+                        onOpenChange={setIsMobileMenuOpen}
+                    >
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="p-2 text-steel-950"
+                                aria-label={
+                                    isMobileMenuOpen
+                                        ? 'Close menu'
+                                        : 'Open menu'
+                                }
                             >
-                                Login
-                            </Link>
-                        )}
-                        {showContactButton && (
-                            <Link href="/contact" className="block">
-                                <Button className="w-full">
-                                    Request Access
-                                </Button>
-                            </Link>
-                        )}
-                    </div>
-                </motion.div>
-            )}
+                                <Menu className="w-6 h-6" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent
+                            side="right"
+                            className="w-72 bg-white px-0 pt-0"
+                        >
+                            <SheetHeader className="px-6 pt-6 pb-4">
+                                <SheetTitle asChild>
+                                    <Link
+                                        href="/"
+                                        className="flex items-center gap-2.5 group"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        <div
+                                            className="w-8 h-8 rounded-md flex items-center justify-center transition-transform group-hover:scale-105"
+                                            style={{
+                                                backgroundColor: '#1e293b',
+                                            }}
+                                        >
+                                            <span className="text-white font-serif italic text-base font-semibold">
+                                                w
+                                            </span>
+                                        </div>
+                                        <span className="text-lg font-serif font-normal tracking-tight text-steel-950">
+                                            wavv
+                                        </span>
+                                    </Link>
+                                </SheetTitle>
+                            </SheetHeader>
+
+                            <Separator className="border-steel-200" />
+
+                            {/* Nav links */}
+                            <div className="px-6 py-4 space-y-1">
+                                {navItems.map((item) => (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        className="block font-sans text-sm font-medium text-steel-500 hover:text-steel-950 py-2 transition-colors"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        {item.name}
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <Separator className="border-steel-200" />
+
+                            {/* CTA area */}
+                            <div className="px-6 py-4 space-y-3">
+                                {showLoginLink && (
+                                    <Link
+                                        href="/sign-in"
+                                        className="block font-sans text-sm font-medium text-steel-700 hover:text-steel-950 py-1 transition-colors"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        Login
+                                    </Link>
+                                )}
+                                {showContactButton && (
+                                    <Link
+                                        href="/contact"
+                                        className="block"
+                                        onClick={() =>
+                                            setIsMobileMenuOpen(false)
+                                        }
+                                    >
+                                        <Button className="w-full">
+                                            Request Access
+                                        </Button>
+                                    </Link>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
+            </div>
         </nav>
     );
 }

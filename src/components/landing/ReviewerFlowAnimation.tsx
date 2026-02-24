@@ -163,7 +163,7 @@ function ReviewerFlowAnimationComponent({
                         {STAGES.map((stage, index) => (
                             <div key={stage.id} className="flex items-center">
                                 <div
-                                    className="flex-shrink-0 flex justify-center"
+                                    className="shrink-0 flex justify-center"
                                     style={{ width: '48px' }}
                                 >
                                     <motion.span
@@ -186,7 +186,7 @@ function ReviewerFlowAnimationComponent({
                                 </div>
                                 {/* Spacer to match connector width */}
                                 {index < STAGES.length - 1 && (
-                                    <div className="w-8 mx-1 flex-shrink-0" />
+                                    <div className="w-8 mx-1 shrink-0" />
                                 )}
                             </div>
                         ))}

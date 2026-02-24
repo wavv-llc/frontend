@@ -23,6 +23,27 @@ import {
     Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import {
+    Tooltip,
+    TooltipTrigger,
+    TooltipContent,
+} from '@/components/ui/tooltip';
+import {
+    HoverCard,
+    HoverCardTrigger,
+    HoverCardContent,
+} from '@/components/ui/hover-card';
+import {
+    Accordion,
+    AccordionItem,
+    AccordionTrigger,
+    AccordionContent,
+} from '@/components/ui/accordion';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RetroWaterAnimation } from './RetroWaterAnimation';
 import { ExcelGridBackground } from './ExcelGridBackground';
 import { ReviewerFlowAnimation } from './ReviewerFlowAnimation';
@@ -55,6 +76,9 @@ export function LandingPage() {
 
             {/* Roadmap Section - Future Endeavors */}
             <RoadmapSection />
+
+            {/* FAQ Section */}
+            <FAQSection />
 
             {/* CTA Section */}
             <CTASection />
@@ -193,7 +217,7 @@ function DashboardPreview() {
                 </div>
 
                 {/* Dashboard content */}
-                <div className="flex h-[500px]">
+                <div className="flex h-125">
                     {/* Sidebar */}
                     <div
                         className="hidden md:flex flex-col w-56 p-4 border-r"
@@ -323,15 +347,16 @@ function DashboardPreview() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span
-                                                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                                            <Badge
+                                                variant="secondary"
+                                                className="text-[10px] font-medium px-1.5 py-0.5 rounded border-0"
                                                 style={{
                                                     backgroundColor: '#f1f5f9',
                                                     color: '#475569',
                                                 }}
                                             >
                                                 {result.type}
-                                            </span>
+                                            </Badge>
                                         </div>
                                         <h4 className="font-medium text-sm text-[#0b1120] truncate">
                                             {result.title}
@@ -449,30 +474,37 @@ function ProblemSection() {
                             initial={{ opacity: 0, y: 30 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 0.25, delay: i * 0.05 }}
-                            className="p-8 rounded-2xl border"
-                            style={{
-                                backgroundColor: '#FFFFFF',
-                                borderColor: '#e2e8f0',
-                            }}
                         >
-                            <div
-                                className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 shadow-sm"
-                                style={{ backgroundColor: '#1e293b' }}
+                            <Card
+                                className="h-full rounded-2xl border shadow-none gap-0 py-0"
+                                style={{
+                                    backgroundColor: '#FFFFFF',
+                                    borderColor: '#e2e8f0',
+                                }}
                             >
-                                <problem.icon className="w-6 h-6 text-white" />
-                            </div>
-                            <h3
-                                className="text-xl font-serif font-bold mb-3"
-                                style={{ color: '#0b1120' }}
-                            >
-                                {problem.title}
-                            </h3>
-                            <p
-                                className="leading-relaxed text-[15px]"
-                                style={{ color: '#475569' }}
-                            >
-                                {problem.description}
-                            </p>
+                                <CardHeader className="px-8 pt-8 pb-0">
+                                    <div
+                                        className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 shadow-sm"
+                                        style={{ backgroundColor: '#1e293b' }}
+                                    >
+                                        <problem.icon className="w-6 h-6 text-white" />
+                                    </div>
+                                    <CardTitle
+                                        className="text-xl font-serif font-bold"
+                                        style={{ color: '#0b1120' }}
+                                    >
+                                        {problem.title}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-8 pb-8 pt-3">
+                                    <p
+                                        className="leading-relaxed text-[15px]"
+                                        style={{ color: '#475569' }}
+                                    >
+                                        {problem.description}
+                                    </p>
+                                </CardContent>
+                            </Card>
                         </motion.div>
                     ))}
                 </div>
@@ -486,6 +518,37 @@ function SolutionSection() {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true, margin: '-100px' });
 
+    const features = [
+        {
+            icon: Search,
+            title: 'Unified Search',
+            description:
+                'Query SharePoint, internal documents, and client files from a single search bar. Relevance-ranked with citations.',
+            tooltip: 'Search across all your firm data in one place',
+        },
+        {
+            icon: Brain,
+            title: 'AI Assistant',
+            description:
+                'Natural-language Q&A over your documents. Get summaries, comparisons, and explanations instantly.',
+            tooltip: 'Powered by advanced language models trained on tax law',
+        },
+        {
+            icon: Layers,
+            title: 'Semantic Understanding',
+            description:
+                'Not just keywords—Wavv understands tax concepts and connects related documents intelligently.',
+            tooltip: 'Deep semantic indexing beyond keyword matching',
+        },
+        {
+            icon: ShieldCheck,
+            title: 'Secure & Private',
+            description:
+                "Enterprise-grade security with role-based access. Your firm's data stays exclusively yours.",
+            tooltip: 'SOC 2 compliant with end-to-end encryption',
+        },
+    ];
+
     return (
         <section
             id="features"
@@ -498,7 +561,7 @@ function SolutionSection() {
 
             {/* Animated floating geometric shapes */}
             <motion.div
-                className="absolute top-32 right-20 w-64 h-64 rounded-full opacity-70 blur-xl z-[1]"
+                className="absolute top-32 right-20 w-64 h-64 rounded-full opacity-70 blur-xl z-1"
                 animate={{
                     x: [0, -25, 0],
                     y: [0, 25, 0],
@@ -515,7 +578,7 @@ function SolutionSection() {
                 }}
             />
             <motion.div
-                className="absolute bottom-32 left-16 w-80 h-80 rounded-full opacity-70 blur-xl z-[1]"
+                className="absolute bottom-32 left-16 w-80 h-80 rounded-full opacity-70 blur-xl z-1"
                 animate={{
                     x: [0, 35, 0],
                     y: [0, -25, 0],
@@ -559,68 +622,93 @@ function SolutionSection() {
                 </motion.div>
 
                 <div className="grid lg:grid-cols-2 gap-12 items-center">
-                    {/* Features list */}
+                    {/* Features list - HoverCard items */}
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
                         animate={isInView ? { opacity: 1, x: 0 } : {}}
                         transition={{ duration: 0.25, delay: 0.05 }}
-                        className="space-y-6"
+                        className="space-y-4"
                     >
-                        {[
-                            {
-                                icon: Search,
-                                title: 'Unified Search',
-                                description:
-                                    'Query SharePoint, internal documents, and client files from a single search bar. Relevance-ranked with citations.',
-                            },
-                            {
-                                icon: Brain,
-                                title: 'AI Assistant',
-                                description:
-                                    'Natural-language Q&A over your documents. Get summaries, comparisons, and explanations instantly.',
-                            },
-                            {
-                                icon: Layers,
-                                title: 'Semantic Understanding',
-                                description:
-                                    'Not just keywords—Wavv understands tax concepts and connects related documents intelligently.',
-                            },
-                            {
-                                icon: ShieldCheck,
-                                title: 'Secure & Private',
-                                description:
-                                    "Enterprise-grade security with role-based access. Your firm's data stays exclusively yours.",
-                            },
-                        ].map((feature) => (
-                            <div
+                        {features.map((feature) => (
+                            <HoverCard
                                 key={feature.title}
-                                className="flex gap-4 p-6 rounded-2xl border transition-all hover:shadow-sm"
-                                style={{
-                                    backgroundColor: '#FFFFFF',
-                                    borderColor: '#e2e8f0',
-                                }}
+                                openDelay={150}
+                                closeDelay={100}
                             >
-                                <div
-                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                                    style={{ backgroundColor: '#1e293b' }}
+                                <HoverCardTrigger asChild>
+                                    <div
+                                        className="flex gap-4 p-6 rounded-2xl border transition-all hover:shadow-md hover:border-steel-300 cursor-pointer"
+                                        style={{
+                                            backgroundColor: '#FFFFFF',
+                                            borderColor: '#e2e8f0',
+                                        }}
+                                    >
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div
+                                                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 cursor-default"
+                                                    style={{
+                                                        backgroundColor:
+                                                            '#1e293b',
+                                                    }}
+                                                >
+                                                    <feature.icon className="w-5 h-5 text-white" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent
+                                                side="left"
+                                                className="text-xs max-w-45"
+                                            >
+                                                {feature.tooltip}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        <div>
+                                            <h4
+                                                className="font-serif font-bold text-lg mb-1"
+                                                style={{ color: '#0b1120' }}
+                                            >
+                                                {feature.title}
+                                            </h4>
+                                            <p
+                                                className="text-sm leading-relaxed"
+                                                style={{ color: '#475569' }}
+                                            >
+                                                {feature.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </HoverCardTrigger>
+                                <HoverCardContent
+                                    side="right"
+                                    className="w-72 border-steel-200 shadow-lg"
+                                    style={{ backgroundColor: '#FFFFFF' }}
                                 >
-                                    <feature.icon className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <h4
-                                        className="font-serif font-bold text-lg mb-1"
-                                        style={{ color: '#0b1120' }}
-                                    >
-                                        {feature.title}
-                                    </h4>
-                                    <p
-                                        className="text-sm leading-relaxed"
-                                        style={{ color: '#475569' }}
-                                    >
-                                        {feature.description}
-                                    </p>
-                                </div>
-                            </div>
+                                    <div className="flex items-start gap-3">
+                                        <div
+                                            className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                                            style={{
+                                                backgroundColor: '#1e293b',
+                                            }}
+                                        >
+                                            <feature.icon className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div>
+                                            <p
+                                                className="font-serif font-bold text-sm mb-1"
+                                                style={{ color: '#0b1120' }}
+                                            >
+                                                {feature.title}
+                                            </p>
+                                            <p
+                                                className="text-xs leading-relaxed"
+                                                style={{ color: '#64748b' }}
+                                            >
+                                                {feature.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </HoverCardContent>
+                            </HoverCard>
                         ))}
                     </motion.div>
 
@@ -641,6 +729,54 @@ function SolutionSection() {
 
 // ============ KNOWLEDGE GRAPH VISUALIZATION ============
 function KnowledgeGraphVisualization() {
+    const graphNodes = [
+        {
+            angle: 0,
+            icon: FileText,
+            label: '10-K Filing',
+            fallback: '10K',
+            color: '#64748b',
+            description:
+                'Annual SEC filings and financial disclosures indexed for instant retrieval.',
+        },
+        {
+            angle: 72,
+            icon: Database,
+            label: 'SharePoint',
+            fallback: 'SP',
+            color: '#64748b',
+            description:
+                'Your firm SharePoint fully integrated—no manual sync required.',
+        },
+        {
+            angle: 144,
+            icon: BookOpen,
+            label: 'Tax Research',
+            fallback: 'TR',
+            color: '#64748b',
+            description:
+                'Internal research memos and external tax authority in one index.',
+        },
+        {
+            angle: 216,
+            icon: FolderOpen,
+            label: 'Workpapers',
+            fallback: 'WP',
+            color: '#64748b',
+            description:
+                'Historic workpapers surfaced automatically when you need them.',
+        },
+        {
+            angle: 288,
+            icon: Briefcase,
+            label: 'Client Files',
+            fallback: 'CF',
+            color: '#64748b',
+            description:
+                'Client engagement files organized and searchable across all engagements.',
+        },
+    ];
+
     return (
         <div
             className="aspect-square relative rounded-2xl border p-8 z-20"
@@ -675,39 +811,8 @@ function KnowledgeGraphVisualization() {
                 </motion.div>
             </div>
 
-            {/* Orbiting nodes */}
-            {[
-                {
-                    angle: 0,
-                    icon: FileText,
-                    label: '10-K Filing',
-                    color: '#64748b',
-                },
-                {
-                    angle: 72,
-                    icon: Database,
-                    label: 'SharePoint',
-                    color: '#64748b',
-                },
-                {
-                    angle: 144,
-                    icon: BookOpen,
-                    label: 'Tax Research',
-                    color: '#64748b',
-                },
-                {
-                    angle: 216,
-                    icon: FolderOpen,
-                    label: 'Workpapers',
-                    color: '#64748b',
-                },
-                {
-                    angle: 288,
-                    icon: Briefcase,
-                    label: 'Client Files',
-                    color: '#64748b',
-                },
-            ].map((node) => {
+            {/* Orbiting nodes - Avatar + HoverCard */}
+            {graphNodes.map((node) => {
                 const x = Math.cos((node.angle * Math.PI) / 180) * 120;
                 const y = Math.sin((node.angle * Math.PI) / 180) * 120;
 
@@ -722,23 +827,58 @@ function KnowledgeGraphVisualization() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: node.angle / 360 + 0.5 }}
                     >
-                        <div
-                            className="w-12 h-12 rounded-lg flex items-center justify-center shadow-sm border border-white/30"
-                            style={{
-                                backgroundColor: node.color,
-                            }}
-                        >
-                            <node.icon className="w-5 h-5 text-white" />
-                        </div>
-                        <span
-                            className="text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded"
-                            style={{
-                                backgroundColor: '#f1f5f9',
-                                color: '#475569',
-                            }}
-                        >
-                            {node.label}
-                        </span>
+                        <HoverCard openDelay={200} closeDelay={100}>
+                            <HoverCardTrigger asChild>
+                                <div className="flex flex-col items-center gap-2 cursor-pointer">
+                                    <Avatar
+                                        className="w-12 h-12 rounded-lg border border-white/30 shadow-sm"
+                                        style={{ backgroundColor: node.color }}
+                                    >
+                                        <AvatarFallback
+                                            className="rounded-lg text-white text-xs font-medium"
+                                            style={{
+                                                backgroundColor: node.color,
+                                            }}
+                                        >
+                                            <node.icon className="w-5 h-5 text-white" />
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span
+                                        className="text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded"
+                                        style={{
+                                            backgroundColor: '#f1f5f9',
+                                            color: '#475569',
+                                        }}
+                                    >
+                                        {node.label}
+                                    </span>
+                                </div>
+                            </HoverCardTrigger>
+                            <HoverCardContent
+                                className="w-56 border-steel-200 shadow-lg text-xs"
+                                style={{ backgroundColor: '#FFFFFF' }}
+                            >
+                                <div className="flex items-start gap-2">
+                                    <div
+                                        className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+                                        style={{ backgroundColor: node.color }}
+                                    >
+                                        <node.icon className="w-3.5 h-3.5 text-white" />
+                                    </div>
+                                    <div>
+                                        <p
+                                            className="font-serif font-bold text-sm mb-1"
+                                            style={{ color: '#0b1120' }}
+                                        >
+                                            {node.label}
+                                        </p>
+                                        <p style={{ color: '#64748b' }}>
+                                            {node.description}
+                                        </p>
+                                    </div>
+                                </div>
+                            </HoverCardContent>
+                        </HoverCard>
                     </motion.div>
                 );
             })}
@@ -750,6 +890,14 @@ function KnowledgeGraphVisualization() {
 function FeaturesSection() {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true, margin: '-100px' });
+
+    const checklistItems = [
+        'Drag-and-drop reviewer assignment',
+        'Multi-level approval chains',
+        'Real-time status tracking',
+        'Automated notifications',
+        'Audit-ready documentation',
+    ];
 
     return (
         <section
@@ -799,7 +947,7 @@ function FeaturesSection() {
 
             {/* Animated connecting lines */}
             <motion.div
-                className="absolute top-1/2 left-0 w-32 h-[2px] bg-gradient-to-r from-transparent via-[#e2e8f0] to-transparent z-0 opacity-80"
+                className="absolute top-1/2 left-0 w-32 h-0.5 bg-linear-to-r from-transparent via-[#e2e8f0] to-transparent z-0 opacity-80"
                 animate={{
                     scaleX: [0, 1, 0],
                     x: [0, 100, 200],
@@ -848,13 +996,7 @@ function FeaturesSection() {
                         </h3>
 
                         <div className="space-y-4">
-                            {[
-                                'Drag-and-drop reviewer assignment',
-                                'Multi-level approval chains',
-                                'Real-time status tracking',
-                                'Automated notifications',
-                                'Audit-ready documentation',
-                            ].map((item, i) => (
+                            {checklistItems.map((item, i) => (
                                 <motion.div
                                     key={item}
                                     initial={{ opacity: 0, x: -20 }}
@@ -865,7 +1007,7 @@ function FeaturesSection() {
                                     className="flex items-center gap-3"
                                 >
                                     <div
-                                        className="w-5 h-5 rounded-full flex items-center justify-center"
+                                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                                         style={{ backgroundColor: '#1e293b' }}
                                     >
                                         <Check className="w-3 h-3 text-white" />
@@ -876,6 +1018,20 @@ function FeaturesSection() {
                                 </motion.div>
                             ))}
                         </div>
+
+                        <Separator
+                            className="my-8"
+                            style={{ backgroundColor: '#e2e8f0' }}
+                        />
+
+                        <p
+                            className="text-sm leading-relaxed italic"
+                            style={{ color: '#64748b' }}
+                        >
+                            Designed with tax professionals in mind — every step
+                            of the review process is tracked, auditable, and
+                            built for compliance.
+                        </p>
                     </motion.div>
 
                     {/* Reviewer Flow Animation - Hidden on mobile to prevent clipping */}
@@ -978,7 +1134,7 @@ function RoadmapSection() {
 
             {/* Animated progress lines - suggesting forward motion */}
             <motion.div
-                className="absolute top-1/3 right-0 w-48 h-[2px] bg-gradient-to-l from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
+                className="absolute top-1/3 right-0 w-48 h-0.5 bg-linear-to-l from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
                 animate={{
                     scaleX: [0, 1, 0],
                     x: [-100, -50, 0],
@@ -991,7 +1147,7 @@ function RoadmapSection() {
                 }}
             />
             <motion.div
-                className="absolute top-2/3 left-0 w-48 h-[2px] bg-gradient-to-r from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
+                className="absolute top-2/3 left-0 w-48 h-0.5 bg-linear-to-r from-transparent via-[#e2e8f0] to-transparent opacity-80 z-0"
                 animate={{
                     scaleX: [0, 1, 0],
                     x: [0, 50, 100],
@@ -1037,69 +1193,226 @@ function RoadmapSection() {
                             initial={{ opacity: 0, y: 30 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
                             transition={{ duration: 0.25, delay: i * 0.05 }}
-                            className="p-6 rounded-2xl border relative overflow-hidden"
-                            style={{
-                                backgroundColor: '#FFFFFF',
-                                borderColor: '#e2e8f0',
-                            }}
                         >
-                            {/* Progress bar at top */}
-                            <div className="absolute top-0 left-0 right-0 h-1 bg-[#f1f5f9]">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={
-                                        isInView
-                                            ? { width: `${item.progress}%` }
-                                            : {}
-                                    }
-                                    transition={{
-                                        duration: 0.25,
-                                        delay: 0.05 + i * 0.05,
-                                    }}
-                                    className="h-full"
-                                    style={{
-                                        backgroundColor: item.progressColor,
-                                    }}
-                                />
-                            </div>
-
-                            <div className="flex items-start gap-4 mt-4">
-                                <div
-                                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                                    style={{ backgroundColor: item.iconColor }}
-                                >
-                                    <item.icon className="w-6 h-6 text-white" />
+                            <Card
+                                className="h-full rounded-2xl border shadow-none overflow-hidden gap-0 py-0"
+                                style={{
+                                    backgroundColor: '#FFFFFF',
+                                    borderColor: '#e2e8f0',
+                                }}
+                            >
+                                {/* shadcn Progress bar at top */}
+                                <div className="h-1 w-full bg-[#f1f5f9] relative overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={
+                                            isInView
+                                                ? { width: `${item.progress}%` }
+                                                : {}
+                                        }
+                                        transition={{
+                                            duration: 0.25,
+                                            delay: 0.05 + i * 0.05,
+                                        }}
+                                        className="h-full absolute top-0 left-0"
+                                        style={{
+                                            backgroundColor: item.progressColor,
+                                        }}
+                                    />
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span
-                                            className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+
+                                <CardHeader className="px-6 pt-6 pb-0">
+                                    <div className="flex items-start gap-4">
+                                        <div
+                                            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
                                             style={{
-                                                backgroundColor:
-                                                    item.badgeColor,
-                                                color: 'white',
+                                                backgroundColor: item.iconColor,
                                             }}
                                         >
-                                            {item.status}
-                                        </span>
+                                            <item.icon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <Badge
+                                                className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border-0 mb-2"
+                                                style={{
+                                                    backgroundColor:
+                                                        item.badgeColor,
+                                                    color: 'white',
+                                                }}
+                                            >
+                                                {item.status}
+                                            </Badge>
+                                            <CardTitle
+                                                className="font-serif font-bold text-lg leading-snug"
+                                                style={{ color: '#0b1120' }}
+                                            >
+                                                {item.title}
+                                            </CardTitle>
+                                        </div>
                                     </div>
-                                    <h3
-                                        className="font-serif font-bold text-lg mb-2 leading-snug"
-                                        style={{ color: '#0b1120' }}
-                                    >
-                                        {item.title}
-                                    </h3>
+                                </CardHeader>
+
+                                <CardContent className="px-6 pb-6 pt-3">
                                     <p
                                         className="text-sm leading-relaxed"
                                         style={{ color: '#475569' }}
                                     >
                                         {item.description}
                                     </p>
-                                </div>
-                            </div>
+
+                                    {/* shadcn Progress component below description */}
+                                    <div className="mt-4">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span
+                                                className="text-[10px] font-medium uppercase tracking-wider"
+                                                style={{ color: '#94a3b8' }}
+                                            >
+                                                Progress
+                                            </span>
+                                            <span
+                                                className="text-[10px] font-semibold"
+                                                style={{ color: '#475569' }}
+                                            >
+                                                {item.progress}%
+                                            </span>
+                                        </div>
+                                        <Progress
+                                            value={item.progress}
+                                            className="h-1.5"
+                                            style={
+                                                {
+                                                    '--progress-color':
+                                                        item.progressColor,
+                                                } as React.CSSProperties
+                                            }
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </motion.div>
                     ))}
                 </div>
+            </div>
+        </section>
+    );
+}
+
+// ============ FAQ SECTION ============
+function FAQSection() {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, margin: '-100px' });
+
+    const faqs = [
+        {
+            value: 'faq-1',
+            question: 'How does Wavv integrate with our existing firm tools?',
+            answer: 'Wavv connects directly to your existing SharePoint environment, internal document stores, and client file systems through secure OAuth integrations. Setup typically takes less than a day and requires no changes to your current workflows. Your data stays in your existing infrastructure — Wavv indexes it without copying it to external servers.',
+        },
+        {
+            value: 'faq-2',
+            question:
+                'Is our client data safe and compliant with data protection regulations?',
+            answer: 'Absolutely. Wavv is built with enterprise-grade security from the ground up. All data is encrypted at rest and in transit. Role-based access controls ensure each team member only sees what they are authorized to see. We are actively pursuing SOC 2 Type II certification, and our architecture is designed for compliance with IRS data security standards and client confidentiality obligations.',
+        },
+        {
+            value: 'faq-3',
+            question:
+                'How accurate is the AI when answering tax research questions?',
+            answer: 'Wavv answers questions grounded in your own firm documents and verified tax authority — not hallucinated general knowledge. Every answer is accompanied by citations to the underlying source documents so your team can verify the reasoning. Wavv surfaces what exists in your knowledge base; it does not fabricate statutes or create unsupported conclusions.',
+        },
+        {
+            value: 'faq-4',
+            question:
+                'What does onboarding look like and how quickly can our team get up to speed?',
+            answer: 'Most firms are fully operational within one to two weeks. We provide a dedicated onboarding specialist who configures your integrations, helps curate your initial document index, and trains your team on search and review workflows. Because Wavv is designed to feel familiar — it works like a smart search bar — the learning curve is minimal even for non-technical staff.',
+        },
+    ];
+
+    return (
+        <section
+            ref={ref}
+            className="py-24 md:py-32 relative overflow-hidden"
+            style={{ backgroundColor: '#f8fafc' }}
+        >
+            {/* Subtle background orb */}
+            <motion.div
+                className="absolute top-10 right-20 w-72 h-72 rounded-full opacity-40 blur-3xl z-0"
+                animate={{
+                    x: [0, -20, 0],
+                    y: [0, 20, 0],
+                }}
+                transition={{
+                    duration: 6,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                }}
+                style={{
+                    background:
+                        'radial-gradient(circle, rgba(139, 94, 60, 0.10), transparent 70%)',
+                }}
+            />
+
+            <div className="max-w-3xl mx-auto px-6 relative z-10">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.35 }}
+                    className="text-center mb-16"
+                >
+                    <h2
+                        className="text-4xl md:text-5xl font-serif font-bold mb-5 leading-tight"
+                        style={{ color: '#0b1120' }}
+                    >
+                        Common Questions
+                    </h2>
+                    <p
+                        className="text-lg max-w-xl mx-auto leading-relaxed"
+                        style={{ color: '#475569' }}
+                    >
+                        Everything you need to know before bringing Wavv to your
+                        firm.
+                    </p>
+                </motion.div>
+
+                <Separator
+                    className="mb-8"
+                    style={{ backgroundColor: '#e2e8f0' }}
+                />
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.35, delay: 0.1 }}
+                >
+                    <Accordion type="single" collapsible className="w-full">
+                        {faqs.map((faq) => (
+                            <AccordionItem
+                                key={faq.value}
+                                value={faq.value}
+                                className="border-b"
+                                style={{ borderColor: '#e2e8f0' }}
+                            >
+                                <AccordionTrigger
+                                    className="font-serif font-semibold text-base text-left hover:no-underline py-5"
+                                    style={{ color: '#0b1120' }}
+                                >
+                                    {faq.question}
+                                </AccordionTrigger>
+                                <AccordionContent
+                                    className="text-sm leading-relaxed pb-5"
+                                    style={{ color: '#475569' }}
+                                >
+                                    {faq.answer}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </motion.div>
+
+                <Separator
+                    className="mt-8"
+                    style={{ backgroundColor: '#e2e8f0' }}
+                />
             </div>
         </section>
     );

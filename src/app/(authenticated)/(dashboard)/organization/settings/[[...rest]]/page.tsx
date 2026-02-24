@@ -664,7 +664,7 @@ export default function SettingsPage() {
                         ))}
                         {/* Sliding active indicator */}
                         <div
-                            className="absolute bottom-0 h-[2px] bg-gradient-to-r from-[#3a4557] to-[#272f3b] dark:from-gray-100 dark:to-gray-50 rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(58,69,87,0.35)] dark:shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                            className="absolute bottom-0 h-[2px] bg-linear-to-r from-[#3a4557] to-[#272f3b] dark:from-gray-100 dark:to-gray-50 rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(58,69,87,0.35)] dark:shadow-[0_0_12px_rgba(255,255,255,0.25)]"
                             style={{
                                 left: `${indicatorStyle.left + indicatorStyle.width * 0.15}px`,
                                 width: `${indicatorStyle.width * 0.7}px`,
@@ -1039,7 +1039,7 @@ function DocumentsTab({
                                                     {/* File Name */}
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div
-                                                            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform hover:scale-105"
+                                                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-transform hover:scale-105"
                                                             style={{
                                                                 background:
                                                                     fileIcon.bg,
@@ -1071,7 +1071,7 @@ function DocumentsTab({
 
                                                     {/* Source */}
                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                        <span className="text-[#8d9ab0] dark:text-gray-400 flex-shrink-0">
+                                                        <span className="text-[#8d9ab0] dark:text-gray-400 shrink-0">
                                                             <Database
                                                                 size={11}
                                                             />
@@ -1445,7 +1445,7 @@ function DocumentDetailView({
                 <div className="px-5 py-5">
                     <div className="flex items-start gap-4">
                         <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                             style={{
                                 background: fileIcon.bg,
                                 color: fileIcon.color,
@@ -1473,7 +1473,7 @@ function DocumentDetailView({
                         </div>
                         {/* Retry / Re-embed Buttons */}
                         {showRetryProcessing && (
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0">
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -1688,7 +1688,7 @@ function DocumentDetailView({
                                                     {/* Task Name & Description */}
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         {hasChildren && (
-                                                            <span className="flex-shrink-0 text-[#8d9ab0]">
+                                                            <span className="shrink-0 text-[#8d9ab0]">
                                                                 {isExpanded ? (
                                                                     <ChevronDown
                                                                         size={
@@ -1947,7 +1947,7 @@ function UsersTab({
                                     {/* Left: Avatar + Info */}
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         {/* Circular Avatar */}
-                                        <div className="h-10 w-10 rounded-full bg-[#272f3b] dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                                        <div className="h-10 w-10 rounded-full bg-[#272f3b] dark:bg-gray-700 flex items-center justify-center shrink-0">
                                             <span className="text-[11px] font-bold text-white dark:text-gray-200">
                                                 {initials}
                                             </span>
@@ -2073,7 +2073,7 @@ function UsersTab({
                     ) : (
                         <div className="flex items-start gap-4">
                             {/* Mail Icon */}
-                            <div className="w-12 h-12 rounded-xl bg-[#f8f9fa] dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                            <div className="w-12 h-12 rounded-xl bg-[#f8f9fa] dark:bg-gray-800 flex items-center justify-center shrink-0">
                                 <Mail className="h-5 w-5 text-[#6b7a94] dark:text-gray-400" />
                             </div>
 
@@ -2120,8 +2120,8 @@ function UsersTab({
                                         </Select>
                                         <Button
                                             type="submit"
-                                            variant="primary"
-                                            size="md"
+                                            variant="default"
+                                            size="default"
                                             disabled={
                                                 isInviting ||
                                                 !inviteEmail.trim()
@@ -2306,7 +2306,7 @@ function SharePointTab({
                             {selectedSiteIds.size !== 1 ? 's' : ''} selected
                         </span>
                         <Button
-                            variant="primary"
+                            variant="default"
                             size="sm"
                             onClick={handleSaveSites}
                             disabled={isSaving}

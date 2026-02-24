@@ -4,6 +4,15 @@ import { useRef, useEffect, useState } from 'react';
 import { Send, Loader2, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Kbd } from '@/components/ui/kbd';
+import { Separator } from '@/components/ui/separator';
+import { Toggle } from '@/components/ui/toggle';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ChatCommandBarProps {
     message: string;
@@ -23,7 +32,6 @@ export function ChatCommandBar({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
 
-    // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -31,7 +39,6 @@ export function ChatCommandBar({
         }
     }, [message]);
 
-    // Handle keyboard shortcuts
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -44,10 +51,6 @@ export function ChatCommandBar({
         onSubmit(e, externalSearchEnabled);
     };
 
-    const toggleExternalSearch = () => {
-        setExternalSearchEnabled(!externalSearchEnabled);
-    };
-
     return (
         <form onSubmit={handleSubmit} className="relative">
             <div className="relative bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/5 hover:shadow-black/10 transition-all focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-border">
@@ -57,27 +60,33 @@ export function ChatCommandBar({
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="min-h-[56px] max-h-[200px] resize-none border-0 bg-transparent pl-14 pr-14 md:pl-16 md:pr-16 py-4 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm md:text-base placeholder:text-muted-foreground/60 scrollbar-thin"
+                    className="min-h-14 max-h-50 resize-none border-0 bg-transparent pl-14 pr-14 md:pl-16 md:pr-16 py-4 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm md:text-base placeholder:text-muted-foreground/60 scrollbar-thin"
                     disabled={isSubmitting}
                     rows={1}
                 />
                 <div className="absolute left-3 bottom-3">
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant={externalSearchEnabled ? 'default' : 'ghost'}
-                        onClick={toggleExternalSearch}
-                        className="h-8 w-8 rounded-full transition-all"
-                        title={
-                            externalSearchEnabled
-                                ? 'External search enabled'
-                                : 'Enable external search'
-                        }
-                    >
-                        <Globe
-                            className={`h-4 w-4 ${externalSearchEnabled ? '' : 'text-muted-foreground'}`}
-                        />
-                    </Button>
+                    <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Toggle
+                                    pressed={externalSearchEnabled}
+                                    onPressedChange={setExternalSearchEnabled}
+                                    size="sm"
+                                    className="h-8 w-8 rounded-full p-0 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                                    aria-label="Toggle external search"
+                                >
+                                    <Globe className="h-4 w-4" />
+                                </Toggle>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>
+                                    {externalSearchEnabled
+                                        ? 'External search enabled'
+                                        : 'Enable external search'}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
                 <div className="absolute right-3 bottom-3">
                     <Button
@@ -94,10 +103,14 @@ export function ChatCommandBar({
                     </Button>
                 </div>
             </div>
-            <p className="text-xs text-muted-foreground/60 text-center mt-3">
-                Press <span className="font-medium">Enter</span> to send •{' '}
-                <span className="font-medium">Shift+Enter</span> for new line
-            </p>
+            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground/60">
+                <span>Press</span>
+                <Kbd>Enter</Kbd>
+                <span>to send</span>
+                <Separator orientation="vertical" className="h-3" />
+                <Kbd>Shift+Enter</Kbd>
+                <span>for new line</span>
+            </div>
         </form>
     );
 }

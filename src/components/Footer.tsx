@@ -1,53 +1,44 @@
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 export function Footer() {
     return (
-        <footer
-            className="py-12 border-t"
-            style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: '#e2e8f0',
-            }}
-        >
+        <footer className="py-12 border-t bg-background border-border">
             <div className="max-w-6xl mx-auto px-6">
+                <Separator className="mb-8 opacity-50" />
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
-                        <div
-                            className="w-7 h-7 rounded flex items-center justify-center"
-                            style={{ backgroundColor: '#1e293b' }}
-                        >
+                        <div className="w-7 h-7 rounded flex items-center justify-center bg-steel-800">
                             <span className="text-white font-serif italic text-sm">
                                 w
                             </span>
                         </div>
-                        <span className="font-serif font-bold text-[#0b1120]">
+                        <span className="font-serif font-bold text-foreground">
                             wavv
                         </span>
                     </div>
 
                     {/* Links */}
-                    <div className="flex gap-8">
+                    <nav className="flex gap-8" aria-label="Footer navigation">
                         <Link
                             href="/privacy"
-                            className="text-sm hover:underline transition-colors"
-                            style={{ color: '#475569' }}
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                         >
                             Privacy Policy
                         </Link>
                         <Link
                             href="/terms"
-                            className="text-sm hover:underline transition-colors"
-                            style={{ color: '#475569' }}
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
                         >
                             Terms of Service
                         </Link>
-                    </div>
+                    </nav>
 
                     {/* Copyright */}
-                    <div className="text-sm" style={{ color: '#94a3b8' }}>
+                    <p className="text-sm text-muted-foreground">
                         © 2026 Wavv AI LLC.
-                    </div>
+                    </p>
                 </div>
             </div>
         </footer>

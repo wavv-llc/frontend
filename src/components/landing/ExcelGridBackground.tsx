@@ -127,7 +127,7 @@ function ExcelGridBackgroundComponent({
             )}
 
             {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-[var(--ivory-100)]/25 to-[var(--ivory-100)]/50" />
+            <div className="absolute inset-0 bg-linear-to-br from-transparent via-[var(--ivory-100)]/25 to-[var(--ivory-100)]/50" />
         </div>
     );
 }

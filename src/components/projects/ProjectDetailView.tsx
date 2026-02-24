@@ -189,7 +189,7 @@ const EditableContent = ({
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     className={cn(
-                        'outline-none cursor-text rounded px-1 -mx-1 py-0.5 -my-0.5 break-words',
+                        'outline-none cursor-text rounded px-1 -mx-1 py-0.5 -my-0.5 wrap-break-word',
                         'bg-muted/30 focus:bg-muted/40 transition-colors duration-150',
                         'min-h-[1.5em]',
                         isTextarea && 'min-h-[80px] whitespace-pre-wrap',
@@ -234,7 +234,12 @@ const EditableContent = ({
             )}
             title="Click to edit"
         >
-            <div className={cn('flex-1 break-words min-h-[1.5em]', textStyle)}>
+            <div
+                className={cn(
+                    'flex-1 wrap-break-word min-h-[1.5em]',
+                    textStyle,
+                )}
+            >
                 {displayValue || (
                     <span className="text-muted-foreground/50 italic">
                         {placeholder}

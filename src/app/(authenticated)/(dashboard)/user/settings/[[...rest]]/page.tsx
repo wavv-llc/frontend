@@ -6,7 +6,7 @@ export default function UserSettingsPage() {
     return (
         <div className="h-full w-full bg-[var(--dashboard-bg)] flex flex-col">
             {/* Header - Fixed */}
-            <header className="flex-shrink-0 flex items-center px-7 py-3.5 bg-[rgba(245,245,243,0.85)] backdrop-blur-xl border-b border-[var(--dashboard-border)] animate-fade-up">
+            <header className="shrink-0 flex items-center px-7 py-3.5 bg-[rgba(245,245,243,0.85)] backdrop-blur-xl border-b border-[var(--dashboard-border)] animate-fade-up">
                 <div className="flex flex-col gap-1">
                     <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-[var(--dashboard-text-primary)]">
                         <span className="italic">Profile</span> Settings

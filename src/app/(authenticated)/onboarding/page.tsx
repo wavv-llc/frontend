@@ -15,7 +15,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    Loader2,
     CheckCircle2,
     Building2,
     Share2,
@@ -33,6 +32,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Spinner } from '@/components/ui/spinner';
 
 interface SharePointSite {
     id: string;
@@ -373,7 +375,10 @@ export default function OnboardingPage() {
                                 >
                                     {isSaving ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Spinner
+                                                size="sm"
+                                                className="mr-2 text-current"
+                                            />
                                             Creating...
                                         </>
                                     ) : isOrgCreated ? (
@@ -408,7 +413,10 @@ export default function OnboardingPage() {
                         <CardContent className="p-6">
                             {isLoadingSites ? (
                                 <div className="flex flex-col items-center justify-center py-12">
-                                    <Loader2 className="h-7 w-7 animate-spin text-[var(--accent)]" />
+                                    <Spinner
+                                        size="lg"
+                                        className="text-(--accent)"
+                                    />
                                     <p className="font-sans text-[13px] text-[var(--dashboard-text-muted)] mt-3">
                                         Loading SharePoint sites...
                                     </p>
@@ -432,51 +440,57 @@ export default function OnboardingPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="max-h-[280px] overflow-y-auto space-y-2 pr-2">
-                                        {sites.map((site) => {
-                                            const isSelected =
-                                                selectedSiteIds.has(site.id);
-                                            return (
-                                                <div
-                                                    key={site.id}
-                                                    className={`p-2.5 border rounded-lg cursor-pointer transition-all duration-200 ${
-                                                        isSelected
-                                                            ? 'border-[var(--accent)] bg-[var(--accent-subtle)] shadow-sm'
-                                                            : 'border-[var(--dashboard-border)] hover:border-[var(--accent)] hover:bg-[var(--accent-hover)]'
-                                                    }`}
-                                                    onClick={() =>
-                                                        toggleSite(site.id)
-                                                    }
-                                                >
-                                                    <div className="flex items-start gap-2">
-                                                        <div className="mt-0.5">
-                                                            {isSelected ? (
-                                                                <CheckCircle2 className="h-4 w-4 text-[var(--accent)]" />
-                                                            ) : (
-                                                                <div className="h-4 w-4 rounded-full border-2 border-[var(--dashboard-text-muted)]" />
-                                                            )}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)] truncate">
-                                                                {site.displayName ||
-                                                                    site.name}
-                                                            </h3>
-                                                            <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)] truncate mt-0.5">
-                                                                {site.webUrl}
-                                                            </p>
-                                                            {site.description && (
-                                                                <p className="font-sans text-[11px] text-[var(--dashboard-text-body)] mt-1 line-clamp-1">
+                                    <ScrollArea className="h-70 pr-3">
+                                        <div className="space-y-2">
+                                            {sites.map((site) => {
+                                                const isSelected =
+                                                    selectedSiteIds.has(
+                                                        site.id,
+                                                    );
+                                                return (
+                                                    <div
+                                                        key={site.id}
+                                                        className={`p-2.5 border rounded-lg cursor-pointer transition-all duration-200 ${
+                                                            isSelected
+                                                                ? 'border-[var(--accent)] bg-[var(--accent-subtle)] shadow-sm'
+                                                                : 'border-[var(--dashboard-border)] hover:border-[var(--accent)] hover:bg-[var(--accent-hover)]'
+                                                        }`}
+                                                        onClick={() =>
+                                                            toggleSite(site.id)
+                                                        }
+                                                    >
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="mt-0.5">
+                                                                {isSelected ? (
+                                                                    <CheckCircle2 className="h-4 w-4 text-[var(--accent)]" />
+                                                                ) : (
+                                                                    <div className="h-4 w-4 rounded-full border-2 border-[var(--dashboard-text-muted)]" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)] truncate">
+                                                                    {site.displayName ||
+                                                                        site.name}
+                                                                </h3>
+                                                                <p className="font-sans text-[11px] text-[var(--dashboard-text-muted)] truncate mt-0.5">
                                                                     {
-                                                                        site.description
+                                                                        site.webUrl
                                                                     }
                                                                 </p>
-                                                            )}
+                                                                {site.description && (
+                                                                    <p className="font-sans text-[11px] text-[var(--dashboard-text-body)] mt-1 line-clamp-1">
+                                                                        {
+                                                                            site.description
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </ScrollArea>
 
                                     <div className="flex items-center justify-between pt-4 border-t border-[var(--dashboard-border-light)]">
                                         <div className="flex items-center gap-2">
@@ -584,7 +598,10 @@ export default function OnboardingPage() {
                                 >
                                     {isSaving ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Spinner
+                                                size="sm"
+                                                className="mr-2 text-current"
+                                            />
                                             Finishing...
                                         </>
                                     ) : (
@@ -620,6 +637,12 @@ export default function OnboardingPage() {
                             Let's get you set up in just a few steps
                         </p>
                     </div>
+
+                    {/* Progress Bar */}
+                    <Progress
+                        value={((currentStep + 1) / STEPS.length) * 100}
+                        className="h-1 mb-2 bg-dashboard-border *:data-[slot=progress-indicator]:bg-(--accent)"
+                    />
 
                     {/* Step Indicator */}
                     <div className="flex items-center justify-center gap-2 animate-fade-up animate-delay-100">
@@ -729,7 +752,10 @@ export default function OnboardingPage() {
                                 >
                                     {isExiting ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Spinner
+                                                size="sm"
+                                                className="mr-2 text-current"
+                                            />
                                             Exiting...
                                         </>
                                     ) : (

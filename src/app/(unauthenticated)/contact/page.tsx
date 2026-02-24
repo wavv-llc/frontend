@@ -3,11 +3,22 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { Badge } from '@/components/ui/badge';
 import { signupRequestApi } from '@/lib/api';
 import { RetroWaterAnimation } from '@/components/landing/RetroWaterAnimation';
 import { AppBar } from '@/components/AppBar';
@@ -68,108 +79,102 @@ export default function ContactPage() {
     };
 
     return (
-        <div
-            className="min-h-screen text-[var(--mono-black)] overflow-x-hidden"
-            style={{ backgroundColor: 'var(--mono-white)' }}
-        >
-            {/* Retro Water Animation Background */}
+        <div className="min-h-screen text-steel-950 overflow-x-hidden bg-white">
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <RetroWaterAnimation intensity="medium" />
             </div>
 
-            {/* Navigation */}
             <AppBar navItems={NAV_ITEMS} />
 
-            {/* Contact Section */}
             <section className="relative pt-20 pb-16 min-h-screen flex items-center justify-center z-10">
                 <div className="max-w-6xl mx-auto px-6 w-full">
-                    {/* Backdrop for content */}
-                    <div
-                        className="rounded-2xl p-6 md:p-10 scale-[0.85]"
-                        style={{ backgroundColor: '#ffffff' }}
-                    >
+                    <div className="rounded-2xl p-6 md:p-10 scale-[0.85] bg-white/95 backdrop-blur-sm">
                         <div className="grid lg:grid-cols-2 gap-16 items-center">
-                            {/* Left Column - Text */}
+                            {/* Left Column */}
                             <div>
                                 <motion.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.5 }}
                                 >
-                                    <Link
-                                        href="/"
-                                        className="inline-flex items-center gap-2 text-sm font-medium text-[var(--mahogany-500)] hover:text-[var(--mahogany-800)] transition-colors mb-8"
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="mb-8 -ml-2 text-muted-foreground hover:text-foreground"
+                                        asChild
                                     >
-                                        <ArrowLeft className="w-4 h-4" />
-                                        Back to home
-                                    </Link>
+                                        <Link href="/">
+                                            <ArrowLeft className="w-4 h-4 mr-2" />
+                                            Back to home
+                                        </Link>
+                                    </Button>
                                 </motion.div>
 
-                                <motion.h1
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                        duration: 0.8,
-                                        ease: 'easeOut',
-                                        delay: 0.1,
-                                    }}
-                                    className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-6"
-                                    style={{ color: 'var(--mahogany-800)' }}
+                                    transition={{ duration: 0.5, delay: 0.1 }}
                                 >
-                                    Let's talk about <br />
-                                    <span
-                                        style={{
-                                            color: 'var(--lake-blue-400)',
-                                        }}
+                                    <Badge
+                                        variant="secondary"
+                                        className="mb-4 text-xs font-medium"
                                     >
-                                        your firm.
-                                    </span>
-                                </motion.h1>
+                                        Request Access
+                                    </Badge>
+                                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold tracking-tight mb-6 text-steel-950">
+                                        Let's talk about <br />
+                                        <span className="italic text-steel-600">
+                                            your firm.
+                                        </span>
+                                    </h1>
+                                    <p className="text-lg max-w-md leading-relaxed text-steel-600">
+                                        Ready to transform how your team works?
+                                        Fill out the form and we'll be in touch
+                                        within 24 hours to schedule a
+                                        personalized demo.
+                                    </p>
+                                </motion.div>
 
-                                <motion.p
+                                <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                        duration: 0.8,
-                                        ease: 'easeOut',
-                                        delay: 0.2,
-                                    }}
-                                    className="text-lg max-w-md leading-relaxed"
-                                    style={{ color: 'var(--mahogany-500)' }}
+                                    transition={{ duration: 0.5, delay: 0.25 }}
+                                    className="mt-10 space-y-4"
                                 >
-                                    Ready to transform how your team works? Fill
-                                    out the form and we'll be in touch within 24
-                                    hours to schedule a personalized demo.
-                                </motion.p>
+                                    <Separator />
+                                    {[
+                                        'Personalized demo within 24h',
+                                        'No commitment required',
+                                        'Enterprise-grade security',
+                                    ].map((item) => (
+                                        <div
+                                            key={item}
+                                            className="flex items-center gap-3 text-sm text-steel-600"
+                                        >
+                                            <CheckCircle2 className="w-4 h-4 text-steel-800 shrink-0" />
+                                            {item}
+                                        </div>
+                                    ))}
+                                </motion.div>
                             </div>
 
                             {/* Right Column - Form */}
                             <motion.div
                                 initial={{ opacity: 0, y: 40 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{
-                                    duration: 0.8,
-                                    ease: 'easeOut',
-                                    delay: 0.3,
-                                }}
+                                transition={{ duration: 0.5, delay: 0.3 }}
                             >
-                                <div className="relative">
-                                    {/* Glow effect behind card */}
-                                    <div
-                                        className="absolute inset-0 blur-[60px] rounded-full opacity-20"
-                                        style={{
-                                            backgroundColor:
-                                                'var(--lake-blue-300)',
-                                        }}
-                                    />
-
-                                    <div
-                                        className="relative rounded-2xl p-6 md:p-8 shadow-2xl border scale-[0.968]"
-                                        style={{
-                                            backgroundColor: '#ffffff',
-                                            borderColor: '#d4b5a0',
-                                        }}
-                                    >
+                                <Card className="border-steel-200 shadow-2xl">
+                                    <CardHeader>
+                                        <CardTitle className="font-serif text-xl text-steel-950">
+                                            Get in touch
+                                        </CardTitle>
+                                        <CardDescription>
+                                            We typically respond within one
+                                            business day.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
                                         {submitted ? (
                                             <motion.div
                                                 initial={{
@@ -180,49 +185,29 @@ export default function ContactPage() {
                                                     opacity: 1,
                                                     scale: 1,
                                                 }}
-                                                className="py-12 text-center"
+                                                className="py-12 text-center space-y-4"
                                             >
-                                                <div
-                                                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-                                                    style={{
-                                                        backgroundColor:
-                                                            'var(--excel-green-400)/20',
-                                                    }}
-                                                >
-                                                    <Send className="w-8 h-8 text-[var(--excel-green-400)]" />
+                                                <div className="w-16 h-16 rounded-full bg-steel-100 flex items-center justify-center mx-auto">
+                                                    <Send className="w-8 h-8 text-steel-800" />
                                                 </div>
-                                                <h3
-                                                    className="text-2xl font-serif font-bold mb-2"
-                                                    style={{
-                                                        color: 'var(--mahogany-800)',
-                                                    }}
-                                                >
+                                                <h3 className="text-2xl font-serif font-bold text-steel-950">
                                                     Thank you!
                                                 </h3>
-                                                <p
-                                                    style={{
-                                                        color: 'var(--mahogany-500)',
-                                                    }}
-                                                >
+                                                <p className="text-muted-foreground">
                                                     We'll be in touch soon.
                                                 </p>
                                             </motion.div>
                                         ) : (
                                             <form
                                                 onSubmit={handleSubmit}
-                                                className="space-y-6"
+                                                className="space-y-5"
                                             >
                                                 <div className="grid sm:grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label
-                                                            htmlFor="name"
-                                                            className="text-sm font-medium"
-                                                            style={{
-                                                                color: 'var(--mahogany-700)',
-                                                            }}
-                                                        >
-                                                            Name
-                                                        </Label>
+                                                    <Field
+                                                        label="Name"
+                                                        htmlFor="name"
+                                                        required
+                                                    >
                                                         <Input
                                                             id="name"
                                                             type="text"
@@ -239,27 +224,14 @@ export default function ContactPage() {
                                                                 })
                                                             }
                                                             placeholder="Your full name"
-                                                            className="h-12 px-4 rounded-md border transition-colors"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    '#ffffff',
-                                                                borderColor:
-                                                                    'var(--mahogany-300)',
-                                                                color: 'var(--mahogany-800)',
-                                                            }}
+                                                            className="h-11"
                                                         />
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label
-                                                            htmlFor="email"
-                                                            className="text-sm font-medium"
-                                                            style={{
-                                                                color: 'var(--mahogany-700)',
-                                                            }}
-                                                        >
-                                                            Email
-                                                        </Label>
+                                                    </Field>
+                                                    <Field
+                                                        label="Email"
+                                                        htmlFor="email"
+                                                        required
+                                                    >
                                                         <Input
                                                             id="email"
                                                             type="email"
@@ -276,29 +248,17 @@ export default function ContactPage() {
                                                                 })
                                                             }
                                                             placeholder="you@company.com"
-                                                            className="h-12 px-4 rounded-md border transition-colors"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    '#ffffff',
-                                                                borderColor:
-                                                                    'var(--mahogany-300)',
-                                                                color: 'var(--mahogany-800)',
-                                                            }}
+                                                            className="h-11"
                                                         />
-                                                    </div>
+                                                    </Field>
                                                 </div>
 
                                                 <div className="grid sm:grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label
-                                                            htmlFor="firmName"
-                                                            className="text-sm font-medium"
-                                                            style={{
-                                                                color: 'var(--mahogany-700)',
-                                                            }}
-                                                        >
-                                                            Firm name
-                                                        </Label>
+                                                    <Field
+                                                        label="Firm name"
+                                                        htmlFor="firmName"
+                                                        required
+                                                    >
                                                         <Input
                                                             id="firmName"
                                                             type="text"
@@ -315,30 +275,15 @@ export default function ContactPage() {
                                                                 })
                                                             }
                                                             placeholder="Your firm name"
-                                                            className="h-12 px-4 rounded-md border transition-colors"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    '#ffffff',
-                                                                borderColor:
-                                                                    'var(--mahogany-300)',
-                                                                color: 'var(--mahogany-800)',
-                                                            }}
+                                                            className="h-11"
                                                         />
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label
-                                                            htmlFor="firmSize"
-                                                            className="text-sm font-medium"
-                                                            style={{
-                                                                color: 'var(--mahogany-700)',
-                                                            }}
-                                                        >
-                                                            Firm size
-                                                        </Label>
-                                                        <Input
+                                                    </Field>
+                                                    <Field
+                                                        label="Firm size"
+                                                        htmlFor="firmSize"
+                                                    >
+                                                        <NativeSelect
                                                             id="firmSize"
-                                                            type="text"
                                                             value={
                                                                 formData.firmSize
                                                             }
@@ -350,29 +295,33 @@ export default function ContactPage() {
                                                                             .value,
                                                                 })
                                                             }
-                                                            placeholder="e.g., 10-50 professionals"
-                                                            className="h-12 px-4 rounded-md border transition-colors"
-                                                            style={{
-                                                                backgroundColor:
-                                                                    '#ffffff',
-                                                                borderColor:
-                                                                    'var(--mahogany-300)',
-                                                                color: 'var(--mahogany-800)',
-                                                            }}
-                                                        />
-                                                    </div>
+                                                            placeholder="Select size"
+                                                            className="h-11"
+                                                        >
+                                                            <option value="1-10">
+                                                                1–10
+                                                                professionals
+                                                            </option>
+                                                            <option value="10-50">
+                                                                10–50
+                                                                professionals
+                                                            </option>
+                                                            <option value="50-200">
+                                                                50–200
+                                                                professionals
+                                                            </option>
+                                                            <option value="200+">
+                                                                200+
+                                                                professionals
+                                                            </option>
+                                                        </NativeSelect>
+                                                    </Field>
                                                 </div>
 
-                                                <div className="space-y-2">
-                                                    <Label
-                                                        htmlFor="message"
-                                                        className="text-sm font-medium"
-                                                        style={{
-                                                            color: 'var(--mahogany-700)',
-                                                        }}
-                                                    >
-                                                        Message
-                                                    </Label>
+                                                <Field
+                                                    label="Message"
+                                                    htmlFor="message"
+                                                >
                                                     <Textarea
                                                         id="message"
                                                         rows={4}
@@ -386,31 +335,22 @@ export default function ContactPage() {
                                                             })
                                                         }
                                                         placeholder="Tell us about your needs..."
-                                                        className="px-4 py-3 rounded-md border resize-none transition-colors"
-                                                        style={{
-                                                            backgroundColor:
-                                                                'var(--ivory-100)',
-                                                            borderColor:
-                                                                'var(--mahogany-300)',
-                                                            color: 'var(--mahogany-800)',
-                                                        }}
+                                                        className="resize-none"
                                                     />
-                                                </div>
+                                                </Field>
 
                                                 <Button
                                                     type="submit"
                                                     size="lg"
-                                                    className="w-full h-14 text-base font-serif font-medium rounded-md shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]"
-                                                    style={{
-                                                        backgroundColor:
-                                                            'var(--mahogany-600)',
-                                                        color: 'var(--ivory-100)',
-                                                    }}
+                                                    className="w-full h-12 text-base font-medium"
                                                     disabled={isSubmitting}
                                                 >
                                                     {isSubmitting ? (
                                                         <span className="flex items-center gap-2">
-                                                            <div className="w-4 h-4 border-2 border-[var(--ivory-100)]/30 border-t-[var(--ivory-100)] rounded-full animate-spin" />
+                                                            <Spinner
+                                                                size="sm"
+                                                                className="text-current"
+                                                            />
                                                             Submitting...
                                                         </span>
                                                     ) : (
@@ -422,15 +362,14 @@ export default function ContactPage() {
                                                 </Button>
                                             </form>
                                         )}
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </motion.div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Footer */}
             <div className="relative z-10">
                 <Footer />
             </div>

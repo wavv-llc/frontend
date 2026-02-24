@@ -1,6 +1,7 @@
 import React from 'react';
 import { Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export type Status =
     | 'review'
@@ -81,12 +82,14 @@ export function StatusBadge({
     const sizeStyles = sizeConfig[size];
 
     return (
-        <div
+        <Badge
+            variant="outline"
             className={cn(
-                'inline-flex items-center font-sans',
+                'inline-flex items-center font-sans border-transparent px-1.5 py-0',
                 sizeStyles.gap,
                 sizeStyles.text,
                 config.color,
+                config.bgColor,
                 className,
             )}
         >
@@ -97,6 +100,6 @@ export function StatusBadge({
                 />
             )}
             {showLabel && <span>{config.label}</span>}
-        </div>
+        </Badge>
     );
 }

@@ -25,6 +25,19 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Empty } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import { H1 } from '@/components/ui/typography';
 
 export default function WorkspacesPage() {
     const { getToken } = useAuth();
@@ -43,7 +56,6 @@ export default function WorkspacesPage() {
                 toast.error('You must be logged in to view workspaces');
                 return;
             }
-
             const response = await workspaceApi.getWorkspaces(token);
             setWorkspaces(response.data || []);
         } catch (error) {
@@ -75,12 +87,10 @@ export default function WorkspacesPage() {
 
     const handleConfirmDelete = async () => {
         if (!workspaceToDelete) return;
-
         if (workspaceToDelete.name === 'My Workspace') {
             toast.error("Cannot delete 'My Workspace'");
             return;
         }
-
         if (deleteConfirmation !== workspaceToDelete.name) {
             toast.error('Please type the workspace name exactly to confirm');
             return;
@@ -93,7 +103,6 @@ export default function WorkspacesPage() {
                 toast.error('Authentication required');
                 return;
             }
-
             await workspaceApi.deleteWorkspace(token, workspaceToDelete.id);
             toast.success('Workspace deleted successfully');
             setWorkspaceToDelete(null);
@@ -113,42 +122,65 @@ export default function WorkspacesPage() {
 
     return (
         <>
-            <div className="h-full bg-background p-8 overflow-y-auto animate-in fade-in duration-300">
-                {/* Header */}
+            <div className="h-full bg-dashboard-bg p-8 overflow-y-auto animate-in fade-in duration-300">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex justify-between items-start mb-8">
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h1 className="text-3xl font-semibold tracking-tight mb-2">
+                            <H1 className="text-2xl border-none pb-0 mb-1 text-dashboard-text-primary">
                                 Workspaces
-                            </h1>
-                            <p className="text-muted-foreground">
+                            </H1>
+                            <p className="text-sm text-muted-foreground">
                                 Manage your tax projects and folders.
                             </p>
                         </div>
+                        <Badge variant="secondary" className="mt-1">
+                            {isLoading ? '—' : workspaces.length} workspaces
+                        </Badge>
                     </div>
 
+                    <Separator className="mb-6" />
+
                     {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {isLoading ? (
-                            <>
-                                {[...Array(4)].map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="bg-card border border-border rounded-xl p-6 flex flex-col gap-3"
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <Skeleton className="h-12 w-12 rounded-lg" />
-                                        </div>
-                                        <Skeleton className="h-5 w-3/4 mt-1" />
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-1/2" />
-                                        <div className="mt-auto space-y-2 pt-2">
-                                            <Skeleton className="h-2 w-full rounded-full" />
-                                            <Skeleton className="h-4 w-16" />
-                                        </div>
+                            [...Array(4)].map((_, i) => (
+                                <Card
+                                    key={i}
+                                    className="flex flex-col gap-3 p-5"
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <Skeleton className="h-11 w-11 rounded-lg" />
                                     </div>
-                                ))}
-                            </>
+                                    <Skeleton className="h-5 w-3/4 mt-1" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                    <div className="mt-auto space-y-2 pt-2">
+                                        <Skeleton className="h-2 w-full rounded-full" />
+                                        <Skeleton className="h-4 w-16" />
+                                    </div>
+                                </Card>
+                            ))
+                        ) : workspaces.length === 0 ? (
+                            <div className="col-span-full">
+                                <Empty
+                                    icon={<Folder className="h-7 w-7" />}
+                                    title="No workspaces yet"
+                                    description="Create your first workspace to start organizing your tax projects."
+                                    action={
+                                        <Button
+                                            size="sm"
+                                            onClick={() =>
+                                                setShowCreateDialog(true)
+                                            }
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Create Workspace
+                                        </Button>
+                                    }
+                                    className="py-24"
+                                />
+                            </div>
                         ) : (
                             <>
                                 {workspaces.map((workspace) => (
@@ -157,91 +189,94 @@ export default function WorkspacesPage() {
                                         href={`/workspaces/${workspace.id}`}
                                         className="block h-full"
                                     >
-                                        <div className="group relative bg-card border border-border rounded-xl p-6 hover:bg-muted/30 transition-colors cursor-pointer h-full flex flex-col">
-                                            {/* Header */}
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="h-12 w-12 bg-primary/5 rounded-lg flex items-center justify-center text-primary">
-                                                    <Folder className="h-6 w-6" />
-                                                </div>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <button
-                                                            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                            }}
+                                        <Card className="group relative h-full flex flex-col hover:border-(--accent)/40 hover:shadow-sm transition-all duration-200 cursor-pointer">
+                                            <CardHeader className="pb-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="h-11 w-11 bg-primary/5 rounded-lg flex items-center justify-center text-primary">
+                                                        <Folder className="h-5 w-5" />
+                                                    </div>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
                                                         >
-                                                            <MoreVertical className="h-5 w-5" />
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent
-                                                        align="end"
-                                                        onClick={(e) =>
-                                                            e.stopPropagation()
-                                                        }
-                                                    >
-                                                        <DropdownMenuItem
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                toast.info(
-                                                                    'Edit functionality coming soon!',
-                                                                );
-                                                            }}
-                                                        >
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:text-destructive"
-                                                            onClick={(e) =>
-                                                                handleDeleteClick(
-                                                                    workspace,
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                onClick={(
                                                                     e,
-                                                                )
+                                                                ) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                }}
+                                                            >
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent
+                                                            align="end"
+                                                            onClick={(e) =>
+                                                                e.stopPropagation()
                                                             }
                                                         >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
+                                                            <DropdownMenuItem
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    toast.info(
+                                                                        'Edit functionality coming soon!',
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:text-destructive"
+                                                                onClick={(e) =>
+                                                                    handleDeleteClick(
+                                                                        workspace,
+                                                                        e,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                                <CardTitle className="text-base font-semibold group-hover:underline decoration-muted-foreground/30 underline-offset-4">
+                                                    {workspace.name}
+                                                </CardTitle>
+                                                <CardDescription className="line-clamp-2 text-xs">
+                                                    {workspace.description ||
+                                                        'No description'}
+                                                </CardDescription>
+                                            </CardHeader>
 
-                                            {/* Content */}
-                                            <h3 className="font-semibold text-lg mb-2 group-hover:underline decoration-muted-foreground/30 underline-offset-4">
-                                                {workspace.name}
-                                            </h3>
-                                            <p className="text-sm text-muted-foreground mb-6 line-clamp-2 flex-1">
-                                                {workspace.description ||
-                                                    'No description'}
-                                            </p>
-
-                                            {/* Progress */}
-                                            <div className="mb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-primary transition-all duration-500 rounded-full"
-                                                            style={{
-                                                                width: `${workspace.progress || 0}%`,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground w-10 text-right font-medium">
+                                            <CardContent className="mt-auto pt-0">
+                                                {/* Progress */}
+                                                <div className="mb-3">
+                                                    <Progress
+                                                        value={
+                                                            workspace.progress ||
+                                                            0
+                                                        }
+                                                        className="h-1.5"
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground mt-1 text-right">
                                                         {workspace.progress ||
                                                             0}
-                                                        %
-                                                    </span>
+                                                        % complete
+                                                    </p>
                                                 </div>
-                                            </div>
 
-                                            {/* Footer */}
-                                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User className="h-4 w-4" />
+                                                <Separator className="mb-3" />
+
+                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                    <User className="h-3.5 w-3.5" />
                                                     <span>
                                                         {
                                                             workspace.members
@@ -250,18 +285,18 @@ export default function WorkspacesPage() {
                                                         members
                                                     </span>
                                                 </div>
-                                            </div>
-                                        </div>
+                                            </CardContent>
+                                        </Card>
                                     </Link>
                                 ))}
 
                                 {/* Create New Card */}
                                 <button
                                     onClick={() => setShowCreateDialog(true)}
-                                    className="cursor-pointer flex flex-col items-center justify-center h-full min-h-70 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all group"
+                                    className="cursor-pointer flex flex-col items-center justify-center h-full min-h-48 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all group"
                                 >
-                                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
-                                        <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+                                    <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
+                                        <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
                                     </div>
                                     <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
                                         Create New Workspace
@@ -326,7 +361,17 @@ export default function WorkspacesPage() {
                                 deleteConfirmation !== workspaceToDelete?.name
                             }
                         >
-                            {isDeleting ? 'Deleting...' : 'Delete Workspace'}
+                            {isDeleting ? (
+                                <span className="flex items-center gap-2">
+                                    <Spinner
+                                        size="sm"
+                                        className="text-current"
+                                    />
+                                    Deleting...
+                                </span>
+                            ) : (
+                                'Delete Workspace'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

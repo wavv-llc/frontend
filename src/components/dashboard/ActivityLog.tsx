@@ -52,7 +52,7 @@ export function ActivityLog({
                         className="flex items-center gap-3 p-4 hover:shadow-md transition-shadow cursor-pointer group"
                     >
                         <Circle
-                            className={`h-3 w-3 ${getActivityColor(activity.type)} rounded-full flex-shrink-0`}
+                            className={`h-3 w-3 ${getActivityColor(activity.type)} rounded-full shrink-0`}
                             fill="currentColor"
                         />
                         <span className="flex-1 text-sm">

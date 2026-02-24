@@ -15,7 +15,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="flex h-screen w-full bg-[var(--dashboard-bg)]">
             {/* Spacer to account for fixed sidebar - automatically matches sidebar width */}
             <div
-                className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${
+                className={`hidden md:block shrink-0 transition-all duration-300 ease-in-out ${
                     isOpen ? 'w-[240px]' : 'w-[56px]'
                 }`}
             />

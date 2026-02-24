@@ -839,7 +839,7 @@ function CommentItem({
                         </div>
 
                         {/* Content */}
-                        <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap break-words">
+                        <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap wrap-break-word">
                             {commentContent}
                         </div>
 

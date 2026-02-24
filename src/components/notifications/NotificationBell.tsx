@@ -18,7 +18,7 @@ export const NotificationBell = () => {
                 size="icon"
                 ref={notifButtonRef}
                 onClick={() => setIsVisible(!isVisible)}
-                className="h-9 w-9 flex-shrink-0 text-sidebar-foreground hover:bg-sidebar-accent relative"
+                className="h-9 w-9 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent relative"
                 title="Notifications"
             >
                 <Bell className="h-5 w-5" />
