@@ -1107,12 +1107,17 @@ export const documentsApi = {
         );
     },
 
-    reembedDocument: async (token: string, documentId: string) => {
+    reembedDocument: async (
+        token: string,
+        documentId: string,
+        resume = false,
+    ) => {
         return apiRequest<OrganizationDocument>(
             `/api/v1/documents/${documentId}/reembed`,
             {
                 method: 'POST',
                 token,
+                body: JSON.stringify({ resume }),
             },
         );
     },

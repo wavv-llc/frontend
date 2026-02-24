@@ -30,6 +30,7 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
+    PlayCircle,
 } from 'lucide-react';
 import {
     sharepointApi,
@@ -210,7 +211,10 @@ export default function SettingsPage() {
         }
     };
 
-    const handleReembedDocument = async (documentId: string) => {
+    const handleReembedDocument = async (
+        documentId: string,
+        resume = false,
+    ) => {
         try {
             setRetryingDocumentId(documentId);
             const token = await getToken();
@@ -219,8 +223,12 @@ export default function SettingsPage() {
                 return;
             }
 
-            await documentsApi.reembedDocument(token, documentId);
-            toast.success('Document re-embedding started successfully');
+            await documentsApi.reembedDocument(token, documentId, resume);
+            toast.success(
+                resume
+                    ? 'Retrying failed chunks started successfully'
+                    : 'Document re-embedding started successfully',
+            );
             // Reload documents to get updated status
             await loadDocuments();
         } catch (err) {
@@ -819,7 +827,7 @@ interface DocumentsTabProps {
     setStatusFilter: (value: string) => void;
     retryingDocumentId: string | null;
     handleRetryDocument: (documentId: string) => void;
-    handleReembedDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string, resume?: boolean) => void;
     loadDocuments: () => void;
     getStatusBadge: (
         status: OrganizationDocument['status'],
@@ -1164,6 +1172,7 @@ function DocumentsTab({
                                                                             e.stopPropagation();
                                                                             handleReembedDocument(
                                                                                 doc.id,
+                                                                                false,
                                                                             );
                                                                         }}
                                                                         disabled={
@@ -1217,7 +1226,7 @@ interface DocumentDetailViewProps {
     documentId: string;
     onBack: () => void;
     handleRetryDocument: (documentId: string) => void;
-    handleReembedDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string, resume?: boolean) => void;
     retryingDocumentId: string | null;
     getStatusBadge: (
         status: OrganizationDocument['status'],
@@ -1474,7 +1483,7 @@ function DocumentDetailView({
                                     disabled={
                                         retryingDocumentId === document.id
                                     }
-                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                    className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
                                 >
                                     {retryingDocumentId === document.id ? (
                                         <>
@@ -1492,32 +1501,70 @@ function DocumentDetailView({
                                     )}
                                 </Button>
                                 {showReembed && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            handleReembedDocument(document.id)
-                                        }
-                                        disabled={
-                                            retryingDocumentId === document.id
-                                        }
-                                        className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
-                                    >
-                                        {retryingDocumentId === document.id ? (
-                                            <>
-                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
-                                                <span>Embedding...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <RefreshCw
-                                                    size={12}
-                                                    className="mr-1.5"
-                                                />
-                                                <span>Re-embed</span>
-                                            </>
-                                        )}
-                                    </Button>
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleReembedDocument(
+                                                    document.id,
+                                                    false,
+                                                )
+                                            }
+                                            disabled={
+                                                retryingDocumentId ===
+                                                document.id
+                                            }
+                                            className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                        >
+                                            {retryingDocumentId ===
+                                            document.id ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                    <span>Embedding...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <RefreshCw
+                                                        size={12}
+                                                        className="mr-1.5"
+                                                    />
+                                                    <span>Re-embed</span>
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleReembedDocument(
+                                                    document.id,
+                                                    true,
+                                                )
+                                            }
+                                            disabled={
+                                                retryingDocumentId ===
+                                                document.id
+                                            }
+                                            className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                        >
+                                            {retryingDocumentId ===
+                                            document.id ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                    <span>Retrying...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <PlayCircle
+                                                        size={12}
+                                                        className="mr-1.5"
+                                                    />
+                                                    <span>Retry chunks</span>
+                                                </>
+                                            )}
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         )}
