@@ -3,6 +3,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { SearchTrigger } from '@/components/search/UniversalSearch';
 
 interface DashboardHeaderProps {
     userName: string;
@@ -51,7 +52,10 @@ export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
             </div>
 
             {/* Actions */}
-            <NotificationBell />
+            <div className="flex items-center gap-2">
+                <SearchTrigger />
+                <NotificationBell />
+            </div>
         </header>
     );
 }
