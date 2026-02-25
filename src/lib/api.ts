@@ -92,6 +92,16 @@ export interface Document {
     status: string;
 }
 
+export type ApprovalStatus = 'IN_PREPARATION' | 'IN_REVIEW' | 'COMPLETED';
+
+export interface ApprovalWorkflowStep {
+    id: string;
+    order: number;
+    userId: string;
+    user: User & { clerkId?: string };
+    projectId: string;
+}
+
 export interface Task {
     id: string;
     name: string;
@@ -99,11 +109,16 @@ export interface Task {
     projectId: string;
     dueAt?: string;
     status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
+    // Approval workflow fields
+    approvalStatus: ApprovalStatus;
+    currentReviewerIndex: number;
+    isLocked: boolean;
     createdAt: string;
     updatedAt: string;
     project: {
         id: string;
         description?: string;
+        approvalWorkflowSteps?: ApprovalWorkflowStep[];
     };
     preparers: User[];
     reviewers: User[];
@@ -703,6 +718,20 @@ export const customFieldApi = {
             },
         );
     },
+
+    deleteCustomField: async (
+        token: string,
+        projectId: string,
+        fieldId: string,
+    ) => {
+        return apiRequest<void>(
+            `/api/v1/projects/${projectId}/custom-fields/${fieldId}`,
+            {
+                method: 'DELETE',
+                token,
+            },
+        );
+    },
 };
 
 // Task API functions
@@ -774,6 +803,64 @@ export const taskApi = {
                 method: 'POST',
                 token,
                 body: JSON.stringify({ projectId, id: taskId }),
+            },
+        );
+    },
+};
+
+// Approval Workflow API functions
+export const approvalApi = {
+    submitTask: async (token: string, projectId: string, taskId: string) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/submit`,
+            {
+                method: 'POST',
+                token,
+            },
+        );
+    },
+
+    rejectTask: async (token: string, projectId: string, taskId: string) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/reject`,
+            {
+                method: 'POST',
+                token,
+            },
+        );
+    },
+
+    reopenTask: async (token: string, projectId: string, taskId: string) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/reopen`,
+            {
+                method: 'POST',
+                token,
+            },
+        );
+    },
+
+    getWorkflow: async (token: string, projectId: string) => {
+        return apiRequest<ApprovalWorkflowStep[]>(
+            `/api/v1/projects/${projectId}/approval-workflow`,
+            {
+                method: 'GET',
+                token,
+            },
+        );
+    },
+
+    setWorkflow: async (
+        token: string,
+        projectId: string,
+        steps: Array<{ userId: string }>,
+    ) => {
+        return apiRequest<ApprovalWorkflowStep[]>(
+            `/api/v1/projects/${projectId}/approval-workflow`,
+            {
+                method: 'PUT',
+                token,
+                body: JSON.stringify({ steps }),
             },
         );
     },

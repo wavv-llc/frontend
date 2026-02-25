@@ -21,6 +21,10 @@ import {
     RotateCcw,
     UserCheck,
     CircleDot,
+    Lock,
+    Send,
+    RefreshCw,
+    GitBranch,
 } from 'lucide-react';
 import {
     Popover,
@@ -38,6 +42,7 @@ import {
     type User,
     taskApi,
     taskCommentApi,
+    approvalApi,
 } from '@/lib/api';
 import { format } from 'date-fns';
 import { useAuth } from '@clerk/nextjs';
@@ -75,6 +80,28 @@ function formatRelativeTime(date: Date): string {
     return 'just now';
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+function ordinal(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return s[(v - 20) % 10] ?? s[v] ?? s[0];
+}
+
+function approvalStatusLabel(
+    status: string,
+    reviewerIndex: number,
+    totalSteps: number,
+): string {
+    if (status === 'IN_PREPARATION') return 'In Preparation';
+    if (status === 'COMPLETED') return 'Complete';
+    if (status === 'IN_REVIEW') {
+        const level = reviewerIndex; // index 1 = 1st level, etc.
+        if (totalSteps <= 1) return 'Under Review';
+        return `${level}${ordinal(level)} Level Review`;
+    }
+    return status;
+}
+
 // ─── Props ─────────────────────────────────────────────────────────────────────
 interface TaskDetailViewProps {
     task: Task;
@@ -98,7 +125,7 @@ export function TaskDetailView({
     projectName,
     projectId,
 }: TaskDetailViewProps) {
-    const { getToken } = useAuth();
+    const { getToken, userId: clerkUserId } = useAuth();
     const [comments, setComments] = useState<Comment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -107,7 +134,25 @@ export function TaskDetailView({
     const [newCommentContent, setNewCommentContent] = useState('');
     const [isCreatingThread, setIsCreatingThread] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isApprovalLoading, setIsApprovalLoading] = useState(false);
     const newThreadInputRef = useRef<HTMLInputElement>(null);
+
+    // ── Approval workflow derived values ──────────────────────────────────────
+    const workflowSteps = task.project?.approvalWorkflowSteps ?? [];
+    const currentStep =
+        task.currentReviewerIndex > 0
+            ? (workflowSteps.find(
+                  (s) => s.order === task.currentReviewerIndex - 1,
+              ) ?? null)
+            : null;
+    const isActiveReviewer = currentStep?.user?.clerkId === clerkUserId;
+    // At IN_PREPARATION any member can submit; at IN_REVIEW only the active reviewer
+    const canSubmit =
+        task.approvalStatus !== 'COMPLETED' &&
+        (task.approvalStatus === 'IN_PREPARATION' ||
+            (task.approvalStatus === 'IN_REVIEW' && isActiveReviewer));
+    const canReject = task.approvalStatus === 'IN_REVIEW' && isActiveReviewer;
+    const canReopen = task.approvalStatus === 'COMPLETED';
 
     // Description inline edit state
     const [descValue, setDescValue] = useState(task.description || '');
@@ -334,6 +379,71 @@ export function TaskDetailView({
         }
     };
 
+    const handleSubmitTask = async () => {
+        try {
+            setIsApprovalLoading(true);
+            const token = await getToken();
+            if (!token) return;
+            await approvalApi.submitTask(token, task.projectId, task.id);
+            const nextStatus =
+                workflowSteps.length === 0 ||
+                task.currentReviewerIndex >= workflowSteps.length
+                    ? 'Complete'
+                    : `${task.currentReviewerIndex + 1}${ordinal(task.currentReviewerIndex + 1)} Level Review`;
+            toast.success(`Task submitted — now at ${nextStatus}`);
+            onUpdate?.();
+        } catch (error) {
+            console.error('Failed to submit task:', error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to submit task',
+            );
+        } finally {
+            setIsApprovalLoading(false);
+        }
+    };
+
+    const handleRejectTask = async () => {
+        try {
+            setIsApprovalLoading(true);
+            const token = await getToken();
+            if (!token) return;
+            await approvalApi.rejectTask(token, task.projectId, task.id);
+            toast.success('Task returned to previous level');
+            onUpdate?.();
+        } catch (error) {
+            console.error('Failed to reject task:', error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to reject task',
+            );
+        } finally {
+            setIsApprovalLoading(false);
+        }
+    };
+
+    const handleReopenTask = async () => {
+        try {
+            setIsApprovalLoading(true);
+            const token = await getToken();
+            if (!token) return;
+            await approvalApi.reopenTask(token, task.projectId, task.id);
+            toast.success('Task reopened');
+            onUpdate?.();
+        } catch (error) {
+            console.error('Failed to reopen task:', error);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to reopen task',
+            );
+        } finally {
+            setIsApprovalLoading(false);
+        }
+    };
+
     const handleCreateComment = async () => {
         if (!newCommentContent.trim()) return;
 
@@ -414,9 +524,20 @@ export function TaskDetailView({
 
                 {/* Title & Actions */}
                 <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight">
-                        {task.name}
-                    </h1>
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight truncate">
+                            {task.name}
+                        </h1>
+                        {task.isLocked && (
+                            <span
+                                title="Task is locked for review"
+                                className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200"
+                            >
+                                <Lock className="h-3 w-3" />
+                                Locked
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -429,11 +550,46 @@ export function TaskDetailView({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                {/* Approval actions */}
+                                {canSubmit && (
+                                    <DropdownMenuItem
+                                        onClick={handleSubmitTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <Send className="h-4 w-4 mr-2 text-green-600" />
+                                        Submit for Review
+                                    </DropdownMenuItem>
+                                )}
+                                {canReject && (
+                                    <DropdownMenuItem
+                                        onClick={handleRejectTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <RotateCcw className="h-4 w-4 mr-2 text-amber-600" />
+                                        Reject (Send Back)
+                                    </DropdownMenuItem>
+                                )}
+                                {canReopen && (
+                                    <DropdownMenuItem
+                                        onClick={handleReopenTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <RefreshCw className="h-4 w-4 mr-2 text-blue-600" />
+                                        Reopen Task
+                                    </DropdownMenuItem>
+                                )}
+                                {(canSubmit || canReject || canReopen) && (
+                                    <DropdownMenuSeparator />
+                                )}
                                 <DropdownMenuItem
                                     onClick={() => setEditDialogOpen(true)}
+                                    disabled={task.isLocked}
                                 >
                                     <Edit2 className="h-4 w-4 mr-2" />
                                     Edit Task
+                                    {task.isLocked && (
+                                        <Lock className="h-3 w-3 ml-auto text-dashboard-text-muted" />
+                                    )}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleCopyTask}>
                                     <Copy className="h-4 w-4 mr-2" />
@@ -730,6 +886,100 @@ export function TaskDetailView({
 
                 {/* ── Right Sidebar ──────────────────────────────────────────── */}
                 <div className="w-72 xl:w-80 shrink-0 border-l border-dashboard-border bg-dashboard-surface overflow-y-auto flex flex-col">
+                    {/* Approval Status */}
+                    <div className="px-5 py-4 border-b border-dashboard-border">
+                        <div className="flex items-center gap-2 mb-3">
+                            <GitBranch className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                            <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
+                                Approval Status
+                            </h4>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                                className={cn(
+                                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
+                                    task.approvalStatus === 'COMPLETED' &&
+                                        'bg-green-50 text-green-700 border-green-200',
+                                    task.approvalStatus === 'IN_REVIEW' &&
+                                        'bg-blue-50 text-blue-700 border-blue-200',
+                                    task.approvalStatus === 'IN_PREPARATION' &&
+                                        'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
+                                )}
+                            >
+                                {task.approvalStatus === 'COMPLETED' && (
+                                    <CheckCircle2 className="h-3 w-3" />
+                                )}
+                                {task.approvalStatus === 'IN_REVIEW' && (
+                                    <Lock className="h-3 w-3" />
+                                )}
+                                {task.approvalStatus === 'IN_PREPARATION' && (
+                                    <CircleDot className="h-3 w-3" />
+                                )}
+                                {approvalStatusLabel(
+                                    task.approvalStatus,
+                                    task.currentReviewerIndex,
+                                    workflowSteps.length,
+                                )}
+                            </span>
+                        </div>
+                        {workflowSteps.length > 0 && (
+                            <div className="mt-3 flex flex-col gap-1.5">
+                                {workflowSteps.map((step) => {
+                                    const isCurrentStep =
+                                        task.approvalStatus === 'IN_REVIEW' &&
+                                        step.order ===
+                                            task.currentReviewerIndex - 1;
+                                    const isPastStep =
+                                        task.approvalStatus === 'COMPLETED' ||
+                                        step.order <
+                                            task.currentReviewerIndex - 1;
+                                    const name =
+                                        [
+                                            step.user.firstName,
+                                            step.user.lastName,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' ') || step.user.email;
+                                    return (
+                                        <div
+                                            key={step.id}
+                                            className={cn(
+                                                'flex items-center gap-2 text-xs',
+                                                isCurrentStep &&
+                                                    'text-blue-700 font-medium',
+                                                isPastStep &&
+                                                    'text-dashboard-text-muted line-through',
+                                                !isCurrentStep &&
+                                                    !isPastStep &&
+                                                    'text-dashboard-text-muted',
+                                            )}
+                                        >
+                                            <span className="shrink-0 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold border-current">
+                                                {step.order + 1}
+                                            </span>
+                                            <span className="truncate">
+                                                {name}
+                                            </span>
+                                            {isCurrentStep && (
+                                                <span className="ml-auto shrink-0 text-[10px] text-blue-500">
+                                                    active
+                                                </span>
+                                            )}
+                                            {isPastStep && (
+                                                <CheckCircle2 className="ml-auto h-3 w-3 shrink-0 text-green-500" />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {workflowSteps.length === 0 && (
+                            <p className="mt-1 text-[11px] text-dashboard-text-muted/60 italic">
+                                No reviewers configured
+                            </p>
+                        )}
+                    </div>
+
                     {/* Description */}
                     <div className="px-5 py-5 border-b border-dashboard-border">
                         <div className="flex items-center gap-2 mb-3">
@@ -760,21 +1010,43 @@ export function TaskDetailView({
                             />
                         ) : (
                             <div
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => setIsEditingDesc(true)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        setIsEditingDesc(true);
-                                    }
-                                }}
-                                className="cursor-text group"
-                                title="Click to edit description"
+                                role={task.isLocked ? undefined : 'button'}
+                                tabIndex={task.isLocked ? undefined : 0}
+                                onClick={
+                                    task.isLocked
+                                        ? undefined
+                                        : () => setIsEditingDesc(true)
+                                }
+                                onKeyDown={
+                                    task.isLocked
+                                        ? undefined
+                                        : (e) => {
+                                              if (
+                                                  e.key === 'Enter' ||
+                                                  e.key === ' '
+                                              ) {
+                                                  e.preventDefault();
+                                                  setIsEditingDesc(true);
+                                              }
+                                          }
+                                }
+                                className={cn(
+                                    'group',
+                                    task.isLocked
+                                        ? 'cursor-default'
+                                        : 'cursor-text',
+                                )}
+                                title={
+                                    task.isLocked
+                                        ? 'Task is locked for review'
+                                        : 'Click to edit description'
+                                }
                             >
                                 <p
                                     className={cn(
-                                        'text-sm leading-relaxed whitespace-pre-line rounded px-1 py-0.5 -mx-1 transition-colors group-hover:bg-accent-subtle/50',
+                                        'text-sm leading-relaxed whitespace-pre-line rounded px-1 py-0.5 -mx-1 transition-colors',
+                                        !task.isLocked &&
+                                            'group-hover:bg-accent-subtle/50',
                                         descValue
                                             ? 'text-dashboard-text-body'
                                             : 'text-dashboard-text-muted/50 italic',

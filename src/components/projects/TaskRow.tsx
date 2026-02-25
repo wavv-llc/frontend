@@ -36,31 +36,29 @@ export function TaskRow({
     onDelete: (id: string) => void;
     onCopy: (task: Task) => void;
 }) {
-    const getStatusIcon = (status: Task['status']) => {
+    const getStatusIcon = (status: Task['approvalStatus']) => {
         switch (status) {
             case 'COMPLETED':
                 return (
                     <CheckCircle2 className="h-4 w-4 text-status-complete" />
                 );
-            case 'IN_PROGRESS':
-                return <Circle className="h-4 w-4 text-status-in-progress" />;
             case 'IN_REVIEW':
                 return <AlertCircle className="h-4 w-4 text-status-review" />;
+            case 'IN_PREPARATION':
             default:
                 return <Circle className="h-4 w-4 text-muted-foreground/30" />;
         }
     };
 
-    const getStatusLabel = (status: Task['status']) => {
+    const getStatusLabel = (status: Task['approvalStatus']) => {
         switch (status) {
             case 'COMPLETED':
                 return 'Completed';
-            case 'IN_PROGRESS':
-                return 'In Progress';
             case 'IN_REVIEW':
                 return 'In Review';
+            case 'IN_PREPARATION':
             default:
-                return 'Pending';
+                return 'In Preparation';
         }
     };
 
@@ -84,9 +82,9 @@ export function TaskRow({
             </div>
             <div className="w-[120px] shrink-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {getStatusIcon(task.status)}
+                    {getStatusIcon(task.approvalStatus)}
                     <span className="text-sm text-muted-foreground">
-                        {getStatusLabel(task.status)}
+                        {getStatusLabel(task.approvalStatus)}
                     </span>
                 </div>
             </div>

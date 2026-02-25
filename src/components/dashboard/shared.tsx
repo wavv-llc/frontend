@@ -11,12 +11,11 @@ export function StatusIcon({ status }: { status: string }) {
     switch (status) {
         case 'COMPLETED':
             return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-        case 'IN_PROGRESS':
-            return <Circle className="h-4 w-4 text-primary fill-primary/20" />;
         case 'IN_REVIEW':
             return (
                 <Circle className="h-4 w-4 text-amber-500 fill-amber-500/20" />
             );
+        case 'IN_PREPARATION':
         default:
             return <Circle className="h-4 w-4 text-muted-foreground" />;
     }

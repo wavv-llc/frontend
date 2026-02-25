@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface DashboardHeaderProps {
     userName: string;
@@ -32,22 +33,25 @@ export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
     return (
         <header
             className={cn(
-                'sticky top-0 z-10 flex items-center',
+                'sticky top-0 z-10 flex items-center justify-between',
                 'px-7 py-3.5',
                 'bg-[rgba(245,245,243,0.85)] backdrop-blur-xl',
-                'border-b border-[var(--dashboard-border)]',
+                'border-b border-dashboard-border',
                 className,
             )}
         >
             {/* Greeting */}
             <div className="flex flex-col gap-1">
-                <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-[var(--dashboard-text-primary)]">
+                <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-dashboard-text-primary">
                     {greeting}, <span className="italic">{userName}</span>
                 </h1>
-                <p className="font-sans text-[10px] font-normal text-[var(--dashboard-text-muted)]">
+                <p className="font-sans text-[10px] font-normal text-dashboard-text-muted">
                     {formattedDate}
                 </p>
             </div>
+
+            {/* Actions */}
+            <NotificationBell />
         </header>
     );
 }

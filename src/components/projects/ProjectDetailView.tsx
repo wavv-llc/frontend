@@ -34,6 +34,7 @@ import {
     ChevronLeft,
     ChevronRight,
     LayoutGrid,
+    Loader2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
+import { usePreferences } from '@knocklabs/react';
 
 interface ProjectDetailViewProps {
     project: Project;
@@ -87,12 +89,7 @@ interface ProjectDetailViewProps {
 }
 
 type ViewMode = 'list' | 'calendar';
-type StatusFilter =
-    | 'ALL'
-    | 'PENDING'
-    | 'IN_PROGRESS'
-    | 'IN_REVIEW'
-    | 'COMPLETED';
+type StatusFilter = 'ALL' | 'IN_PREPARATION' | 'IN_REVIEW' | 'COMPLETED';
 
 interface EditableContentProps {
     value: string;
@@ -487,18 +484,16 @@ function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
                 date: task.dueAt
                     ? new Date(task.dueAt)
                     : new Date(task.createdAt),
-                type: (task.status === 'COMPLETED'
+                type: (task.approvalStatus === 'COMPLETED'
                     ? 'task'
                     : task.dueAt && new Date(task.dueAt) < new Date()
                       ? 'deadline'
                       : 'task') as CalendarEvent['type'],
-                status: (task.status === 'COMPLETED'
+                status: (task.approvalStatus === 'COMPLETED'
                     ? 'complete'
-                    : task.status === 'IN_REVIEW'
+                    : task.approvalStatus === 'IN_REVIEW'
                       ? 'review'
-                      : task.status === 'IN_PROGRESS'
-                        ? 'in-progress'
-                        : 'pending') as CalendarEvent['status'],
+                      : 'pending') as CalendarEvent['status'],
             })),
         [tasks],
     );
@@ -575,12 +570,11 @@ export function ProjectDetailView({
     const [activityLogOpen, setActivityLogOpen] = useState(false);
     // Notifications modal
     const [notificationsOpen, setNotificationsOpen] = useState(false);
-    const [notifPrefs, setNotifPrefs] = useState({
-        taskCreated: true,
-        taskChanged: true,
-        taskDeleted: false,
-        commentAdded: true,
-    });
+    const {
+        preferences: notifPreferences,
+        setPreferences: setNotifPreferences,
+        isLoading: isLoadingPrefs,
+    } = usePreferences();
     // Permissions modal
     const [permissionsOpen, setPermissionsOpen] = useState(false);
     const [projectVisibility, setProjectVisibility] = useState<
@@ -667,7 +661,7 @@ export function ProjectDetailView({
             const dataToExport = tasks.map((task) => {
                 const row: Record<string, string> = {
                     'Task Name': task.name,
-                    Status: task.status,
+                    Status: task.approvalStatus,
                 };
 
                 customFields.forEach((field) => {
@@ -858,7 +852,6 @@ export function ProjectDetailView({
                             name: task.name, // DIRECT NAME COPY - NO PREFIX
                             description: task.description,
                             dueAt: task.dueAt,
-                            status: task.status,
                             customFields: newCustomFields,
                         });
                     }),
@@ -956,7 +949,7 @@ export function ProjectDetailView({
 
         // 2. Status FilterButton (Legacy/High-level)
         const matchesStatus =
-            statusFilter === 'ALL' || task.status === statusFilter;
+            statusFilter === 'ALL' || task.approvalStatus === statusFilter;
 
         // 3. Column Filters
         const matchesColumnFilters = Object.entries(columnFilters).every(
@@ -1276,20 +1269,12 @@ export function ProjectDetailView({
                                     All Tasks
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'PENDING'}
+                                    checked={statusFilter === 'IN_PREPARATION'}
                                     onCheckedChange={() =>
-                                        setStatusFilter('PENDING')
+                                        setStatusFilter('IN_PREPARATION')
                                     }
                                 >
-                                    Pending
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'IN_PROGRESS'}
-                                    onCheckedChange={() =>
-                                        setStatusFilter('IN_PROGRESS')
-                                    }
-                                >
-                                    In Progress
+                                    In Preparation
                                 </DropdownMenuCheckboxItem>
                                 <DropdownMenuCheckboxItem
                                     checked={statusFilter === 'IN_REVIEW'}
@@ -1659,13 +1644,12 @@ export function ProjectDetailView({
                                                 &ldquo;{task.name}&rdquo;
                                             </strong>{' '}
                                             was{' '}
-                                            {task.status === 'COMPLETED'
+                                            {task.approvalStatus === 'COMPLETED'
                                                 ? 'marked complete'
-                                                : task.status === 'IN_PROGRESS'
-                                                  ? 'moved to In Progress'
-                                                  : task.status === 'IN_REVIEW'
-                                                    ? 'sent for review'
-                                                    : 'created'}
+                                                : task.approvalStatus ===
+                                                    'IN_REVIEW'
+                                                  ? 'sent for review'
+                                                  : 'created'}
                                         </p>
                                         <p className="text-xs text-dashboard-text-muted mt-0.5">
                                             {new Date(
@@ -1716,78 +1700,80 @@ export function ProjectDetailView({
                             this project.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-1 py-2">
-                        {(
-                            [
-                                {
-                                    key: 'taskCreated' as const,
-                                    label: 'Task created',
-                                    description:
-                                        'When a new task is added to this project',
-                                },
-                                {
-                                    key: 'taskChanged' as const,
-                                    label: 'Task updated',
-                                    description:
-                                        'When a task is edited or its status changes',
-                                },
-                                {
-                                    key: 'taskDeleted' as const,
-                                    label: 'Task deleted',
-                                    description:
-                                        'When a task is removed from this project',
-                                },
-                                {
-                                    key: 'commentAdded' as const,
-                                    label: 'Comment added',
-                                    description:
-                                        'When someone comments on a task',
-                                },
-                            ] as const
-                        ).map(({ key, label, description }) => (
-                            <div
-                                key={key}
-                                className="flex items-center justify-between gap-4 rounded-md px-1 py-2.5 hover:bg-dashboard-surface transition-colors"
-                            >
-                                <div className="flex-1 min-w-0">
-                                    <Label
-                                        htmlFor={`notif-${key}`}
-                                        className="text-sm font-medium text-dashboard-text-body cursor-pointer"
-                                    >
-                                        {label}
-                                    </Label>
-                                    <p className="text-xs text-dashboard-text-muted mt-0.5">
-                                        {description}
-                                    </p>
+                    {isLoadingPrefs ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-dashboard-text-muted" />
+                        </div>
+                    ) : (
+                        <div className="space-y-1 py-2">
+                            {(
+                                [
+                                    {
+                                        workflowKey: 'task-created',
+                                        label: 'Task created',
+                                        description:
+                                            'When a new task is added to this project',
+                                    },
+                                    {
+                                        workflowKey: 'task-updated',
+                                        label: 'Task updated',
+                                        description:
+                                            'When a task is edited or its status changes',
+                                    },
+                                    {
+                                        workflowKey: 'task-deleted',
+                                        label: 'Task deleted',
+                                        description:
+                                            'When a task is removed from this project',
+                                    },
+                                    {
+                                        workflowKey: 'comment-added',
+                                        label: 'Comment added',
+                                        description:
+                                            'When someone comments on a task',
+                                    },
+                                ] as const
+                            ).map(({ workflowKey, label, description }) => (
+                                <div
+                                    key={workflowKey}
+                                    className="flex items-center justify-between gap-4 rounded-md px-1 py-2.5 hover:bg-dashboard-surface transition-colors"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <Label
+                                            htmlFor={`notif-${workflowKey}`}
+                                            className="text-sm font-medium text-dashboard-text-body cursor-pointer"
+                                        >
+                                            {label}
+                                        </Label>
+                                        <p className="text-xs text-dashboard-text-muted mt-0.5">
+                                            {description}
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id={`notif-${workflowKey}`}
+                                        checked={
+                                            notifPreferences?.workflows?.[
+                                                workflowKey
+                                            ] !== false
+                                        }
+                                        onCheckedChange={(checked) =>
+                                            setNotifPreferences({
+                                                workflows: {
+                                                    [workflowKey]: checked,
+                                                },
+                                            })
+                                        }
+                                    />
                                 </div>
-                                <Switch
-                                    id={`notif-${key}`}
-                                    checked={notifPrefs[key]}
-                                    onCheckedChange={(checked) =>
-                                        setNotifPrefs((prev) => ({
-                                            ...prev,
-                                            [key]: checked,
-                                        }))
-                                    }
-                                />
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button
                             variant="outline"
                             onClick={() => setNotificationsOpen(false)}
                         >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                toast.success('Notification preferences saved');
-                                setNotificationsOpen(false);
-                            }}
-                            className="bg-accent-blue hover:bg-accent-light text-white"
-                        >
-                            Save
+                            Done
                         </Button>
                     </DialogFooter>
                 </DialogContent>

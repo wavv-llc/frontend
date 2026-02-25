@@ -181,29 +181,27 @@ export function ProjectCalendarView({
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const today = new Date();
 
-    const getStatusColor = (status: Task['status']) => {
+    const getStatusColor = (status: Task['approvalStatus']) => {
         switch (status) {
             case 'COMPLETED':
                 return 'bg-status-complete-bg border-status-complete/20 text-status-complete';
-            case 'IN_PROGRESS':
-                return 'bg-status-in-progress-bg border-status-in-progress/20 text-status-in-progress';
             case 'IN_REVIEW':
                 return 'bg-status-review-bg border-status-review/20 text-status-review';
+            case 'IN_PREPARATION':
             default:
                 return 'bg-status-pending-bg border-status-pending/20 text-status-pending';
         }
     };
 
-    const getStatusLabel = (status: Task['status']) => {
+    const getStatusLabel = (status: Task['approvalStatus']) => {
         switch (status) {
             case 'COMPLETED':
                 return 'Completed';
-            case 'IN_PROGRESS':
-                return 'In Progress';
             case 'IN_REVIEW':
                 return 'In Review';
+            case 'IN_PREPARATION':
             default:
-                return 'Pending';
+                return 'In Preparation';
         }
     };
 
@@ -583,7 +581,7 @@ export function ProjectCalendarView({
                                                                     className={cn(
                                                                         'absolute top-1/2 -translate-y-1/2 h-9 rounded-md flex items-center shadow-sm cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md ring-1 ring-black/5 group-hover:z-10',
                                                                         getStatusColor(
-                                                                            task.status,
+                                                                            task.approvalStatus,
                                                                         ),
                                                                     )}
                                                                     style={
@@ -609,7 +607,7 @@ export function ProjectCalendarView({
                                                                     <p className="text-muted-foreground">
                                                                         Status:{' '}
                                                                         {getStatusLabel(
-                                                                            task.status,
+                                                                            task.approvalStatus,
                                                                         )}
                                                                     </p>
                                                                     <p className="text-muted-foreground">
@@ -765,7 +763,7 @@ export function ProjectCalendarView({
                                                                                 className={cn(
                                                                                     'h-full w-full rounded-[4px] px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border overflow-hidden hover:bg-muted/50',
                                                                                     getStatusColor(
-                                                                                        task.status,
+                                                                                        task.approvalStatus,
                                                                                     )
                                                                                         .replace(
                                                                                             'text-white',
@@ -788,16 +786,13 @@ export function ProjectCalendarView({
                                                                                 style={{
                                                                                     // Override the gradient background from getStatusColor to be cleaner
                                                                                     borderLeftColor:
-                                                                                        task.status ===
+                                                                                        task.approvalStatus ===
                                                                                         'COMPLETED'
                                                                                             ? '#10b981'
-                                                                                            : task.status ===
-                                                                                                'IN_PROGRESS'
-                                                                                              ? '#3b82f6'
-                                                                                              : task.status ===
-                                                                                                  'IN_REVIEW'
-                                                                                                ? '#f97316'
-                                                                                                : '#6b7280',
+                                                                                            : task.approvalStatus ===
+                                                                                                'IN_REVIEW'
+                                                                                              ? '#f97316'
+                                                                                              : '#6b7280',
                                                                                 }}
                                                                             >
                                                                                 <span className="text-[11px] font-medium truncate text-foreground/90 flex items-center gap-1.5">
@@ -806,16 +801,13 @@ export function ProjectCalendarView({
                                                                                         className="w-1.5 h-1.5 rounded-full shrank-0"
                                                                                         style={{
                                                                                             backgroundColor:
-                                                                                                task.status ===
+                                                                                                task.approvalStatus ===
                                                                                                 'COMPLETED'
                                                                                                     ? '#10b981'
-                                                                                                    : task.status ===
-                                                                                                        'IN_PROGRESS'
-                                                                                                      ? '#3b82f6'
-                                                                                                      : task.status ===
-                                                                                                          'IN_REVIEW'
-                                                                                                        ? '#f97316'
-                                                                                                        : '#6b7280',
+                                                                                                    : task.approvalStatus ===
+                                                                                                        'IN_REVIEW'
+                                                                                                      ? '#f97316'
+                                                                                                      : '#6b7280',
                                                                                         }}
                                                                                     />
                                                                                     {
@@ -834,7 +826,7 @@ export function ProjectCalendarView({
                                                                                 <p className="text-muted-foreground">
                                                                                     Status:{' '}
                                                                                     {getStatusLabel(
-                                                                                        task.status,
+                                                                                        task.approvalStatus,
                                                                                     )}
                                                                                 </p>
                                                                                 <p className="text-muted-foreground">

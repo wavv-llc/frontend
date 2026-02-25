@@ -148,20 +148,13 @@ const FIELD_TYPES = [
     },
 ] as const;
 
-const PERSON_ROLES = [
-    'Preparer',
-    '1st-level Reviewer',
-    '2nd-level Reviewer',
-] as const;
-
 function taskStatusToBadge(status: string): StatusBadgeStatus {
     switch (status) {
-        case 'IN_PROGRESS':
-            return 'in-progress';
         case 'IN_REVIEW':
             return 'review';
         case 'COMPLETED':
             return 'complete';
+        case 'IN_PREPARATION':
         default:
             return 'pending';
     }
@@ -533,8 +526,14 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const [fieldName, setFieldName] = useState('');
         const [fieldType, setFieldType] = useState<DataType>('STRING');
         const [showRoleSelection, setShowRoleSelection] = useState(false);
-        const [selectedRole, setSelectedRole] = useState<string>('');
+        const [roleName, setRoleName] = useState<string>('');
         const [isSubmitting, setIsSubmitting] = useState(false);
+
+        // Delete field state
+        const [fieldToDelete, setFieldToDelete] = useState<CustomField | null>(
+            null,
+        );
+        const [isDeletingField, setIsDeletingField] = useState(false);
 
         // Optimistic updates: store pending field value changes
         // Key format: "taskId:fieldId" -> value
@@ -780,7 +779,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 setShowRoleSelection(true);
             } else {
                 setShowRoleSelection(false);
-                setSelectedRole('');
+                setRoleName('');
             }
         };
 
@@ -790,8 +789,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 return;
             }
 
-            if (fieldType === 'USER' && !selectedRole) {
-                toast.error('Please select a role for the Person field');
+            if (fieldType === 'USER' && !roleName.trim()) {
+                toast.error('Please enter a role name for the Person field');
                 return;
             }
 
@@ -804,8 +803,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 }
 
                 const customOptions =
-                    fieldType === 'USER' && selectedRole
-                        ? [selectedRole]
+                    fieldType === 'USER' && roleName.trim()
+                        ? [roleName.trim()]
                         : undefined;
                 const statusOptions =
                     fieldType === 'CUSTOM'
@@ -821,7 +820,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 toast.success('Custom field created successfully');
                 setFieldName('');
                 setFieldType('STRING');
-                setSelectedRole('');
+                setRoleName('');
                 setShowRoleSelection(false);
                 setIsCreatingField(false);
                 onCustomFieldCreated();
@@ -836,9 +835,31 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const handleCancelFieldCreation = () => {
             setFieldName('');
             setFieldType('STRING');
-            setSelectedRole('');
+            setRoleName('');
             setShowRoleSelection(false);
             setIsCreatingField(false);
+        };
+
+        const handleDeleteField = async () => {
+            if (!fieldToDelete) return;
+            try {
+                setIsDeletingField(true);
+                const token = await getToken();
+                if (!token) return;
+                await customFieldApi.deleteCustomField(
+                    token,
+                    projectId,
+                    fieldToDelete.id,
+                );
+                toast.success(`"${fieldToDelete.name}" field deleted`);
+                setFieldToDelete(null);
+                onCustomFieldCreated();
+            } catch (error) {
+                console.error('Failed to delete custom field:', error);
+                toast.error('Failed to delete field');
+            } finally {
+                setIsDeletingField(false);
+            }
         };
 
         const handleUpdateFieldName = async (
@@ -1145,6 +1166,41 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     </AlertDialogContent>
                 </AlertDialog>
 
+                {/* Delete Field Confirmation Dialog */}
+                <AlertDialog
+                    open={!!fieldToDelete}
+                    onOpenChange={(open) => {
+                        if (!open) setFieldToDelete(null);
+                    }}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Delete &quot;{fieldToDelete?.name}&quot; field?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the field and all
+                                its values across every task. This action cannot
+                                be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeletingField}>
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteField}
+                                disabled={isDeletingField}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                {isDeletingField
+                                    ? 'Deleting...'
+                                    : 'Delete field'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 <div className="flex-1 overflow-auto relative scroll-smooth">
                     <div className="min-w-max h-full">
                         {/* Table Header - Sticky Top */}
@@ -1331,81 +1387,96 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                     </span>
                                                 )}
                                         </div>
-                                        {showFilter && (
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className={cn(
-                                                            'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
-                                                            columnFilters[
-                                                                field.id
-                                                            ] &&
-                                                                'opacity-100 text-accent-blue',
-                                                        )}
-                                                        onClick={(e) =>
-                                                            e.stopPropagation()
-                                                        }
-                                                    >
-                                                        <Filter className="h-3 w-3" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-56 p-2">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="font-medium text-xs text-muted-foreground">
-                                                                Filter{' '}
-                                                                {field.name}
-                                                            </h4>
-                                                            {columnFilters[
-                                                                field.id
-                                                            ] && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-4 w-4"
-                                                                    onClick={() =>
-                                                                        onColumnFilterChange(
-                                                                            field.id,
-                                                                            '',
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <X className="h-3 w-3" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                        <input
-                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                            placeholder={
-                                                                field.dataType ===
-                                                                'DATE'
-                                                                    ? 'YYYY-MM-DD'
-                                                                    : 'Contains...'
-                                                            }
-                                                            value={
+                                        <div className="flex items-center gap-0.5">
+                                            {showFilter && (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className={cn(
+                                                                'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
                                                                 columnFilters[
                                                                     field.id
-                                                                ]?.value || ''
+                                                                ] &&
+                                                                    'opacity-100 text-accent-blue',
+                                                            )}
+                                                            onClick={(e) =>
+                                                                e.stopPropagation()
                                                             }
-                                                            onChange={(e) =>
-                                                                onColumnFilterChange(
-                                                                    field.id,
-                                                                    e.target
-                                                                        .value,
+                                                        >
+                                                            <Filter className="h-3 w-3" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-56 p-2">
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <h4 className="font-medium text-xs text-muted-foreground">
+                                                                    Filter{' '}
+                                                                    {field.name}
+                                                                </h4>
+                                                                {columnFilters[
+                                                                    field.id
+                                                                ] && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-4 w-4"
+                                                                        onClick={() =>
+                                                                            onColumnFilterChange(
+                                                                                field.id,
+                                                                                '',
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <X className="h-3 w-3" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                            <input
+                                                                className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                                placeholder={
                                                                     field.dataType ===
-                                                                        'DATE'
-                                                                        ? 'date'
-                                                                        : 'text',
-                                                                )
-                                                            }
-                                                            autoFocus
-                                                        />
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
+                                                                    'DATE'
+                                                                        ? 'YYYY-MM-DD'
+                                                                        : 'Contains...'
+                                                                }
+                                                                value={
+                                                                    columnFilters[
+                                                                        field.id
+                                                                    ]?.value ||
+                                                                    ''
+                                                                }
+                                                                onChange={(e) =>
+                                                                    onColumnFilterChange(
+                                                                        field.id,
+                                                                        e.target
+                                                                            .value,
+                                                                        field.dataType ===
+                                                                            'DATE'
+                                                                            ? 'date'
+                                                                            : 'text',
+                                                                    )
+                                                                }
+                                                                autoFocus
+                                                            />
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            )}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-dashboard-bg hover:text-destructive rounded"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setFieldToDelete(field);
+                                                }}
+                                                title={`Delete "${field.name}" field`}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -1569,31 +1640,37 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                 </>
                                             ) : (
                                                 <div>
-                                                    <Label>Select role</Label>
-                                                    <div className="mt-2 space-y-1">
-                                                        {PERSON_ROLES.map(
-                                                            (role) => (
-                                                                <button
-                                                                    key={role}
-                                                                    onClick={() =>
-                                                                        setSelectedRole(
-                                                                            role,
-                                                                        )
-                                                                    }
-                                                                    className={cn(
-                                                                        'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors',
-                                                                        selectedRole ===
-                                                                            role &&
-                                                                            'bg-muted',
-                                                                    )}
-                                                                >
-                                                                    <div className="text-sm font-medium">
-                                                                        {role}
-                                                                    </div>
-                                                                </button>
-                                                            ),
-                                                        )}
-                                                    </div>
+                                                    <Label htmlFor="role-name">
+                                                        Role name
+                                                    </Label>
+                                                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                                                        Enter any role, e.g.
+                                                        &quot;Preparer&quot;,
+                                                        &quot;Reviewer&quot;,
+                                                        &quot;Manager&quot;
+                                                    </p>
+                                                    <input
+                                                        id="role-name"
+                                                        type="text"
+                                                        value={roleName}
+                                                        onChange={(e) =>
+                                                            setRoleName(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Role name..."
+                                                        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:ring-0 focus:border-ring"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (
+                                                                e.key ===
+                                                                    'Enter' &&
+                                                                roleName.trim()
+                                                            ) {
+                                                                handleCreateField();
+                                                            }
+                                                        }}
+                                                    />
                                                     <div className="flex gap-2 pt-4">
                                                         <Button
                                                             onClick={
@@ -1601,7 +1678,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                             }
                                                             disabled={
                                                                 !fieldName.trim() ||
-                                                                !selectedRole ||
+                                                                !roleName.trim() ||
                                                                 isSubmitting
                                                             }
                                                             className="flex-1"
@@ -1616,9 +1693,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 setShowRoleSelection(
                                                                     false,
                                                                 );
-                                                                setSelectedRole(
-                                                                    '',
-                                                                );
+                                                                setRoleName('');
                                                             }}
                                                             disabled={
                                                                 isSubmitting
@@ -1656,7 +1731,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                       tasks.forEach((task) => {
                                           let key = 'Unassigned';
                                           if (groupByField === 'status') {
-                                              key = task.status || 'Unassigned';
+                                              key =
+                                                  task.approvalStatus ||
+                                                  'Unassigned';
                                           } else {
                                               const field = customFields.find(
                                                   (f) => f.id === groupByField,
@@ -1797,7 +1874,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
                                                                           <StatusBadge
                                                                               status={taskStatusToBadge(
-                                                                                  task.status,
+                                                                                  task.approvalStatus,
                                                                               )}
                                                                               size="sm"
                                                                           />
@@ -1958,7 +2035,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                           <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
                                               <StatusBadge
                                                   status={taskStatusToBadge(
-                                                      task.status,
+                                                      task.approvalStatus,
                                                   )}
                                                   size="sm"
                                               />

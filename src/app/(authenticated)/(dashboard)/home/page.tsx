@@ -80,10 +80,11 @@ export default function HomePage() {
             clientName: task.project.name,
             formType: 'Task',
             priority: 'medium' as const,
-            status:
-                (task.status
-                    ?.toLowerCase()
-                    .replace(' ', '-') as Task['status']) || 'pending',
+            status: (task.approvalStatus === 'COMPLETED'
+                ? 'complete'
+                : task.approvalStatus === 'IN_REVIEW'
+                  ? 'review'
+                  : 'pending') as Task['status'],
             dueDate: task.dueAt ? new Date(task.dueAt) : new Date(),
         }));
     }, [data.tasks]);
@@ -94,9 +95,11 @@ export default function HomePage() {
             title: task.name || task.project.name,
             date: task.dueAt ? new Date(task.dueAt) : new Date(),
             type: 'task' as const,
-            status: task.status
-                ?.toLowerCase()
-                .replace(' ', '-') as CalendarEvent['status'],
+            status: (task.approvalStatus === 'COMPLETED'
+                ? 'complete'
+                : task.approvalStatus === 'IN_REVIEW'
+                  ? 'review'
+                  : 'pending') as CalendarEvent['status'],
         }));
     }, [data.calendar]);
 

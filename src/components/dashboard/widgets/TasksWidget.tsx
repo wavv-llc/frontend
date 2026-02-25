@@ -102,7 +102,7 @@ export function TasksWidget({
                             const isOverdue =
                                 dueDate &&
                                 dueDate < new Date() &&
-                                task.status !== 'COMPLETED';
+                                task.approvalStatus !== 'COMPLETED';
 
                             return (
                                 <button
@@ -111,13 +111,16 @@ export function TasksWidget({
                                     className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-all group text-left relative"
                                 >
                                     <div className="shrink-0">
-                                        <StatusIcon status={task.status} />
+                                        <StatusIcon
+                                            status={task.approvalStatus}
+                                        />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <span
                                             className={cn(
                                                 'text-sm font-medium truncate block transition-colors',
-                                                task.status === 'COMPLETED'
+                                                task.approvalStatus ===
+                                                    'COMPLETED'
                                                     ? 'text-muted-foreground line-through'
                                                     : 'text-foreground group-hover:text-primary',
                                             )}
