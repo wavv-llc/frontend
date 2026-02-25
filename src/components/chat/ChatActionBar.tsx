@@ -32,16 +32,16 @@ export function ChatActionBar({ content, className }: ChatActionBarProps) {
 
     const handleExport = () => {
         try {
-            const blob = new Blob([content], { type: 'text/markdown' });
+            const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `chat-response-${Date.now()}.md`;
+            a.download = `chat-response-${Date.now()}.txt`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            toast.success('Response exported');
+            toast.success('Response exported as TXT');
         } catch (error) {
             console.error('Failed to export:', error);
             toast.error('Failed to export');
@@ -95,7 +95,7 @@ export function ChatActionBar({ content, className }: ChatActionBarProps) {
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                        <p>Export as file</p>
+                        <p>Export as TXT</p>
                     </TooltipContent>
                 </Tooltip>
             </div>

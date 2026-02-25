@@ -48,7 +48,7 @@ export function ChatMessageCard({
                                 {timestamp}
                             </Badge>
                         </div>
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap wrap-break-word">
+                        <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap wrap-break-word">
                             {message}
                         </p>
                     </div>

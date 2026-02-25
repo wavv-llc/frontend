@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { H1, H2, H3, H4, P, Blockquote } from '@/components/ui/typography';
 
 interface ChatResponseCardProps {
     response: string;
@@ -59,8 +60,28 @@ export function ChatResponseCard({
 
             {/* Content */}
             <CardContent className="px-4 md:px-6 pb-4 md:pb-6 pt-0">
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-foreground prose-headings:tracking-tight prose-headings:mb-3 prose-headings:mt-6 first:prose-headings:mt-0 prose-p:text-foreground prose-p:leading-relaxed prose-p:mb-4 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-2 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:p-4 prose-pre:rounded-xl prose-pre:my-4 prose-ul:text-foreground prose-ul:my-4 prose-ol:text-foreground prose-ol:my-4 prose-li:text-foreground prose-li:my-1 prose-li:marker:text-muted-foreground prose-blockquote:border-l-2 prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-4 prose-hr:border-border prose-hr:my-6 prose-table:text-sm prose-th:text-foreground prose-th:font-semibold prose-th:p-2 prose-th:border prose-th:border-border prose-td:text-foreground prose-td:p-2 prose-td:border prose-td:border-border prose-img:rounded-lg prose-img:my-4">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div className="prose dark:prose-invert max-w-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-a:font-medium prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-2 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:p-4 prose-pre:rounded-xl prose-pre:my-4 prose-ul:text-foreground prose-ul:my-4 prose-ol:text-foreground prose-ol:my-4 prose-li:text-foreground prose-li:my-1 prose-li:marker:text-muted-foreground prose-hr:border-border prose-hr:my-6 prose-table:text-base prose-th:text-foreground prose-th:font-semibold prose-th:p-2 prose-th:border prose-th:border-border prose-td:text-foreground prose-td:p-2 prose-td:border prose-td:border-border prose-img:rounded-lg prose-img:my-4">
+                    <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            h1: ({ children }) => (
+                                <H1 className="mt-6 first:mt-0">{children}</H1>
+                            ),
+                            h2: ({ children }) => (
+                                <H2 className="mt-8 first:mt-0">{children}</H2>
+                            ),
+                            h3: ({ children }) => (
+                                <H3 className="mt-6 first:mt-0">{children}</H3>
+                            ),
+                            h4: ({ children }) => (
+                                <H4 className="mt-4 first:mt-0">{children}</H4>
+                            ),
+                            p: ({ children }) => <P>{children}</P>,
+                            blockquote: ({ children }) => (
+                                <Blockquote>{children}</Blockquote>
+                            ),
+                        }}
+                    >
                         {response}
                     </ReactMarkdown>
                 </div>
