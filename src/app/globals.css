@@ -166,7 +166,7 @@
     --chart-5: var(--steel-300);
 
     /* Sidebar - Pure Steel Light Integration */
-    --sidebar: var(--dashboard-bg); /* Match dashboard background */
+    --sidebar: var(--dashboard-surface); /* White card surface for sidebar */
     --sidebar-foreground: var(--dashboard-text-primary);
     --sidebar-primary: var(--accent); /* Steel blue accent */
     --sidebar-primary-foreground: #ffffff;

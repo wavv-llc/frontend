@@ -1,23 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     ArrowLeft,
     MoreVertical,
     Upload,
     MessageSquare,
-    ChevronDown,
-    ChevronUp,
     FileText,
-    X,
     Check,
     Edit2,
     Trash2,
     Copy,
     AlignLeft,
     Paperclip,
-    Send,
     SmilePlus,
+    SlidersHorizontal,
+    ArrowUp,
+    CheckCircle2,
+    MoreHorizontal,
+    RotateCcw,
+    UserCheck,
+    CircleDot,
 } from 'lucide-react';
 import {
     Popover,
@@ -54,9 +57,25 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 
+// ─── Helper: compact relative timestamps ──────────────────────────────────────
+function formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 30) return format(date, 'MMM d');
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
+    return 'just now';
+}
+
+// ─── Props ─────────────────────────────────────────────────────────────────────
 interface TaskDetailViewProps {
     task: Task;
     onBack: () => void;
@@ -68,6 +87,7 @@ interface TaskDetailViewProps {
     projectId?: string;
 }
 
+// ─── TaskDetailView ────────────────────────────────────────────────────────────
 export function TaskDetailView({
     task,
     onBack,
@@ -79,16 +99,115 @@ export function TaskDetailView({
     projectId,
 }: TaskDetailViewProps) {
     const { getToken } = useAuth();
-    // const { user: currentUser } = useUser() - unused
     const [comments, setComments] = useState<Comment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [newCommentContent, setNewCommentContent] = useState('');
-
+    const [isCreatingThread, setIsCreatingThread] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isComposing, setIsComposing] = useState(false);
+    const newThreadInputRef = useRef<HTMLInputElement>(null);
+
+    // Description inline edit state
+    const [descValue, setDescValue] = useState(task.description || '');
+    const [isEditingDesc, setIsEditingDesc] = useState(false);
+    const descRef = useRef<HTMLTextAreaElement>(null);
+
+    // ── Activity items derived from task data ──────────────────────────────────
+    const activityItems = useMemo(() => {
+        const items: Array<{
+            id: string;
+            type: 'created' | 'assigned' | 'field';
+            text: string;
+            timestamp: string;
+        }> = [];
+
+        items.push({
+            id: 'created',
+            type: 'created',
+            text: 'Task was created',
+            timestamp: task.createdAt,
+        });
+
+        if (task.preparers && task.preparers.length > 0) {
+            const names = task.preparers
+                .map(
+                    (p) =>
+                        [p.firstName, p.lastName].filter(Boolean).join(' ') ||
+                        p.email,
+                )
+                .join(', ');
+            items.push({
+                id: 'preparers',
+                type: 'assigned',
+                text: `Assigned to ${names}`,
+                timestamp: task.createdAt,
+            });
+        }
+
+        if (task.reviewers && task.reviewers.length > 0) {
+            const names = task.reviewers
+                .map(
+                    (r) =>
+                        [r.firstName, r.lastName].filter(Boolean).join(' ') ||
+                        r.email,
+                )
+                .join(', ');
+            items.push({
+                id: 'reviewers',
+                type: 'assigned',
+                text: `${names} added as reviewers`,
+                timestamp: task.createdAt,
+            });
+        }
+
+        task.customFieldValues
+            ?.filter((cfv) => cfv.value)
+            .forEach((cfv) => {
+                let displayValue = cfv.value;
+                if (cfv.customField.dataType === 'DATE') {
+                    try {
+                        displayValue = format(
+                            new Date(cfv.value),
+                            'MMM d, yyyy',
+                        );
+                    } catch {
+                        /* keep as-is */
+                    }
+                }
+                items.push({
+                    id: `cfv-${cfv.id}`,
+                    type: 'field',
+                    text: `Set ${cfv.customField.name} to ${displayValue}`,
+                    timestamp: task.updatedAt,
+                });
+            });
+
+        return items;
+    }, [task]);
+
+    const handleSaveDescription = async (value: string) => {
+        const trimmed = value.trim();
+        if (trimmed === (task.description || '')) {
+            setIsEditingDesc(false);
+            return;
+        }
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskApi.updateTask(token, task.projectId, task.id, {
+                description: trimmed,
+            });
+            toast.success('Description updated');
+            if (onUpdate) onUpdate();
+        } catch {
+            toast.error('Failed to update description');
+            setDescValue(task.description || '');
+        } finally {
+            setIsEditingDesc(false);
+        }
+    };
 
     const openCommentsCount = comments.filter(
         (c) => c.status !== 'RESOLVED',
@@ -97,9 +216,7 @@ export function TaskDetailView({
     const loadComments = useCallback(
         async (showLoading = false) => {
             try {
-                if (showLoading) {
-                    setIsLoadingComments(true);
-                }
+                if (showLoading) setIsLoadingComments(true);
                 const token = await getToken();
                 if (!token) return;
 
@@ -112,7 +229,6 @@ export function TaskDetailView({
                 const commentsData = (response.data ||
                     []) as unknown as CommentResponse[];
 
-                // Transform backend format to frontend format
                 interface CommentResponse {
                     id: string;
                     comment?: string;
@@ -135,6 +251,7 @@ export function TaskDetailView({
                     replies?: CommentResponse[];
                     parentCommentId?: string;
                 }
+
                 const transformComment = (c: CommentResponse): Comment => ({
                     id: c.id,
                     content: c.comment || c.content || '',
@@ -147,7 +264,6 @@ export function TaskDetailView({
                         | 'RESOLVED',
                     resolved: c.resolved,
                     resolvedBy: c.resolvedBy,
-
                     reactions:
                         c.reactions?.map((r) => ({
                             id: r.id,
@@ -170,17 +286,13 @@ export function TaskDetailView({
                 setComments(transformedComments);
             } catch (error) {
                 console.error('Failed to load comments:', error);
-                // Silently fail - comments are optional
             } finally {
-                if (showLoading) {
-                    setIsLoadingComments(false);
-                }
+                if (showLoading) setIsLoadingComments(false);
             }
         },
         [getToken, task.projectId, task.id],
     );
 
-    // Load comments on mount
     useEffect(() => {
         loadComments(true);
     }, [loadComments]);
@@ -193,7 +305,6 @@ export function TaskDetailView({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskApi.deleteTask(token, task.projectId, task.id);
             toast.success('Task deleted successfully');
             setDeleteDialogOpen(false);
@@ -214,7 +325,6 @@ export function TaskDetailView({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskApi.copyTask(token, task.projectId, task.id);
             toast.success('Task copied successfully');
             onUpdate?.();
@@ -225,10 +335,7 @@ export function TaskDetailView({
     };
 
     const handleCreateComment = async () => {
-        if (!newCommentContent.trim()) {
-            toast.error('Comment cannot be empty');
-            return;
-        }
+        if (!newCommentContent.trim()) return;
 
         try {
             setIsSubmitting(true);
@@ -237,45 +344,25 @@ export function TaskDetailView({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskCommentApi.createComment(token, task.projectId, task.id, {
                 comment: newCommentContent,
             });
-
-            toast.success('Comment added');
+            toast.success('Thread started');
             setNewCommentContent('');
+            setIsCreatingThread(false);
             loadComments();
         } catch (error) {
             console.error('Failed to create comment:', error);
-            toast.error('Failed to add comment');
+            toast.error('Failed to start thread');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Determine status color using design tokens
-    const statusColor =
-        task.status === 'COMPLETED'
-            ? 'text-status-complete border-status-complete/30 bg-status-complete-bg'
-            : task.status === 'IN_REVIEW'
-              ? 'text-status-review border-status-review/30 bg-status-review-bg'
-              : task.status === 'IN_PROGRESS'
-                ? 'text-status-in-progress border-status-in-progress/30 bg-status-in-progress-bg'
-                : 'text-status-pending border-dashboard-border bg-status-pending-bg';
-
-    const statusLabel =
-        task.status === 'COMPLETED'
-            ? 'Completed'
-            : task.status === 'IN_REVIEW'
-              ? 'In Review'
-              : task.status === 'IN_PROGRESS'
-                ? 'In Progress'
-                : 'Pending';
-
     return (
-        <div className="flex flex-col h-full bg-dashboard-bg animate-in fade-in slide-in-from-bottom-4 duration-300">
-            {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex flex-col gap-4 shrink-0">
+        <div className="flex flex-col flex-1 min-h-0 bg-dashboard-bg animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* ── Sticky Header ─────────────────────────────────────────────── */}
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex flex-col gap-3 shrink-0">
                 {/* Back & Breadcrumbs */}
                 <div className="flex items-center gap-4">
                     <Button
@@ -325,55 +412,18 @@ export function TaskDetailView({
                     </div>
                 </div>
 
-                {/* Title & Meta */}
-                <div className="flex items-start justify-between">
-                    <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary">
+                {/* Title & Actions */}
+                <div className="flex items-center justify-between gap-4">
+                    <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight">
                         {task.name}
                     </h1>
-                    <div className="flex items-center gap-3">
-                        <div className="px-4 py-2 rounded-lg border border-dashboard-border bg-dashboard-surface shadow-sm flex flex-col items-start min-w-35 transition-colors">
-                            <span className="text-[10px] uppercase font-semibold text-dashboard-text-muted tracking-wider mb-0.5">
-                                Status
-                            </span>
-                            <span
-                                className={cn(
-                                    'font-semibold text-sm',
-                                    task.status === 'COMPLETED' &&
-                                        'text-status-complete',
-                                    task.status === 'IN_PROGRESS' &&
-                                        'text-status-in-progress',
-                                    task.status === 'IN_REVIEW' &&
-                                        'text-status-review',
-                                    task.status === 'PENDING' &&
-                                        'text-status-pending',
-                                )}
-                            >
-                                {statusLabel}
-                            </span>
-                        </div>
-
-                        {/* Open Comments Card */}
-                        <div className="px-4 py-2 rounded-lg border border-dashboard-border bg-dashboard-surface shadow-sm flex flex-col items-start min-w-35">
-                            <span className="text-[10px] uppercase font-semibold text-dashboard-text-muted tracking-wider mb-0.5">
-                                To Resolve
-                            </span>
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm text-dashboard-text-body">
-                                    {openCommentsCount}{' '}
-                                    {openCommentsCount === 1
-                                        ? 'Thread'
-                                        : 'Threads'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* 3-Dot Menu */}
+                    <div className="flex items-center gap-2 shrink-0">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 ml-2 cursor-pointer hover:bg-accent-hover"
+                                    className="h-8 w-8 cursor-pointer hover:bg-accent-hover"
                                 >
                                     <MoreVertical className="h-5 w-5 text-dashboard-text-muted" />
                                 </Button>
@@ -401,95 +451,31 @@ export function TaskDetailView({
                         </DropdownMenu>
                     </div>
                 </div>
-
-                {/* Assignees */}
-                <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2">
-                        <span className="text-dashboard-text-muted">
-                            Assigned to:
-                        </span>
-                        {task.preparers && task.preparers.length > 0 ? (
-                            <div className="flex items-center gap-2">
-                                {task.preparers.map((u) => (
-                                    <span
-                                        key={u.id}
-                                        className="font-medium text-dashboard-text-primary"
-                                    >
-                                        {u.firstName} {u.lastName}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <span className="text-dashboard-text-muted italic">
-                                Unassigned
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="w-px h-4 bg-dashboard-border mx-1" />
-                        <span className="text-dashboard-text-muted">
-                            Reviewer:
-                        </span>
-                        {task.reviewers && task.reviewers.length > 0 ? (
-                            <div className="flex items-center gap-2">
-                                {task.reviewers.map((u) => (
-                                    <span
-                                        key={u.id}
-                                        className="font-medium text-dashboard-text-primary"
-                                    >
-                                        {u.firstName} {u.lastName}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <span className="text-dashboard-text-muted italic">
-                                No Reviewer
-                            </span>
-                        )}
-                    </div>
-
-                    <Badge
-                        variant="outline"
-                        className={cn(
-                            'ml-2 font-normal bg-transparent',
-                            statusColor,
-                        )}
-                    >
-                        {statusLabel}
-                    </Badge>
-                </div>
             </div>
 
-            {/* Main Content */}
-            <div className="flex flex-col gap-6 p-8 pb-20">
-                {/* Description and Files Split Card */}
-                <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-dashboard-border overflow-hidden">
-                    {/* Left Column: Description */}
-                    <div className="p-8">
-                        <div className="flex items-center gap-2 mb-6">
-                            <div className="h-8 w-8 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
-                                <AlignLeft className="h-4 w-4" />
-                            </div>
-                            <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary">
-                                Description
-                            </h3>
-                        </div>
-                        <p className="text-dashboard-text-muted leading-relaxed whitespace-pre-line text-sm lg:text-base">
-                            {task.description || 'No description provided.'}
-                        </p>
-                    </div>
-
-                    {/* Right Column: Files */}
-                    <div className="p-8">
-                        <div className="flex items-center justify-between mb-6">
+            {/* ── Two-column layout ──────────────────────────────────────────── */}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+                {/* Main scrollable content */}
+                <div className="flex-1 min-w-0 overflow-y-auto p-8 flex flex-col gap-6">
+                    {/* ── Attachments ──────────────────────────────────────── */}
+                    <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-dashboard-border">
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
-                                    <Paperclip className="h-4 w-4" />
+                                <div className="h-7 w-7 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
+                                    <Paperclip className="h-3.5 w-3.5" />
                                 </div>
-                                <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary">
+                                <h3 className="font-serif font-semibold text-base text-dashboard-text-primary">
                                     Attachments
                                 </h3>
+                                {task.linkedFiles &&
+                                    task.linkedFiles.length > 0 && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="rounded-full px-2 h-5 text-xs bg-accent-subtle text-dashboard-text-muted border-dashboard-border"
+                                        >
+                                            {task.linkedFiles.length}
+                                        </Badge>
+                                    )}
                             </div>
                             <Button
                                 variant="outline"
@@ -501,20 +487,19 @@ export function TaskDetailView({
                                 Upload
                             </Button>
                         </div>
-
-                        <div className="space-y-3">
+                        <div className="p-6">
                             {task.linkedFiles && task.linkedFiles.length > 0 ? (
-                                task.linkedFiles.map((file) => (
-                                    <div
-                                        key={file.id}
-                                        className="group flex items-center justify-between p-3 rounded-lg border border-dashboard-border bg-dashboard-surface hover:border-accent-blue/30 hover:bg-accent-hover hover:shadow-sm transition-all cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 bg-accent-subtle rounded-lg flex items-center justify-center text-accent-blue transition-colors">
-                                                <FileText className="h-5 w-5" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {task.linkedFiles.map((file) => (
+                                        <div
+                                            key={file.id}
+                                            className="group flex items-center gap-3 p-3 rounded-lg border border-dashboard-border bg-dashboard-surface hover:border-accent-blue/30 hover:bg-accent-hover hover:shadow-sm transition-all cursor-pointer"
+                                        >
+                                            <div className="h-9 w-9 bg-accent-subtle rounded-lg flex items-center justify-center text-accent-blue shrink-0">
+                                                <FileText className="h-4 w-4" />
                                             </div>
-                                            <div>
-                                                <p className="font-medium text-sm text-dashboard-text-body group-hover:text-accent-blue transition-colors">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-sm text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
                                                     {file.originalName}
                                                 </p>
                                                 <p className="text-[10px] text-dashboard-text-muted uppercase tracking-wider">
@@ -525,132 +510,366 @@ export function TaskDetailView({
                                                 </p>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
+                                    ))}
+                                </div>
                             ) : (
-                                <div className="p-12 text-center border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/50">
+                                <div className="py-10 text-center border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/30">
+                                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-dashboard-text-muted opacity-30" />
                                     <p className="text-sm text-dashboard-text-muted">
                                         No files attached yet
                                     </p>
+                                    <button
+                                        onClick={() =>
+                                            setUploadDialogOpen(true)
+                                        }
+                                        className="mt-2 text-xs text-accent-blue hover:underline"
+                                    >
+                                        Upload a file
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
 
-                {/* Comments Section */}
-                <div className="w-full">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary flex items-center gap-2">
-                            <span>Comments</span>
-                            <Badge
-                                variant="secondary"
-                                className="rounded-full px-2 h-5 text-xs bg-accent-subtle text-accent-blue border-dashboard-border"
-                            >
-                                {comments.length}
-                            </Badge>
-                        </h3>
-                        <Button
-                            onClick={() => setIsComposing(!isComposing)}
-                            size="sm"
-                            variant="outline"
-                            className="gap-2 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
-                        >
-                            <PlusIcon className="h-4 w-4" />
-                            New Comment
-                        </Button>
-                    </div>
-
-                    {/* New Comment Input */}
-                    {isComposing && (
-                        <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
-                                <Textarea
-                                    value={newCommentContent}
-                                    onChange={(e) =>
-                                        setNewCommentContent(e.target.value)
-                                    }
-                                    placeholder="Write a new comment..."
-                                    className="min-h-[100px] border-none focus-visible:ring-0 resize-none p-4 text-sm text-dashboard-text-body placeholder:text-dashboard-text-muted"
-                                    autoFocus
-                                />
-                                <div className="flex items-center justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="text-dashboard-text-muted hover:text-dashboard-text-primary"
-                                        onClick={() => setIsComposing(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        onClick={async () => {
-                                            await handleCreateComment();
-                                            setIsComposing(false);
-                                        }}
-                                        disabled={
-                                            !newCommentContent.trim() ||
-                                            isSubmitting
-                                        }
-                                        className="gap-2 bg-accent-blue hover:bg-accent-light text-white"
-                                    >
-                                        <Send className="h-3.5 w-3.5" />
-                                        Post Comment
-                                    </Button>
+                    {/* ── Activity Log ─────────────────────────────────────── */}
+                    {activityItems.length > 0 && (
+                        <div>
+                            <h3 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider mb-3 px-1">
+                                Activity
+                            </h3>
+                            <div className="relative">
+                                {/* Vertical line */}
+                                <div className="absolute left-[5px] top-2 bottom-2 w-px bg-dashboard-border" />
+                                <div className="flex flex-col gap-0">
+                                    {activityItems.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className="flex items-start gap-3 py-2 pl-1"
+                                        >
+                                            {/* Icon */}
+                                            <div
+                                                className={cn(
+                                                    'relative z-10 mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full ring-2 ring-dashboard-bg',
+                                                    item.type === 'created' &&
+                                                        'bg-accent-blue',
+                                                    item.type === 'assigned' &&
+                                                        'bg-dashboard-text-muted',
+                                                    item.type === 'field' &&
+                                                        'bg-dashboard-border border border-dashboard-border bg-dashboard-surface',
+                                                )}
+                                            >
+                                                {item.type === 'created' && (
+                                                    <CircleDot className="h-2 w-2 text-white" />
+                                                )}
+                                                {item.type === 'assigned' && (
+                                                    <UserCheck className="h-2 w-2 text-white" />
+                                                )}
+                                                {item.type === 'field' && (
+                                                    <SlidersHorizontal className="h-1.5 w-1.5 text-dashboard-text-muted" />
+                                                )}
+                                            </div>
+                                            {/* Text */}
+                                            <p className="text-sm text-dashboard-text-muted leading-relaxed flex-1">
+                                                {item.text}
+                                                <span className="ml-2 text-xs text-dashboard-text-muted/50">
+                                                    {formatRelativeTime(
+                                                        new Date(
+                                                            item.timestamp,
+                                                        ),
+                                                    )}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Thread View */}
-                    <div className="space-y-6">
-                        {isLoadingComments ? (
-                            <div className="space-y-4">
-                                {[1, 2].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="flex gap-4 animate-pulse"
-                                    >
-                                        <div className="h-10 w-10 bg-accent-subtle rounded-full" />
-                                        <div className="flex-1 space-y-2">
-                                            <div className="h-4 bg-accent-subtle rounded w-1/4" />
-                                            <div className="h-20 bg-accent-subtle rounded-xl" />
-                                        </div>
+                    {/* ── Comments ─────────────────────────────────────────── */}
+                    <div>
+                        {/* Section header */}
+                        <div className="flex items-center justify-between mb-4 px-1">
+                            <h3 className="font-serif font-semibold text-lg text-dashboard-text-primary flex items-center gap-2">
+                                <span>Comments</span>
+                                <Badge
+                                    variant="secondary"
+                                    className="rounded-full px-2 h-5 text-xs bg-accent-subtle text-accent-blue border-dashboard-border"
+                                >
+                                    {comments.length}
+                                </Badge>
+                            </h3>
+                            {openCommentsCount > 0 && (
+                                <Badge
+                                    variant="outline"
+                                    className="text-xs text-dashboard-text-muted border-dashboard-border font-normal"
+                                >
+                                    {openCommentsCount} open
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Comment container – Linear-style card */}
+                        <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm overflow-hidden">
+                            {/* Thread list */}
+                            <div>
+                                {isLoadingComments ? (
+                                    <div className="p-6 space-y-6">
+                                        {[1, 2].map((i) => (
+                                            <div
+                                                key={i}
+                                                className="flex gap-3 animate-pulse"
+                                            >
+                                                <div className="h-8 w-8 bg-accent-subtle rounded-full shrink-0" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-3.5 bg-accent-subtle rounded w-1/4" />
+                                                    <div className="h-12 bg-accent-subtle rounded-lg" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                ) : comments.length === 0 ? (
+                                    <div className="px-6 py-12 text-center">
+                                        <MessageSquare className="h-9 w-9 mx-auto mb-3 text-dashboard-text-muted opacity-20" />
+                                        <p className="text-sm text-dashboard-text-muted">
+                                            No threads yet. Start a conversation
+                                            below.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-dashboard-border/50">
+                                        {comments.map((comment, index) => (
+                                            <div
+                                                key={comment.id}
+                                                className="px-6 py-1"
+                                            >
+                                                <CommentThread
+                                                    index={index + 1}
+                                                    comment={comment}
+                                                    onUpdate={loadComments}
+                                                    taskId={task.id}
+                                                    projectId={task.projectId}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        ) : comments.length === 0 && !isComposing ? (
-                            <div className="text-center text-dashboard-text-muted py-12 border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/30">
-                                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-dashboard-text-muted opacity-30" />
-                                <p className="text-sm">
-                                    No comments yet. Start the conversation!
+
+                            {/* New thread input */}
+                            <div className="border-t border-dashboard-border/60 px-4 py-3 bg-accent-subtle/20">
+                                <div
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-lg border px-3.5 py-2.5 transition-all duration-150',
+                                        isCreatingThread
+                                            ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface shadow-sm'
+                                            : 'border-dashboard-border bg-dashboard-surface hover:border-accent-blue/25',
+                                    )}
+                                >
+                                    <div className="h-7 w-7 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center shrink-0">
+                                        <MessageSquare className="h-3 w-3 text-accent-blue/60" />
+                                    </div>
+                                    <input
+                                        ref={newThreadInputRef}
+                                        value={newCommentContent}
+                                        onChange={(e) =>
+                                            setNewCommentContent(e.target.value)
+                                        }
+                                        onFocus={() =>
+                                            setIsCreatingThread(true)
+                                        }
+                                        onBlur={() => {
+                                            if (!newCommentContent.trim())
+                                                setIsCreatingThread(false);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (
+                                                (e.metaKey || e.ctrlKey) &&
+                                                e.key === 'Enter'
+                                            ) {
+                                                e.preventDefault();
+                                                handleCreateComment();
+                                            }
+                                            if (e.key === 'Escape') {
+                                                setNewCommentContent('');
+                                                setIsCreatingThread(false);
+                                                newThreadInputRef.current?.blur();
+                                            }
+                                        }}
+                                        placeholder="Start a new thread…"
+                                        className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-dashboard-text-muted text-dashboard-text-body"
+                                    />
+                                    {isCreatingThread && (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                                                tabIndex={-1}
+                                            >
+                                                <Paperclip className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button
+                                                size="icon"
+                                                className="h-7 w-7 shrink-0 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
+                                                onClick={handleCreateComment}
+                                                disabled={
+                                                    !newCommentContent.trim() ||
+                                                    isSubmitting
+                                                }
+                                            >
+                                                <ArrowUp className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Right Sidebar ──────────────────────────────────────────── */}
+                <div className="w-72 xl:w-80 shrink-0 border-l border-dashboard-border bg-dashboard-surface overflow-y-auto flex flex-col">
+                    {/* Description */}
+                    <div className="px-5 py-5 border-b border-dashboard-border">
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlignLeft className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                            <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
+                                Description
+                            </h4>
+                        </div>
+                        {isEditingDesc ? (
+                            <textarea
+                                ref={descRef}
+                                value={descValue}
+                                autoFocus
+                                onChange={(e) => {
+                                    setDescValue(e.target.value);
+                                    const el = e.currentTarget;
+                                    el.style.height = 'auto';
+                                    el.style.height = `${el.scrollHeight}px`;
+                                }}
+                                onBlur={() => handleSaveDescription(descValue)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        setDescValue(task.description || '');
+                                        setIsEditingDesc(false);
+                                    }
+                                }}
+                                className="w-full resize-none border-none focus:outline-none bg-accent-subtle/50 rounded px-2 py-1.5 text-sm text-dashboard-text-body leading-relaxed min-h-[80px]"
+                            />
+                        ) : (
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setIsEditingDesc(true)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setIsEditingDesc(true);
+                                    }
+                                }}
+                                className="cursor-text group"
+                                title="Click to edit description"
+                            >
+                                <p
+                                    className={cn(
+                                        'text-sm leading-relaxed whitespace-pre-line rounded px-1 py-0.5 -mx-1 transition-colors group-hover:bg-accent-subtle/50',
+                                        descValue
+                                            ? 'text-dashboard-text-body'
+                                            : 'text-dashboard-text-muted/50 italic',
+                                    )}
+                                >
+                                    {descValue || 'Add a description…'}
                                 </p>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Properties / Custom Fields */}
+                    <div className="px-5 py-5 flex-1">
+                        <div className="flex items-center gap-2 mb-4">
+                            <SlidersHorizontal className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                            <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
+                                Properties
+                            </h4>
+                            {task.customFieldValues &&
+                                task.customFieldValues.length > 0 && (
+                                    <span className="ml-auto text-xs text-dashboard-text-muted/50">
+                                        {task.customFieldValues.length}
+                                    </span>
+                                )}
+                        </div>
+
+                        {task.customFieldValues &&
+                        task.customFieldValues.length > 0 ? (
+                            <div className="flex flex-col">
+                                {task.customFieldValues.map((cfv) => {
+                                    const raw = cfv.value;
+                                    const isRefType = [
+                                        'TASK',
+                                        'USER',
+                                        'DOCUMENT',
+                                    ].includes(cfv.customField.dataType);
+                                    let displayValue: string;
+                                    if (!raw) {
+                                        displayValue = '—';
+                                    } else if (
+                                        cfv.customField.dataType === 'DATE'
+                                    ) {
+                                        try {
+                                            displayValue = format(
+                                                new Date(raw),
+                                                'MMM d, yyyy',
+                                            );
+                                        } catch {
+                                            displayValue = raw;
+                                        }
+                                    } else {
+                                        displayValue = raw;
+                                    }
+                                    return (
+                                        <div
+                                            key={cfv.id}
+                                            className="flex items-start justify-between gap-3 py-3 border-b border-dashboard-border/50 last:border-0"
+                                        >
+                                            <div className="flex flex-col gap-0.5 min-w-0 shrink-0 max-w-[45%]">
+                                                <span className="text-[11px] font-medium text-dashboard-text-muted truncate">
+                                                    {cfv.customField.name}
+                                                </span>
+                                                <span className="text-[10px] text-dashboard-text-muted/50 capitalize">
+                                                    {cfv.customField.dataType.toLowerCase()}
+                                                </span>
+                                            </div>
+                                            {isRefType && raw ? (
+                                                <span className="text-xs font-mono text-dashboard-text-muted bg-accent-subtle border border-dashboard-border px-1.5 py-0.5 rounded shrink max-w-[50%] truncate">
+                                                    {raw}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-dashboard-text-body font-medium text-right max-w-[50%] break-words">
+                                                    {displayValue}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         ) : (
-                            comments.map((comment, index) => (
-                                <CommentThread
-                                    key={comment.id}
-                                    index={index + 1}
-                                    comment={comment}
-                                    onUpdate={loadComments}
-                                    taskId={task.id}
-                                    projectId={task.projectId}
-                                />
-                            ))
+                            <p className="text-xs text-dashboard-text-muted/50 italic">
+                                No properties configured
+                            </p>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Upload Dialog */}
+            {/* ── Upload Dialog ─────────────────────────────────────────────── */}
             <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Upload File</DialogTitle>
                         <DialogDescription>
-                            File upload functionality coming soon. This feature
-                            will allow you to attach documents to tasks.
+                            File upload functionality coming soon.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-8 text-center text-muted-foreground">
@@ -677,7 +896,6 @@ export function TaskDetailView({
                 onSuccess={onUpdate || (() => {})}
             />
 
-            {/* Delete Task Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -709,43 +927,45 @@ export function TaskDetailView({
     );
 }
 
-// Define recursive CommentItem component
-function CommentItem({
+// ─── CommentBubble ─────────────────────────────────────────────────────────────
+// Renders a single comment (root or reply). Threading / layout is handled by
+// CommentThread. Uses Tailwind named-group (group/bubble) so hover on a nested
+// bubble does NOT trigger the parent bubble's hover pill.
+function CommentBubble({
     comment,
-    depth = 0,
+    showThreadLine = false,
+    isResolutionTarget = false,
     onUpdate,
     taskId,
     projectId,
+    onResolve,
+    avatarSizeClass = 'h-8 w-8',
 }: {
     comment: Comment;
-    depth?: number;
+    showThreadLine?: boolean;
+    isResolutionTarget?: boolean;
     onUpdate: () => void;
     taskId: string;
     projectId: string;
+    onResolve?: () => void;
+    avatarSizeClass?: string;
 }) {
     const { getToken, userId } = useAuth();
-    const [isReplying, setIsReplying] = useState(false);
-    const [replyContent, setReplyContent] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Group reactions by emoji
     const reactionGroups =
         comment.reactions?.reduce(
             (acc, reaction) => {
-                if (!acc[reaction.emoji]) {
-                    acc[reaction.emoji] = [];
-                }
-                acc[reaction.emoji].push(reaction);
+                if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
+                acc[reaction.emoji]!.push(reaction);
                 return acc;
             },
             {} as Record<string, typeof comment.reactions>,
-        ) || {};
+        ) ?? {};
 
     const handleReaction = async (emoji: string) => {
         try {
             const token = await getToken();
             if (!token) return;
-
             await taskCommentApi.toggleReaction(
                 token,
                 projectId,
@@ -754,256 +974,188 @@ function CommentItem({
                 emoji,
             );
             onUpdate();
-        } catch (error) {
-            console.error('Failed to toggle reaction:', error);
+        } catch {
             toast.error('Failed to update reaction');
         }
     };
 
-    const handleReply = async () => {
-        if (!replyContent.trim()) return;
-
-        try {
-            setIsSubmitting(true);
-            const token = await getToken();
-            if (!token) {
-                toast.error('Authentication required');
-                return;
-            }
-
-            await taskCommentApi.createComment(token, projectId, taskId, {
-                comment: replyContent,
-                parentId: comment.id,
-            });
-
-            toast.success('Reply added');
-            setReplyContent('');
-            setIsReplying(false);
-            onUpdate();
-        } catch (error) {
-            console.error('Failed to reply:', error);
-            toast.error('Failed to add reply');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const commentContent = comment.content || comment.comment || '';
-
-    // Different styling for root vs nested comments
-    const isRoot = depth === 0;
+    const relativeTime = formatRelativeTime(new Date(comment.createdAt));
 
     return (
-        <div
-            className={cn(
-                'relative',
-                !isRoot && 'pl-4 ml-2 border-l-2 border-dashboard-border',
-            )}
-        >
-            {/* Thread line visual connector if not root */}
-            {!isRoot && (
-                <div className="absolute top-4 left-[-2px] w-4 h-[2px] bg-dashboard-border"></div>
-            )}
-
-            <div
-                className={cn(
-                    'group relative animate-in fade-in slide-in-from-top-1 duration-200',
-                    !isRoot && 'py-3',
+        <div className="group/bubble relative flex gap-3 min-w-0">
+            {/* Avatar column with optional thread line */}
+            <div className="flex flex-col items-center shrink-0">
+                <Avatar
+                    className={cn(
+                        avatarSizeClass,
+                        'border border-dashboard-border shrink-0',
+                    )}
+                >
+                    <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
+                        {comment.user.firstName?.[0]}
+                        {comment.user.lastName?.[0]}
+                    </AvatarFallback>
+                </Avatar>
+                {showThreadLine && (
+                    <div className="w-px flex-1 min-h-5 mt-1 bg-border" />
                 )}
-            >
-                <div className="flex gap-4">
-                    <Avatar
-                        className={cn(
-                            'border border-dashboard-border shrink-0 cursor-default',
-                            isRoot ? 'h-10 w-10' : 'h-8 w-8',
-                        )}
-                    >
-                        <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
-                            {comment.user.firstName?.[0]}
-                            {comment.user.lastName?.[0]}
-                        </AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1 min-w-0">
-                        {/* Header */}
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm text-dashboard-text-primary truncate">
-                                {comment.user.firstName} {comment.user.lastName}
-                            </span>
-                            <span className="text-xs text-dashboard-text-muted whitespace-nowrap">
-                                {format(
-                                    new Date(comment.createdAt),
-                                    'MMM d, h:mm a',
-                                )}
-                            </span>
-                        </div>
-
-                        {/* Content */}
-                        <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap wrap-break-word">
-                            {commentContent}
-                        </div>
-
-                        {/* Actions (Reactions + Reply) */}
-                        <div className="flex items-center flex-wrap gap-2 mt-2">
-                            {/* Reactions Logic */}
-                            {Object.entries(reactionGroups).map(
-                                ([emoji, reactions]) => {
-                                    const hasReacted = reactions?.some(
-                                        (r) => r.userId === userId,
-                                    );
-                                    return (
-                                        <Button
-                                            key={emoji}
-                                            variant="outline"
-                                            size="sm"
-                                            className={cn(
-                                                'h-5 px-1.5 text-[10px] gap-1 rounded-full border border-dashboard-border bg-transparent hover:bg-accent-hover transition-colors',
-                                                hasReacted &&
-                                                    'bg-accent-subtle border-accent-blue/30 hover:bg-accent-subtle',
-                                            )}
-                                            onClick={() =>
-                                                handleReaction(emoji)
-                                            }
-                                        >
-                                            <span>{emoji}</span>
-                                            <span
-                                                className={cn(
-                                                    'font-medium',
-                                                    hasReacted
-                                                        ? 'text-accent-blue'
-                                                        : 'text-dashboard-text-muted',
-                                                )}
-                                            >
-                                                {reactions?.length}
-                                            </span>
-                                        </Button>
-                                    );
-                                },
-                            )}
-
-                            {/* Add Reaction Button */}
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={cn(
-                                            'h-6 w-6 rounded-full p-0 text-dashboard-text-muted hover:bg-accent-hover transition-all opacity-0 group-hover:opacity-100 focus:opacity-100',
-                                            Object.keys(reactionGroups).length >
-                                                0 && 'opacity-100',
-                                        )}
-                                        title="Add reaction"
-                                    >
-                                        <SmilePlus className="h-3.5 w-3.5" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                    className="w-auto p-1"
-                                    align="start"
-                                    side="top"
-                                >
-                                    <div className="flex gap-0.5">
-                                        {[
-                                            '👍',
-                                            '👎',
-                                            '😄',
-                                            '🎉',
-                                            '😕',
-                                            '❤️',
-                                            '🚀',
-                                            '👀',
-                                        ].map((emoji) => (
-                                            <button
-                                                key={emoji}
-                                                className="p-1.5 hover:bg-accent-hover rounded-md text-lg transition-colors leading-none"
-                                                onClick={() =>
-                                                    handleReaction(emoji)
-                                                }
-                                            >
-                                                {emoji}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-
-                            {/* Reply Button */}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs text-dashboard-text-muted hover:text-dashboard-text-primary opacity-0 group-hover:opacity-100 focus:opacity-100 ml-1"
-                                onClick={() => setIsReplying(!isReplying)}
-                            >
-                                Reply
-                            </Button>
-                        </div>
-
-                        {/* Reply Input */}
-                        {isReplying && (
-                            <div className="mt-3 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
-                                    <Textarea
-                                        value={replyContent}
-                                        onChange={(e) =>
-                                            setReplyContent(e.target.value)
-                                        }
-                                        placeholder={`Replying to ${comment.user.firstName}...`}
-                                        className="min-h-[60px] text-sm resize-none border-none focus-visible:ring-0 p-3"
-                                        autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="text-dashboard-text-muted hover:text-dashboard-text-primary"
-                                            onClick={() => {
-                                                setIsReplying(false);
-                                                setReplyContent('');
-                                            }}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            className="bg-accent-blue hover:bg-accent-light text-white"
-                                            onClick={handleReply}
-                                            disabled={
-                                                !replyContent.trim() ||
-                                                isSubmitting
-                                            }
-                                        >
-                                            Reply
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
 
-            {/* Recursively render children */}
-            {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-1">
-                    {comment.replies.map((reply) => (
-                        <CommentItem
-                            key={reply.id}
-                            comment={reply}
-                            depth={depth + 1}
-                            onUpdate={onUpdate}
-                            taskId={taskId}
-                            projectId={projectId}
-                        />
-                    ))}
+            {/* Content */}
+            <div className="flex-1 min-w-0 pb-3">
+                {/* Header */}
+                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="font-medium text-sm text-dashboard-text-primary">
+                        {comment.user.firstName} {comment.user.lastName}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        {relativeTime}
+                    </span>
+                    {isResolutionTarget && (
+                        <Badge
+                            className={cn(
+                                'h-4 px-1.5 text-[10px] font-medium rounded-sm',
+                                'bg-green-50 text-green-700 border-green-200',
+                            )}
+                            variant="outline"
+                        >
+                            Resolved this
+                        </Badge>
+                    )}
                 </div>
-            )}
+
+                {/* Body */}
+                <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap wrap-break-word">
+                    {commentContent}
+                </div>
+
+                {/* Reaction pills */}
+                {Object.keys(reactionGroups).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {Object.entries(reactionGroups).map(
+                            ([emoji, reactions]) => {
+                                const hasReacted = reactions?.some(
+                                    (r) => r.userId === userId,
+                                );
+                                return (
+                                    <button
+                                        key={emoji}
+                                        onClick={() => handleReaction(emoji)}
+                                        className={cn(
+                                            'inline-flex items-center gap-0.5 h-5 px-1.5 rounded-full text-[11px] border transition-colors cursor-pointer',
+                                            hasReacted
+                                                ? 'bg-accent-subtle border-accent-blue/30 text-accent-blue'
+                                                : 'bg-transparent border-dashboard-border text-dashboard-text-muted hover:bg-accent-hover',
+                                        )}
+                                    >
+                                        <span>{emoji}</span>
+                                        <span className="font-medium">
+                                            {reactions?.length}
+                                        </span>
+                                    </button>
+                                );
+                            },
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Hover action pill – absolute, right-aligned, named-group-scoped */}
+            <div
+                className={cn(
+                    'absolute right-0 top-0 z-10',
+                    'flex items-center gap-0.5 px-0.5 py-0.5',
+                    'bg-background border border-dashboard-border rounded-md shadow-sm',
+                    'opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-100',
+                )}
+            >
+                {/* Emoji react */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                            title="Add reaction"
+                        >
+                            <SmilePlus className="h-3.5 w-3.5" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        className="w-auto p-1"
+                        side="top"
+                        align="end"
+                    >
+                        <div className="flex gap-0.5">
+                            {[
+                                '👍',
+                                '👎',
+                                '😄',
+                                '🎉',
+                                '😕',
+                                '❤️',
+                                '🚀',
+                                '👀',
+                            ].map((emoji) => (
+                                <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(emoji)}
+                                    className="p-1.5 hover:bg-accent-hover rounded text-base leading-none transition-colors"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {/* Resolve thread (only on unresolved threads) */}
+                {onResolve && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-dashboard-text-muted hover:text-green-600"
+                        onClick={onResolve}
+                        title="Resolve thread"
+                    >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                    </Button>
+                )}
+
+                {/* More options */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                        >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem>
+                            <Edit2 className="h-3.5 w-3.5 mr-2" />
+                            Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
     );
 }
 
+// ─── CommentThread ─────────────────────────────────────────────────────────────
+// Renders a full thread: root comment → replies → resolution log → reply input.
+// No card wrapper; thread lines connect avatars visually.
 function CommentThread({
     comment,
-    index,
     onUpdate,
     taskId,
     projectId,
@@ -1015,12 +1167,14 @@ function CommentThread({
     projectId: string;
 }) {
     const { getToken } = useAuth();
-    const [isOpen, setIsOpen] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isReplying, setIsReplying] = useState(false); // Keep for main thread reply if needed
     const [replyContent, setReplyContent] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isReplyFocused, setIsReplyFocused] = useState(false);
+    const replyInputRef = useRef<HTMLInputElement>(null);
 
     const isResolved = comment.status === 'RESOLVED';
+    const replies = comment.replies ?? [];
+    const hasContent = replies.length > 0 || isResolved;
 
     const handleResolve = async () => {
         try {
@@ -1030,19 +1184,16 @@ function CommentThread({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskCommentApi.resolveComment(
                 token,
                 projectId,
                 taskId,
                 comment.id,
             );
-            toast.success('Comment resolved');
-            setIsOpen(false); // Auto-collapse on approval
+            toast.success('Thread resolved');
             onUpdate();
-        } catch (error) {
-            console.error('Failed to resolve comment:', error);
-            toast.error('Failed to resolve comment');
+        } catch {
+            toast.error('Failed to resolve thread');
         } finally {
             setIsSubmitting(false);
         }
@@ -1056,27 +1207,23 @@ function CommentThread({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskCommentApi.reopenComment(
                 token,
                 projectId,
                 taskId,
                 comment.id,
             );
-            toast.success('Comment reopened');
+            toast.success('Thread reopened');
             onUpdate();
-        } catch (error) {
-            console.error('Failed to reopen comment:', error);
-            toast.error('Failed to reopen comment');
+        } catch {
+            toast.error('Failed to reopen thread');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Main thread reply (can be triggered from footer or header)
     const handleReply = async () => {
         if (!replyContent.trim()) return;
-
         try {
             setIsSubmitting(true);
             const token = await getToken();
@@ -1084,229 +1231,161 @@ function CommentThread({
                 toast.error('Authentication required');
                 return;
             }
-
             await taskCommentApi.createComment(token, projectId, taskId, {
                 comment: replyContent,
-                parentId: comment.id, // Becomes a child of this thread root
+                parentId: comment.id,
             });
-
             toast.success('Reply added');
             setReplyContent('');
-            setIsReplying(false);
+            setIsReplyFocused(false);
             onUpdate();
-        } catch (error) {
-            console.error('Failed to reply:', error);
+        } catch {
             toast.error('Failed to add reply');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // If resolved, show collapsed view by default
-    if (isResolved && !isOpen) {
-        return (
-            <div className="rounded-xl border border-status-complete/30 bg-status-complete-bg overflow-hidden">
-                <div
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-status-complete-bg/70 transition-colors"
-                    onClick={() => setIsOpen(true)}
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="h-6 w-6 rounded-full bg-status-complete-bg text-status-complete flex items-center justify-center border border-status-complete/30">
-                            <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-semibold text-dashboard-text-primary">
-                                    Comment #{index} - Resolved
-                                </h4>
-                            </div>
-                            <p className="text-xs text-status-complete">
-                                {comment.resolvedBy?.firstName
-                                    ? `${comment.resolvedBy.firstName} resolved this comment`
-                                    : 'Resolved'}
-                            </p>
-                        </div>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover"
-                    >
-                        <ChevronDown className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div
-            className={cn(
-                'rounded-xl border overflow-hidden transition-all duration-300',
-                isResolved
-                    ? 'border-status-complete/30 bg-status-complete-bg/30'
-                    : 'border-dashboard-border bg-dashboard-surface',
-            )}
-        >
-            {/* Header */}
-            <div
-                className={cn(
-                    'flex items-center justify-between px-4 py-3 border-b cursor-pointer transition-colors',
-                    isResolved
-                        ? 'bg-status-complete-bg/50 border-status-complete/20 hover:bg-status-complete-bg/70'
-                        : 'bg-accent-subtle border-dashboard-border hover:bg-accent-hover',
-                )}
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                <div className="flex items-center gap-3">
-                    {/* Icon */}
-                    {isResolved ? (
-                        <div className="h-6 w-6 rounded-full bg-status-complete-bg text-status-complete flex items-center justify-center border border-status-complete/30">
-                            <Check className="h-3.5 w-3.5" />
-                        </div>
-                    ) : (
-                        <div className="h-6 w-6 rounded-full bg-accent-subtle text-accent-blue flex items-center justify-center border border-accent-blue/20">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                        </div>
-                    )}
-                    {/* Text */}
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-semibold text-dashboard-text-primary">
-                                Comment #{index} -{' '}
-                                {isResolved ? 'Resolved' : 'Open'}
-                            </h4>
-                        </div>
-                        <p className="text-xs text-dashboard-text-muted">
-                            {comment.replies?.length || 0} responses •{' '}
-                            {isResolved ? 'Resolved' : 'Needs resolution'}
-                        </p>
+        <div className="relative py-3 border-b border-dashboard-border/40 last:border-0">
+            {/* Root comment */}
+            <CommentBubble
+                comment={comment}
+                showThreadLine={hasContent || isReplyFocused}
+                onUpdate={onUpdate}
+                taskId={taskId}
+                projectId={projectId}
+                onResolve={!isResolved ? handleResolve : undefined}
+                avatarSizeClass="h-8 w-8"
+            />
+
+            {/* Replies */}
+            {replies.map((reply, i) => (
+                <CommentBubble
+                    key={reply.id}
+                    comment={reply}
+                    showThreadLine={
+                        i < replies.length - 1 ||
+                        (!isResolved && isReplyFocused)
+                    }
+                    isResolutionTarget={isResolved && i === replies.length - 1}
+                    onUpdate={onUpdate}
+                    taskId={taskId}
+                    projectId={projectId}
+                    onResolve={!isResolved ? handleResolve : undefined}
+                    avatarSizeClass="h-7 w-7"
+                />
+            ))}
+
+            {/* Resolution log */}
+            {isResolved && (
+                <div className="flex items-center gap-2 ml-11 py-1.5">
+                    <div className="h-4 w-4 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <Check className="h-2.5 w-2.5 text-green-600" />
                     </div>
-                </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover opacity-70 hover:opacity-100"
-                >
-                    {isOpen ? (
-                        <ChevronUp className="h-4 w-4" />
-                    ) : (
-                        <ChevronDown className="h-4 w-4" />
-                    )}
-                </Button>
-            </div>
-
-            {/* Content Body */}
-            {isOpen && (
-                <div className="bg-dashboard-surface">
-                    <div className="p-6 pb-2">
-                        {/* Render Root Comment Item (which handles its own content and replies recursively) */}
-                        <CommentItem
-                            comment={comment}
-                            depth={0}
-                            onUpdate={onUpdate}
-                            taskId={taskId}
-                            projectId={projectId}
-                        />
-
-                        {/* Thread Footer Actions (Resolve/Reopen) */}
-                        <div className="flex items-center justify-between pt-4 border-t border-dashboard-border mt-2 mb-2">
-                            <div className="flex items-center gap-3">
-                                {!isResolved ? (
-                                    <Button
-                                        size="sm"
-                                        className="bg-status-complete text-white hover:bg-status-complete/80 shadow-sm"
-                                        onClick={handleResolve}
-                                        disabled={isSubmitting}
-                                    >
-                                        <Check className="h-3.5 w-3.5 mr-2" />
-                                        Approve & Resolve
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-dashboard-border text-dashboard-text-muted hover:bg-status-review-bg hover:text-status-review hover:border-status-review/30"
-                                        onClick={handleReopen}
-                                        disabled={isSubmitting}
-                                    >
-                                        <X className="h-3.5 w-3.5 mr-2" />
-                                        Reopen
-                                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                        {comment.resolvedBy?.firstName ? (
+                            <>
+                                <span className="font-medium text-dashboard-text-body">
+                                    {comment.resolvedBy.firstName}
+                                    {comment.resolvedBy.lastName
+                                        ? ` ${comment.resolvedBy.lastName}`
+                                        : ''}
+                                </span>
+                                {' resolved this thread'}
+                                {replies.length > 0 && (
+                                    <>
+                                        {' with '}
+                                        <span className="font-medium text-dashboard-text-body">
+                                            {
+                                                replies[replies.length - 1].user
+                                                    .firstName
+                                            }
+                                            &apos;s
+                                        </span>
+                                        {' comment'}
+                                    </>
                                 )}
-                            </div>
+                            </>
+                        ) : (
+                            'Thread resolved'
+                        )}
+                    </p>
+                    <button
+                        onClick={handleReopen}
+                        disabled={isSubmitting}
+                        className="ml-auto text-xs text-muted-foreground hover:text-dashboard-text-primary transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                        <RotateCcw className="h-3 w-3" />
+                        Reopen
+                    </button>
+                </div>
+            )}
 
-                            {/* Main Reply Button (Alternative to inline) */}
-                            {!isReplying && (
+            {/* Inline reply input – always present on open threads, subtle until focused */}
+            {!isResolved && (
+                <div className="flex items-center gap-3 ml-11 mt-1">
+                    <div
+                        className={cn(
+                            'flex-1 flex items-center gap-2 rounded-lg border px-3 transition-all duration-150',
+                            isReplyFocused
+                                ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface'
+                                : 'border-transparent bg-muted/40 hover:border-dashboard-border',
+                        )}
+                    >
+                        <input
+                            ref={replyInputRef}
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            onFocus={() => setIsReplyFocused(true)}
+                            onBlur={() => {
+                                if (!replyContent.trim())
+                                    setIsReplyFocused(false);
+                            }}
+                            onKeyDown={(e) => {
+                                if (
+                                    (e.metaKey || e.ctrlKey) &&
+                                    e.key === 'Enter'
+                                ) {
+                                    e.preventDefault();
+                                    handleReply();
+                                }
+                                if (e.key === 'Escape') {
+                                    setReplyContent('');
+                                    setIsReplyFocused(false);
+                                    replyInputRef.current?.blur();
+                                }
+                            }}
+                            placeholder="Leave a reply…"
+                            className="flex-1 text-sm bg-transparent border-none outline-none py-2 placeholder:text-muted-foreground text-dashboard-text-body"
+                        />
+                        {isReplyFocused && (
+                            <>
                                 <Button
                                     variant="ghost"
-                                    size="sm"
-                                    className="text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover"
-                                    onClick={() => setIsReplying(true)}
+                                    size="icon"
+                                    className="h-6 w-6 shrink-0 text-muted-foreground hover:text-dashboard-text-primary"
+                                    tabIndex={-1}
+                                    title="Attach file"
                                 >
-                                    Reply to Thread
+                                    <Paperclip className="h-3 w-3" />
                                 </Button>
-                            )}
-                        </div>
-
-                        {/* Footer Reply Input Area (If triggered from footer) */}
-                        {isReplying && (
-                            <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="rounded-xl border border-dashboard-border bg-dashboard-surface shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-accent-blue transition-all">
-                                    <Textarea
-                                        value={replyContent}
-                                        onChange={(e) =>
-                                            setReplyContent(e.target.value)
-                                        }
-                                        placeholder="Write a reply to the thread..."
-                                        className="min-h-[80px] text-sm border-none focus-visible:ring-0 p-3 resize-none text-dashboard-text-body placeholder:text-dashboard-text-muted"
-                                        autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2 p-2 bg-[#f8f9fa] border-t border-dashboard-border">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="text-dashboard-text-muted hover:text-dashboard-text-primary"
-                                            onClick={() => setIsReplying(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            className="bg-accent-blue hover:bg-accent-light text-white"
-                                            onClick={handleReply}
-                                            disabled={
-                                                !replyContent.trim() ||
-                                                isSubmitting
-                                            }
-                                        >
-                                            Reply
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
+                                <Button
+                                    size="icon"
+                                    className="h-6 w-6 shrink-0 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
+                                    onClick={handleReply}
+                                    disabled={
+                                        !replyContent.trim() || isSubmitting
+                                    }
+                                    title="Send reply (⌘↵)"
+                                >
+                                    <ArrowUp className="h-3 w-3" />
+                                </Button>
+                            </>
                         )}
                     </div>
                 </div>
             )}
         </div>
-    );
-}
-
-function PlusIcon({ className }: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-        >
-            <path d="M5 12h14" />
-            <path d="M12 5v14" />
-        </svg>
     );
 }

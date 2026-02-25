@@ -1,36 +1,34 @@
 'use client';
 
 import { AppSidebar } from '@/components/assistant/AppSidebar';
-import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
+import {
+    SidebarProvider,
+    SidebarInset,
+    SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { SidebarRefreshProvider } from '@/contexts/SidebarContext';
 import { KnockClientProvider } from '@/components/providers/KnockClientProvider';
+import { UniversalSearch } from '@/components/search/UniversalSearch';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
-}
-
-function DashboardContent({ children }: { children: React.ReactNode }) {
-    const { isOpen } = useSidebar();
-
-    return (
-        <div className="flex h-screen w-full bg-[var(--dashboard-bg)]">
-            {/* Spacer to account for fixed sidebar - automatically matches sidebar width */}
-            <div
-                className={`hidden md:block shrink-0 transition-all duration-300 ease-in-out ${
-                    isOpen ? 'w-[240px]' : 'w-[56px]'
-                }`}
-            />
-            <AppSidebar />
-            {/* Main content now automatically takes remaining space */}
-            <main className="flex-1 min-w-0 overflow-hidden">{children}</main>
-        </div>
-    );
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
     return (
         <KnockClientProvider>
             <SidebarProvider>
-                <DashboardContent>{children}</DashboardContent>
+                <SidebarRefreshProvider>
+                    <AppSidebar />
+                    <SidebarInset className="min-w-0 overflow-hidden bg-dashboard-bg h-svh flex flex-col">
+                        {/* Mobile sidebar trigger — fixed top-left, desktop hidden */}
+                        <div className="md:hidden fixed left-3 top-3 z-40">
+                            <SidebarTrigger className="h-8 w-8 text-dashboard-text-primary hover:bg-accent-hover rounded-lg" />
+                        </div>
+                        <UniversalSearch />
+                        {children}
+                    </SidebarInset>
+                </SidebarRefreshProvider>
             </SidebarProvider>
         </KnockClientProvider>
     );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     useParams,
     notFound,
@@ -14,7 +14,6 @@ import {
     ArrowLeft,
     MoreHorizontal,
     Plus,
-    Settings,
     Download,
     Users,
     Edit2,
@@ -28,7 +27,9 @@ import {
     type Workspace,
     type Project,
     type Task,
+    type User,
 } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
 import {
     DropdownMenu,
@@ -46,7 +47,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,13 +65,14 @@ export default function WorkspaceDetailsPage() {
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(
         searchParams.get('createProject') === 'true',
     );
-    const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [editWorkspaceName, setEditWorkspaceName] = useState('');
     const [editWorkspaceDescription, setEditWorkspaceDescription] =
         useState('');
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const nameInputRef = useRef<HTMLInputElement>(null);
 
     const workspaceId = params.id as string;
 
@@ -137,28 +138,30 @@ export default function WorkspaceDetailsPage() {
         fetchData();
     };
 
-    const handleEditWorkspace = async () => {
+    const handleInlineSave = async (name: string, description: string) => {
+        if (!workspace) return;
+        if (
+            name.trim() === workspace.name &&
+            description === (workspace.description || '')
+        )
+            return;
+        if (!name.trim()) {
+            setEditWorkspaceName(workspace.name);
+            return;
+        }
         try {
-            setIsSubmitting(true);
             const token = await getToken();
-            if (!token) {
-                toast.error('Authentication required');
-                return;
-            }
-
+            if (!token) return;
             await workspaceApi.updateWorkspace(token, workspaceId, {
-                name: editWorkspaceName,
-                description: editWorkspaceDescription,
+                name: name.trim(),
+                description,
             });
-
-            toast.success('Workspace updated successfully');
-            setEditDialogOpen(false);
+            toast.success('Workspace updated');
             fetchData();
-        } catch (error) {
-            console.error('Failed to update workspace:', error);
+        } catch {
             toast.error('Failed to update workspace');
-        } finally {
-            setIsSubmitting(false);
+            setEditWorkspaceName(workspace.name);
+            setEditWorkspaceDescription(workspace.description || '');
         }
     };
 
@@ -204,10 +207,6 @@ export default function WorkspaceDetailsPage() {
         toast.info('Export functionality coming soon!');
     };
 
-    const handleWorkspaceSettings = () => {
-        toast.info('Workspace settings coming soon!');
-    };
-
     if (isLoading) {
         return (
             <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden">
@@ -243,8 +242,8 @@ export default function WorkspaceDetailsPage() {
             <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden animate-in fade-in duration-300">
                 {/* Header */}
                 <div className="sticky top-0 z-10 border-b border-dashboard-border px-6 py-4 flex items-center justify-between shrink-0 bg-white/95 backdrop-blur-xl">
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-1 max-w-2xl">
+                        <div className="flex items-center gap-2 mb-1">
                             <Link href="/workspaces">
                                 <Button
                                     variant="ghost"
@@ -254,21 +253,61 @@ export default function WorkspaceDetailsPage() {
                                     <ArrowLeft className="h-4 w-4" />
                                 </Button>
                             </Link>
-                            <div className="flex items-center gap-2 text-sm text-dashboard-text-muted">
-                                <Link
-                                    href={`/workspaces/${workspaceId}`}
-                                    className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
-                                >
-                                    {workspace.name}
-                                </Link>
-                                <span className="text-(--dashboard-text-muted)/40">
-                                    /
-                                </span>
-                            </div>
+                            <span className="text-sm text-dashboard-text-muted">
+                                Workspaces
+                            </span>
+                            <span className="text-(--dashboard-text-muted)/40 text-sm">
+                                /
+                            </span>
                         </div>
-                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary">
-                            {workspace.name}
-                        </h1>
+                        {/* Inline-editable name */}
+                        <input
+                            ref={nameInputRef}
+                            value={editWorkspaceName}
+                            onChange={(e) =>
+                                setEditWorkspaceName(e.target.value)
+                            }
+                            onBlur={() =>
+                                handleInlineSave(
+                                    editWorkspaceName,
+                                    editWorkspaceDescription,
+                                )
+                            }
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.currentTarget.blur();
+                                if (e.key === 'Escape') {
+                                    setEditWorkspaceName(workspace.name);
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary bg-transparent border border-transparent hover:bg-muted/30 focus:bg-muted/40 focus:border-dashboard-border focus:outline-none rounded px-1 -mx-1 py-0.5 w-full transition-colors"
+                            title="Click to edit workspace name"
+                        />
+                        {/* Inline-editable description */}
+                        <textarea
+                            value={editWorkspaceDescription}
+                            onChange={(e) =>
+                                setEditWorkspaceDescription(e.target.value)
+                            }
+                            onBlur={() =>
+                                handleInlineSave(
+                                    editWorkspaceName,
+                                    editWorkspaceDescription,
+                                )
+                            }
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                    setEditWorkspaceDescription(
+                                        workspace.description || '',
+                                    );
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            placeholder="Add a description..."
+                            rows={1}
+                            className="text-sm text-dashboard-text-muted bg-transparent border border-transparent hover:bg-muted/30 focus:bg-muted/40 focus:border-dashboard-border focus:outline-none rounded px-1 -mx-1 py-0.5 w-full resize-none transition-colors placeholder:text-muted-foreground/40 placeholder:italic"
+                            title="Click to edit workspace description"
+                        />
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -283,23 +322,20 @@ export default function WorkspaceDetailsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                                onClick={() => setEditDialogOpen(true)}
+                                onClick={() => nameInputRef.current?.focus()}
                             >
                                 <Edit2 className="mr-2 h-4 w-4" />
-                                Edit Workspace
+                                Edit Name / Description
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleWorkspaceSettings}>
-                                <Settings className="mr-2 h-4 w-4" />
-                                Workspace Settings
+                            <DropdownMenuItem
+                                onClick={() => setMembersDialogOpen(true)}
+                            >
+                                <Users className="mr-2 h-4 w-4" />
+                                Manage Members
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={handleExportWorkspace}>
                                 <Download className="mr-2 h-4 w-4" />
                                 Export Data
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-muted-foreground">
-                                <Users className="mr-2 h-4 w-4" />
-                                Manage Members
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -346,57 +382,95 @@ export default function WorkspaceDetailsPage() {
                 onSuccess={handleSuccess}
             />
 
-            {/* Edit Workspace Dialog */}
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-                <DialogContent>
+            {/* Members Dialog (#2) */}
+            <Dialog
+                open={membersDialogOpen}
+                onOpenChange={setMembersDialogOpen}
+            >
+                <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Edit Workspace</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-dashboard-text-muted" />
+                            Workspace Members
+                        </DialogTitle>
                         <DialogDescription>
-                            Update the workspace name and description
+                            {workspace.owners.length + workspace.members.length}{' '}
+                            member
+                            {workspace.owners.length +
+                                workspace.members.length !==
+                            1
+                                ? 's'
+                                : ''}{' '}
+                            in <strong>{workspace.name}</strong>
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="workspace-name">
-                                Workspace Name
-                            </Label>
-                            <Input
-                                id="workspace-name"
-                                value={editWorkspaceName}
-                                onChange={(e) =>
-                                    setEditWorkspaceName(e.target.value)
-                                }
-                                placeholder="Enter workspace name"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="workspace-description">
-                                Description
-                            </Label>
-                            <Textarea
-                                id="workspace-description"
-                                value={editWorkspaceDescription}
-                                onChange={(e) =>
-                                    setEditWorkspaceDescription(e.target.value)
-                                }
-                                placeholder="Enter workspace description"
-                                rows={4}
-                            />
-                        </div>
+                    <div className="max-h-90 overflow-y-auto -mx-1 py-2 space-y-1">
+                        {(
+                            [
+                                ...workspace.owners.map((u) => ({
+                                    ...u,
+                                    role: 'Owner' as const,
+                                })),
+                                ...workspace.members.map((u) => ({
+                                    ...u,
+                                    role: 'Member' as const,
+                                })),
+                            ] as (User & { role: 'Owner' | 'Member' })[]
+                        ).map((member) => {
+                            const initials = member.firstName
+                                ? `${member.firstName[0]}${member.lastName?.[0] ?? ''}`.toUpperCase()
+                                : member.email[0].toUpperCase();
+                            const displayName = member.firstName
+                                ? `${member.firstName} ${member.lastName ?? ''}`.trim()
+                                : member.email;
+                            return (
+                                <div
+                                    key={member.id}
+                                    className="flex items-center gap-3 px-2 py-2.5 rounded-md hover:bg-dashboard-surface transition-colors group"
+                                >
+                                    <div className="h-8 w-8 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center text-xs font-semibold text-accent-blue shrink-0">
+                                        {initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-dashboard-text-primary truncate">
+                                            {displayName}
+                                        </p>
+                                        <p className="text-xs text-dashboard-text-muted truncate">
+                                            {member.email}
+                                        </p>
+                                    </div>
+                                    <Badge
+                                        variant="secondary"
+                                        className={
+                                            member.role === 'Owner'
+                                                ? 'bg-accent-subtle text-accent-blue border-accent-blue/20 text-xs'
+                                                : 'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border text-xs'
+                                        }
+                                    >
+                                        {member.role}
+                                    </Badge>
+                                </div>
+                            );
+                        })}
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => setEditDialogOpen(false)}
-                            disabled={isSubmitting}
+                            className="flex-1 gap-2 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue/40"
+                            onClick={() => {
+                                toast.info(
+                                    'Member invites are managed in project settings',
+                                );
+                            }}
                         >
-                            Cancel
+                            <Users className="h-3.5 w-3.5" />
+                            Invite Member
                         </Button>
                         <Button
-                            onClick={handleEditWorkspace}
-                            disabled={isSubmitting || !editWorkspaceName.trim()}
+                            variant="outline"
+                            onClick={() => setMembersDialogOpen(false)}
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>

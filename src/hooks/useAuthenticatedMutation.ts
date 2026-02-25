@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
-import { useSidebar } from '@/contexts/SidebarContext';
+import { useSidebarRefresh } from '@/contexts/SidebarContext';
 import type { ApiResponse } from '@/lib/api';
 
 /**
@@ -117,7 +117,7 @@ export function useAuthenticatedMutation<TData, TParams extends unknown[]>({
     TParams
 >): UseAuthenticatedMutationResult<TParams> {
     const { getToken } = useAuth();
-    const { triggerRefresh } = useSidebar();
+    const { triggerRefresh } = useSidebarRefresh();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 

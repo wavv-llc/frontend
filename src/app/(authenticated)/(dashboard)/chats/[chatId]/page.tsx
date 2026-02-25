@@ -13,6 +13,7 @@ import {
     Check,
     Bot,
     RefreshCw,
+    Send,
 } from 'lucide-react';
 import { chatApi, type Chat } from '@/lib/api';
 import { colors } from '@/lib/colors';
@@ -120,6 +121,9 @@ export default function ChatDetailPage() {
     const [isThinking, setIsThinking] = useState(false);
     const [streamedResponse, setStreamedResponse] = useState('');
     const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [followUpMessage, setFollowUpMessage] = useState('');
+    const [isSubmittingFollowUp, setIsSubmittingFollowUp] = useState(false);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         let cancelPolling: (() => void) | null = null;
@@ -227,6 +231,42 @@ export default function ChatDetailPage() {
         );
         setCopiedIdx(idx);
         setTimeout(() => setCopiedIdx(null), 1500);
+    };
+
+    const handleFollowUp = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (!followUpMessage.trim() || isSubmittingFollowUp) return;
+
+        try {
+            setIsSubmittingFollowUp(true);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            const response = await chatApi.createChat(
+                token,
+                followUpMessage.trim(),
+            );
+            if (response.data?.id) {
+                setFollowUpMessage('');
+                router.push(`/chats/${response.data.id}`);
+            }
+        } catch {
+            toast.error('Failed to send message');
+        } finally {
+            setIsSubmittingFollowUp(false);
+        }
+    };
+
+    const handleInputKeyDown = (
+        e: React.KeyboardEvent<HTMLTextAreaElement>,
+    ) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleFollowUp();
+        }
     };
 
     const handleRetry = async () => {
@@ -413,7 +453,11 @@ export default function ChatDetailPage() {
                     </header>
 
                     {/* Messages */}
-                    <div className="messages-scroll" ref={scrollRef}>
+                    <div
+                        className="messages-scroll"
+                        ref={scrollRef}
+                        style={{ paddingBottom: '80px' }}
+                    >
                         <div className="messages-inner">
                             {messages.map((msg, i) =>
                                 msg.role === 'user' ? (
@@ -519,6 +563,37 @@ export default function ChatDetailPage() {
                                 ),
                             )}
                         </div>
+                    </div>
+                    {/* Persistent Follow-up Input Bar */}
+                    <div className="follow-up-bar">
+                        <form
+                            onSubmit={handleFollowUp}
+                            className="follow-up-form"
+                        >
+                            <textarea
+                                ref={inputRef}
+                                value={followUpMessage}
+                                onChange={(e) =>
+                                    setFollowUpMessage(e.target.value)
+                                }
+                                onKeyDown={handleInputKeyDown}
+                                placeholder="Follow up or ask a new question..."
+                                disabled={isSubmittingFollowUp || isThinking}
+                                rows={1}
+                                className="follow-up-input"
+                            />
+                            <button
+                                type="submit"
+                                disabled={
+                                    !followUpMessage.trim() ||
+                                    isSubmittingFollowUp ||
+                                    isThinking
+                                }
+                                className="follow-up-send"
+                            >
+                                <Send size={14} />
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -992,5 +1067,85 @@ const styles = `
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* ── FOLLOW-UP INPUT BAR ── */
+  .follow-up-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px 16px;
+    background: linear-gradient(to top, ${colors.steelAlt[50]} 70%, transparent);
+    z-index: 10;
+  }
+
+  .follow-up-form {
+    max-width: 608px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    border: 1px solid ${colors.steelAlt[200]};
+    border-radius: 12px;
+    padding: 8px 10px 8px 14px;
+    box-shadow: 0 2px 12px rgba(14, 17, 23, 0.06);
+    transition: border-color 200ms ${ease}, box-shadow 200ms ${ease};
+  }
+
+  .follow-up-form:focus-within {
+    border-color: ${colors.steelAlt[400]};
+    box-shadow: 0 2px 16px rgba(14, 17, 23, 0.1);
+  }
+
+  .follow-up-input {
+    flex: 1;
+    min-height: 32px;
+    max-height: 120px;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: ${colors.steelAlt[800]};
+    scrollbar-width: thin;
+  }
+
+  .follow-up-input::placeholder {
+    color: ${colors.steelAlt[400]};
+  }
+
+  .follow-up-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .follow-up-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: ${colors.steelAlt[800]};
+    color: ${colors.steelAlt[100]};
+    cursor: pointer;
+    transition: all 200ms ${ease};
+    flex-shrink: 0;
+  }
+
+  .follow-up-send:hover:not(:disabled) {
+    background: ${colors.steelAlt[700]};
+    transform: scale(1.05);
+  }
+
+  .follow-up-send:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
   }
 `;

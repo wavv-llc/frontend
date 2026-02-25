@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { useSidebar } from '@/contexts/SidebarContext';
+import { useSidebarRefresh } from '@/contexts/SidebarContext';
 
 interface ProjectListViewProps {
     projects: Project[];
@@ -39,7 +39,7 @@ export function ProjectListView({
 }: ProjectListViewProps) {
     const router = useRouter();
     const { getToken } = useAuth();
-    const { triggerRefresh } = useSidebar();
+    const { triggerRefresh } = useSidebarRefresh();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
     // Fetch all workspaces for the move menu

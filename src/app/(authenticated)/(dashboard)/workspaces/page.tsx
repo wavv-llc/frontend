@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
-import { Folder, User, Plus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import {
+    Folder,
+    Plus,
+    MoreVertical,
+    Trash2,
+    Search,
+    Users,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { workspaceApi, type Workspace } from '@/lib/api';
@@ -25,24 +32,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Empty } from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
-import { H1 } from '@/components/ui/typography';
 
 export default function WorkspacesPage() {
     const { getToken } = useAuth();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [workspaceToDelete, setWorkspaceToDelete] =
         useState<Workspace | null>(null);
@@ -120,191 +116,211 @@ export default function WorkspacesPage() {
         }
     };
 
+    const filteredWorkspaces = workspaces.filter(
+        (w) =>
+            w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            w.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+
     return (
         <>
-            <div className="h-full bg-dashboard-bg p-8 overflow-y-auto animate-in fade-in duration-300">
-                <div className="max-w-7xl mx-auto">
-                    {/* Header */}
-                    <div className="flex justify-between items-start mb-6">
+            <div className="flex flex-col h-full bg-dashboard-bg overflow-hidden animate-in fade-in duration-300">
+                {/* Sticky Header */}
+                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex items-center justify-between shrink-0">
+                    <div>
+                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary">
+                            Workspaces
+                        </h1>
+                        <p className="text-sm text-dashboard-text-muted mt-0.5">
+                            {isLoading
+                                ? 'Loading…'
+                                : `${workspaces.length} workspace${workspaces.length !== 1 ? 's' : ''}`}
+                        </p>
+                    </div>
+                    <Button
+                        className="bg-accent-blue hover:bg-accent-light text-white gap-1.5 shadow-sm cursor-pointer"
+                        onClick={() => setShowCreateDialog(true)}
+                    >
+                        <Plus className="h-4 w-4" />
+                        New Workspace
+                    </Button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50 shrink-0">
+                    <div className="relative max-w-sm">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />
+                        <Input
+                            placeholder="Search workspaces…"
+                            className="pl-9 bg-dashboard-surface border-dashboard-border text-dashboard-text-body placeholder:text-dashboard-text-muted"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto">
+                    {isLoading ? (
                         <div>
-                            <H1 className="text-2xl border-none pb-0 mb-1 text-dashboard-text-primary">
-                                Workspaces
-                            </H1>
-                            <p className="text-sm text-muted-foreground">
-                                Manage your tax projects and folders.
-                            </p>
-                        </div>
-                        <Badge variant="secondary" className="mt-1">
-                            {isLoading ? '—' : workspaces.length} workspaces
-                        </Badge>
-                    </div>
-
-                    <Separator className="mb-6" />
-
-                    {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {isLoading ? (
-                            [...Array(4)].map((_, i) => (
-                                <Card
+                            {[...Array(5)].map((_, i) => (
+                                <div
                                     key={i}
-                                    className="flex flex-col gap-3 p-5"
+                                    className="flex items-center gap-4 px-8 py-4 border-b border-dashboard-border"
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <Skeleton className="h-11 w-11 rounded-lg" />
+                                    <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+                                    <div className="flex-1 space-y-1.5">
+                                        <Skeleton className="h-4 w-48" />
+                                        <Skeleton className="h-3 w-72" />
                                     </div>
-                                    <Skeleton className="h-5 w-3/4 mt-1" />
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                    <div className="mt-auto space-y-2 pt-2">
-                                        <Skeleton className="h-2 w-full rounded-full" />
-                                        <Skeleton className="h-4 w-16" />
-                                    </div>
-                                </Card>
-                            ))
-                        ) : workspaces.length === 0 ? (
-                            <div className="col-span-full">
-                                <Empty
-                                    icon={<Folder className="h-7 w-7" />}
-                                    title="No workspaces yet"
-                                    description="Create your first workspace to start organizing your tax projects."
-                                    action={
-                                        <Button
-                                            size="sm"
-                                            onClick={() =>
-                                                setShowCreateDialog(true)
-                                            }
-                                        >
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Create Workspace
-                                        </Button>
-                                    }
-                                    className="py-24"
-                                />
+                                    <Skeleton className="h-2 w-24 rounded-full" />
+                                    <Skeleton className="h-3 w-12" />
+                                    <Skeleton className="h-3 w-20" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : filteredWorkspaces.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-24 text-center">
+                            <div className="h-14 w-14 rounded-xl bg-accent-subtle border border-dashboard-border flex items-center justify-center mb-4">
+                                <Folder className="h-7 w-7 text-accent-blue" />
                             </div>
-                        ) : (
-                            <>
-                                {workspaces.map((workspace) => (
-                                    <Link
-                                        key={workspace.id}
-                                        href={`/workspaces/${workspace.id}`}
-                                        className="block h-full"
-                                    >
-                                        <Card className="group relative h-full flex flex-col hover:border-(--accent)/40 hover:shadow-sm transition-all duration-200 cursor-pointer">
-                                            <CardHeader className="pb-3">
-                                                <div className="flex justify-between items-start">
-                                                    <div className="h-11 w-11 bg-primary/5 rounded-lg flex items-center justify-center text-primary">
-                                                        <Folder className="h-5 w-5" />
-                                                    </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger
-                                                            asChild
-                                                        >
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                }}
-                                                            >
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent
-                                                            align="end"
-                                                            onClick={(e) =>
-                                                                e.stopPropagation()
-                                                            }
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    toast.info(
-                                                                        'Edit functionality coming soon!',
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                className="text-destructive focus:text-destructive"
-                                                                onClick={(e) =>
-                                                                    handleDeleteClick(
-                                                                        workspace,
-                                                                        e,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-                                                <CardTitle className="text-base font-semibold group-hover:underline decoration-muted-foreground/30 underline-offset-4">
-                                                    {workspace.name}
-                                                </CardTitle>
-                                                <CardDescription className="line-clamp-2 text-xs">
-                                                    {workspace.description ||
-                                                        'No description'}
-                                                </CardDescription>
-                                            </CardHeader>
-
-                                            <CardContent className="mt-auto pt-0">
-                                                {/* Progress */}
-                                                <div className="mb-3">
-                                                    <Progress
-                                                        value={
-                                                            workspace.progress ||
-                                                            0
-                                                        }
-                                                        className="h-1.5"
-                                                    />
-                                                    <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                                                        {workspace.progress ||
-                                                            0}
-                                                        % complete
-                                                    </p>
-                                                </div>
-
-                                                <Separator className="mb-3" />
-
-                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                                    <User className="h-3.5 w-3.5" />
-                                                    <span>
-                                                        {
-                                                            workspace.members
-                                                                .length
-                                                        }{' '}
-                                                        members
-                                                    </span>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                ))}
-
-                                {/* Create New Card */}
-                                <button
+                            <p className="text-sm font-medium text-dashboard-text-primary mb-1">
+                                {searchQuery
+                                    ? 'No workspaces found'
+                                    : 'No workspaces yet'}
+                            </p>
+                            <p className="text-xs text-dashboard-text-muted mb-4">
+                                {searchQuery
+                                    ? `No results for "${searchQuery}"`
+                                    : 'Create your first workspace to get started.'}
+                            </p>
+                            {!searchQuery && (
+                                <Button
+                                    size="sm"
+                                    className="bg-accent-blue hover:bg-accent-light text-white gap-1.5 cursor-pointer"
                                     onClick={() => setShowCreateDialog(true)}
-                                    className="cursor-pointer flex flex-col items-center justify-center h-full min-h-48 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all group"
                                 >
-                                    <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
-                                        <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Create Workspace
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            {/* Column headers */}
+                            <div className="flex items-center gap-4 px-8 py-2 bg-[#f8f9fb] border-b border-dashboard-border">
+                                <div className="w-9 shrink-0" />
+                                <div className="flex-1 text-[11px] font-medium text-dashboard-text-muted uppercase tracking-wide">
+                                    Name
+                                </div>
+                                <div className="w-36 text-[11px] font-medium text-dashboard-text-muted uppercase tracking-wide shrink-0">
+                                    Progress
+                                </div>
+                                <div className="w-24 text-[11px] font-medium text-dashboard-text-muted uppercase tracking-wide shrink-0">
+                                    Members
+                                </div>
+                                <div className="w-28 text-[11px] font-medium text-dashboard-text-muted uppercase tracking-wide shrink-0">
+                                    Created
+                                </div>
+                                <div className="w-8 shrink-0" />
+                            </div>
+
+                            {filteredWorkspaces.map((workspace) => (
+                                <Link
+                                    key={workspace.id}
+                                    href={`/workspaces/${workspace.id}`}
+                                    className="block"
+                                >
+                                    <div className="flex items-center gap-4 px-8 py-3.5 border-b border-dashboard-border hover:bg-accent-subtle/30 transition-colors group cursor-pointer">
+                                        {/* Icon */}
+                                        <div className="h-9 w-9 rounded-lg bg-accent-subtle border border-dashboard-border flex items-center justify-center shrink-0">
+                                            <Folder className="h-4 w-4 text-accent-blue" />
+                                        </div>
+
+                                        {/* Name + description */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-dashboard-text-primary group-hover:underline decoration-dashboard-text-muted/40 underline-offset-2 truncate">
+                                                {workspace.name}
+                                            </p>
+                                            <p className="text-xs text-dashboard-text-muted truncate mt-0.5">
+                                                {workspace.description ||
+                                                    'No description'}
+                                            </p>
+                                        </div>
+
+                                        {/* Progress */}
+                                        <div className="w-36 flex items-center gap-2 shrink-0">
+                                            <Progress
+                                                value={workspace.progress || 0}
+                                                className="h-1.5 flex-1"
+                                            />
+                                            <span className="text-[11px] text-dashboard-text-muted w-8 text-right tabular-nums">
+                                                {workspace.progress || 0}%
+                                            </span>
+                                        </div>
+
+                                        {/* Members */}
+                                        <div className="w-24 flex items-center gap-1.5 text-xs text-dashboard-text-muted shrink-0">
+                                            <Users className="h-3.5 w-3.5" />
+                                            <span>
+                                                {workspace.members.length +
+                                                    workspace.owners.length}
+                                            </span>
+                                        </div>
+
+                                        {/* Created date */}
+                                        <div className="w-28 text-xs text-dashboard-text-muted shrink-0">
+                                            {new Date(
+                                                workspace.createdAt,
+                                            ).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                year: 'numeric',
+                                            })}
+                                        </div>
+
+                                        {/* More menu */}
+                                        <div className="w-8 shrink-0 flex justify-end">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-dashboard-text-muted hover:text-dashboard-text-primary cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                        }}
+                                                    >
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                >
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive"
+                                                        onClick={(e) =>
+                                                            handleDeleteClick(
+                                                                workspace,
+                                                                e,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
-                                        Create New Workspace
-                                    </span>
-                                </button>
-                            </>
-                        )}
-                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -314,6 +330,7 @@ export default function WorkspacesPage() {
                 onSuccess={handleCreateSuccess}
             />
 
+            {/* Delete Workspace Dialog */}
             <Dialog
                 open={!!workspaceToDelete}
                 onOpenChange={(open) => !open && setWorkspaceToDelete(null)}
@@ -361,17 +378,7 @@ export default function WorkspacesPage() {
                                 deleteConfirmation !== workspaceToDelete?.name
                             }
                         >
-                            {isDeleting ? (
-                                <span className="flex items-center gap-2">
-                                    <Spinner
-                                        size="sm"
-                                        className="text-current"
-                                    />
-                                    Deleting...
-                                </span>
-                            ) : (
-                                'Delete Workspace'
-                            )}
+                            {isDeleting ? 'Deleting...' : 'Delete Workspace'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

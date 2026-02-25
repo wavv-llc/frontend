@@ -26,7 +26,18 @@ import {
     FileText,
     CheckSquare,
     Pencil,
+    ExternalLink,
 } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     type Task,
     type CustomField,
@@ -35,7 +46,6 @@ import {
     type OrganizationDocument,
     customFieldApi,
     taskApi,
-    userApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -64,6 +74,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import { StatusBadge } from '@/components/dashboard/pure-steel/StatusBadge';
+import type { Status as StatusBadgeStatus } from '@/components/dashboard/pure-steel/StatusBadge';
 
 export interface TaskListRef {
     startCreatingTask: () => void;
@@ -142,6 +154,19 @@ const PERSON_ROLES = [
     '2nd-level Reviewer',
 ] as const;
 
+function taskStatusToBadge(status: string): StatusBadgeStatus {
+    switch (status) {
+        case 'IN_PROGRESS':
+            return 'in-progress';
+        case 'IN_REVIEW':
+            return 'review';
+        case 'COMPLETED':
+            return 'complete';
+        default:
+            return 'pending';
+    }
+}
+
 interface EditableContentProps {
     value: string;
     onSave: (value: string) => void;
@@ -162,7 +187,7 @@ const EditableContent = ({
     textStyle = '',
     autoFocus = false,
 }: EditableContentProps) => {
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(autoFocus);
     const [displayValue, setDisplayValue] = useState(value);
     const [prevValue, setPrevValue] = useState(value);
     // Derived state pattern to sync value from props when not editing
@@ -171,7 +196,7 @@ const EditableContent = ({
         setDisplayValue(value);
     }
 
-    const [editEmpty, setEditEmpty] = useState(false);
+    const [editEmpty, setEditEmpty] = useState(autoFocus && !value.trim());
     const ref = useRef<HTMLDivElement>(null);
     const discardOnBlurRef = useRef(false);
 
@@ -248,12 +273,11 @@ const EditableContent = ({
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     className={cn(
-                        'outline-none cursor-text rounded-md',
-                        'px-3 py-2 -mx-3 -my-2',
-                        'bg-background border-2 border-primary shadow-lg',
-                        'min-h-[2em] min-w-[180px]',
-                        'relative z-50',
-                        'transition-all duration-150',
+                        'outline-none cursor-text',
+                        'rounded px-1 py-0.5 -mx-1 -my-0.5',
+                        'bg-muted/40 focus:bg-muted/60',
+                        'transition-colors duration-150',
+                        'min-h-[1.5em] w-full',
                         textStyle,
                         inputClassName,
                     )}
@@ -262,8 +286,8 @@ const EditableContent = ({
                 {editEmpty && (
                     <div
                         className={cn(
-                            'pointer-events-none absolute left-0 top-0 px-3 py-2 text-muted-foreground/50 italic',
-                            'min-h-[2em]',
+                            'pointer-events-none absolute left-0 top-0 px-1 py-0.5 text-muted-foreground/50 italic',
+                            'min-h-[1.5em]',
                             textStyle,
                         )}
                         aria-hidden
@@ -580,6 +604,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(
             new Set(),
         );
+        const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+        const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
         const toggleTaskSelection = (taskId: string, selected: boolean) => {
             setSelectedTaskIds((prev) => {
@@ -598,33 +624,34 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         };
 
-        const handleBulkDelete = async () => {
+        const handleBulkDelete = () => {
             if (selectedTaskIds.size === 0) return;
-            if (
-                !confirm(
-                    `Are you sure you want to delete ${selectedTaskIds.size} task(s)?`,
-                )
-            )
-                return;
+            setBulkDeleteDialogOpen(true);
+        };
 
+        const confirmBulkDelete = async () => {
             try {
+                setIsBulkDeleting(true);
                 const token = await getToken();
                 if (!token) return;
 
-                // Delete one by one for now as API might not support bulk
-                // Ideally we'd have bulk delete API
                 const promises = Array.from(selectedTaskIds).map((id) =>
                     taskApi.deleteTask(token, projectId, id),
                 );
 
                 await Promise.all(promises);
 
-                toast.success(`Deleted ${selectedTaskIds.size} tasks`);
+                toast.success(
+                    `Deleted ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''}`,
+                );
                 setSelectedTaskIds(new Set());
-                onTaskCreated(); // Refresh text
+                setBulkDeleteDialogOpen(false);
+                onTaskCreated();
             } catch (error) {
                 console.error('Failed to bulk delete:', error);
                 toast.error('Failed to delete some tasks');
+            } finally {
+                setIsBulkDeleting(false);
             }
         };
 
@@ -658,52 +685,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     return;
                 }
 
-                // Get current user ID for USER type fields
-                const userResponse = await userApi.getMe(token);
-                const currentUserId = userResponse.data?.id;
-
-                if (!currentUserId) {
-                    toast.error('Unable to get user information');
-                    return;
-                }
-
-                // Build customFields object with default values for required fields
-                const customFieldsPayload: Record<
-                    string,
-                    string | number | null
-                > = {};
-
-                for (const field of customFields) {
-                    if (field.required) {
-                        if (
-                            field.dataType === 'CUSTOM' &&
-                            field.customOptions &&
-                            field.customOptions.length > 0
-                        ) {
-                            // For Status/CUSTOM fields, use the first option
-                            customFieldsPayload[field.id] =
-                                field.customOptions[0];
-                        } else if (field.dataType === 'USER') {
-                            // For USER fields, use current user ID
-                            customFieldsPayload[field.id] = currentUserId;
-                        } else if (field.defaultValue) {
-                            // Use default value if available
-                            customFieldsPayload[field.id] = field.defaultValue;
-                        } else {
-                            // For other required fields, we need a value
-                            if (field.dataType === 'NUMBER') {
-                                customFieldsPayload[field.id] = '0';
-                            } else {
-                                customFieldsPayload[field.id] = '';
-                            }
-                        }
-                    }
-                }
-
+                // Only task name is required — all other fields are optional
                 await taskApi.createTask(token, projectId, {
                     name: name.trim(),
                     status: 'PENDING',
-                    customFields: customFieldsPayload,
+                    customFields: {},
                 });
 
                 setNewTaskName('');
@@ -716,35 +702,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         ? error.message
                         : 'Failed to create task';
                 toast.error(errorMessage);
-            }
-        };
-
-        const handleSaveTaskName = async (taskId: string, name: string) => {
-            const trimmedName = name.trim();
-            if (!trimmedName) {
-                return;
-            }
-
-            const task = tasks.find((t) => t.id === taskId);
-            if (!task || task.name === trimmedName) {
-                return;
-            }
-
-            try {
-                const token = await getToken();
-                if (!token) {
-                    toast.error('Authentication required');
-                    return;
-                }
-
-                await taskApi.updateTask(token, projectId, taskId, {
-                    name: trimmedName,
-                });
-
-                onTaskCreated();
-            } catch (error) {
-                console.error('Failed to update task:', error);
-                toast.error('Failed to update task');
             }
         };
 
@@ -1153,13 +1110,48 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
         return (
             <div className="w-full h-full overflow-hidden flex flex-col min-w-0">
+                {/* Bulk Delete Confirmation Dialog */}
+                <AlertDialog
+                    open={bulkDeleteDialogOpen}
+                    onOpenChange={setBulkDeleteDialogOpen}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Delete {selectedTaskIds.size} task
+                                {selectedTaskIds.size !== 1 ? 's' : ''}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete{' '}
+                                {selectedTaskIds.size} selected task
+                                {selectedTaskIds.size !== 1 ? 's' : ''}. This
+                                action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isBulkDeleting}>
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={confirmBulkDelete}
+                                disabled={isBulkDeleting}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                {isBulkDeleting
+                                    ? 'Deleting...'
+                                    : `Delete ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''}`}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 <div className="flex-1 overflow-auto relative scroll-smooth">
                     <div className="min-w-max h-full">
                         {/* Table Header - Sticky Top */}
-                        <div className="sticky top-0 z-30 flex border-b border-dashboard-border bg-[#f8f9fa]">
+                        <div className="sticky top-0 z-30 flex border-b border-dashboard-border bg-[#f8f9fb]">
                             {/* Bulk Action Bar Overlay */}
                             {selectedTaskIds.size > 0 && (
-                                <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-sm flex items-center justify-between px-4 border-b border-primary/20">
+                                <div className="absolute inset-0 z-50 bg-accent-subtle backdrop-blur-sm flex items-center justify-between px-4 border-b border-dashboard-border">
                                     <div className="flex items-center gap-3">
                                         <Checkbox
                                             checked={true}
@@ -1168,7 +1160,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             }
                                             aria-label="Deselect all"
                                         />
-                                        <span className="text-sm font-medium text-primary">
+                                        <span className="text-[12px] font-medium text-dashboard-text-primary">
                                             {selectedTaskIds.size} selected
                                         </span>
                                     </div>
@@ -1177,27 +1169,27 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleBulkDelete}
-                                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
+                                            className="h-7 text-[12px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 cursor-pointer"
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 className="h-3.5 w-3.5" />
                                             Delete
                                         </Button>
-                                        <div className="h-4 w-px bg-primary/20 mx-2" />
+                                        <div className="h-4 w-px bg-dashboard-border mx-1" />
                                         <Button
                                             variant="ghost"
-                                            size="sm"
+                                            size="icon"
                                             onClick={() =>
                                                 setSelectedTaskIds(new Set())
                                             }
-                                            className="h-8 text-muted-foreground"
+                                            className="h-7 w-7 text-dashboard-text-muted cursor-pointer"
                                         >
-                                            <X className="h-4 w-4" />
+                                            <X className="h-3.5 w-3.5" />
                                         </Button>
                                     </div>
                                 </div>
                             )}
                             {/* Task Name Column Header - Sticky Left & Top */}
-                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-[#f8f9fa] flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-dashboard-text-muted shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
+                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-2.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center justify-between shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="flex items-center"
@@ -1216,8 +1208,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             className="translate-y-[1px]"
                                         />
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Type className="h-4 w-4" />
+                                    <div className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-dashboard-text-muted uppercase">
+                                        <Type className="h-3.5 w-3.5 text-dashboard-text-muted" />
                                         Task name
                                     </div>
                                 </div>
@@ -1227,9 +1219,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             variant="ghost"
                                             size="icon"
                                             className={cn(
-                                                'h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10',
+                                                'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
                                                 columnFilters['name'] &&
-                                                    'opacity-100 text-primary',
+                                                    'opacity-100 text-accent-blue',
                                             )}
                                             onClick={(e) => e.stopPropagation()}
                                         >
@@ -1278,6 +1270,14 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </Popover>
                             </div>
 
+                            {/* Status Column Header */}
+                            <div className="w-35 shrink-0 px-4 py-2.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center gap-1.5">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                                <span className="text-[11px] font-medium tracking-wide text-dashboard-text-muted uppercase">
+                                    Status
+                                </span>
+                            </div>
+
                             {/* Custom Field Columns Headers */}
                             {displayedFields.map((field) => {
                                 // Get the appropriate icon for this field type
@@ -1302,10 +1302,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     }
                                 };
 
+                                // USER fields don't get a filter — assignment is managed per-task
+                                const showFilter = field.dataType !== 'USER';
+
                                 return (
                                     <div
                                         key={field.id}
-                                        className="w-[150px] shrink-0 px-4 py-3 border-r border-dashboard-border flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-dashboard-text-muted bg-[#f8f9fa] group"
+                                        className="w-[150px] shrink-0 px-4 py-2.5 border-r border-dashboard-border flex items-center justify-between bg-[#f8f9fb] group"
                                     >
                                         <div className="flex flex-col min-w-0 flex-1 overflow-visible">
                                             <div className="min-w-0 overflow-visible">
@@ -1323,88 +1326,92 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             </div>
                                             {field.dataType === 'USER' &&
                                                 field.customOptions?.[0] && (
-                                                    <span className="text-[10px] text-muted-foreground/70 pl-6 truncate font-normal mt-0.5">
+                                                    <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
                                                         {field.customOptions[0]}
                                                     </span>
                                                 )}
                                         </div>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className={cn(
-                                                        'h-6 w-6 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-muted-foreground/10',
-                                                        columnFilters[
-                                                            field.id
-                                                        ] &&
-                                                            'opacity-100 text-primary',
-                                                    )}
-                                                    onClick={(e) =>
-                                                        e.stopPropagation()
-                                                    }
-                                                >
-                                                    <Filter className="h-3 w-3" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-56 p-2">
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="font-medium text-xs text-muted-foreground">
-                                                            Filter {field.name}
-                                                        </h4>
-                                                        {columnFilters[
-                                                            field.id
-                                                        ] && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-4 w-4"
-                                                                onClick={() =>
-                                                                    onColumnFilterChange(
-                                                                        field.id,
-                                                                        '',
-                                                                    )
-                                                                }
-                                                            >
-                                                                <X className="h-3 w-3" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                    <input
-                                                        className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                        placeholder={
-                                                            field.dataType ===
-                                                            'DATE'
-                                                                ? 'YYYY-MM-DD'
-                                                                : 'Contains...'
-                                                        }
-                                                        value={
+                                        {showFilter && (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className={cn(
+                                                            'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
                                                             columnFilters[
                                                                 field.id
-                                                            ]?.value || ''
+                                                            ] &&
+                                                                'opacity-100 text-accent-blue',
+                                                        )}
+                                                        onClick={(e) =>
+                                                            e.stopPropagation()
                                                         }
-                                                        onChange={(e) =>
-                                                            onColumnFilterChange(
-                                                                field.id,
-                                                                e.target.value,
+                                                    >
+                                                        <Filter className="h-3 w-3" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-56 p-2">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <h4 className="font-medium text-xs text-muted-foreground">
+                                                                Filter{' '}
+                                                                {field.name}
+                                                            </h4>
+                                                            {columnFilters[
+                                                                field.id
+                                                            ] && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-4 w-4"
+                                                                    onClick={() =>
+                                                                        onColumnFilterChange(
+                                                                            field.id,
+                                                                            '',
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                            placeholder={
                                                                 field.dataType ===
-                                                                    'DATE'
-                                                                    ? 'date'
-                                                                    : 'text',
-                                                            )
-                                                        }
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
+                                                                'DATE'
+                                                                    ? 'YYYY-MM-DD'
+                                                                    : 'Contains...'
+                                                            }
+                                                            value={
+                                                                columnFilters[
+                                                                    field.id
+                                                                ]?.value || ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                onColumnFilterChange(
+                                                                    field.id,
+                                                                    e.target
+                                                                        .value,
+                                                                    field.dataType ===
+                                                                        'DATE'
+                                                                        ? 'date'
+                                                                        : 'text',
+                                                                )
+                                                            }
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
                                     </div>
                                 );
                             })}
 
                             {/* Add Column Button */}
-                            <div className="w-[150px] shrink-0 px-4 py-3 bg-muted">
+                            <div className="w-[150px] shrink-0 px-4 py-3 bg-[#f8f9fb] border-r border-dashboard-border">
                                 <Popover
                                     open={isCreatingField}
                                     onOpenChange={setIsCreatingField}
@@ -1474,45 +1481,49 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         <Label>
                                                             Select type
                                                         </Label>
-                                                        <div className="mt-2 space-y-1">
-                                                            {FIELD_TYPES.map(
-                                                                (type) => {
-                                                                    const Icon =
-                                                                        type.icon;
-                                                                    return (
-                                                                        <button
-                                                                            key={
-                                                                                type.value
-                                                                            }
-                                                                            onClick={() =>
-                                                                                handleFieldTypeSelect(
-                                                                                    type.value,
-                                                                                )
-                                                                            }
-                                                                            className={cn(
-                                                                                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors cursor-pointer',
-                                                                                fieldType ===
-                                                                                    type.value &&
-                                                                                    'bg-muted',
-                                                                            )}
-                                                                        >
-                                                                            <Icon className="h-4 w-4 text-muted-foreground" />
-                                                                            <div className="flex-1">
-                                                                                <div className="text-sm font-medium">
-                                                                                    {
-                                                                                        type.label
-                                                                                    }
+                                                        <div className="relative">
+                                                            <div className="max-h-[180px] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-dashboard-border scrollbar-track-transparent">
+                                                                {FIELD_TYPES.map(
+                                                                    (type) => {
+                                                                        const Icon =
+                                                                            type.icon;
+                                                                        return (
+                                                                            <button
+                                                                                key={
+                                                                                    type.value
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    handleFieldTypeSelect(
+                                                                                        type.value,
+                                                                                    )
+                                                                                }
+                                                                                className={cn(
+                                                                                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors cursor-pointer',
+                                                                                    fieldType ===
+                                                                                        type.value &&
+                                                                                        'bg-muted',
+                                                                                )}
+                                                                            >
+                                                                                <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                                                <div className="flex-1">
+                                                                                    <div className="text-sm font-medium">
+                                                                                        {
+                                                                                            type.label
+                                                                                        }
+                                                                                    </div>
+                                                                                    <div className="text-xs text-muted-foreground">
+                                                                                        {
+                                                                                            type.description
+                                                                                        }
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="text-xs text-muted-foreground">
-                                                                                    {
-                                                                                        type.description
-                                                                                    }
-                                                                                </div>
-                                                                            </div>
-                                                                        </button>
-                                                                    );
-                                                                },
-                                                            )}
+                                                                            </button>
+                                                                        );
+                                                                    },
+                                                                )}
+                                                            </div>
+                                                            {/* Scroll fade indicator */}
+                                                            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-popover to-transparent" />
                                                         </div>
                                                     </div>
 
@@ -1727,22 +1738,14 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
-                                                                      <div
-                                                                          className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3 cursor-pointer"
-                                                                          onClick={() => {
-                                                                              // Open side panel
-                                                                              onTaskClick(
-                                                                                  task,
-                                                                              );
-                                                                          }}
-                                                                      >
+                                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
                                                                           <div
                                                                               onClick={(
                                                                                   e,
                                                                               ) =>
                                                                                   e.stopPropagation()
                                                                               }
-                                                                              className="flex items-center"
+                                                                              className="flex items-center shrink-0"
                                                                           >
                                                                               <Checkbox
                                                                                   checked={selectedTaskIds.has(
@@ -1758,23 +1761,46 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   }
                                                                               />
                                                                           </div>
-                                                                          <div className="flex-1 min-w-0">
-                                                                              <EditableContent
-                                                                                  value={
-                                                                                      task.name
-                                                                                  }
-                                                                                  onSave={(
-                                                                                      name,
-                                                                                  ) =>
-                                                                                      handleSaveTaskName(
-                                                                                          task.id,
-                                                                                          name,
-                                                                                      )
-                                                                                  }
-                                                                                  placeholder="Task name..."
-                                                                                  textStyle="text-sm font-medium"
-                                                                              />
-                                                                          </div>
+                                                                          <button
+                                                                              className="flex-1 min-w-0 text-left cursor-pointer group/name"
+                                                                              onClick={() =>
+                                                                                  onTaskClick(
+                                                                                      task,
+                                                                                  )
+                                                                              }
+                                                                          >
+                                                                              <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
+                                                                                  {task.name || (
+                                                                                      <span className="text-muted-foreground/50 italic font-normal">
+                                                                                          Untitled
+                                                                                      </span>
+                                                                                  )}
+                                                                              </span>
+                                                                          </button>
+                                                                          <button
+                                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
+                                                                              onClick={(
+                                                                                  e,
+                                                                              ) => {
+                                                                                  e.stopPropagation();
+                                                                                  onTaskClick(
+                                                                                      task,
+                                                                                  );
+                                                                              }}
+                                                                              title="Open task"
+                                                                          >
+                                                                              <ExternalLink className="h-3 w-3" />
+                                                                          </button>
+                                                                      </div>
+
+                                                                      {/* Status Cell */}
+                                                                      <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
+                                                                          <StatusBadge
+                                                                              status={taskStatusToBadge(
+                                                                                  task.status,
+                                                                              )}
+                                                                              size="sm"
+                                                                          />
                                                                       </div>
 
                                                                       {/* Custom Field Values */}
@@ -1786,7 +1812,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   key={
                                                                                       field.id
                                                                                   }
-                                                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border flex items-center"
+                                                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
                                                                               >
                                                                                   <div className="w-full">
                                                                                       {renderCustomFieldCell(
@@ -1877,20 +1903,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                   tasks.map((task) => (
                                       <div
                                           key={task.id}
-                                          className="flex border-b border-dashboard-border hover:bg-accent-hover transition-colors group min-w-max"
+                                          className="flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max"
                                       >
                                           {/* Task Name - Sticky */}
-                                          <div
-                                              className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3 cursor-pointer"
-                                              onClick={() => {
-                                                  onTaskClick(task);
-                                              }}
-                                          >
+                                          <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
                                               <div
                                                   onClick={(e) =>
                                                       e.stopPropagation()
                                                   }
-                                                  className="flex items-center"
+                                                  className="flex items-center shrink-0"
                                               >
                                                   <Checkbox
                                                       checked={selectedTaskIds.has(
@@ -1906,26 +1927,48 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       }
                                                   />
                                               </div>
-                                              <div className="flex-1 min-w-0">
-                                                  <EditableContent
-                                                      value={task.name}
-                                                      onSave={(name) =>
-                                                          handleSaveTaskName(
-                                                              task.id,
-                                                              name,
-                                                          )
-                                                      }
-                                                      placeholder="Task name..."
-                                                      textStyle="text-sm font-medium"
-                                                  />
-                                              </div>
+                                              {/* Task name — Notion-style link */}
+                                              <button
+                                                  className="flex-1 min-w-0 text-left cursor-pointer group/name"
+                                                  onClick={() =>
+                                                      onTaskClick(task)
+                                                  }
+                                              >
+                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
+                                                      {task.name || (
+                                                          <span className="text-muted-foreground/50 italic font-normal">
+                                                              Untitled
+                                                          </span>
+                                                      )}
+                                                  </span>
+                                              </button>
+                                              <button
+                                                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
+                                                  onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      onTaskClick(task);
+                                                  }}
+                                                  title="Open task"
+                                              >
+                                                  <ExternalLink className="h-3 w-3" />
+                                              </button>
+                                          </div>
+
+                                          {/* Status Cell */}
+                                          <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
+                                              <StatusBadge
+                                                  status={taskStatusToBadge(
+                                                      task.status,
+                                                  )}
+                                                  size="sm"
+                                              />
                                           </div>
 
                                           {/* Custom Field Values */}
                                           {displayedFields.map((field) => (
                                               <div
                                                   key={field.id}
-                                                  className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border flex items-center"
+                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
                                               >
                                                   <div className="w-full">
                                                       {renderCustomFieldCell(
@@ -1991,8 +2034,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
                             {/* New Task Row / Add Task - always directly after tasks */}
                             {isCreatingTask ? (
-                                <div className="flex border-b border-dashboard-border bg-accent-subtle min-w-max">
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-4 border-r border-dashboard-border bg-accent-subtle shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                <div className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
                                         <EditableContent
                                             value={newTaskName}
                                             onSave={(name) =>
@@ -2003,6 +2046,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             autoFocus
                                         />
                                     </div>
+                                    <div className="w-35 shrink-0 border-r border-dashboard-border" />
                                     {displayedFields.map((field) => (
                                         <div
                                             key={field.id}
@@ -2013,16 +2057,17 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </div>
                             ) : (
                                 <div
-                                    className="flex border-b border-dashboard-border hover:bg-accent-hover transition-colors group min-w-max cursor-pointer"
+                                    className="flex border-b border-dashboard-border hover:bg-accent-subtle/30 transition-colors group min-w-max cursor-pointer"
                                     onClick={() => {
                                         setIsCreatingTask(true);
                                         setNewTaskName('');
                                     }}
                                 >
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-sm text-dashboard-text-muted group-hover:text-accent-blue">
-                                        <Plus className="h-4 w-4" />
+                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
+                                        <Plus className="h-3.5 w-3.5" />
                                         Add task
                                     </div>
+                                    <div className="w-35 shrink-0 border-r border-dashboard-border" />
                                     {/* Empty cells for alignment */}
                                     {displayedFields.map((field) => (
                                         <div
