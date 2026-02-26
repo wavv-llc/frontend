@@ -20,8 +20,16 @@ import {
     Home,
     Search,
 } from 'lucide-react';
-import { workspaceApi, projectApi, taskApi, chatApi } from '@/lib/api';
-import type { Workspace, Project, Task, Chat } from '@/lib/api';
+import {
+    workspaceApi,
+    projectApi,
+    taskApi,
+    chatApi,
+    type Workspace,
+    type Project,
+    type Task,
+    type Chat,
+} from '@/lib/api';
 
 interface SearchResults {
     workspaces: Workspace[];
