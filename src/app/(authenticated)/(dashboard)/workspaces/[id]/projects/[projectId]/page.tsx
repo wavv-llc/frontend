@@ -7,14 +7,23 @@ import { ProjectDetailView } from '@/components/projects/ProjectDetailView';
 import { projectApi, taskApi, type Project, type Task } from '@/lib/api';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCached, setCached } from '@/lib/pageCache';
+
+type ProjectPageData = { project: Project; tasks: Task[] };
 
 export default function ProjectPage() {
     const params = useParams();
     const { getToken } = useAuth();
-    const [project, setProject] = useState<Project | null>(null);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const projectId = params.projectId as string;
+    const cacheKey = `project:${projectId}`;
+
+    const [project, setProject] = useState<Project | null>(
+        () => getCached<ProjectPageData>(cacheKey)?.project ?? null,
+    );
+    const [tasks, setTasks] = useState<Task[]>(
+        () => getCached<ProjectPageData>(cacheKey)?.tasks ?? [],
+    );
+    const [isLoading, setIsLoading] = useState(() => !getCached(cacheKey));
 
     const fetchData = async () => {
         try {
@@ -33,14 +42,20 @@ export default function ProjectPage() {
                 notFound();
                 return;
             }
-            setProject(projectResponse.data);
+            const fetchedProject = projectResponse.data;
+            setProject(fetchedProject);
 
             // Fetch tasks for this project
             const tasksResponse = await taskApi.getTasksByProject(
                 token,
                 projectId,
             );
-            setTasks(tasksResponse.data || []);
+            const fetchedTasks = tasksResponse.data || [];
+            setTasks(fetchedTasks);
+            setCached(cacheKey, {
+                project: fetchedProject,
+                tasks: fetchedTasks,
+            });
         } catch (error) {
             console.error('Failed to fetch project data:', error);
             toast.error('Failed to load project data');

@@ -29,6 +29,7 @@ import {
     type Task,
     type User,
 } from '@/lib/api';
+import { getCached, setCached, invalidateCached } from '@/lib/pageCache';
 import { Badge } from '@/components/ui/badge';
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
 import {
@@ -51,30 +52,49 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type WorkspacePageData = {
+    workspace: Workspace;
+    projects: Project[];
+    tasks: Task[];
+};
+
 export default function WorkspaceDetailsPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { getToken } = useAuth();
 
-    const [workspace, setWorkspace] = useState<Workspace | null>(null);
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const workspaceId = params.id as string;
+    const cacheKey = `workspace:${workspaceId}`;
+
+    const [workspace, setWorkspace] = useState<Workspace | null>(
+        () => getCached<WorkspacePageData>(cacheKey)?.workspace ?? null,
+    );
+    const [projects, setProjects] = useState<Project[]>(
+        () => getCached<WorkspacePageData>(cacheKey)?.projects ?? [],
+    );
+    const [tasks, setTasks] = useState<Task[]>(
+        () => getCached<WorkspacePageData>(cacheKey)?.tasks ?? [],
+    );
+    const [filteredTasks, setFilteredTasks] = useState<Task[]>(
+        () => getCached<WorkspacePageData>(cacheKey)?.tasks ?? [],
+    );
+    const [isLoading, setIsLoading] = useState(() => !getCached(cacheKey));
     const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(
         searchParams.get('createProject') === 'true',
     );
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
-    const [editWorkspaceName, setEditWorkspaceName] = useState('');
-    const [editWorkspaceDescription, setEditWorkspaceDescription] =
-        useState('');
+    const [editWorkspaceName, setEditWorkspaceName] = useState(
+        () => getCached<WorkspacePageData>(cacheKey)?.workspace.name ?? '',
+    );
+    const [editWorkspaceDescription, setEditWorkspaceDescription] = useState(
+        () =>
+            getCached<WorkspacePageData>(cacheKey)?.workspace.description ?? '',
+    );
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const nameInputRef = useRef<HTMLInputElement>(null);
-
-    const workspaceId = params.id as string;
 
     const fetchData = async () => {
         try {
@@ -93,11 +113,10 @@ export default function WorkspaceDetailsPage() {
                 notFound();
                 return;
             }
-            setWorkspace(workspaceResponse.data);
-            setEditWorkspaceName(workspaceResponse.data.name);
-            setEditWorkspaceDescription(
-                workspaceResponse.data.description || '',
-            );
+            const fetchedWorkspace = workspaceResponse.data;
+            setWorkspace(fetchedWorkspace);
+            setEditWorkspaceName(fetchedWorkspace.name);
+            setEditWorkspaceDescription(fetchedWorkspace.description || '');
 
             // Fetch projects for this workspace
             const projectsResponse = await projectApi.getProjectsByWorkspace(
@@ -118,6 +137,11 @@ export default function WorkspaceDetailsPage() {
             }
             setTasks(allTasks);
             setFilteredTasks(allTasks);
+            setCached(cacheKey, {
+                workspace: fetchedWorkspace,
+                projects: fetchedProjects,
+                tasks: allTasks,
+            });
         } catch (error) {
             console.error('Failed to fetch data:', error);
             toast.error('Failed to load workspace data');
@@ -188,6 +212,7 @@ export default function WorkspaceDetailsPage() {
 
             await workspaceApi.deleteWorkspace(token, workspaceId);
             toast.success('Workspace deleted successfully');
+            invalidateCached(cacheKey, 'workspaces');
             setDeleteDialogOpen(false);
             router.push('/workspaces');
         } catch (error) {

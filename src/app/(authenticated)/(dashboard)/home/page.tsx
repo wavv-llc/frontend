@@ -11,20 +11,31 @@ import {
     type ActivityItem,
     type ActivityStat,
 } from '@/components/dashboard/pure-steel';
+import { getCached, setCached } from '@/lib/pageCache';
+
+type DashboardData = {
+    recents: RecentItem[];
+    tasks: DashboardTask[];
+    calendar: DashboardTask[];
+};
+
+const CACHE_KEY = 'dashboard';
 
 export default function HomePage() {
     const router = useRouter();
     const { getToken } = useAuth();
     const { user } = useUser();
 
-    // Data State
-    const [data, setData] = useState<{
-        recents: RecentItem[];
-        tasks: DashboardTask[];
-        calendar: DashboardTask[];
-    }>({ recents: [], tasks: [], calendar: [] });
-
-    const [loading, setLoading] = useState(true);
+    // Data State — initialize from cache so returning users see content instantly
+    const [data, setData] = useState<DashboardData>(
+        () =>
+            getCached<DashboardData>(CACHE_KEY) ?? {
+                recents: [],
+                tasks: [],
+                calendar: [],
+            },
+    );
+    const [loading, setLoading] = useState(() => !getCached(CACHE_KEY));
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -38,11 +49,13 @@ export default function HomePage() {
                     dashboardApi.getCalendarTasks(token),
                 ]);
 
-                setData({
+                const newData: DashboardData = {
                     recents: recent.data || [],
                     tasks: tasks.data || [],
                     calendar: calendar.data || [],
-                });
+                };
+                setCached(CACHE_KEY, newData);
+                setData(newData);
             } catch (error) {
                 console.error('Dashboard error:', error);
             } finally {

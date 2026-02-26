@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { workspaceApi, type Workspace } from '@/lib/api';
+import { getCached, setCached, invalidateCached } from '@/lib/pageCache';
 import { CreateWorkspaceDialog } from '@/components/dialogs/CreateWorkspaceDialog';
 import {
     DropdownMenu,
@@ -34,10 +35,14 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 
+const CACHE_KEY = 'workspaces';
+
 export default function WorkspacesPage() {
     const { getToken } = useAuth();
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [workspaces, setWorkspaces] = useState<Workspace[]>(
+        () => getCached<Workspace[]>(CACHE_KEY) ?? [],
+    );
+    const [isLoading, setIsLoading] = useState(() => !getCached(CACHE_KEY));
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [workspaceToDelete, setWorkspaceToDelete] =
@@ -53,7 +58,9 @@ export default function WorkspacesPage() {
                 return;
             }
             const response = await workspaceApi.getWorkspaces(token);
-            setWorkspaces(response.data || []);
+            const fetched = response.data || [];
+            setCached(CACHE_KEY, fetched);
+            setWorkspaces(fetched);
         } catch (error) {
             console.error('Failed to fetch workspaces:', error);
             toast.error('Failed to load workspaces');
@@ -101,6 +108,7 @@ export default function WorkspacesPage() {
             }
             await workspaceApi.deleteWorkspace(token, workspaceToDelete.id);
             toast.success('Workspace deleted successfully');
+            invalidateCached(CACHE_KEY);
             setWorkspaceToDelete(null);
             fetchWorkspaces();
         } catch (error) {
