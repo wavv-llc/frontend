@@ -108,7 +108,6 @@ export interface Task {
     description?: string;
     projectId: string;
     dueAt?: string;
-    status: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
     // Approval workflow fields
     approvalStatus: ApprovalStatus;
     currentReviewerIndex: number;
@@ -120,8 +119,8 @@ export interface Task {
         description?: string;
         approvalWorkflowSteps?: ApprovalWorkflowStep[];
     };
-    preparers: User[];
-    reviewers: User[];
+    preparers?: User[];
+    reviewers?: User[];
     linkedFiles: Document[];
     customFieldValues?: CustomFieldValue[];
     comments?: Comment[];

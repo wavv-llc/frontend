@@ -29,6 +29,7 @@ import {
     Activity,
     Bell,
     Lock,
+    GitBranch,
     Archive,
     ExternalLink,
     ChevronLeft,
@@ -53,6 +54,7 @@ import {
 } from '@/components/dashboard/pure-steel/CalendarSection';
 import { TaskDetailView } from '@/components/tasks/TaskDetailView';
 import { TaskList } from './TaskList';
+import { ApprovalWorkflowDialog } from './ApprovalWorkflowDialog';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -577,6 +579,8 @@ export function ProjectDetailView({
     } = usePreferences();
     // Permissions modal
     const [permissionsOpen, setPermissionsOpen] = useState(false);
+    // Approval workflow modal
+    const [workflowOpen, setWorkflowOpen] = useState(false);
     const [projectVisibility, setProjectVisibility] = useState<
         'private' | 'team' | 'public'
     >('team');
@@ -1181,6 +1185,12 @@ export function ProjectDetailView({
                             >
                                 <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
                                 <span>Permissions</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => setWorkflowOpen(true)}
+                            >
+                                <GitBranch className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <span>Approval Workflow</span>
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
@@ -1926,6 +1936,14 @@ export function ProjectDetailView({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ApprovalWorkflowDialog
+                open={workflowOpen}
+                onOpenChange={setWorkflowOpen}
+                projectId={localProject.id}
+                projectMembers={localProject.members}
+                projectOwners={localProject.owners}
+            />
         </div>
     );
 }

@@ -28,10 +28,10 @@ export function TasksWidget({
     // Memoized filters
     const displayTasks = useMemo(() => {
         if (activeTab === 'done') {
-            return tasks.filter((t) => t.status === 'COMPLETED');
+            return tasks.filter((t) => t.approvalStatus === 'COMPLETED');
         }
         return tasks
-            .filter((t) => t.status !== 'COMPLETED')
+            .filter((t) => t.approvalStatus !== 'COMPLETED')
             .sort((a, b) => {
                 if (!a.dueAt) return 1;
                 if (!b.dueAt) return -1;
