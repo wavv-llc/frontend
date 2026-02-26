@@ -31,7 +31,7 @@ export function ProjectCalendarView({
     tasks,
     compact = false,
 }: ProjectCalendarViewProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>('week');
+    const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
 
     // Generate current week dates

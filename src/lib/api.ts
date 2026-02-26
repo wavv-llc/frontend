@@ -45,6 +45,22 @@ export interface Organization {
     name: string;
 }
 
+export interface OrganizationDetails {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    _count: {
+        documents: number;
+    };
+    users: Array<{
+        id: string;
+        email: string;
+        firstName?: string;
+        lastName?: string;
+    }>;
+}
+
 export interface MeResponse {
     id: string;
     email: string;
@@ -440,6 +456,31 @@ export const organizationApi = {
             {
                 method: 'DELETE',
                 token,
+            },
+        );
+    },
+
+    getOrganization: async (token: string, organizationId: string) => {
+        return apiRequest<OrganizationDetails>(
+            `/api/v1/organizations/${organizationId}`,
+            {
+                method: 'GET',
+                token,
+            },
+        );
+    },
+
+    renameOrganization: async (
+        token: string,
+        organizationId: string,
+        name: string,
+    ) => {
+        return apiRequest<OrganizationDetails>(
+            `/api/v1/organizations/${organizationId}`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify({ name }),
             },
         );
     },

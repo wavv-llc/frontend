@@ -31,6 +31,7 @@ import {
     XCircle,
     AlertCircle,
     PlayCircle,
+    Pencil,
 } from 'lucide-react';
 import {
     sharepointApi,
@@ -38,6 +39,7 @@ import {
     documentsApi,
     OrganizationDocument,
     OrganizationDocumentsResponse,
+    OrganizationDetails,
     roleApi,
     OrganizationMember,
     Role,
@@ -2152,8 +2154,79 @@ interface OrganizationTabProps {
     organizationId?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function OrganizationTab(_props: OrganizationTabProps) {
+function OrganizationTab({ organizationId }: OrganizationTabProps) {
+    const { getToken } = useAuth();
+    const { user, refreshUser } = useUser();
+    const [orgDetails, setOrgDetails] = useState<OrganizationDetails | null>(
+        null,
+    );
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [nameInput, setNameInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (organizationId) {
+            loadOrgDetails();
+        }
+    }, [organizationId]);
+
+    const loadOrgDetails = async () => {
+        if (!organizationId) return;
+        try {
+            setIsLoading(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await organizationApi.getOrganization(
+                token,
+                organizationId,
+            );
+            if (response.data) {
+                setOrgDetails(response.data);
+                setNameInput(response.data.name);
+            }
+        } catch {
+            toast.error('Failed to load organization details');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRename = async () => {
+        if (!organizationId || !nameInput.trim()) return;
+        try {
+            setIsSaving(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await organizationApi.renameOrganization(
+                token,
+                organizationId,
+                nameInput.trim(),
+            );
+            if (response.data) {
+                setOrgDetails(response.data);
+                setIsEditing(false);
+                await refreshUser();
+                toast.success('Organization renamed successfully');
+            }
+        } catch {
+            toast.error('Failed to rename organization');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setNameInput(orgDetails?.name || user?.organization?.name || '');
+    };
+
+    const displayName =
+        orgDetails?.name || user?.organization?.name || '\u2014';
+    const memberCount = orgDetails?.users?.length;
+    const documentCount = orgDetails?._count?.documents;
+    const createdAt = orgDetails?.createdAt;
+
     return (
         <>
             {/* Section Header */}
@@ -2166,15 +2239,136 @@ function OrganizationTab(_props: OrganizationTabProps) {
                 </p>
             </div>
 
-            {/* Placeholder for future organization settings */}
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
-                <div className="p-10 text-center">
-                    <Building2 className="h-10 w-10 mx-auto mb-2.5 text-[#8d9ab0] opacity-40" />
-                    <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
-                        Organization settings will be available here soon.
+            {/* Organization Name Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1 mb-4">
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                        Organization Name
+                    </h3>
+                    <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                        The display name for your organization
                     </p>
                 </div>
+                <div className="p-5">
+                    {isLoading ? (
+                        <div className="flex items-center gap-2 text-[#8d9ab0]">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span className="text-[11px]">Loading...</span>
+                        </div>
+                    ) : isEditing ? (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                value={nameInput}
+                                onChange={(e) => setNameInput(e.target.value)}
+                                className="h-8 text-[11px] rounded-lg border-[1.5px] border-[#dce1e8] dark:border-gray-700 focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20 max-w-xs"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRename();
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                                autoFocus
+                            />
+                            <Button
+                                size="sm"
+                                onClick={handleRename}
+                                disabled={
+                                    isSaving ||
+                                    !nameInput.trim() ||
+                                    nameInput.trim() === displayName
+                                }
+                                className="h-8 text-[11px]"
+                            >
+                                {isSaving ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <Check className="h-3 w-3" />
+                                )}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleCancelEdit}
+                                disabled={isSaving}
+                                className="h-8 text-[11px]"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] font-medium text-[#272f3b] dark:text-gray-100">
+                                {displayName}
+                            </span>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="text-[#8d9ab0] hover:text-[#272f3b] dark:hover:text-gray-100 transition-colors"
+                            >
+                                <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Organization Details Card */}
+            {!isLoading && orgDetails && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2">
+                    <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                        <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            Details
+                        </h3>
+                        <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                            Information about your organization
+                        </p>
+                    </div>
+                    <div className="divide-y divide-[#eef0f3] dark:divide-gray-800">
+                        <div className="flex items-center justify-between px-5 py-3">
+                            <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                Organization ID
+                            </span>
+                            <span className="text-[11px] text-[#272f3b] dark:text-gray-300 font-mono">
+                                {organizationId}
+                            </span>
+                        </div>
+                        {memberCount !== undefined && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Members
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {memberCount}
+                                </span>
+                            </div>
+                        )}
+                        {documentCount !== undefined && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Documents
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {documentCount}
+                                </span>
+                            </div>
+                        )}
+                        {createdAt && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Created
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {new Date(createdAt).toLocaleDateString(
+                                        'en-US',
+                                        {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                        },
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </>
     );
 }

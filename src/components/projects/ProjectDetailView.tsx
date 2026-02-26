@@ -459,7 +459,7 @@ function MonthCalendarView({ events }: { events: CalendarEvent[] }) {
 
 /** Wrapper to convert Task[] to CalendarEvent[] and provide week/month navigation */
 function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
-    const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('week');
+    const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('month');
     const [currentWeekStart, setCurrentWeekStart] = useState(() =>
         getWeekStart(new Date()),
     );
