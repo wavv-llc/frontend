@@ -405,14 +405,18 @@ export function TaskDetailView({
     const newThreadInputRef = useRef<RichEditorHandle>(null);
 
     // ── Approval workflow derived values ──────────────────────────────────────
-    const workflowSteps = task.project?.approvalWorkflowSteps ?? [];
-    const currentStep =
-        task.currentReviewerIndex > 0
-            ? (workflowSteps.find(
-                  (s) => s.order === task.currentReviewerIndex - 1,
-              ) ?? null)
+    // Per-task chain: derived from approvalChain returned by the backend
+    const approvalChain = task.approvalChain ?? [];
+    // Reviewer-only entries (excludes PREPARER — which is display-only), sorted by reviewerOrder
+    const reviewerChain = approvalChain
+        .filter((e) => e.role === 'REVIEWER')
+        .sort((a, b) => (a.reviewerOrder ?? 0) - (b.reviewerOrder ?? 0));
+    // The active reviewer entry for the current index (index 1 = reviewer[0], index 2 = reviewer[1])
+    const currentChainEntry =
+        task.currentReviewerIndex > 0 && task.approvalStatus === 'IN_REVIEW'
+            ? (reviewerChain[task.currentReviewerIndex - 1] ?? null)
             : null;
-    const isActiveReviewer = currentStep?.user?.clerkId === clerkUserId;
+    const isActiveReviewer = currentChainEntry?.user?.clerkId === clerkUserId;
     // At IN_PREPARATION any member can submit; at IN_REVIEW only the active reviewer
     const canSubmit =
         task.approvalStatus !== 'COMPLETED' &&
@@ -442,8 +446,11 @@ export function TaskDetailView({
             timestamp: task.createdAt,
         });
 
-        if (task.preparers && task.preparers.length > 0) {
-            const names = task.preparers
+        const preparers = (task.approvalChain ?? [])
+            .filter((e) => e.role === 'PREPARER' && e.user)
+            .map((e) => e.user!);
+        if (preparers.length > 0) {
+            const names = preparers
                 .map(
                     (p) =>
                         [p.firstName, p.lastName].filter(Boolean).join(' ') ||
@@ -458,8 +465,11 @@ export function TaskDetailView({
             });
         }
 
-        if (task.reviewers && task.reviewers.length > 0) {
-            const names = task.reviewers
+        const reviewers = (task.approvalChain ?? [])
+            .filter((e) => e.role === 'REVIEWER' && e.user)
+            .map((e) => e.user!);
+        if (reviewers.length > 0) {
+            const names = reviewers
                 .map(
                     (r) =>
                         [r.firstName, r.lastName].filter(Boolean).join(' ') ||
@@ -653,8 +663,8 @@ export function TaskDetailView({
             if (!token) return;
             await approvalApi.submitTask(token, task.projectId, task.id);
             const nextStatus =
-                workflowSteps.length === 0 ||
-                task.currentReviewerIndex >= workflowSteps.length
+                reviewerChain.length === 0 ||
+                task.currentReviewerIndex >= reviewerChain.length
                     ? 'Complete'
                     : `${task.currentReviewerIndex + 1}${ordinal(task.currentReviewerIndex + 1)} Level Review`;
             toast.success(`Task submitted — now at ${nextStatus}`);
@@ -1186,31 +1196,48 @@ export function TaskDetailView({
                                 {approvalStatusLabel(
                                     task.approvalStatus,
                                     task.currentReviewerIndex,
-                                    workflowSteps.length,
+                                    reviewerChain.length,
                                 )}
                             </span>
                         </div>
-                        {workflowSteps.length > 0 && (
+                        {approvalChain.length > 0 && (
                             <div className="mt-3 flex flex-col gap-1.5">
-                                {workflowSteps.map((step) => {
+                                {approvalChain.map((entry) => {
+                                    const isPreparer =
+                                        entry.role === 'PREPARER';
+                                    // For REVIEWER entries, find their position in the sorted reviewerChain
+                                    const reviewerPos = isPreparer
+                                        ? -1
+                                        : reviewerChain.findIndex(
+                                              (r) =>
+                                                  r.customFieldId ===
+                                                  entry.customFieldId,
+                                          );
+                                    // reviewerPos is 0-based; currentReviewerIndex is 1-based
                                     const isCurrentStep =
+                                        !isPreparer &&
                                         task.approvalStatus === 'IN_REVIEW' &&
-                                        step.order ===
+                                        reviewerPos ===
                                             task.currentReviewerIndex - 1;
                                     const isPastStep =
                                         task.approvalStatus === 'COMPLETED' ||
-                                        step.order <
-                                            task.currentReviewerIndex - 1;
-                                    const name =
-                                        [
-                                            step.user.firstName,
-                                            step.user.lastName,
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' ') || step.user.email;
+                                        (!isPreparer &&
+                                            reviewerPos <
+                                                task.currentReviewerIndex - 1);
+                                    const name = entry.user
+                                        ? [
+                                              entry.user.firstName,
+                                              entry.user.lastName,
+                                          ]
+                                              .filter(Boolean)
+                                              .join(' ') || entry.user.email
+                                        : '(not assigned)';
+                                    const roleLabel = isPreparer
+                                        ? 'Preparer'
+                                        : `Reviewer ${entry.reviewerOrder ?? reviewerPos + 1}`;
                                     return (
                                         <div
-                                            key={step.id}
+                                            key={entry.customFieldId}
                                             className={cn(
                                                 'flex items-center gap-2 text-xs',
                                                 isCurrentStep &&
@@ -1223,10 +1250,16 @@ export function TaskDetailView({
                                             )}
                                         >
                                             <span className="shrink-0 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold border-current">
-                                                {step.order + 1}
+                                                {isPreparer
+                                                    ? 'P'
+                                                    : (entry.reviewerOrder ??
+                                                      reviewerPos + 1)}
                                             </span>
                                             <span className="truncate">
                                                 {name}
+                                                <span className="ml-1 text-[10px] opacity-60">
+                                                    ({roleLabel})
+                                                </span>
                                             </span>
                                             {isCurrentStep && (
                                                 <span className="ml-auto shrink-0 text-[10px] text-blue-500">
@@ -1241,9 +1274,9 @@ export function TaskDetailView({
                                 })}
                             </div>
                         )}
-                        {workflowSteps.length === 0 && (
+                        {approvalChain.length === 0 && (
                             <p className="mt-1 text-[11px] text-dashboard-text-muted/60 italic">
-                                No reviewers configured
+                                No approval roles configured for this task
                             </p>
                         )}
                     </div>

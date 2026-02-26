@@ -2,52 +2,91 @@
 
 import { UserProfile } from '@clerk/nextjs';
 
+const clerkAppearance = {
+    variables: {
+        colorPrimary: '#5a7f9a',
+        colorBackground: '#ffffff',
+        colorInputBackground: '#ffffff',
+        colorInputText: '#2e3b44',
+        colorText: '#2e3b44',
+        colorTextSecondary: '#8c969e',
+        colorTextOnPrimaryBackground: '#ffffff',
+        colorDanger: '#ef4444',
+        colorSuccess: '#3b9b72',
+        colorWarning: '#b5880a',
+        fontFamily: '"DM Sans", system-ui, sans-serif',
+        fontFamilyButtons: '"DM Sans", system-ui, sans-serif',
+        fontSize: '13px',
+        borderRadius: '0.45rem',
+        spacingUnit: '1rem',
+    },
+    elements: {
+        rootBox: 'w-full h-full flex flex-col',
+        card: 'shadow-none border-0 bg-transparent p-0 rounded-none w-full h-full flex flex-col',
+        navbar: 'hidden',
+        navbarMobileMenuButton: 'hidden',
+        pageScrollBox: 'flex-1 overflow-y-auto p-0',
+        header: 'hidden',
+        profileSection:
+            'bg-white rounded-lg border border-[#e2e2df] p-5 mb-3 shadow-sm',
+        profileSectionTitle:
+            'font-serif text-[15px] font-medium text-[#2e3b44] pb-3 mb-3 border-b border-[#ededeb]',
+        profileSectionContent: 'text-[#3d4a52] text-[13px]',
+        profileSectionPrimaryButton:
+            'text-[#5a7f9a] hover:text-[#7ba3bf] text-[13px] font-medium transition-colors',
+        formButtonPrimary:
+            'bg-[#5a7f9a] hover:bg-[#4a6d85] text-white shadow-sm hover:shadow-md transition-all rounded-md text-[13px] font-medium px-4 py-2',
+        formButtonReset:
+            'text-[#8c969e] hover:text-[#2e3b44] text-[13px] transition-colors border border-[#e2e2df] rounded-md px-4 py-2',
+        formFieldLabel: 'text-[#3d4a52] text-[12px] font-medium mb-1',
+        formFieldInput:
+            'border border-[#e2e2df] bg-white rounded-md focus:border-[#5a7f9a] focus:ring-2 focus:ring-[rgba(90,127,154,0.15)] text-[#2e3b44] text-[13px] transition-all placeholder:text-[#b8c0c6]',
+        formFieldInputShowPasswordButton:
+            'text-[#8c969e] hover:text-[#2e3b44] transition-colors',
+        formFieldErrorText: 'text-[#ef4444] text-[11px] mt-1',
+        formFieldWarningText: 'text-[#b5880a] text-[11px] mt-1',
+        formFieldSuccessText: 'text-[#3b9b72] text-[11px] mt-1',
+        badge: 'bg-[rgba(90,127,154,0.07)] text-[#5a7f9a] border border-[rgba(90,127,154,0.2)] rounded-md text-[11px] font-medium',
+        avatarBox: 'border-2 border-[#e2e2df] shadow-sm rounded-full',
+        avatarImageActionsUpload:
+            'text-[#5a7f9a] hover:text-[#7ba3bf] transition-colors',
+        dividerRow: 'before:border-[#ededeb] after:border-[#ededeb]',
+        identityPreviewText: 'text-[#3d4a52] text-[13px]',
+        identityPreviewEditButton:
+            'text-[#5a7f9a] hover:text-[#7ba3bf] transition-colors',
+        accordionTriggerButton:
+            'text-[#2e3b44] hover:bg-[rgba(90,127,154,0.05)] rounded-md transition-colors',
+        menuList: 'border border-[#e2e2df] shadow-md rounded-lg bg-white',
+        menuItem:
+            'text-[#3d4a52] hover:bg-[rgba(90,127,154,0.05)] text-[13px] rounded-md',
+        menuItemDestructive: 'text-[#ef4444] hover:bg-[rgba(239,68,68,0.05)]',
+        actionCard:
+            'border border-[#e2e2df] rounded-lg bg-white shadow-sm text-[#3d4a52]',
+        alert: 'border border-[#e2e2df] rounded-lg bg-[#f5f5f3] text-[#3d4a52]',
+        alertText: 'text-[#3d4a52] text-[13px]',
+    },
+};
+
 export default function UserSettingsPage() {
     return (
-        <div className="h-full w-full bg-[var(--dashboard-bg)] flex flex-col">
+        <div className="h-full w-full bg-dashboard-bg flex flex-col">
             {/* Header - Fixed */}
-            <header className="shrink-0 flex items-center px-7 py-3.5 bg-[rgba(245,245,243,0.85)] backdrop-blur-xl border-b border-[var(--dashboard-border)] animate-fade-up">
+            <header className="shrink-0 flex items-center px-7 py-3.5 bg-[rgba(245,245,243,0.85)] backdrop-blur-xl border-b border-dashboard-border animate-fade-up">
                 <div className="flex flex-col gap-1">
-                    <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-[var(--dashboard-text-primary)]">
+                    <h1 className="font-serif text-[20px] font-medium leading-tight tracking-tight text-dashboard-text-primary">
                         <span className="italic">Profile</span> Settings
                     </h1>
-                    <p className="font-sans text-[10px] font-normal text-[var(--dashboard-text-muted)]">
+                    <p className="font-sans text-[10px] font-normal text-dashboard-text-muted">
                         Manage your personal account settings
                     </p>
                 </div>
             </header>
 
-            {/* Main Content Area - Scrollable */}
-            <main className="flex-1 overflow-y-auto min-h-0 px-8 py-6">
-                <div className="max-w-4xl mx-auto animate-fade-up animate-delay-100">
-                    {/* Integrated Clerk Profile - No Card Wrapper */}
-                    <div className="[&_.cl-rootBox]:w-full [&_.cl-card]:shadow-none [&_.cl-card]:border-steel-alt-100 [&_.cl-card]:bg-transparent [&_.cl-navbar]:hidden [&_.cl-pageScrollBox]:p-0 [&_.cl-profileSection]:bg-[var(--dashboard-surface)] [&_.cl-profileSection]:rounded-lg [&_.cl-profileSection]:border [&_.cl-profileSection]:border-[var(--dashboard-border)] [&_.cl-profileSection]:p-6 [&_.cl-profileSection]:mb-4 [&_.cl-profileSection]:shadow-sm [&_.cl-profileSection:last-child]:mb-0 [&_.cl-formButtonPrimary]:bg-[var(--accent)] [&_.cl-formButtonPrimary]:text-white [&_.cl-formButtonPrimary:hover]:bg-[var(--accent-light)] [&_.cl-formButtonPrimary]:shadow-md [&_.cl-formButtonPrimary:hover]:shadow-lg [&_.cl-formButtonPrimary]:transition-all [&_.cl-formButtonPrimary]:rounded-lg [&_.cl-badge]:bg-[var(--accent-subtle)] [&_.cl-badge]:text-[var(--accent)] [&_.cl-badge]:border [&_.cl-badge]:border-[var(--accent)]/20 [&_.cl-badge]:rounded-md [&_.cl-avatarBox]:border-[var(--dashboard-border)] [&_.cl-profileSectionTitle]:text-[var(--dashboard-text-primary)] [&_.cl-profileSectionTitle]:font-serif [&_.cl-profileSectionTitle]:text-[16px] [&_.cl-profileSectionTitle]:mb-4 [&_.cl-profileSectionContent]:text-[var(--dashboard-text-steel-alt-800ody)] [&_.cl-profileSectionContent]:text-[13px] [&_.cl-formFieldLabel]:text-[var(--dashboard-text-steel-alt-800ody)] [&_.cl-formFieldLabel]:text-[12px] [&_.cl-formFieldLabel]:font-medium [&_.cl-formFieldInput]:border-[var(--dashboard-border)] [&_.cl-formFieldInput]:bg-white [&_.cl-formFieldInput]:rounded-lg [&_.cl-formFieldInput:focus]:border-[var(--accent)] [&_.cl-formFieldInput:focus]:ring-1 [&_.cl-formFieldInput:focus]:ring-[var(--accent)]/20 [&_.cl-formFieldInput]:text-[var(--dashboard-text-primary)] [&_.cl-formFieldInput]:text-[13px] [&_.cl-formFieldInput]:transition-all [&_.cl-avatarBox]:shadow-sm">
-                        <UserProfile
-                            appearance={{
-                                elements: {
-                                    rootBox: 'w-full',
-                                    card: 'shadow-none border-steel-alt-100 bg-transparent',
-                                    navbar: 'hidden',
-                                    pageScrollBox: 'p-0',
-                                    profileSection:
-                                        'bg-[var(--dashboard-surface)] rounded-lg border border-[var(--dashboard-border)] p-6 mb-4 shadow-sm last:mb-0',
-                                    profileSectionTitle:
-                                        'text-[var(--dashboard-text-primary)] font-serif text-[16px] mb-4',
-                                    profileSectionContent:
-                                        'text-[var(--dashboard-text-steel-alt-800ody)] text-[13px]',
-                                    formButtonPrimary:
-                                        'bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white shadow-md hover:shadow-lg transition-all rounded-lg',
-                                    formFieldLabel:
-                                        'text-[var(--dashboard-text-steel-alt-800ody)] text-[12px] font-medium',
-                                    formFieldInput:
-                                        'border-[var(--dashboard-border)] bg-white rounded-lg focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/20 text-[var(--dashboard-text-primary)] text-[13px] transition-all',
-                                    badge: 'bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent)]/20 rounded-md',
-                                    avatarBox:
-                                        'border-[var(--dashboard-border)] shadow-sm',
-                                },
-                            }}
-                        />
-                    </div>
+            {/* Main Content Area - Fixed, no page scroll */}
+            <main className="flex-1 min-h-0 overflow-hidden px-8 py-6 animate-fade-up animate-delay-100">
+                {/* Force Clerk card to fill full width/height, overriding its internal max-width inline style */}
+                <div className="h-full w-full [&_.cl-rootBox]:h-full [&_.cl-card]:max-w-none! [&_.cl-card]:h-full [&_.cl-cardBox]:h-full [&_.cl-cardBox]:max-w-none! [&_.cl-scrollBox]:h-full">
+                    <UserProfile appearance={clerkAppearance} />
                 </div>
             </main>
         </div>

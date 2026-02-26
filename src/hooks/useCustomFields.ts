@@ -153,6 +153,10 @@ export function useCustomFields(
             // Skip validation for empty non-required fields
             if (!value || value.trim() === '') continue;
 
+            // For multiple-value fields (non-CUSTOM types), skip individual validation
+            // as they're stored as comma-separated IDs serialized to JSON
+            if (field.multiple && field.dataType !== 'CUSTOM') continue;
+
             // Data type validation
             switch (field.dataType) {
                 case 'NUMBER':
@@ -169,7 +173,29 @@ export function useCustomFields(
                     break;
                 case 'CUSTOM':
                     if (field.customOptions && field.customOptions.length > 0) {
-                        if (!field.customOptions.includes(value)) {
+                        if (field.multiple) {
+                            // Validate each selected option is valid
+                            try {
+                                const selected: string[] = JSON.parse(value);
+                                const invalid = selected.find(
+                                    (v) => !field.customOptions!.includes(v),
+                                );
+                                if (invalid) {
+                                    toast.error(
+                                        `${field.name} contains an invalid option`,
+                                    );
+                                    return false;
+                                }
+                            } catch {
+                                // Not JSON, treat as single value
+                                if (!field.customOptions.includes(value)) {
+                                    toast.error(
+                                        `${field.name} must be one of the available options`,
+                                    );
+                                    return false;
+                                }
+                            }
+                        } else if (!field.customOptions.includes(value)) {
                             toast.error(
                                 `${field.name} must be one of the available options`,
                             );
@@ -197,6 +223,21 @@ export function useCustomFields(
             if (value && value.trim() !== '') {
                 if (field.dataType === 'NUMBER') {
                     payload[field.id] = Number(value);
+                } else if (field.multiple && field.dataType !== 'CUSTOM') {
+                    // For USER/TASK/DOCUMENT with multiple: convert comma-separated input to JSON array
+                    // (CUSTOM already stores JSON from MultiSelect component)
+                    try {
+                        JSON.parse(value); // already JSON, pass through
+                        payload[field.id] = value;
+                    } catch {
+                        // Comma-separated text input fallback
+                        const ids = value
+                            .split(',')
+                            .map((v) => v.trim())
+                            .filter(Boolean);
+                        payload[field.id] =
+                            ids.length > 0 ? JSON.stringify(ids) : null;
+                    }
                 } else {
                     payload[field.id] = value;
                 }

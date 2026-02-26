@@ -501,9 +501,23 @@ export function ProjectCalendarView({
                                                                     <TooltipTrigger>
                                                                         <div className="flex -space-x-2">
                                                                             {(
-                                                                                task.preparers ||
+                                                                                task.approvalChain ??
                                                                                 []
                                                                             )
+                                                                                .filter(
+                                                                                    (
+                                                                                        e,
+                                                                                    ) =>
+                                                                                        e.role ===
+                                                                                            'PREPARER' &&
+                                                                                        e.user,
+                                                                                )
+                                                                                .map(
+                                                                                    (
+                                                                                        e,
+                                                                                    ) =>
+                                                                                        e.user!,
+                                                                                )
                                                                                 .slice(
                                                                                     0,
                                                                                     3,
@@ -540,14 +554,24 @@ export function ProjectCalendarView({
                                                                             Assigned
                                                                             to:{' '}
                                                                             {(
-                                                                                task.preparers ||
+                                                                                task.approvalChain ??
                                                                                 []
                                                                             )
+                                                                                .filter(
+                                                                                    (
+                                                                                        e,
+                                                                                    ) =>
+                                                                                        e.role ===
+                                                                                            'PREPARER' &&
+                                                                                        e.user,
+                                                                                )
                                                                                 .map(
                                                                                     (
-                                                                                        u,
+                                                                                        e,
                                                                                     ) =>
-                                                                                        u.firstName,
+                                                                                        e
+                                                                                            .user!
+                                                                                            .firstName,
                                                                                 )
                                                                                 .join(
                                                                                     ', ',

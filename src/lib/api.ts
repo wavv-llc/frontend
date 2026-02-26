@@ -110,6 +110,16 @@ export interface Document {
 
 export type ApprovalStatus = 'IN_PREPARATION' | 'IN_REVIEW' | 'COMPLETED';
 
+export type ApprovalRole = 'NONE' | 'PREPARER' | 'REVIEWER';
+
+export interface ApprovalChainEntry {
+    role: 'PREPARER' | 'REVIEWER';
+    customFieldId: string;
+    reviewerOrder: number | null;
+    user: (User & { clerkId?: string }) | null;
+}
+
+/** @deprecated Project-level workflow steps replaced by per-task approvalChain */
 export interface ApprovalWorkflowStep {
     id: string;
     order: number;
@@ -135,8 +145,7 @@ export interface Task {
         description?: string;
         approvalWorkflowSteps?: ApprovalWorkflowStep[];
     };
-    preparers?: User[];
-    reviewers?: User[];
+    approvalChain?: ApprovalChainEntry[];
     linkedFiles: Document[];
     customFieldValues?: CustomFieldValue[];
     comments?: Comment[];
@@ -152,6 +161,9 @@ export interface CustomFieldValue {
         name: string;
         dataType: DataType;
         required: boolean;
+        approvalRole?: ApprovalRole;
+        reviewerOrder?: number | null;
+        customOptions?: string[];
     };
 }
 
@@ -172,7 +184,10 @@ export interface CustomField {
     dataType: DataType;
     color?: string;
     required: boolean;
+    multiple: boolean;
     customOptions?: string[];
+    approvalRole: ApprovalRole;
+    reviewerOrder?: number | null;
     projectId: string;
     createdAt: string;
     updatedAt: string;
@@ -723,7 +738,9 @@ export const customFieldApi = {
             dataType: DataType;
             color?: string;
             required?: boolean;
+            multiple?: boolean;
             customOptions?: string[];
+            approvalRole?: ApprovalRole;
         },
     ) => {
         return apiRequest<CustomField>(
@@ -747,6 +764,7 @@ export const customFieldApi = {
             dataType?: DataType;
             color?: string;
             required?: boolean;
+            approvalRole?: ApprovalRole;
         },
     ) => {
         return apiRequest<CustomField>(

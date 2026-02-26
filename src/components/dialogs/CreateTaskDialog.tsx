@@ -3,7 +3,7 @@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
-import { taskApi } from '@/lib/api';
+import { taskApi, User } from '@/lib/api';
 import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
 import { useDialogForm } from '@/hooks/useDialogForm';
 import { useCustomFields } from '@/hooks/useCustomFields';
@@ -11,11 +11,14 @@ import { FormDialog } from './shared/FormDialog';
 import { FormDialogField } from './shared/FormDialogField';
 import { FormDialogActions } from './shared/FormDialogActions';
 import { CustomFieldsSection } from './shared/CustomFieldsSection';
+import { TemplateSelector } from './shared/TemplateSelector';
 
 interface CreateTaskDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     projectId: string;
+    workspaceId: string;
+    projectMembers?: User[];
     onSuccess?: () => void;
 }
 
@@ -29,6 +32,8 @@ export function CreateTaskDialog({
     open,
     onOpenChange,
     projectId,
+    workspaceId,
+    projectMembers,
     onSuccess,
 }: CreateTaskDialogProps) {
     // Custom fields hook
@@ -88,6 +93,12 @@ export function CreateTaskDialog({
         },
         resetOnSuccess: true,
     });
+
+    function handleApplyTemplate(values: Record<string, string>) {
+        Object.entries(values).forEach(([fieldId, value]) => {
+            customFieldsHook.updateCustomFieldValue(fieldId, value);
+        });
+    }
 
     return (
         <FormDialog
@@ -149,6 +160,19 @@ export function CreateTaskDialog({
                         />
                     </FormDialogField>
 
+                    {/* Template Selector — shown when custom fields exist */}
+                    {!customFieldsHook.isLoadingFields &&
+                        customFieldsHook.customFields.length > 0 && (
+                            <TemplateSelector
+                                workspaceId={workspaceId}
+                                customFields={customFieldsHook.customFields}
+                                customFieldValues={
+                                    customFieldsHook.customFieldValues
+                                }
+                                onApply={handleApplyTemplate}
+                            />
+                        )}
+
                     {/* Custom Fields Section */}
                     <CustomFieldsSection
                         customFields={customFieldsHook.customFields}
@@ -156,6 +180,7 @@ export function CreateTaskDialog({
                         onChange={customFieldsHook.updateCustomFieldValue}
                         disabled={isLoading}
                         isLoading={customFieldsHook.isLoadingFields}
+                        projectMembers={projectMembers}
                     />
                 </div>
 

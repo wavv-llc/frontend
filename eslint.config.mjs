@@ -13,7 +13,7 @@ const eslintConfig = [
 
     // Custom config
     {
-        files: ['**/*.{js,ts}'],
+        files: ['**/*.{js,ts,tsx,jsx}'],
         languageOptions: {
             parser,
             parserOptions: {

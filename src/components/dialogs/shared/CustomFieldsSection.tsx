@@ -1,4 +1,4 @@
-import { CustomField } from '@/lib/api';
+import { CustomField, User } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
@@ -8,7 +8,24 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { FormDialogField } from './FormDialogField';
+
+function parseMultiValue(value: string): string[] {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [value];
+    } catch {
+        return value ? [value] : [];
+    }
+}
+
+function getMemberDisplayName(member: User): string {
+    return member.firstName
+        ? `${member.firstName} ${member.lastName || ''}`.trim()
+        : member.email;
+}
 
 /**
  * Props for the CustomFieldsSection component
@@ -40,6 +57,12 @@ export interface CustomFieldsSectionProps {
      * @default false
      */
     isLoading?: boolean;
+
+    /**
+     * Project members to use for USER-type field pickers.
+     * When provided, USER fields render a member select instead of a text input.
+     */
+    projectMembers?: User[];
 }
 
 /**
@@ -49,20 +72,8 @@ export interface CustomFieldsSectionProps {
  * - NUMBER: number input
  * - DATE: date picker
  * - CUSTOM (with options): dropdown select
- * - STRING/USER/TASK/DOCUMENT: text input
- *
- * @example
- * ```tsx
- * const customFieldsHook = useCustomFields(projectId, open)
- *
- * <CustomFieldsSection
- *   customFields={customFieldsHook.customFields}
- *   customFieldValues={customFieldsHook.customFieldValues}
- *   onChange={customFieldsHook.updateCustomFieldValue}
- *   disabled={isLoading}
- *   isLoading={customFieldsHook.isLoadingFields}
- * />
- * ```
+ * - USER (with projectMembers): member select dropdown
+ * - STRING/TASK/DOCUMENT: text input
  */
 export function CustomFieldsSection({
     customFields,
@@ -70,6 +81,7 @@ export function CustomFieldsSection({
     onChange,
     disabled = false,
     isLoading = false,
+    projectMembers,
 }: CustomFieldsSectionProps) {
     /**
      * Render the appropriate input component based on field data type
@@ -104,6 +116,22 @@ export function CustomFieldsSection({
 
             case 'CUSTOM':
                 if (field.customOptions && field.customOptions.length > 0) {
+                    if (field.multiple) {
+                        return (
+                            <MultiSelect
+                                options={field.customOptions.map((opt) => ({
+                                    value: opt,
+                                    label: opt,
+                                }))}
+                                selected={parseMultiValue(value)}
+                                onChange={(vals) =>
+                                    onChange(field.id, JSON.stringify(vals))
+                                }
+                                placeholder={`Select ${field.name.toLowerCase()}`}
+                                disabled={disabled}
+                            />
+                        );
+                    }
                     return (
                         <Select
                             value={value}
@@ -140,8 +168,55 @@ export function CustomFieldsSection({
                     />
                 );
 
-            case 'STRING':
             case 'USER':
+                if (projectMembers && projectMembers.length > 0) {
+                    const selectedMember = projectMembers.find(
+                        (m) => m.id === value,
+                    );
+                    return (
+                        <Select
+                            value={value}
+                            onValueChange={(val) => onChange(field.id, val)}
+                            disabled={disabled}
+                        >
+                            <SelectTrigger
+                                className="w-full"
+                                id={`custom-${field.id}`}
+                            >
+                                <SelectValue
+                                    placeholder={`Select ${field.name.toLowerCase()}`}
+                                >
+                                    {selectedMember
+                                        ? getMemberDisplayName(selectedMember)
+                                        : undefined}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {projectMembers.map((member) => (
+                                    <SelectItem
+                                        key={member.id}
+                                        value={member.id}
+                                    >
+                                        {getMemberDisplayName(member)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    );
+                }
+                // Fallback to text input if no members provided
+                return (
+                    <Input
+                        id={`custom-${field.id}`}
+                        type="text"
+                        value={value}
+                        onChange={(e) => onChange(field.id, e.target.value)}
+                        disabled={disabled}
+                        placeholder={`Enter ${field.name.toLowerCase()}`}
+                    />
+                );
+
+            case 'STRING':
             case 'TASK':
             case 'DOCUMENT':
             default:
@@ -152,7 +227,11 @@ export function CustomFieldsSection({
                         value={value}
                         onChange={(e) => onChange(field.id, e.target.value)}
                         disabled={disabled}
-                        placeholder={`Enter ${field.name.toLowerCase()}`}
+                        placeholder={
+                            field.multiple
+                                ? `Enter ${field.name.toLowerCase()} IDs, comma-separated`
+                                : `Enter ${field.name.toLowerCase()}`
+                        }
                     />
                 );
         }

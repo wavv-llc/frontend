@@ -12,7 +12,6 @@ import {
     Plus,
     CheckCircle2,
     MoreVertical,
-    Edit2,
     Trash2,
     Copy,
     Calendar,
@@ -27,7 +26,16 @@ import {
     CheckSquare,
     Pencil,
     ExternalLink,
+    LayoutTemplate,
 } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { useCustomFieldTemplates } from '@/hooks/useCustomFieldTemplates';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -69,13 +77,17 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
-import { StatusBadge } from '@/components/dashboard/pure-steel/StatusBadge';
-import type { Status as StatusBadgeStatus } from '@/components/dashboard/pure-steel/StatusBadge';
+import {
+    StatusBadge,
+    type Status as StatusBadgeStatus,
+} from '@/components/dashboard/pure-steel/StatusBadge';
 
 export interface TaskListRef {
     startCreatingTask: () => void;
@@ -91,6 +103,7 @@ interface TaskListProps {
     onCustomFieldCreated: () => void;
     onTaskCreated: () => void;
     projectId: string;
+    workspaceId: string;
     members: ApiUser[];
     documents?: OrganizationDocument[];
     groupByField: string | null;
@@ -496,7 +509,6 @@ const EditableHeader = ({
             >
                 {displayValue || placeholder}
             </span>
-            <Pencil className="h-3 w-3 text-muted-foreground/40 opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0 absolute right-0" />
         </div>
     );
 };
@@ -507,12 +519,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             tasks,
             customFields,
             onTaskClick,
-            onTaskEdit,
+            onTaskEdit: _onTaskEdit,
             onTaskDelete,
             onTaskCopy,
             onCustomFieldCreated,
             onTaskCreated,
             projectId,
+            workspaceId,
             members,
             documents = [],
             groupByField,
@@ -522,18 +535,39 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         ref,
     ) => {
         const { getToken } = useAuth();
+        const { saveTemplateFromTask } = useCustomFieldTemplates(workspaceId);
         const [isCreatingField, setIsCreatingField] = useState(false);
         const [fieldName, setFieldName] = useState('');
         const [fieldType, setFieldType] = useState<DataType>('STRING');
         const [showRoleSelection, setShowRoleSelection] = useState(false);
         const [roleName, setRoleName] = useState<string>('');
+        const [selectedApprovalRole, setSelectedApprovalRole] = useState<
+            'NONE' | 'PREPARER' | 'REVIEWER'
+        >('NONE');
+        const [allowMultiple, setAllowMultiple] = useState(false);
         const [isSubmitting, setIsSubmitting] = useState(false);
+
+        const MULTIPLE_SUPPORTED_TYPES: DataType[] = [
+            'USER',
+            'TASK',
+            'DOCUMENT',
+            'CUSTOM',
+        ];
 
         // Delete field state
         const [fieldToDelete, setFieldToDelete] = useState<CustomField | null>(
             null,
         );
         const [isDeletingField, setIsDeletingField] = useState(false);
+
+        // Filter popover state - tracks which field's filter is open
+        const [activeFilterFieldId, setActiveFilterFieldId] = useState<
+            string | null
+        >(null);
+
+        // Save-as-template state
+        const [templateTask, setTemplateTask] = useState<Task | null>(null);
+        const [templateName, setTemplateName] = useState('');
 
         // Optimistic updates: store pending field value changes
         // Key format: "taskId:fieldId" -> value
@@ -775,6 +809,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
         const handleFieldTypeSelect = (type: DataType) => {
             setFieldType(type);
+            setAllowMultiple(false);
             if (type === 'USER') {
                 setShowRoleSelection(true);
             } else {
@@ -815,13 +850,24 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     name: fieldName.trim(),
                     dataType: fieldType,
                     customOptions: customOptions || statusOptions,
+                    multiple:
+                        MULTIPLE_SUPPORTED_TYPES.includes(fieldType) &&
+                        selectedApprovalRole === 'NONE'
+                            ? allowMultiple
+                            : false,
+                    ...(fieldType === 'USER' &&
+                        selectedApprovalRole !== 'NONE' && {
+                            approvalRole: selectedApprovalRole,
+                        }),
                 });
 
                 toast.success('Custom field created successfully');
                 setFieldName('');
                 setFieldType('STRING');
                 setRoleName('');
+                setSelectedApprovalRole('NONE');
                 setShowRoleSelection(false);
+                setAllowMultiple(false);
                 setIsCreatingField(false);
                 onCustomFieldCreated();
             } catch (error) {
@@ -836,7 +882,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             setFieldName('');
             setFieldType('STRING');
             setRoleName('');
+            setSelectedApprovalRole('NONE');
             setShowRoleSelection(false);
+            setAllowMultiple(false);
             setIsCreatingField(false);
         };
 
@@ -901,11 +949,42 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         };
 
+        const parseMultiValue = (value: string | null): string[] => {
+            if (!value) return [];
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [value];
+            } catch {
+                return value ? [value] : [];
+            }
+        };
+
         const renderCustomFieldCell = (task: Task, field: CustomField) => {
             const value = getCustomFieldValue(task, field);
 
             if (field.dataType === 'CUSTOM') {
-                // Status dropdown
+                if (field.multiple) {
+                    const selected = parseMultiValue(value);
+                    return (
+                        <MultiSelect
+                            options={(field.customOptions || []).map((opt) => ({
+                                value: opt,
+                                label: opt,
+                            }))}
+                            selected={selected}
+                            onChange={(vals) =>
+                                handleUpdateCustomField(
+                                    task,
+                                    field.id,
+                                    JSON.stringify(vals),
+                                )
+                            }
+                            placeholder="-"
+                            className="h-7 border-none shadow-none bg-transparent hover:bg-muted/50 text-xs"
+                        />
+                    );
+                }
+                // Status dropdown (single)
                 return (
                     <Select
                         value={value || ''}
@@ -934,7 +1013,30 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
 
             if (field.dataType === 'USER') {
-                // User dropdown
+                if (field.multiple) {
+                    const selected = parseMultiValue(value);
+                    return (
+                        <MultiSelect
+                            options={uniqueMembers.map((m) => ({
+                                value: m.id,
+                                label: m.firstName
+                                    ? `${m.firstName} ${m.lastName || ''}`
+                                    : m.email,
+                            }))}
+                            selected={selected}
+                            onChange={(vals) =>
+                                handleUpdateCustomField(
+                                    task,
+                                    field.id,
+                                    JSON.stringify(vals),
+                                )
+                            }
+                            placeholder="-"
+                            className="h-7 border-none shadow-none bg-transparent hover:bg-muted/50 text-xs"
+                        />
+                    );
+                }
+                // User dropdown (single)
                 const selectedMember = uniqueMembers.find(
                     (m) => m.id === value,
                 );
@@ -1010,7 +1112,28 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
 
             if (field.dataType === 'TASK') {
-                // Task dropdown
+                if (field.multiple) {
+                    const selected = parseMultiValue(value);
+                    return (
+                        <MultiSelect
+                            options={tasks.map((t) => ({
+                                value: t.id,
+                                label: t.name,
+                            }))}
+                            selected={selected}
+                            onChange={(vals) =>
+                                handleUpdateCustomField(
+                                    task,
+                                    field.id,
+                                    JSON.stringify(vals),
+                                )
+                            }
+                            placeholder="-"
+                            className="h-7 border-none shadow-none bg-transparent hover:bg-muted/50 text-xs"
+                        />
+                    );
+                }
+                // Task dropdown (single)
                 const selectedTask = tasks.find((t) => t.id === value);
 
                 return (
@@ -1063,7 +1186,28 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
 
             if (field.dataType === 'DOCUMENT') {
-                // Document dropdown
+                if (field.multiple) {
+                    const selected = parseMultiValue(value);
+                    return (
+                        <MultiSelect
+                            options={documents.map((d) => ({
+                                value: d.id,
+                                label: d.originalName || d.filename,
+                            }))}
+                            selected={selected}
+                            onChange={(vals) =>
+                                handleUpdateCustomField(
+                                    task,
+                                    field.id,
+                                    JSON.stringify(vals),
+                                )
+                            }
+                            placeholder="-"
+                            className="h-7 border-none shadow-none bg-transparent hover:bg-muted/50 text-xs"
+                        />
+                    );
+                }
+                // Document dropdown (single)
                 const selectedDoc = documents.find((d) => d.id === value);
 
                 return (
@@ -1200,6 +1344,88 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+
+                {/* Save as Template Dialog */}
+                <Dialog
+                    open={!!templateTask}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setTemplateTask(null);
+                            setTemplateName('');
+                        }
+                    }}
+                >
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle>Save as Template</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-3 space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                                {(templateTask?.customFieldValues?.length ??
+                                    0) > 0
+                                    ? `Saves ${templateTask?.customFieldValues?.filter((cfv) => cfv.value?.trim()).length ?? 0} custom field value(s) from "${templateTask?.name}".`
+                                    : `"${templateTask?.name}" has no custom field values — the template will be saved empty.`}
+                            </p>
+                            <input
+                                type="text"
+                                value={templateName}
+                                onChange={(e) =>
+                                    setTemplateName(e.target.value)
+                                }
+                                placeholder="Template name..."
+                                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background outline-none focus:ring-1 focus:ring-ring"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (
+                                        e.key === 'Enter' &&
+                                        templateName.trim()
+                                    ) {
+                                        saveTemplateFromTask(
+                                            templateName.trim(),
+                                            undefined,
+                                            templateTask?.customFieldValues ??
+                                                [],
+                                        );
+                                        toast.success(
+                                            `Template "${templateName.trim()}" saved`,
+                                        );
+                                        setTemplateTask(null);
+                                        setTemplateName('');
+                                    }
+                                }}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    setTemplateTask(null);
+                                    setTemplateName('');
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                disabled={!templateName.trim()}
+                                onClick={() => {
+                                    if (!templateName.trim()) return;
+                                    saveTemplateFromTask(
+                                        templateName.trim(),
+                                        undefined,
+                                        templateTask?.customFieldValues ?? [],
+                                    );
+                                    toast.success(
+                                        `Template "${templateName.trim()}" saved`,
+                                    );
+                                    setTemplateTask(null);
+                                    setTemplateName('');
+                                }}
+                            >
+                                Save Template
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 <div className="flex-1 overflow-auto relative scroll-smooth">
                     <div className="min-w-max h-full">
@@ -1364,7 +1590,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 return (
                                     <div
                                         key={field.id}
-                                        className="w-[150px] shrink-0 px-4 py-2.5 border-r border-dashboard-border flex items-center justify-between bg-[#f8f9fb] group"
+                                        className="w-[150px] shrink-0 px-4 py-2.5 border-r border-dashboard-border flex items-center gap-2 bg-[#f8f9fb] group relative"
                                     >
                                         <div className="flex flex-col min-w-0 flex-1 overflow-visible">
                                             <div className="min-w-0 overflow-visible">
@@ -1381,102 +1607,154 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                 />
                                             </div>
                                             {field.dataType === 'USER' &&
-                                                field.customOptions?.[0] && (
-                                                    <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
-                                                        {field.customOptions[0]}
-                                                    </span>
-                                                )}
+                                            field.approvalRole &&
+                                            field.approvalRole !== 'NONE' ? (
+                                                <span className="text-[10px] text-blue-500/80 pl-5 truncate font-normal mt-0.5">
+                                                    {field.approvalRole ===
+                                                    'PREPARER'
+                                                        ? 'Preparer'
+                                                        : field.reviewerOrder !==
+                                                            null
+                                                          ? `Reviewer ${field.reviewerOrder}`
+                                                          : 'Reviewer'}
+                                                </span>
+                                            ) : field.dataType === 'USER' &&
+                                              field.customOptions?.[0] ? (
+                                                <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
+                                                    {field.customOptions[0]}
+                                                </span>
+                                            ) : null}
                                         </div>
-                                        <div className="flex items-center gap-0.5">
-                                            {showFilter && (
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className={cn(
-                                                                'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
+
+                                        {/* Single actions dropdown — replaces crowded filter+delete+pencil */}
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={cn(
+                                                        'h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
+                                                        columnFilters[
+                                                            field.id
+                                                        ] &&
+                                                            'opacity-100 text-accent-blue',
+                                                    )}
+                                                    onClick={(e) =>
+                                                        e.stopPropagation()
+                                                    }
+                                                >
+                                                    <MoreVertical className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                                align="end"
+                                                className="w-40"
+                                            >
+                                                {showFilter && (
+                                                    <DropdownMenuItem
+                                                        onSelect={() =>
+                                                            setActiveFilterFieldId(
+                                                                field.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Filter className="h-3.5 w-3.5 mr-2" />
+                                                        Filter
+                                                        {columnFilters[
+                                                            field.id
+                                                        ] && (
+                                                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5a7f9a] shrink-0" />
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                    onSelect={() =>
+                                                        setFieldToDelete(field)
+                                                    }
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                                    Delete field
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+
+                                        {/* Controlled filter popover anchored to this header cell */}
+                                        {showFilter && (
+                                            <Popover
+                                                open={
+                                                    activeFilterFieldId ===
+                                                    field.id
+                                                }
+                                                onOpenChange={(open) => {
+                                                    if (!open)
+                                                        setActiveFilterFieldId(
+                                                            null,
+                                                        );
+                                                }}
+                                            >
+                                                <PopoverTrigger asChild>
+                                                    <span className="absolute inset-0 pointer-events-none" />
+                                                </PopoverTrigger>
+                                                <PopoverContent
+                                                    className="w-56 p-2"
+                                                    align="end"
+                                                    side="bottom"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <h4 className="font-medium text-xs text-muted-foreground">
+                                                                Filter{' '}
+                                                                {field.name}
+                                                            </h4>
+                                                            {columnFilters[
+                                                                field.id
+                                                            ] && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-4 w-4"
+                                                                    onClick={() =>
+                                                                        onColumnFilterChange(
+                                                                            field.id,
+                                                                            '',
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                            placeholder={
+                                                                field.dataType ===
+                                                                'DATE'
+                                                                    ? 'YYYY-MM-DD'
+                                                                    : 'Contains...'
+                                                            }
+                                                            value={
                                                                 columnFilters[
                                                                     field.id
-                                                                ] &&
-                                                                    'opacity-100 text-accent-blue',
-                                                            )}
-                                                            onClick={(e) =>
-                                                                e.stopPropagation()
+                                                                ]?.value || ''
                                                             }
-                                                        >
-                                                            <Filter className="h-3 w-3" />
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-56 p-2">
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <h4 className="font-medium text-xs text-muted-foreground">
-                                                                    Filter{' '}
-                                                                    {field.name}
-                                                                </h4>
-                                                                {columnFilters[
-                                                                    field.id
-                                                                ] && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-4 w-4"
-                                                                        onClick={() =>
-                                                                            onColumnFilterChange(
-                                                                                field.id,
-                                                                                '',
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <X className="h-3 w-3" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                            <input
-                                                                className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                                placeholder={
+                                                            onChange={(e) =>
+                                                                onColumnFilterChange(
+                                                                    field.id,
+                                                                    e.target
+                                                                        .value,
                                                                     field.dataType ===
-                                                                    'DATE'
-                                                                        ? 'YYYY-MM-DD'
-                                                                        : 'Contains...'
-                                                                }
-                                                                value={
-                                                                    columnFilters[
-                                                                        field.id
-                                                                    ]?.value ||
-                                                                    ''
-                                                                }
-                                                                onChange={(e) =>
-                                                                    onColumnFilterChange(
-                                                                        field.id,
-                                                                        e.target
-                                                                            .value,
-                                                                        field.dataType ===
-                                                                            'DATE'
-                                                                            ? 'date'
-                                                                            : 'text',
-                                                                    )
-                                                                }
-                                                                autoFocus
-                                                            />
-                                                        </div>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            )}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-dashboard-bg hover:text-destructive rounded"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setFieldToDelete(field);
-                                                }}
-                                                title={`Delete "${field.name}" field`}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
+                                                                        'DATE'
+                                                                        ? 'date'
+                                                                        : 'text',
+                                                                )
+                                                            }
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -1598,6 +1876,29 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         </div>
                                                     </div>
 
+                                                    {MULTIPLE_SUPPORTED_TYPES.includes(
+                                                        fieldType,
+                                                    ) && (
+                                                        <div className="flex items-center justify-between py-2 border-t">
+                                                            <Label
+                                                                htmlFor="allow-multiple"
+                                                                className="text-sm font-normal cursor-pointer"
+                                                            >
+                                                                Allow multiple
+                                                                values
+                                                            </Label>
+                                                            <Switch
+                                                                id="allow-multiple"
+                                                                checked={
+                                                                    allowMultiple
+                                                                }
+                                                                onCheckedChange={
+                                                                    setAllowMultiple
+                                                                }
+                                                            />
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex gap-2 pt-2">
                                                         <Button
                                                             onClick={() => {
@@ -1641,10 +1942,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             ) : (
                                                 <div>
                                                     <Label htmlFor="role-name">
-                                                        Role name
+                                                        Display label
                                                     </Label>
                                                     <p className="text-xs text-muted-foreground mt-1 mb-2">
-                                                        Enter any role, e.g.
+                                                        e.g.
                                                         &quot;Preparer&quot;,
                                                         &quot;Reviewer&quot;,
                                                         &quot;Manager&quot;
@@ -1658,7 +1959,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 e.target.value,
                                                             )
                                                         }
-                                                        placeholder="Role name..."
+                                                        placeholder="Label..."
                                                         className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:ring-0 focus:border-ring"
                                                         autoFocus
                                                         onKeyDown={(e) => {
@@ -1671,6 +1972,53 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                             }
                                                         }}
                                                     />
+                                                    <div className="mt-4">
+                                                        <Label className="text-xs">
+                                                            Approval role
+                                                        </Label>
+                                                        <p className="text-xs text-muted-foreground mt-1 mb-2">
+                                                            Link to approval
+                                                            workflow (optional)
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {(
+                                                                [
+                                                                    {
+                                                                        value: 'NONE',
+                                                                        label: 'None',
+                                                                    },
+                                                                    {
+                                                                        value: 'PREPARER',
+                                                                        label: 'Preparer',
+                                                                    },
+                                                                    {
+                                                                        value: 'REVIEWER',
+                                                                        label: 'Reviewer',
+                                                                    },
+                                                                ] as const
+                                                            ).map((opt) => (
+                                                                <button
+                                                                    key={
+                                                                        opt.value
+                                                                    }
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setSelectedApprovalRole(
+                                                                            opt.value,
+                                                                        )
+                                                                    }
+                                                                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                                                                        selectedApprovalRole ===
+                                                                        opt.value
+                                                                            ? 'bg-primary text-primary-foreground border-primary'
+                                                                            : 'bg-background text-muted-foreground border-border hover:border-ring'
+                                                                    }`}
+                                                                >
+                                                                    {opt.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                     <div className="flex gap-2 pt-4">
                                                         <Button
                                                             onClick={
@@ -1926,20 +2274,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           e,
                                                                                       ) => {
                                                                                           e.stopPropagation();
-                                                                                          onTaskEdit(
-                                                                                              task,
-                                                                                          );
-                                                                                      }}
-                                                                                  >
-                                                                                      <Edit2 className="h-4 w-4 mr-2" />
-                                                                                      Edit
-                                                                                      Task
-                                                                                  </DropdownMenuItem>
-                                                                                  <DropdownMenuItem
-                                                                                      onClick={(
-                                                                                          e,
-                                                                                      ) => {
-                                                                                          e.stopPropagation();
                                                                                           onTaskCopy(
                                                                                               task,
                                                                                           );
@@ -1948,6 +2282,24 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                       <Copy className="h-4 w-4 mr-2" />
                                                                                       Copy
                                                                                       Task
+                                                                                  </DropdownMenuItem>
+                                                                                  <DropdownMenuItem
+                                                                                      onClick={(
+                                                                                          e,
+                                                                                      ) => {
+                                                                                          e.stopPropagation();
+                                                                                          setTemplateTask(
+                                                                                              task,
+                                                                                          );
+                                                                                          setTemplateName(
+                                                                                              '',
+                                                                                          );
+                                                                                      }}
+                                                                                  >
+                                                                                      <LayoutTemplate className="h-4 w-4 mr-2" />
+                                                                                      Save
+                                                                                      as
+                                                                                      Template
                                                                                   </DropdownMenuItem>
                                                                                   <DropdownMenuSeparator />
                                                                                   <DropdownMenuItem
@@ -2075,20 +2427,25 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       <DropdownMenuItem
                                                           onClick={(e) => {
                                                               e.stopPropagation();
-                                                              onTaskEdit(task);
-                                                          }}
-                                                      >
-                                                          <Edit2 className="h-4 w-4 mr-2" />
-                                                          Edit Task
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem
-                                                          onClick={(e) => {
-                                                              e.stopPropagation();
                                                               onTaskCopy(task);
                                                           }}
                                                       >
                                                           <Copy className="h-4 w-4 mr-2" />
                                                           Copy Task
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem
+                                                          onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              setTemplateTask(
+                                                                  task,
+                                                              );
+                                                              setTemplateName(
+                                                                  '',
+                                                              );
+                                                          }}
+                                                      >
+                                                          <LayoutTemplate className="h-4 w-4 mr-2" />
+                                                          Save as Template
                                                       </DropdownMenuItem>
                                                       <DropdownMenuSeparator />
                                                       <DropdownMenuItem

@@ -90,23 +90,28 @@ export function TaskRow({
             </div>
 
             <div className="w-[120px] shrink-0 flex items-center -space-x-2">
-                {(task.preparers || []).length > 0 ? (
-                    (task.preparers || []).slice(0, 3).map((user, i) => (
-                        <Avatar
-                            key={i}
-                            className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white"
-                        >
-                            <AvatarFallback className="text-[10px] bg-muted text-foreground font-medium">
-                                {user.firstName?.[0] ||
-                                    user.email[0].toUpperCase()}
-                            </AvatarFallback>
-                        </Avatar>
-                    ))
-                ) : (
-                    <span className="text-xs text-muted-foreground/40 italic">
-                        Unassigned
-                    </span>
-                )}
+                {(() => {
+                    const preparers = (task.approvalChain ?? [])
+                        .filter((e) => e.role === 'PREPARER' && e.user)
+                        .map((e) => e.user!);
+                    return preparers.length > 0 ? (
+                        preparers.slice(0, 3).map((user, i) => (
+                            <Avatar
+                                key={i}
+                                className="h-7 w-7 border-2 border-white ring-1 ring-border/50 bg-white"
+                            >
+                                <AvatarFallback className="text-[10px] bg-muted text-foreground font-medium">
+                                    {user.firstName?.[0] ||
+                                        user.email[0].toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                        ))
+                    ) : (
+                        <span className="text-xs text-muted-foreground/40 italic">
+                            Unassigned
+                        </span>
+                    );
+                })()}
             </div>
 
             {/* Custom Field Values */}

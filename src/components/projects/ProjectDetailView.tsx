@@ -8,7 +8,7 @@ import {
     useCallback,
     useMemo,
 } from 'react';
-import type { TaskListRef } from './TaskList';
+
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Calendar as CalendarIcon,
@@ -29,13 +29,13 @@ import {
     Activity,
     Bell,
     Lock,
-    GitBranch,
     Archive,
     ExternalLink,
     ChevronLeft,
     ChevronRight,
     LayoutGrid,
     Loader2,
+    LayoutTemplate,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -53,9 +53,9 @@ import {
     type CalendarEvent,
 } from '@/components/dashboard/pure-steel/CalendarSection';
 import { TaskDetailView } from '@/components/tasks/TaskDetailView';
-import { TaskList } from './TaskList';
-import { ApprovalWorkflowDialog } from './ApprovalWorkflowDialog';
+import { TaskList, type TaskListRef } from './TaskList';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
+import { ManageTemplatesDialog } from '@/components/dialogs/ManageTemplatesDialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -559,6 +559,8 @@ export function ProjectDetailView({
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [editTaskOpen, setEditTaskOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+    // Templates
+    const [templatesOpen, setTemplatesOpen] = useState(false);
     // Import modal
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
@@ -579,8 +581,6 @@ export function ProjectDetailView({
     } = usePreferences();
     // Permissions modal
     const [permissionsOpen, setPermissionsOpen] = useState(false);
-    // Approval workflow modal
-    const [workflowOpen, setWorkflowOpen] = useState(false);
     const [projectVisibility, setProjectVisibility] = useState<
         'private' | 'team' | 'public'
     >('team');
@@ -1186,12 +1186,6 @@ export function ProjectDetailView({
                                 <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
                                 <span>Permissions</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => setWorkflowOpen(true)}
-                            >
-                                <GitBranch className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Approval Workflow</span>
-                            </DropdownMenuItem>
 
                             <DropdownMenuSeparator />
 
@@ -1360,6 +1354,16 @@ export function ProjectDetailView({
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                            onClick={() => setTemplatesOpen(true)}
+                        >
+                            <LayoutTemplate className="h-3.5 w-3.5" />
+                            Templates
+                        </Button>
                     </div>
                 </div>
             )}
@@ -1386,6 +1390,7 @@ export function ProjectDetailView({
                                     onCustomFieldCreated={fetchCustomFields}
                                     onTaskCreated={onRefresh}
                                     projectId={project.id}
+                                    workspaceId={project.workspaceId}
                                     members={Array.from(
                                         new Map(
                                             [
@@ -1445,6 +1450,13 @@ export function ProjectDetailView({
                     onSuccess={onRefresh}
                 />
             )}
+
+            {/* Manage Templates Dialog */}
+            <ManageTemplatesDialog
+                open={templatesOpen}
+                onOpenChange={setTemplatesOpen}
+                workspaceId={project.workspaceId}
+            />
 
             {/* Import Tasks Dialog (#9) */}
             <Dialog
@@ -1936,14 +1948,6 @@ export function ProjectDetailView({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            <ApprovalWorkflowDialog
-                open={workflowOpen}
-                onOpenChange={setWorkflowOpen}
-                projectId={localProject.id}
-                projectMembers={localProject.members}
-                projectOwners={localProject.owners}
-            />
         </div>
     );
 }
