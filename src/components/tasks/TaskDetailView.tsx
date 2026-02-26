@@ -1,6 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+    useMemo,
+    forwardRef,
+    useImperativeHandle,
+} from 'react';
 import {
     ArrowLeft,
     MoreVertical,
@@ -102,6 +110,264 @@ function approvalStatusLabel(
     return status;
 }
 
+// ─── Comment formatting helpers ────────────────────────────────────────────────
+function sanitizeCommentHtml(html: string): string {
+    if (typeof window === 'undefined') return html;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    div.querySelectorAll('script, iframe, object, embed, form').forEach((el) =>
+        el.remove(),
+    );
+    div.querySelectorAll('*').forEach((el) => {
+        Array.from(el.attributes).forEach((attr) => {
+            if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+            if (
+                (attr.name === 'href' || attr.name === 'src') &&
+                /^(javascript|data):/i.test(attr.value.replace(/\s/g, ''))
+            ) {
+                el.removeAttribute(attr.name);
+            }
+        });
+    });
+    return div.innerHTML;
+}
+
+const COMMENT_COLORS = [
+    { label: 'Default', value: '#111827', bg: 'bg-gray-900' },
+    { label: 'Red', value: '#ef4444', bg: 'bg-red-500' },
+    { label: 'Blue', value: '#3b82f6', bg: 'bg-blue-500' },
+    { label: 'Green', value: '#22c55e', bg: 'bg-green-500' },
+    { label: 'Orange', value: '#f97316', bg: 'bg-orange-500' },
+    { label: 'Purple', value: '#a855f7', bg: 'bg-purple-500' },
+] as const;
+
+interface RichEditorHandle {
+    clear: () => void;
+    focus: () => void;
+}
+
+const RichCommentEditor = forwardRef<
+    RichEditorHandle,
+    {
+        onContentChange: (html: string, isEmpty: boolean) => void;
+        onSubmit?: () => void;
+        onCancel?: () => void;
+        onFocus?: () => void;
+        onBlur?: (isEmpty: boolean) => void;
+        placeholder?: string;
+        showToolbar?: boolean;
+    }
+>(function RichCommentEditor(
+    {
+        onContentChange,
+        onSubmit,
+        onCancel,
+        onFocus,
+        onBlur,
+        placeholder,
+        showToolbar,
+    },
+    ref,
+) {
+    const divRef = useRef<HTMLDivElement>(null);
+    const [isEmpty, setIsEmpty] = useState(true);
+    const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+    const [colorOpen, setColorOpen] = useState(false);
+
+    useImperativeHandle(ref, () => ({
+        clear: () => {
+            if (divRef.current) {
+                divRef.current.innerHTML = '';
+                setIsEmpty(true);
+                onContentChange('', true);
+            }
+        },
+        focus: () => divRef.current?.focus(),
+    }));
+
+    const syncFormats = useCallback(() => {
+        const fmts = new Set<string>();
+        if (document.queryCommandState('bold')) fmts.add('bold');
+        if (document.queryCommandState('underline')) fmts.add('underline');
+        if (document.queryCommandState('strikeThrough'))
+            fmts.add('strikeThrough');
+        setActiveFormats(fmts);
+    }, []);
+
+    const execFormat = useCallback(
+        (cmd: string, val?: string) => {
+            divRef.current?.focus();
+            document.execCommand(cmd, false, val);
+            syncFormats();
+            const html = divRef.current?.innerHTML ?? '';
+            const empty = !divRef.current?.textContent?.trim();
+            onContentChange(html, empty);
+        },
+        [syncFormats, onContentChange],
+    );
+
+    const handleInput = useCallback(() => {
+        const el = divRef.current;
+        if (!el) return;
+        const html = el.innerHTML;
+        const empty = !el.textContent?.trim();
+        setIsEmpty(empty);
+        syncFormats();
+        onContentChange(html, empty);
+    }, [syncFormats, onContentChange]);
+
+    const handlePaste = useCallback(
+        (e: React.ClipboardEvent) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            document.execCommand('insertText', false, text);
+            handleInput();
+        },
+        [handleInput],
+    );
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            const mod = e.metaKey || e.ctrlKey;
+            if (mod && e.key === 'Enter') {
+                e.preventDefault();
+                onSubmit?.();
+                return;
+            }
+            if (e.key === 'Escape') {
+                onCancel?.();
+                return;
+            }
+            if (mod && e.key === 'b') {
+                e.preventDefault();
+                execFormat('bold');
+            }
+            if (mod && e.key === 'u') {
+                e.preventDefault();
+                execFormat('underline');
+            }
+        },
+        [execFormat, onSubmit, onCancel],
+    );
+
+    const fmtBtnCls = (active: boolean) =>
+        cn(
+            'h-6 w-6 inline-flex items-center justify-center rounded transition-colors',
+            active
+                ? 'bg-accent-subtle text-accent-blue'
+                : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+        );
+
+    return (
+        <div className="flex-1 min-w-0">
+            {/* Editable area */}
+            <div className="relative">
+                {isEmpty && placeholder && (
+                    <span className="absolute inset-0 text-sm text-dashboard-text-muted pointer-events-none select-none">
+                        {placeholder}
+                    </span>
+                )}
+                <div
+                    ref={divRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={handleInput}
+                    onPaste={handlePaste}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={syncFormats}
+                    onMouseUp={syncFormats}
+                    onFocus={onFocus}
+                    onBlur={() => onBlur?.(isEmpty)}
+                    className="text-sm outline-none text-dashboard-text-body leading-relaxed min-h-5"
+                />
+            </div>
+
+            {/* Formatting toolbar */}
+            {showToolbar && (
+                <div className="flex items-center gap-0.5 mt-2 pt-1.5 border-t border-dashboard-border/50">
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            execFormat('bold');
+                        }}
+                        title="Bold (⌘B)"
+                        className={fmtBtnCls(activeFormats.has('bold'))}
+                    >
+                        <span className="text-xs font-bold">B</span>
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            execFormat('underline');
+                        }}
+                        title="Underline (⌘U)"
+                        className={fmtBtnCls(activeFormats.has('underline'))}
+                    >
+                        <span className="text-xs underline">U</span>
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            execFormat('strikeThrough');
+                        }}
+                        title="Strikethrough"
+                        className={fmtBtnCls(
+                            activeFormats.has('strikeThrough'),
+                        )}
+                    >
+                        <span className="text-xs line-through">S</span>
+                    </button>
+                    <Popover open={colorOpen} onOpenChange={setColorOpen}>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                title="Text color"
+                                className={fmtBtnCls(false)}
+                            >
+                                <span className="text-xs font-semibold">A</span>
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            className="w-auto p-2"
+                            side="top"
+                            align="start"
+                        >
+                            <p className="text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wider">
+                                Color
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                                {COMMENT_COLORS.map((color) => (
+                                    <button
+                                        key={color.value}
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            execFormat(
+                                                'foreColor',
+                                                color.value,
+                                            );
+                                            setColorOpen(false);
+                                        }}
+                                        title={color.label}
+                                        className={cn(
+                                            'h-5 w-5 rounded-full border-2 border-transparent transition-all hover:scale-110 hover:border-dashboard-border',
+                                            color.bg,
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            )}
+        </div>
+    );
+});
+
 // ─── Props ─────────────────────────────────────────────────────────────────────
 interface TaskDetailViewProps {
     task: Task;
@@ -132,10 +398,11 @@ export function TaskDetailView({
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [newCommentContent, setNewCommentContent] = useState('');
+    const [isNewCommentEmpty, setIsNewCommentEmpty] = useState(true);
     const [isCreatingThread, setIsCreatingThread] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isApprovalLoading, setIsApprovalLoading] = useState(false);
-    const newThreadInputRef = useRef<HTMLInputElement>(null);
+    const newThreadInputRef = useRef<RichEditorHandle>(null);
 
     // ── Approval workflow derived values ──────────────────────────────────────
     const workflowSteps = task.project?.approvalWorkflowSteps ?? [];
@@ -445,7 +712,7 @@ export function TaskDetailView({
     };
 
     const handleCreateComment = async () => {
-        if (!newCommentContent.trim()) return;
+        if (isNewCommentEmpty) return;
 
         try {
             setIsSubmitting(true);
@@ -458,6 +725,8 @@ export function TaskDetailView({
                 comment: newCommentContent,
             });
             toast.success('Thread started');
+            newThreadInputRef.current?.clear();
+            setIsNewCommentEmpty(true);
             setNewCommentContent('');
             setIsCreatingThread(false);
             loadComments();
@@ -816,68 +1085,67 @@ export function TaskDetailView({
                             <div className="border-t border-dashboard-border/60 px-4 py-3 bg-accent-subtle/20">
                                 <div
                                     className={cn(
-                                        'flex items-center gap-3 rounded-lg border px-3.5 py-2.5 transition-all duration-150',
+                                        'rounded-lg border px-3.5 py-2.5 transition-all duration-150 cursor-text',
                                         isCreatingThread
                                             ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface shadow-sm'
                                             : 'border-dashboard-border bg-dashboard-surface hover:border-accent-blue/25',
                                     )}
+                                    onClick={() => {
+                                        if (!isCreatingThread)
+                                            newThreadInputRef.current?.focus();
+                                    }}
                                 >
-                                    <div className="h-7 w-7 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center shrink-0">
-                                        <MessageSquare className="h-3 w-3 text-accent-blue/60" />
+                                    <div className="flex items-start gap-3">
+                                        <div className="h-7 w-7 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center shrink-0 mt-0.5">
+                                            <MessageSquare className="h-3 w-3 text-accent-blue/60" />
+                                        </div>
+                                        <RichCommentEditor
+                                            ref={newThreadInputRef}
+                                            onContentChange={(html, empty) => {
+                                                setNewCommentContent(html);
+                                                setIsNewCommentEmpty(empty);
+                                            }}
+                                            onFocus={() =>
+                                                setIsCreatingThread(true)
+                                            }
+                                            onBlur={(empty) => {
+                                                if (empty)
+                                                    setIsCreatingThread(false);
+                                            }}
+                                            onSubmit={handleCreateComment}
+                                            onCancel={() => {
+                                                newThreadInputRef.current?.clear();
+                                                setIsCreatingThread(false);
+                                            }}
+                                            placeholder="Start a new thread…"
+                                            showToolbar={isCreatingThread}
+                                        />
+                                        {isCreatingThread && (
+                                            <div className="flex items-center gap-1 shrink-0 self-end">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                                                    tabIndex={-1}
+                                                >
+                                                    <Paperclip className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    size="icon"
+                                                    className="h-7 w-7 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
+                                                    onClick={
+                                                        handleCreateComment
+                                                    }
+                                                    disabled={
+                                                        isNewCommentEmpty ||
+                                                        isSubmitting
+                                                    }
+                                                >
+                                                    <ArrowUp className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <input
-                                        ref={newThreadInputRef}
-                                        value={newCommentContent}
-                                        onChange={(e) =>
-                                            setNewCommentContent(e.target.value)
-                                        }
-                                        onFocus={() =>
-                                            setIsCreatingThread(true)
-                                        }
-                                        onBlur={() => {
-                                            if (!newCommentContent.trim())
-                                                setIsCreatingThread(false);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (
-                                                (e.metaKey || e.ctrlKey) &&
-                                                e.key === 'Enter'
-                                            ) {
-                                                e.preventDefault();
-                                                handleCreateComment();
-                                            }
-                                            if (e.key === 'Escape') {
-                                                setNewCommentContent('');
-                                                setIsCreatingThread(false);
-                                                newThreadInputRef.current?.blur();
-                                            }
-                                        }}
-                                        placeholder="Start a new thread…"
-                                        className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-dashboard-text-muted text-dashboard-text-body"
-                                    />
-                                    {isCreatingThread && (
-                                        <>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 shrink-0 text-dashboard-text-muted hover:text-dashboard-text-primary"
-                                                tabIndex={-1}
-                                            >
-                                                <Paperclip className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                size="icon"
-                                                className="h-7 w-7 shrink-0 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
-                                                onClick={handleCreateComment}
-                                                disabled={
-                                                    !newCommentContent.trim() ||
-                                                    isSubmitting
-                                                }
-                                            >
-                                                <ArrowUp className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1298,9 +1566,12 @@ function CommentBubble({
                 </div>
 
                 {/* Body */}
-                <div className="text-sm text-dashboard-text-body leading-relaxed whitespace-pre-wrap wrap-break-word">
-                    {commentContent}
-                </div>
+                <div
+                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through"
+                    dangerouslySetInnerHTML={{
+                        __html: sanitizeCommentHtml(commentContent),
+                    }}
+                />
 
                 {/* Reaction pills */}
                 {Object.keys(reactionGroups).length > 0 && (
@@ -1440,9 +1711,10 @@ function CommentThread({
 }) {
     const { getToken } = useAuth();
     const [replyContent, setReplyContent] = useState('');
+    const [isReplyEmpty, setIsReplyEmpty] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReplyFocused, setIsReplyFocused] = useState(false);
-    const replyInputRef = useRef<HTMLInputElement>(null);
+    const replyInputRef = useRef<RichEditorHandle>(null);
 
     const isResolved = comment.status === 'RESOLVED';
     const replies = comment.replies ?? [];
@@ -1495,7 +1767,7 @@ function CommentThread({
     };
 
     const handleReply = async () => {
-        if (!replyContent.trim()) return;
+        if (isReplyEmpty) return;
         try {
             setIsSubmitting(true);
             const token = await getToken();
@@ -1508,6 +1780,7 @@ function CommentThread({
                 parentId: comment.id,
             });
             toast.success('Reply added');
+            replyInputRef.current?.clear();
             setReplyContent('');
             setIsReplyFocused(false);
             onUpdate();
@@ -1599,62 +1872,57 @@ function CommentThread({
                 <div className="flex items-center gap-3 ml-11 mt-1">
                     <div
                         className={cn(
-                            'flex-1 flex items-center gap-2 rounded-lg border px-3 transition-all duration-150',
+                            'flex-1 rounded-lg border px-3 py-2 transition-all duration-150 cursor-text',
                             isReplyFocused
                                 ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface'
                                 : 'border-transparent bg-muted/40 hover:border-dashboard-border',
                         )}
+                        onClick={() => {
+                            if (!isReplyFocused) replyInputRef.current?.focus();
+                        }}
                     >
-                        <input
-                            ref={replyInputRef}
-                            value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
-                            onFocus={() => setIsReplyFocused(true)}
-                            onBlur={() => {
-                                if (!replyContent.trim())
+                        <div className="flex items-start gap-2">
+                            <RichCommentEditor
+                                ref={replyInputRef}
+                                onContentChange={(html, empty) => {
+                                    setReplyContent(html);
+                                    setIsReplyEmpty(empty);
+                                }}
+                                onFocus={() => setIsReplyFocused(true)}
+                                onBlur={(empty) => {
+                                    if (empty) setIsReplyFocused(false);
+                                }}
+                                onSubmit={handleReply}
+                                onCancel={() => {
+                                    replyInputRef.current?.clear();
                                     setIsReplyFocused(false);
-                            }}
-                            onKeyDown={(e) => {
-                                if (
-                                    (e.metaKey || e.ctrlKey) &&
-                                    e.key === 'Enter'
-                                ) {
-                                    e.preventDefault();
-                                    handleReply();
-                                }
-                                if (e.key === 'Escape') {
-                                    setReplyContent('');
-                                    setIsReplyFocused(false);
-                                    replyInputRef.current?.blur();
-                                }
-                            }}
-                            placeholder="Leave a reply…"
-                            className="flex-1 text-sm bg-transparent border-none outline-none py-2 placeholder:text-muted-foreground text-dashboard-text-body"
-                        />
-                        {isReplyFocused && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 shrink-0 text-muted-foreground hover:text-dashboard-text-primary"
-                                    tabIndex={-1}
-                                    title="Attach file"
-                                >
-                                    <Paperclip className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                    size="icon"
-                                    className="h-6 w-6 shrink-0 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
-                                    onClick={handleReply}
-                                    disabled={
-                                        !replyContent.trim() || isSubmitting
-                                    }
-                                    title="Send reply (⌘↵)"
-                                >
-                                    <ArrowUp className="h-3 w-3" />
-                                </Button>
-                            </>
-                        )}
+                                }}
+                                placeholder="Leave a reply…"
+                                showToolbar={isReplyFocused}
+                            />
+                            {isReplyFocused && (
+                                <div className="flex items-center gap-1 shrink-0 self-end">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-muted-foreground hover:text-dashboard-text-primary"
+                                        tabIndex={-1}
+                                        title="Attach file"
+                                    >
+                                        <Paperclip className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        className="h-6 w-6 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
+                                        onClick={handleReply}
+                                        disabled={isReplyEmpty || isSubmitting}
+                                        title="Send reply (⌘↵)"
+                                    >
+                                        <ArrowUp className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
