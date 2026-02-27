@@ -531,9 +531,7 @@ export function TaskDetailView({
         }
     };
 
-    const openCommentsCount = comments.filter(
-        (c) => c.status !== 'RESOLVED',
-    ).length;
+    const openCommentsCount = comments.filter((c) => !c.resolved).length;
 
     const loadComments = useCallback(
         async (showLoading = false) => {
@@ -576,15 +574,11 @@ export function TaskDetailView({
 
                 const transformComment = (c: CommentResponse): Comment => ({
                     id: c.id,
-                    content: c.comment || c.content || '',
                     comment: c.comment || c.content || '',
                     createdAt: c.postedAt || c.createdAt,
                     updatedAt: c.updatedAt || c.createdAt,
                     user: c.postedByUser || c.user || { id: '', email: '' },
-                    status: (c.resolved ? 'RESOLVED' : 'OPEN') as
-                        | 'OPEN'
-                        | 'RESOLVED',
-                    resolved: c.resolved,
+                    resolved: c.resolved ?? false,
                     resolvedBy: c.resolvedBy,
                     reactions:
                         c.reactions?.map((r) => ({
@@ -1552,7 +1546,7 @@ function CommentBubble({
         }
     };
 
-    const commentContent = comment.content || comment.comment || '';
+    const commentContent = comment.comment || '';
     const relativeTime = formatRelativeTime(new Date(comment.createdAt));
 
     return (
@@ -1749,7 +1743,7 @@ function CommentThread({
     const [isReplyFocused, setIsReplyFocused] = useState(false);
     const replyInputRef = useRef<RichEditorHandle>(null);
 
-    const isResolved = comment.status === 'RESOLVED';
+    const isResolved = comment.resolved;
     const replies = comment.replies ?? [];
     const hasContent = replies.length > 0 || isResolved;
 

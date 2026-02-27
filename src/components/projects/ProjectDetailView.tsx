@@ -1501,7 +1501,7 @@ export function ProjectDetailView({
                                         </p>
                                     </div>
                                     <button
-                                        className="text-dashboard-text-muted hover:text-destructive transition-colors shrink-0"
+                                        className="text-dashboard-text-muted hover:text-destructive transition-colors shrink-0 cursor-pointer"
                                         onClick={() => setImportFile(null)}
                                     >
                                         <X className="h-4 w-4" />

@@ -45,9 +45,7 @@ import {
     workspaceApi,
     userApi,
     chatApi,
-    permissionUtils,
     type Workspace,
-    type UserPermissions,
     type Chat,
 } from '@/lib/api';
 
@@ -61,9 +59,7 @@ export function AppSidebar() {
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
-    const [userPermissions, setUserPermissions] = useState<
-        UserPermissions | undefined
-    >(undefined);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [organizationId, setOrganizationId] = useState<string | null>(null);
     const [organization, setOrganization] = useState<{
         id: string;
@@ -83,7 +79,7 @@ export function AppSidebar() {
 
                 const userResponse = await userApi.getMe(token);
                 if (userResponse.data) {
-                    setUserPermissions(userResponse.data.permissions);
+                    setIsAdmin(userResponse.data.organizationRole === 'ADMIN');
                     if (userResponse.data.organization) {
                         setOrganizationId(userResponse.data.organization.id);
                         setOrganization(userResponse.data.organization);
@@ -134,13 +130,7 @@ export function AppSidebar() {
         router.push('/');
     };
 
-    const canAccessOrgSettings = organizationId
-        ? permissionUtils.hasAnyOrgPermission(userPermissions, organizationId, [
-              'ORG_EDIT',
-              'ORG_DELETE',
-              'ORG_MANAGE_MEMBERS',
-          ])
-        : false;
+    const canAccessOrgSettings = !!organizationId && isAdmin;
 
     const handleSettings = () => {
         if (canAccessOrgSettings) {

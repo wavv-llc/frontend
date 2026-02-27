@@ -8,31 +8,40 @@ import React, {
     useCallback,
 } from 'react';
 import { useAuth } from '@clerk/nextjs';
-import { userApi, MeResponse, Permission } from '@/lib/api';
+import { usePathname } from 'next/navigation';
+import { userApi, MeResponse } from '@/lib/api';
 import { toast } from 'sonner';
+
+// Paths where the user may not exist in the DB yet — skip fetching
+const SKIP_FETCH_PATHS = [
+    '/onboarding',
+    '/auth/callback',
+    '/member-setup',
+    '/invite/callback',
+];
 
 interface UserContextType {
     user: MeResponse | null;
     isLoading: boolean;
     error: Error | null;
     refreshUser: () => Promise<void>;
-    checkPermission: (
-        scope: 'organization' | 'project',
-        resourceId: string,
-        permission: Permission,
-    ) => boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
     const { isLoaded, isSignedIn, getToken } = useAuth();
+    const pathname = usePathname();
     const [user, setUser] = useState<MeResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
     const fetchUser = useCallback(async () => {
-        if (!isLoaded || !isSignedIn) {
+        const isExcluded = SKIP_FETCH_PATHS.some((p) =>
+            pathname?.startsWith(p),
+        );
+
+        if (!isLoaded || !isSignedIn || isExcluded) {
             setIsLoading(false);
             return;
         }
@@ -59,37 +68,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoaded, isSignedIn, getToken]);
+    }, [isLoaded, isSignedIn, getToken, pathname]);
 
     // Initial fetch
     useEffect(() => {
         fetchUser();
     }, [fetchUser]);
-
-    const checkPermission = useCallback(
-        (
-            scope: 'organization' | 'project',
-            resourceId: string,
-            permission: Permission,
-        ): boolean => {
-            if (!user) return false;
-
-            if (scope === 'organization') {
-                const orgPermissions =
-                    user.permissions.organizations[resourceId];
-                return orgPermissions?.includes(permission) ?? false;
-            }
-
-            if (scope === 'project') {
-                const projectPermissions =
-                    user.permissions.projects[resourceId];
-                return projectPermissions?.includes(permission) ?? false;
-            }
-
-            return false;
-        },
-        [user],
-    );
 
     return (
         <UserContext.Provider
@@ -98,7 +82,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 error,
                 refreshUser: fetchUser,
-                checkPermission,
             }}
         >
             {children}

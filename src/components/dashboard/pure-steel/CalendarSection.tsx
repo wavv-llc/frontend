@@ -148,6 +148,7 @@ export function CalendarSection({
                                 'text-[var(--dashboard-text-muted)]',
                                 'text-[10px] font-sans',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
+                                'cursor-pointer',
                             )}
                         >
                             <ChevronLeft className="w-3 h-3" />
@@ -161,6 +162,7 @@ export function CalendarSection({
                                 'text-[var(--dashboard-text-muted)]',
                                 'text-[10px] font-sans font-medium',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
+                                'cursor-pointer',
                             )}
                         >
                             Today
@@ -174,6 +176,7 @@ export function CalendarSection({
                                 'text-[var(--dashboard-text-muted)]',
                                 'text-[10px] font-sans',
                                 'transition-colors hover:bg-[var(--accent-hover)]',
+                                'cursor-pointer',
                             )}
                         >
                             <ChevronRight className="w-3 h-3" />
@@ -251,6 +254,7 @@ export function CalendarSection({
                                                     'text-[8px] font-sans font-medium',
                                                     'truncate',
                                                     'transition-opacity hover:opacity-80',
+                                                    'cursor-pointer',
                                                     colors.bg,
                                                     colors.text,
                                                 )}

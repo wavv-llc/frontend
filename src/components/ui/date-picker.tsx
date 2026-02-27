@@ -70,7 +70,7 @@ export function DatePicker({
                     </span>
                     {date && !disabled && (
                         <X
-                            className="ml-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+                            className="ml-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
                             onClick={handleClear}
                         />
                     )}
@@ -162,7 +162,7 @@ export function DateRangePicker({
                     <span className="flex-1 truncate">{formatDateRange()}</span>
                     {dateRange?.from && !disabled && (
                         <X
-                            className="ml-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+                            className="ml-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
                             onClick={handleClear}
                         />
                     )}

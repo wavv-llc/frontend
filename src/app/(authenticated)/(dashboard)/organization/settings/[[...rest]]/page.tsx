@@ -40,9 +40,8 @@ import {
     OrganizationDocument,
     OrganizationDocumentsResponse,
     OrganizationDetails,
-    roleApi,
     OrganizationMember,
-    Role,
+    OrganizationRole,
     taxLibraryApi,
     TaxLibraryDocument,
     jobsApi,
@@ -129,7 +128,6 @@ export default function SettingsPage() {
 
     // Members state
     const [members, setMembers] = useState<OrganizationMember[]>([]);
-    const [roles, setRoles] = useState<Role[]>([]);
     const [isLoadingMembers, setIsLoadingMembers] = useState(false);
     const [memberToRemove, setMemberToRemove] =
         useState<OrganizationMember | null>(null);
@@ -157,7 +155,6 @@ export default function SettingsPage() {
             loadSharePointData();
             loadDocuments(organizationId);
             loadMembers();
-            loadRoles();
         }
     }, [isLoaded, getToken, organizationId]);
 
@@ -360,29 +357,6 @@ export default function SettingsPage() {
         }
     };
 
-    const loadRoles = async () => {
-        try {
-            const token = await getToken();
-            if (!token) return;
-
-            const response = await roleApi.getAllRoles(token);
-            // Filter to only organization-level roles
-            const orgRoles = (response.data || []).filter((role) =>
-                role.permissions.some((p) =>
-                    [
-                        'ORG_VIEW',
-                        'ORG_EDIT',
-                        'ORG_DELETE',
-                        'ORG_MANAGE_MEMBERS',
-                    ].includes(p.key),
-                ),
-            );
-            setRoles(orgRoles);
-        } catch (err) {
-            console.error('Error loading roles:', err);
-        }
-    };
-
     const handleRoleChange = async (userId: string, newRoleId: string) => {
         if (!organizationId) return;
 
@@ -398,7 +372,7 @@ export default function SettingsPage() {
                 token,
                 organizationId,
                 userId,
-                newRoleId,
+                newRoleId as OrganizationRole,
             );
             toast.success('Member role updated successfully');
             await loadMembers();
@@ -445,11 +419,8 @@ export default function SettingsPage() {
         }
     };
 
-    const getMemberRole = (member: OrganizationMember) => {
-        const orgRoleAssignment = member.roleAssignments.find(
-            (ra) => ra.organizationId === organizationId,
-        );
-        return orgRoleAssignment?.role;
+    const getMemberRole = (member: OrganizationMember): OrganizationRole => {
+        return member.organizationRole;
     };
 
     const isCurrentUser = (member: OrganizationMember) => {
@@ -725,7 +696,6 @@ export default function SettingsPage() {
                             {activeTab === 'users' && (
                                 <UsersTab
                                     members={members}
-                                    roles={roles}
                                     isLoadingMembers={isLoadingMembers}
                                     organizationId={organizationId}
                                     updatingRoleForUserId={
@@ -1624,18 +1594,15 @@ function DocumentDetailView({
                     ) : (
                         <div className="overflow-hidden">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
+                            <div className="grid grid-cols-[1fr_140px_100px_120px] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
                                 <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
-                                    Task
+                                    Job
                                 </div>
                                 <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
                                     Phase
                                 </div>
                                 <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
                                     Status
-                                </div>
-                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
-                                    Resolved
                                 </div>
                                 <button
                                     onClick={() =>
@@ -1667,9 +1634,9 @@ function DocumentDetailView({
                                     })
                                     .map((job) => {
                                         const hasChildren =
-                                            job.childTasks.length > 0;
+                                            job.childJobs.length > 0;
                                         const isChildJob =
-                                            job.parentTask !== null;
+                                            job.parentJob !== null;
                                         const isExpanded = expandedJobIds.has(
                                             job.id,
                                         );
@@ -1677,7 +1644,7 @@ function DocumentDetailView({
                                         return (
                                             <div key={job.id}>
                                                 <div
-                                                    className={`grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors ${hasChildren ? 'cursor-pointer' : ''}`}
+                                                    className={`grid grid-cols-[1fr_140px_100px_120px] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors ${hasChildren ? 'cursor-pointer' : ''}`}
                                                     onClick={
                                                         hasChildren
                                                             ? () =>
@@ -1708,7 +1675,7 @@ function DocumentDetailView({
                                                         )}
                                                         <div className="min-w-0">
                                                             <div className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
-                                                                {job.taskName}
+                                                                {job.jobName}
                                                             </div>
                                                             <div
                                                                 className="text-[9px] text-[#8d9ab0] dark:text-gray-400 mt-0.5 truncate"
@@ -1723,8 +1690,8 @@ function DocumentDetailView({
                                                                         </span>
                                                                         {
                                                                             job
-                                                                                .parentTask!
-                                                                                .taskName
+                                                                                .parentJob!
+                                                                                .jobName
                                                                         }
                                                                     </>
                                                                 ) : (
@@ -1748,25 +1715,6 @@ function DocumentDetailView({
                                                         )}
                                                     </div>
 
-                                                    {/* Resolved */}
-                                                    <div>
-                                                        {job.resolved ? (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                                                                <CheckCircle
-                                                                    size={11}
-                                                                />
-                                                                Yes
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#8d9ab0] dark:text-gray-400">
-                                                                <AlertCircle
-                                                                    size={11}
-                                                                />
-                                                                No
-                                                            </span>
-                                                        )}
-                                                    </div>
-
                                                     {/* Date */}
                                                     <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
                                                         {formatDate(
@@ -1775,47 +1723,26 @@ function DocumentDetailView({
                                                     </div>
                                                 </div>
 
-                                                {/* Expanded Child Tasks */}
+                                                {/* Expanded Child Jobs */}
                                                 {hasChildren && isExpanded && (
                                                     <div className="bg-[#f8f9fa]/60 dark:bg-gray-800/20 border-b border-[#eef0f3]66 dark:border-gray-800/40">
-                                                        {job.childTasks.map(
+                                                        {job.childJobs.map(
                                                             (child) => (
                                                                 <div
                                                                     key={
                                                                         child.id
                                                                     }
-                                                                    className="grid grid-cols-[1fr_140px_100px_100px_120px] gap-3 items-center pl-12 pr-5 py-2.5 border-b border-[#eef0f3]33 dark:border-gray-800/20 last:border-b-0"
+                                                                    className="grid grid-cols-[1fr_140px_100px_120px] gap-3 items-center pl-12 pr-5 py-2.5 border-b border-[#eef0f3]33 dark:border-gray-800/20 last:border-b-0"
                                                                 >
                                                                     <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 truncate">
                                                                         {
-                                                                            child.taskName
+                                                                            child.jobName
                                                                         }
                                                                     </div>
                                                                     <div />
                                                                     <div>
                                                                         {getJobStatusBadge(
                                                                             child.status,
-                                                                        )}
-                                                                    </div>
-                                                                    <div>
-                                                                        {child.resolved ? (
-                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                                                                                <CheckCircle
-                                                                                    size={
-                                                                                        11
-                                                                                    }
-                                                                                />
-                                                                                Yes
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#8d9ab0] dark:text-gray-400">
-                                                                                <AlertCircle
-                                                                                    size={
-                                                                                        11
-                                                                                    }
-                                                                                />
-                                                                                No
-                                                                            </span>
                                                                         )}
                                                                     </div>
                                                                     <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
@@ -1842,11 +1769,10 @@ function DocumentDetailView({
 
 interface UsersTabProps {
     members: OrganizationMember[];
-    roles: Role[];
     isLoadingMembers: boolean;
     organizationId?: string;
     updatingRoleForUserId: string | null;
-    getMemberRole: (member: OrganizationMember) => Role | undefined;
+    getMemberRole: (member: OrganizationMember) => OrganizationRole;
     isCurrentUser: (member: OrganizationMember) => boolean;
     handleRoleChange: (userId: string, newRoleId: string) => void;
     setMemberToRemove: (member: OrganizationMember) => void;
@@ -1860,7 +1786,6 @@ interface UsersTabProps {
 
 function UsersTab({
     members,
-    roles,
     isLoadingMembers,
     organizationId,
     updatingRoleForUserId,
@@ -1875,7 +1800,6 @@ function UsersTab({
     handleInviteMember,
 }: UsersTabProps) {
     const [memberSearch, setMemberSearch] = useState('');
-    const [selectedRole, setSelectedRole] = useState('');
 
     // Filter members based on search
     const filteredMembers = members.filter((member) => {
@@ -1996,11 +1920,11 @@ function UsersTab({
                                     {/* Right: Role Dropdown + Actions */}
                                     <div className="flex items-center gap-2 ml-4">
                                         <Select
-                                            value={memberRole?.id || ''}
-                                            onValueChange={(newRoleId) =>
+                                            value={memberRole}
+                                            onValueChange={(newRole) =>
                                                 handleRoleChange(
                                                     member.id,
-                                                    newRoleId,
+                                                    newRole,
                                                 )
                                             }
                                             disabled={isMe || isUpdating}
@@ -2016,21 +1940,21 @@ function UsersTab({
                                                         </div>
                                                     ) : (
                                                         <span className="text-[11px] font-medium text-[#272f3b] dark:text-gray-100">
-                                                            {memberRole?.name ||
-                                                                'No role'}
+                                                            {memberRole ===
+                                                            'ADMIN'
+                                                                ? 'Admin'
+                                                                : 'Member'}
                                                         </span>
                                                     )}
                                                 </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {roles.map((role) => (
-                                                    <SelectItem
-                                                        key={role.id}
-                                                        value={role.id}
-                                                    >
-                                                        {role.name}
-                                                    </SelectItem>
-                                                ))}
+                                                <SelectItem value="ADMIN">
+                                                    Admin
+                                                </SelectItem>
+                                                <SelectItem value="MEMBER">
+                                                    Member
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
 
@@ -2102,24 +2026,6 @@ function UsersTab({
                                             className="flex-1 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]"
                                             required
                                         />
-                                        <Select
-                                            value={selectedRole}
-                                            onValueChange={setSelectedRole}
-                                        >
-                                            <SelectTrigger className="w-[140px] h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]">
-                                                <SelectValue placeholder="Select role" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {roles.map((role) => (
-                                                    <SelectItem
-                                                        key={role.id}
-                                                        value={role.id}
-                                                    >
-                                                        {role.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
                                         <Button
                                             type="submit"
                                             variant="default"

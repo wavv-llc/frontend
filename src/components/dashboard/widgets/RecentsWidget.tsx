@@ -41,7 +41,7 @@ export function RecentsWidget({
                             <button
                                 key={`${item.type}-${item.id}`}
                                 onClick={() => onItemClick(item)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 hover:border-primary/10 border border-transparent transition-all group text-left"
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 hover:border-primary/10 border border-transparent transition-all group text-left cursor-pointer"
                             >
                                 <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                     <ItemIcon type={item.type} />

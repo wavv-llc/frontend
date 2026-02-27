@@ -6,10 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { userApi, accessLinkApi } from '@/lib/api';
 import { toast } from 'sonner';
 
-const ONBOARDING_CACHE_KEY = 'wavv_onboarding_completed';
-
 export default function SignupCallbackPage() {
-    // All hooks must be called unconditionally at the top
     const { isLoaded, isSignedIn, getToken, userId } = useAuth();
     const { user } = useUser();
     const [error, setError] = useState<string | null>(null);
@@ -26,7 +23,6 @@ export default function SignupCallbackPage() {
     }, []);
 
     useEffect(() => {
-        // Guard conditions - but all hooks are already called above
         if (!isLoaded || !isSignedIn || !userId || !user) {
             return;
         }
@@ -71,30 +67,6 @@ export default function SignupCallbackPage() {
                     }
                 }
 
-                setStatusMessage('Checking your account...');
-                let userExists = false;
-                let hasCompletedOnboarding = false;
-                let userHasOrg = false;
-
-                try {
-                    const existingUser = await userApi.getMe(token);
-                    if (existingUser.data) {
-                        userExists = true;
-                        hasCompletedOnboarding =
-                            existingUser.data.hasCompletedOnboarding;
-                        userHasOrg = !!existingUser.data.organization;
-                    }
-                } catch {
-                    console.log(
-                        'User not found in Core API, will create new user',
-                    );
-                }
-
-                if (!userExists) {
-                    setStatusMessage('Creating your account...');
-                    await userApi.createUser(token, userId);
-                }
-
                 // Handle pending access link invitation
                 if (pendingAccessLinkId) {
                     setStatusMessage('Accepting invitation...');
@@ -113,13 +85,8 @@ export default function SignupCallbackPage() {
                         );
                         toast.success('Invitation accepted!');
 
-                        // Clear pending invitation
                         sessionStorage.removeItem('pendingAccessLinkId');
                         sessionStorage.removeItem('pendingAccessLinkEmail');
-
-                        // Cache onboarding status as complete for invited users
-                        sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true');
-                        sessionStorage.setItem('wavv_cached_user_id', userId);
 
                         // Check if user is missing name - redirect to member setup
                         if (!user.firstName || !user.lastName) {
@@ -131,49 +98,25 @@ export default function SignupCallbackPage() {
                         return;
                     } catch (inviteErr) {
                         console.error('Error accepting invite:', inviteErr);
-                        toast.error(
-                            'Account created, but failed to accept invitation.',
-                        );
-                        // Continue to home anyway since account was created
-                        redirect('/home');
+                        toast.error('Failed to accept invitation.');
+                        redirect('/sign-in');
                         return;
                     }
                 }
 
-                // No pending invite - check existing user status
-                if (userExists && hasCompletedOnboarding) {
-                    // Cache the completed status
-                    sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true');
-                    sessionStorage.setItem('wavv_cached_user_id', userId);
-
-                    setStatusMessage('Verifying your account...');
-                    redirect('/home');
-                } else if (
-                    userExists &&
-                    userHasOrg &&
-                    !hasCompletedOnboarding
-                ) {
-                    // User was invited and has org but hasn't completed onboarding
-                    // This means they're an invited member - auto-complete onboarding
-                    try {
-                        await userApi.completeOnboarding(token);
-                        sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true');
-                        sessionStorage.setItem('wavv_cached_user_id', userId);
-
-                        // Check if user is missing name
-                        if (!user.firstName || !user.lastName) {
-                            redirect('/member-setup');
-                            return;
-                        }
-
+                // No pending invite - check if user already exists in core-api
+                setStatusMessage('Checking your account...');
+                try {
+                    const existingUser = await userApi.getMe(token);
+                    if (existingUser.data?.organization) {
+                        // User exists and has completed onboarding
                         redirect('/home');
-                    } catch (e) {
-                        console.warn('Could not auto-complete onboarding:', e);
-                        // Still redirect to home, the layout will handle it
-                        redirect('/home');
+                    } else {
+                        // User exists but no organization yet
+                        redirect('/onboarding');
                     }
-                } else {
-                    // New user without org - needs full onboarding
+                } catch {
+                    // User not found in core-api (404) - needs onboarding
                     redirect('/onboarding');
                 }
             } catch (err) {
@@ -191,7 +134,6 @@ export default function SignupCallbackPage() {
         handleAuthCallback();
     }, [isLoaded, isSignedIn, userId, user, getToken, redirect]);
 
-    // Always render the same JSX structure
     return (
         <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
             {error ? (

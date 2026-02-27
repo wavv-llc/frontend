@@ -117,7 +117,7 @@ function Navigation({
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-[var(--mono-black)]"
+                    className="md:hidden p-2 text-[var(--mono-black)] cursor-pointer"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
                 >

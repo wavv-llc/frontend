@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth, useClerk } from '@clerk/nextjs';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth, useClerk, useUser as useClerkUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import {
     ChevronRight,
     X,
 } from 'lucide-react';
-import { sharepointApi, userApi, organizationApi } from '@/lib/api';
+import { sharepointApi, userApi } from '@/lib/api';
 import {
     Dialog,
     DialogContent,
@@ -51,25 +51,28 @@ const STEPS = [
 ];
 
 export default function OnboardingPage() {
-    const { isLoaded, isSignedIn, getToken, userId } = useAuth();
+    const { isLoaded, isSignedIn, getToken } = useAuth();
+    const { user: clerkUser } = useClerkUser();
     const { signOut } = useClerk();
     const router = useRouter();
 
     // Multi-step state
     const [currentStep, setCurrentStep] = useState(0);
 
-    // Step 1: Organization data
+    // Step 0: Organization + user details
     const [orgName, setOrgName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [isOrgCreated, setIsOrgCreated] = useState(false);
 
-    // Step 2: SharePoint sites
+    // Step 1: SharePoint sites
     const [sites, setSites] = useState<SharePointSite[]>([]);
     const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(
         new Set(),
     );
     const [isLoadingSites, setIsLoadingSites] = useState(false);
 
-    // Step 3: Member invitations
+    // Step 2: Member invitations
     const [memberEmails, setMemberEmails] = useState<string[]>(['']);
 
     // General loading states
@@ -80,6 +83,11 @@ export default function OnboardingPage() {
     const [showExitDialog, setShowExitDialog] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
 
+    // Prevent checkOnboardingStatus from re-running after the initial check
+    // (a re-run after completeOnboarding succeeds would see the new org and
+    // redirect to /home instead of advancing to the next step)
+    const hasCheckedStatusRef = useRef(false);
+
     useEffect(() => {
         if (!isLoaded) return;
 
@@ -88,42 +96,39 @@ export default function OnboardingPage() {
             return;
         }
 
+        // Pre-fill name from Clerk profile
+        if (clerkUser?.firstName) setFirstName(clerkUser.firstName);
+        if (clerkUser?.lastName) setLastName(clerkUser.lastName);
+
+        // Only run the status check once
+        if (hasCheckedStatusRef.current) return;
+        hasCheckedStatusRef.current = true;
+
         // Check if user has already completed onboarding
         const checkOnboardingStatus = async () => {
             try {
                 const token = await getToken();
-                if (!token) return;
-
-                const response = await userApi.getMe(token);
-                if (response.data?.hasCompletedOnboarding) {
-                    router.push('/');
+                if (!token) {
+                    setIsLoading(false);
                     return;
                 }
 
-                setIsLoading(false);
-            } catch (err) {
-                console.error('Error checking onboarding status:', err);
-                // User doesn't exist in Core API, try to create them
-                if (userId) {
-                    try {
-                        const token = await getToken();
-                        if (token) {
-                            await userApi.createUser(token, userId);
-                            console.log('User created in Core API');
-                        }
-                    } catch (createErr) {
-                        console.error(
-                            'Error creating user in Core API:',
-                            createErr,
-                        );
-                    }
+                const response = await userApi.getMe(token);
+                if (response.data?.organization) {
+                    router.push('/home');
+                    return;
                 }
+
+                // User exists in DB but hasn't finished onboarding
+                setIsLoading(false);
+            } catch {
+                // User doesn't exist in DB yet — show onboarding form
                 setIsLoading(false);
             }
         };
 
         checkOnboardingStatus();
-    }, [isLoaded, isSignedIn, router, getToken, userId]);
+    }, [isLoaded, isSignedIn, router, getToken, clerkUser]);
 
     const loadSites = async () => {
         try {
@@ -150,7 +155,7 @@ export default function OnboardingPage() {
         }
     };
 
-    // Load sites when moving to step 2
+    // Load sites when moving to step 1
     useEffect(() => {
         if (currentStep === 1 && sites.length === 0) {
             loadSites();
@@ -163,6 +168,12 @@ export default function OnboardingPage() {
             return;
         }
 
+        const email = clerkUser?.primaryEmailAddress?.emailAddress;
+        if (!email) {
+            toast.error('Could not retrieve your email address');
+            return;
+        }
+
         try {
             setIsSaving(true);
             const token = await getToken();
@@ -171,7 +182,13 @@ export default function OnboardingPage() {
                 return;
             }
 
-            await organizationApi.createOrganization(token, orgName);
+            await userApi.completeOnboarding(token, {
+                email,
+                firstName: firstName.trim() || undefined,
+                lastName: lastName.trim() || undefined,
+                organizationName: orgName.trim(),
+            });
+
             setIsOrgCreated(true);
             toast.success('Organization created successfully');
             setCurrentStep(1);
@@ -222,10 +239,7 @@ export default function OnboardingPage() {
     };
 
     const handleFinish = async () => {
-        // Prevent double-clicks
-        if (isSaving) {
-            return;
-        }
+        if (isSaving) return;
 
         try {
             setIsSaving(true);
@@ -247,23 +261,15 @@ export default function OnboardingPage() {
 
             await sharepointApi.saveSelectedSites(token, selectedSites);
 
-            // TODO: Implement member invitation API when available
-            // For now, we'll just log the emails
             const validEmails = memberEmails.filter(
                 (email) => email.trim() !== '',
             );
             if (validEmails.length > 0) {
                 console.log('Members to invite:', validEmails);
-                // await workspaceApi.inviteMembers(token, workspaceId, validEmails)
             }
 
-            // Mark onboarding as complete
-            await userApi.completeOnboarding(token);
-
             toast.success('Onboarding completed successfully!');
-
-            // Redirect to dashboard - don't reset isSaving since we're leaving the page
-            router.push('/');
+            router.push('/home');
         } catch (err) {
             console.error('Error completing onboarding:', err);
             toast.error(
@@ -280,25 +286,16 @@ export default function OnboardingPage() {
             setIsExiting(true);
             const token = await getToken();
 
-            if (!token) {
-                toast.error('Authentication required');
-                setIsExiting(false);
-                return;
+            if (token) {
+                try {
+                    await userApi.abandonOnboarding(token);
+                } catch {
+                    // Ignore errors from abandon — still sign out
+                }
             }
 
-            // Call API to clean up data
-            await userApi.abandonOnboarding(token);
-
-            // Clear cached onboarding state
-            sessionStorage.removeItem('wavv_onboarding_completed');
-            sessionStorage.removeItem('wavv_cached_user_id');
-
             toast.success('Setup cancelled');
-
-            // Sign out from Clerk
             await signOut();
-
-            // Redirect to homepage
             router.push('/');
         } catch (err) {
             console.error('Error abandoning onboarding:', err);
@@ -346,6 +343,44 @@ export default function OnboardingPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-[18px] p-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="first-name"
+                                        className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                    >
+                                        First Name
+                                    </Label>
+                                    <Input
+                                        id="first-name"
+                                        placeholder="First name"
+                                        value={firstName}
+                                        onChange={(e) =>
+                                            setFirstName(e.target.value)
+                                        }
+                                        disabled={isOrgCreated}
+                                        className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="last-name"
+                                        className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                    >
+                                        Last Name
+                                    </Label>
+                                    <Input
+                                        id="last-name"
+                                        placeholder="Last name"
+                                        value={lastName}
+                                        onChange={(e) =>
+                                            setLastName(e.target.value)
+                                        }
+                                        disabled={isOrgCreated}
+                                        className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
+                                    />
+                                </div>
+                            </div>
                             <div className="space-y-2">
                                 <Label
                                     htmlFor="org-name"
@@ -641,7 +676,7 @@ export default function OnboardingPage() {
                     {/* Progress Bar */}
                     <Progress
                         value={((currentStep + 1) / STEPS.length) * 100}
-                        className="h-1 mb-2 bg-dashboard-border *:data-[slot=progress-indicator]:bg-(--accent)"
+                        className="h-1 mb-6 bg-dashboard-border *:data-[slot=progress-indicator]:bg-(--accent)"
                     />
 
                     {/* Step Indicator */}

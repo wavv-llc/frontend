@@ -12,42 +12,19 @@ export interface User {
     lastName?: string;
 }
 
-// Permission types
-export type Permission =
-    | 'TASK_VIEW'
-    | 'TASK_CREATE'
-    | 'TASK_EDIT'
-    | 'TASK_DELETE'
-    | 'PROJECT_VIEW'
-    | 'PROJECT_CREATE'
-    | 'PROJECT_EDIT'
-    | 'PROJECT_DELETE'
-    | 'WORKSPACE_VIEW'
-    | 'WORKSPACE_CREATE'
-    | 'WORKSPACE_EDIT'
-    | 'WORKSPACE_DELETE'
-    | 'MEMBER_VIEW'
-    | 'MEMBER_INVITE'
-    | 'MEMBER_REMOVE'
-    | 'SETTINGS_VIEW'
-    | 'SETTINGS_EDIT'
-    | 'ORG_EDIT'
-    | 'ORG_DELETE'
-    | 'ORG_MANAGE_MEMBERS';
-
-export interface UserPermissions {
-    organizations: Record<string, Permission[]>;
-    projects: Record<string, Permission[]>;
-}
+export type OrganizationRole = 'ADMIN' | 'MEMBER';
+export type MembershipRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface Organization {
     id: string;
     name: string;
+    slug?: string;
 }
 
 export interface OrganizationDetails {
     id: string;
     name: string;
+    slug?: string;
     createdAt: string;
     updatedAt: string;
     _count: {
@@ -58,6 +35,7 @@ export interface OrganizationDetails {
         email: string;
         firstName?: string;
         lastName?: string;
+        organizationRole: OrganizationRole;
     }>;
 }
 
@@ -67,9 +45,9 @@ export interface MeResponse {
     firstName?: string;
     lastName?: string;
     clerkId?: string;
-    hasCompletedOnboarding: boolean;
+    organizationRole: OrganizationRole;
+    organizationId: string;
     organization: Organization | null;
-    permissions: UserPermissions;
 }
 
 export interface Workspace {
@@ -204,13 +182,11 @@ export interface TaskCommentReaction {
 
 export interface Comment {
     id: string;
-    content: string;
-    comment?: string; // For backward compatibility
+    comment: string;
     createdAt: string;
     updatedAt: string;
     user: User;
-    status: 'OPEN' | 'RESOLVED';
-    resolved?: boolean; // For backward compatibility
+    resolved: boolean;
     resolvedBy?: User;
     replies?: Comment[];
     reactions?: TaskCommentReaction[];
@@ -227,34 +203,13 @@ export interface TaskAttachment {
     uploadedBy: User;
 }
 
-export interface PermissionDetail {
-    id: string;
-    key: string;
-}
-
-export interface Role {
-    id: string;
-    name: string;
-    description?: string;
-    permissions: PermissionDetail[];
-}
-
-export interface RoleAssignment {
-    id: string;
-    roleId: string;
-    role: Role;
-    organizationId?: string;
-    projectId?: string;
-}
-
 export interface OrganizationMember {
     id: string;
     email: string;
     firstName?: string;
     lastName?: string;
-    active: boolean;
+    organizationRole: OrganizationRole;
     createdAt: string;
-    roleAssignments: RoleAssignment[];
 }
 
 export interface ApiResponse<T = any> {
@@ -313,7 +268,7 @@ export async function apiRequest<T = any>(
 
     if (!response.ok) {
         // Log the error response for debugging
-        console.error('API Error Response:', {
+        console.warn('API Error Response:', {
             status: response.status,
             statusText: response.statusText,
             data,
@@ -362,21 +317,6 @@ export async function apiRequest<T = any>(
 
 // User API functions
 export const userApi = {
-    createUser: async (token: string, clerkId: string) => {
-        return apiRequest<{
-            id: string;
-            clerkId: string;
-            email: string;
-            firstName?: string;
-            lastName?: string;
-            hasCompletedOnboarding: boolean;
-        }>('/api/v1/users/', {
-            method: 'POST',
-            token,
-            body: JSON.stringify({ clerkId }),
-        });
-    },
-
     getMe: async (token: string) => {
         return apiRequest<MeResponse>('/api/v1/users/me', {
             method: 'GET',
@@ -388,17 +328,46 @@ export const userApi = {
         token: string,
         data: { firstName?: string; lastName?: string },
     ) => {
-        return apiRequest('/api/v1/users/me', {
+        return apiRequest<MeResponse>('/api/v1/users/me', {
             method: 'PATCH',
             token,
             body: JSON.stringify(data),
         });
     },
 
-    completeOnboarding: async (token: string) => {
-        return apiRequest('/api/v1/users/me/complete-onboarding', {
+    completeOnboarding: async (
+        token: string,
+        data: {
+            email: string;
+            firstName?: string;
+            lastName?: string;
+            organizationName: string;
+        },
+    ) => {
+        return apiRequest<{
+            organization: Organization;
+            user: MeResponse;
+            workspace: { id: string; name: string; isPersonal: boolean };
+        }>('/api/v1/users/me/complete-onboarding', {
             method: 'POST',
             token,
+            body: JSON.stringify(data),
+        });
+    },
+
+    joinOrganization: async (
+        token: string,
+        data: {
+            email: string;
+            firstName?: string;
+            lastName?: string;
+            organizationId: string;
+        },
+    ) => {
+        return apiRequest<MeResponse>('/api/v1/users/me/join-organization', {
+            method: 'POST',
+            token,
+            body: JSON.stringify(data),
         });
     },
 
@@ -449,14 +418,14 @@ export const organizationApi = {
         token: string,
         organizationId: string,
         userId: string,
-        roleId: string,
+        role: OrganizationRole,
     ) => {
-        return apiRequest<RoleAssignment>(
+        return apiRequest<OrganizationMember>(
             `/api/v1/organizations/${organizationId}/users/${userId}/role`,
             {
                 method: 'PATCH',
                 token,
-                body: JSON.stringify({ roleId }),
+                body: JSON.stringify({ role }),
             },
         );
     },
@@ -498,16 +467,6 @@ export const organizationApi = {
                 body: JSON.stringify({ name }),
             },
         );
-    },
-};
-
-// Role API functions
-export const roleApi = {
-    getAllRoles: async (token: string) => {
-        return apiRequest<Role[]>('/api/v1/roles', {
-            method: 'GET',
-            token,
-        });
     },
 };
 
@@ -565,12 +524,7 @@ export const sharepointApi = {
 
 // Sign-up request API functions
 export const signupRequestApi = {
-    createRequest: async (data: {
-        name: string;
-        email: string;
-        organization: string;
-        message?: string;
-    }) => {
+    createRequest: async (data: { email: string }) => {
         return apiRequest('/api/v1/signup-requests', {
             method: 'POST',
             body: JSON.stringify(data),
@@ -860,7 +814,6 @@ export const taskApi = {
             {
                 method: 'POST',
                 token,
-                body: JSON.stringify({ projectId, id: taskId }),
             },
         );
     },
@@ -1080,12 +1033,51 @@ export interface DashboardStats {
 }
 
 // Chat types
+export interface ChatMessage {
+    id: string;
+    message: string;
+    response: string | null;
+    externalSearchEnabled: boolean;
+    conversationId: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ChatConversation {
+    id: string;
+    title: string | null;
+    createdById: string;
+    organizationId: string;
+    taskId: string | null;
+    projectId: string | null;
+    workspaceId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    messages: ChatMessage[];
+    sources?: any;
+}
+
+// Normalised flat view used by the chat UI
 export interface Chat {
     id: string;
+    title: string | null;
     message: string;
     response: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+function normalizeChatConversation(conv: ChatConversation): Chat {
+    const firstMsg = conv.messages?.[0];
+    const lastMsg = conv.messages?.[conv.messages.length - 1];
+    return {
+        id: conv.id,
+        title: conv.title ?? null,
+        message: firstMsg?.message ?? '',
+        response: lastMsg?.response ?? null,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+    };
 }
 
 // Access Link API functions
@@ -1278,23 +1270,21 @@ export type DocumentStatusPhase = 'UPLOADING' | 'PROCESSING' | 'EMBEDDING';
 
 export interface ServiceJobChild {
     id: string;
-    taskName: string;
+    jobName: string;
     status: ServiceJobStatus;
-    resolved: boolean;
     createdAt: string;
 }
 
 export interface ServiceJob {
     id: string;
-    taskName: string;
+    jobName: string;
     description: string;
-    resolved: boolean;
     status: ServiceJobStatus;
     documentStatusPhase: DocumentStatusPhase | null;
     triggeredBy: string;
     documentId: string | null;
     organizationId: string;
-    parentTaskId: string | null;
+    parentJobId: string | null;
     sharepointSiteId: string | null;
     version: number;
     createdAt: string;
@@ -1303,11 +1293,11 @@ export interface ServiceJob {
         id: string;
         name: string;
     };
-    parentTask: {
+    parentJob: {
         id: string;
-        taskName: string;
+        jobName: string;
     } | null;
-    childTasks: ServiceJobChild[];
+    childJobs: ServiceJobChild[];
 }
 
 export const jobsApi = {
@@ -1324,30 +1314,71 @@ export const jobsApi = {
 
 // Chat API functions
 export const chatApi = {
-    getChats: async (token: string) => {
-        return apiRequest<Chat[]>('/api/v1/chats/', {
-            method: 'GET',
-            token,
-        });
+    getChats: async (token: string): Promise<ApiResponse<Chat[]>> => {
+        const response = await apiRequest<ChatConversation[]>(
+            '/api/v1/chats/',
+            {
+                method: 'GET',
+                token,
+            },
+        );
+        if (response.data) {
+            return {
+                ...response,
+                data: response.data.map(normalizeChatConversation),
+            };
+        }
+        return response as unknown as ApiResponse<Chat[]>;
     },
 
-    getChat: async (token: string, chatId: string) => {
-        return apiRequest<Chat>(`/api/v1/chats/${chatId}`, {
-            method: 'GET',
-            token,
-        });
+    getChat: async (
+        token: string,
+        chatId: string,
+    ): Promise<ApiResponse<Chat>> => {
+        const response = await apiRequest<ChatConversation>(
+            `/api/v1/chats/${chatId}`,
+            {
+                method: 'GET',
+                token,
+            },
+        );
+        if (response.data) {
+            return {
+                ...response,
+                data: normalizeChatConversation(response.data),
+            };
+        }
+        return response as unknown as ApiResponse<Chat>;
     },
 
     createChat: async (
         token: string,
         message: string,
         externalSearchEnabled: boolean = false,
-    ) => {
-        return apiRequest<Chat>('/api/v1/chats/', {
+    ): Promise<ApiResponse<Chat>> => {
+        const response = await apiRequest<{
+            conversation: ChatConversation;
+            message: ChatMessage;
+        }>('/api/v1/chats/', {
             method: 'POST',
             token,
             body: JSON.stringify({ message, externalSearchEnabled }),
         });
+        if (response.data) {
+            const { conversation, message: msg } = response.data;
+            return {
+                ...response,
+                data: {
+                    id: conversation.id,
+                    title: conversation.title ?? null,
+                    message: msg.message,
+                    response: msg.response,
+                    createdAt: conversation.createdAt,
+                    updatedAt: conversation.updatedAt,
+                },
+            };
+        }
+        return response as unknown as ApiResponse<Chat>;
     },
 
     pollChatStatus: async (
@@ -1517,19 +1548,5 @@ export const taxLibraryApi = {
                 token,
             },
         );
-    },
-};
-
-// Permission utilities
-export const permissionUtils = {
-    hasAnyOrgPermission: (
-        permissions: UserPermissions | undefined,
-        orgId: string,
-        requiredPermissions: Permission[],
-    ): boolean => {
-        if (!permissions?.organizations) return false;
-        const orgPermissions = permissions.organizations[orgId];
-        if (!orgPermissions) return false;
-        return requiredPermissions.some((p) => orgPermissions.includes(p));
     },
 };

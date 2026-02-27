@@ -60,7 +60,7 @@ export function TasksWidget({
                         <button
                             onClick={() => setActiveTab('todo')}
                             className={cn(
-                                'text-[10px] font-medium px-2 py-1 rounded-sm transition-all',
+                                'text-[10px] font-medium px-2 py-1 rounded-sm transition-all cursor-pointer',
                                 activeTab === 'todo'
                                     ? 'bg-background shadow-sm text-primary'
                                     : 'text-muted-foreground hover:text-foreground',
@@ -71,7 +71,7 @@ export function TasksWidget({
                         <button
                             onClick={() => setActiveTab('done')}
                             className={cn(
-                                'text-[10px] font-medium px-2 py-1 rounded-sm transition-all',
+                                'text-[10px] font-medium px-2 py-1 rounded-sm transition-all cursor-pointer',
                                 activeTab === 'done'
                                     ? 'bg-background shadow-sm text-primary'
                                     : 'text-muted-foreground hover:text-foreground',
@@ -108,7 +108,7 @@ export function TasksWidget({
                                 <button
                                     key={task.id}
                                     onClick={() => onTaskClick(task)}
-                                    className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-all group text-left relative"
+                                    className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-all group text-left relative cursor-pointer"
                                 >
                                     <div className="shrink-0">
                                         <StatusIcon

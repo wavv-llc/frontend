@@ -3,10 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { Loader2 } from 'lucide-react';
-import { userApi, accessLinkApi } from '@/lib/api';
+import { accessLinkApi } from '@/lib/api';
 import { toast } from 'sonner';
-
-const ONBOARDING_CACHE_KEY = 'wavv_onboarding_completed';
 
 export default function InviteAcceptCallbackPage() {
     const { isLoaded, isSignedIn, getToken, userId } = useAuth();
@@ -75,27 +73,7 @@ export default function InviteAcceptCallbackPage() {
                     }
                 }
 
-                // Check if user exists, create if not
-                setStatusMessage('Setting up your account...');
-                let userExists = false;
-
-                try {
-                    const existingUser = await userApi.getMe(token);
-                    if (existingUser.data) {
-                        userExists = true;
-                    }
-                } catch {
-                    console.log(
-                        'User not found in Core API, will create new user',
-                    );
-                }
-
-                if (!userExists) {
-                    setStatusMessage('Creating your account...');
-                    await userApi.createUser(token, userId);
-                }
-
-                // Accept the invitation
+                // Accept the invitation (creates/joins user atomically)
                 setStatusMessage('Accepting invitation...');
                 await accessLinkApi.acceptAccessLink(
                     token,
@@ -108,13 +86,8 @@ export default function InviteAcceptCallbackPage() {
                     },
                 );
 
-                // Clear session storage for invite
                 sessionStorage.removeItem('pendingAccessLinkId');
                 sessionStorage.removeItem('pendingAccessLinkEmail');
-
-                // Cache onboarding status as complete for invited users
-                sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true');
-                sessionStorage.setItem('wavv_cached_user_id', userId);
 
                 toast.success('Invitation accepted successfully!');
 
