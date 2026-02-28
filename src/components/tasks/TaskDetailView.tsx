@@ -407,14 +407,14 @@ export function TaskDetailView({
     // ── Approval workflow derived values ──────────────────────────────────────
     // Per-task chain: derived from approvalChain returned by the backend
     const approvalChain = task.approvalChain ?? [];
-    // Reviewer-only entries (excludes PREPARER — which is display-only), sorted by reviewerOrder
+    // Reviewer-only entries (excludes PREPARER — which is display-only), sorted by stepOrder
     const reviewerChain = approvalChain
         .filter((e) => e.role === 'REVIEWER')
-        .sort((a, b) => (a.reviewerOrder ?? 0) - (b.reviewerOrder ?? 0));
+        .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0));
     // The active reviewer entry for the current index (index 1 = reviewer[0], index 2 = reviewer[1])
     const currentChainEntry =
-        task.currentReviewerIndex > 0 && task.approvalStatus === 'IN_REVIEW'
-            ? (reviewerChain[task.currentReviewerIndex - 1] ?? null)
+        task.currentStepIndex > 0 && task.approvalStatus === 'IN_REVIEW'
+            ? (reviewerChain[task.currentStepIndex - 1] ?? null)
             : null;
     const isActiveReviewer = currentChainEntry?.user?.clerkId === clerkUserId;
     // At IN_PREPARATION any member can submit; at IN_REVIEW only the active reviewer
@@ -424,6 +424,10 @@ export function TaskDetailView({
             (task.approvalStatus === 'IN_REVIEW' && isActiveReviewer));
     const canReject = task.approvalStatus === 'IN_REVIEW' && isActiveReviewer;
     const canReopen = task.approvalStatus === 'COMPLETED';
+    // Task is locked for editing when it's under review or completed
+    const isLocked =
+        task.approvalStatus === 'IN_REVIEW' ||
+        task.approvalStatus === 'COMPLETED';
 
     // Description inline edit state
     const [descValue, setDescValue] = useState(task.description || '');
@@ -658,9 +662,9 @@ export function TaskDetailView({
             await approvalApi.submitTask(token, task.projectId, task.id);
             const nextStatus =
                 reviewerChain.length === 0 ||
-                task.currentReviewerIndex >= reviewerChain.length
+                task.currentStepIndex >= reviewerChain.length
                     ? 'Complete'
-                    : `${task.currentReviewerIndex + 1}${ordinal(task.currentReviewerIndex + 1)} Level Review`;
+                    : `${task.currentStepIndex + 1}${ordinal(task.currentStepIndex + 1)} Level Review`;
             toast.success(`Task submitted — now at ${nextStatus}`);
             onUpdate?.();
         } catch (error) {
@@ -801,7 +805,7 @@ export function TaskDetailView({
                         <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight truncate">
                             {task.name}
                         </h1>
-                        {task.isLocked && (
+                        {isLocked && (
                             <span
                                 title="Task is locked for review"
                                 className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200"
@@ -856,11 +860,11 @@ export function TaskDetailView({
                                 )}
                                 <DropdownMenuItem
                                     onClick={() => setEditDialogOpen(true)}
-                                    disabled={task.isLocked}
+                                    disabled={isLocked}
                                 >
                                     <Edit2 className="h-4 w-4 mr-2" />
                                     Edit Task
-                                    {task.isLocked && (
+                                    {isLocked && (
                                         <Lock className="h-3 w-3 ml-auto text-dashboard-text-muted" />
                                     )}
                                 </DropdownMenuItem>
@@ -1189,7 +1193,7 @@ export function TaskDetailView({
                                 )}
                                 {approvalStatusLabel(
                                     task.approvalStatus,
-                                    task.currentReviewerIndex,
+                                    task.currentStepIndex,
                                     reviewerChain.length,
                                 )}
                             </span>
@@ -1207,17 +1211,17 @@ export function TaskDetailView({
                                                   r.customFieldId ===
                                                   entry.customFieldId,
                                           );
-                                    // reviewerPos is 0-based; currentReviewerIndex is 1-based
+                                    // reviewerPos is 0-based; currentStepIndex is 1-based
                                     const isCurrentStep =
                                         !isPreparer &&
                                         task.approvalStatus === 'IN_REVIEW' &&
                                         reviewerPos ===
-                                            task.currentReviewerIndex - 1;
+                                            task.currentStepIndex - 1;
                                     const isPastStep =
                                         task.approvalStatus === 'COMPLETED' ||
                                         (!isPreparer &&
                                             reviewerPos <
-                                                task.currentReviewerIndex - 1);
+                                                task.currentStepIndex - 1);
                                     const name = entry.user
                                         ? [
                                               entry.user.firstName,
@@ -1228,7 +1232,7 @@ export function TaskDetailView({
                                         : '(not assigned)';
                                     const roleLabel = isPreparer
                                         ? 'Preparer'
-                                        : `Reviewer ${entry.reviewerOrder ?? reviewerPos + 1}`;
+                                        : `Reviewer ${entry.stepOrder ?? reviewerPos + 1}`;
                                     return (
                                         <div
                                             key={entry.customFieldId}
@@ -1246,7 +1250,7 @@ export function TaskDetailView({
                                             <span className="shrink-0 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold border-current">
                                                 {isPreparer
                                                     ? 'P'
-                                                    : (entry.reviewerOrder ??
+                                                    : (entry.stepOrder ??
                                                       reviewerPos + 1)}
                                             </span>
                                             <span className="truncate">
@@ -1305,15 +1309,15 @@ export function TaskDetailView({
                             />
                         ) : (
                             <div
-                                role={task.isLocked ? undefined : 'button'}
-                                tabIndex={task.isLocked ? undefined : 0}
+                                role={isLocked ? undefined : 'button'}
+                                tabIndex={isLocked ? undefined : 0}
                                 onClick={
-                                    task.isLocked
+                                    isLocked
                                         ? undefined
                                         : () => setIsEditingDesc(true)
                                 }
                                 onKeyDown={
-                                    task.isLocked
+                                    isLocked
                                         ? undefined
                                         : (e) => {
                                               if (
@@ -1327,12 +1331,10 @@ export function TaskDetailView({
                                 }
                                 className={cn(
                                     'group',
-                                    task.isLocked
-                                        ? 'cursor-default'
-                                        : 'cursor-text',
+                                    isLocked ? 'cursor-default' : 'cursor-text',
                                 )}
                                 title={
-                                    task.isLocked
+                                    isLocked
                                         ? 'Task is locked for review'
                                         : 'Click to edit description'
                                 }
@@ -1340,7 +1342,7 @@ export function TaskDetailView({
                                 <p
                                     className={cn(
                                         'text-sm leading-relaxed whitespace-pre-line rounded px-1 py-0.5 -mx-1 transition-colors',
-                                        !task.isLocked &&
+                                        !isLocked &&
                                             'group-hover:bg-accent-subtle/50',
                                         descValue
                                             ? 'text-dashboard-text-body'

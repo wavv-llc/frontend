@@ -2,6 +2,7 @@ import { type Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { DM_Sans, DM_Serif_Display } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
+import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -34,6 +35,7 @@ export default function RootLayout({
                     className={`${dmSans.variable} ${dmSerifDisplay.variable} antialiased`}
                 >
                     {children}
+                    <Toaster />
                     <Analytics />
                 </body>
             </html>

@@ -855,10 +855,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         selectedApprovalRole === 'NONE'
                             ? allowMultiple
                             : false,
-                    ...(fieldType === 'USER' &&
-                        selectedApprovalRole !== 'NONE' && {
-                            approvalRole: selectedApprovalRole,
-                        }),
                 });
 
                 toast.success('Custom field created successfully');
@@ -1607,19 +1603,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                 />
                                             </div>
                                             {field.dataType === 'USER' &&
-                                            field.approvalRole &&
-                                            field.approvalRole !== 'NONE' ? (
-                                                <span className="text-[10px] text-blue-500/80 pl-5 truncate font-normal mt-0.5">
-                                                    {field.approvalRole ===
-                                                    'PREPARER'
-                                                        ? 'Preparer'
-                                                        : field.reviewerOrder !==
-                                                            null
-                                                          ? `Reviewer ${field.reviewerOrder}`
-                                                          : 'Reviewer'}
-                                                </span>
-                                            ) : field.dataType === 'USER' &&
-                                              field.customOptions?.[0] ? (
+                                            field.customOptions?.[0] ? (
                                                 <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
                                                     {field.customOptions[0]}
                                                 </span>

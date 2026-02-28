@@ -52,7 +52,7 @@ const STEPS = [
 
 export default function OnboardingPage() {
     const { isLoaded, isSignedIn, getToken } = useAuth();
-    const { user: clerkUser } = useClerkUser();
+    const { isLoaded: isClerkUserLoaded } = useClerkUser();
     const { signOut } = useClerk();
     const router = useRouter();
 
@@ -63,6 +63,7 @@ export default function OnboardingPage() {
     const [orgName, setOrgName] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [userEmail, setUserEmail] = useState('');
     const [isOrgCreated, setIsOrgCreated] = useState(false);
 
     // Step 1: SharePoint sites
@@ -87,7 +88,9 @@ export default function OnboardingPage() {
     // (a re-run after completeOnboarding succeeds would see the new org and
     // redirect to /home instead of advancing to the next step)
     const hasCheckedStatusRef = useRef(false);
+    const hasPrefilledRef = useRef(false);
 
+    // Auth check + one-time onboarding status check + server-side prefill
     useEffect(() => {
         if (!isLoaded) return;
 
@@ -96,17 +99,23 @@ export default function OnboardingPage() {
             return;
         }
 
-        // Pre-fill name from Clerk profile
-        if (clerkUser?.firstName) setFirstName(clerkUser.firstName);
-        if (clerkUser?.lastName) setLastName(clerkUser.lastName);
-
         // Only run the status check once
         if (hasCheckedStatusRef.current) return;
         hasCheckedStatusRef.current = true;
 
-        // Check if user has already completed onboarding
         const checkOnboardingStatus = async () => {
             try {
+                // Fetch user profile from server-side route — this always has the
+                // full Clerk user including Microsoft OAuth email in externalAccounts
+                const profileRes = await fetch('/api/auth/me');
+                if (profileRes.ok && !hasPrefilledRef.current) {
+                    hasPrefilledRef.current = true;
+                    const profile = await profileRes.json();
+                    if (profile.email) setUserEmail(profile.email);
+                    if (profile.firstName) setFirstName(profile.firstName);
+                    if (profile.lastName) setLastName(profile.lastName);
+                }
+
                 const token = await getToken();
                 if (!token) {
                     setIsLoading(false);
@@ -128,7 +137,7 @@ export default function OnboardingPage() {
         };
 
         checkOnboardingStatus();
-    }, [isLoaded, isSignedIn, router, getToken, clerkUser]);
+    }, [isLoaded, isSignedIn, router, getToken]);
 
     const loadSites = async () => {
         try {
@@ -168,9 +177,13 @@ export default function OnboardingPage() {
             return;
         }
 
-        const email = clerkUser?.primaryEmailAddress?.emailAddress;
+        // Email is pre-filled from the server-side /api/auth/me route on load
+        const email = userEmail;
+
         if (!email) {
-            toast.error('Could not retrieve your email address');
+            toast.error(
+                'Could not retrieve your email address. Please refresh and try again.',
+            );
             return;
         }
 
@@ -222,6 +235,10 @@ export default function OnboardingPage() {
         setCurrentStep(2);
     };
 
+    const handleSharePointSkip = () => {
+        setCurrentStep(2);
+    };
+
     const handleAddEmail = () => {
         setMemberEmails([...memberEmails, '']);
     };
@@ -250,16 +267,17 @@ export default function OnboardingPage() {
                 return;
             }
 
-            // Save selected SharePoint sites
-            const selectedSites = sites
-                .filter((site) => selectedSiteIds.has(site.id))
-                .map((site) => ({
-                    id: site.id,
-                    name: site.displayName || site.name,
-                    webUrl: site.webUrl,
-                }));
-
-            await sharepointApi.saveSelectedSites(token, selectedSites);
+            // Save selected SharePoint sites (skip if none were selected)
+            if (selectedSiteIds.size > 0) {
+                const selectedSites = sites
+                    .filter((site) => selectedSiteIds.has(site.id))
+                    .map((site) => ({
+                        id: site.id,
+                        name: site.displayName || site.name,
+                        webUrl: site.webUrl,
+                    }));
+                await sharepointApi.saveSelectedSites(token, selectedSites);
+            }
 
             const validEmails = memberEmails.filter(
                 (email) => email.trim() !== '',
@@ -320,7 +338,7 @@ export default function OnboardingPage() {
         }
     };
 
-    if (!isLoaded || isLoading) {
+    if (!isLoaded || !isClerkUserLoaded || isLoading) {
         return null;
     }
 
@@ -465,13 +483,22 @@ export default function OnboardingPage() {
                                         No SharePoint sites found. Make sure you
                                         have access to SharePoint sites.
                                     </p>
-                                    <Button
-                                        variant="outline"
-                                        onClick={loadSites}
-                                        className="h-8 px-[18px] font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
-                                    >
-                                        Retry
-                                    </Button>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={loadSites}
+                                            className="h-8 px-[18px] font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
+                                        >
+                                            Retry
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleSharePointSkip}
+                                            className="h-8 px-[18px] font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
+                                        >
+                                            Skip for now
+                                        </Button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -547,17 +574,30 @@ export default function OnboardingPage() {
                                                 selected
                                             </p>
                                         </div>
-                                        <Button
-                                            onClick={handleSharePointNext}
-                                            disabled={
-                                                selectedSiteIds.size === 0
-                                            }
-                                            size="lg"
-                                            className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                        >
-                                            Continue
-                                            <ChevronRight className="ml-1.5 h-4 w-4" />
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            {selectedSiteIds.size === 0 && (
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={
+                                                        handleSharePointSkip
+                                                    }
+                                                    className="h-9 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
+                                                >
+                                                    Skip for now
+                                                </Button>
+                                            )}
+                                            <Button
+                                                onClick={handleSharePointNext}
+                                                disabled={
+                                                    selectedSiteIds.size === 0
+                                                }
+                                                size="lg"
+                                                className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                            >
+                                                Continue
+                                                <ChevronRight className="ml-1.5 h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}

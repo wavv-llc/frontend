@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
+import { useUser as useDbUser } from '@/contexts/UserContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,30 +42,21 @@ import {
     Folder,
 } from 'lucide-react';
 import { useSidebarRefresh } from '@/contexts/SidebarContext';
-import {
-    workspaceApi,
-    userApi,
-    chatApi,
-    type Workspace,
-    type Chat,
-} from '@/lib/api';
+import { workspaceApi, chatApi, type Workspace, type Chat } from '@/lib/api';
 
 export function AppSidebar() {
     const router = useRouter();
     const pathname = usePathname();
     const { getToken, signOut } = useAuth();
-    const { user } = useUser();
+    const { user: dbUser } = useDbUser();
     const { refreshTrigger } = useSidebarRefresh();
     useSidebar();
 
+    const isAdmin = dbUser?.organizationRole === 'ADMIN';
+    const organization = dbUser?.organization ?? null;
+
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [organizationId, setOrganizationId] = useState<string | null>(null);
-    const [organization, setOrganization] = useState<{
-        id: string;
-        name: string;
-    } | null>(null);
     const [chats, setChats] = useState<Chat[]>([]);
     const [chatsLoading, setChatsLoading] = useState(true);
     const [sidebarView, setSidebarView] = useState<'main' | 'chat-history'>(
@@ -76,15 +68,6 @@ export function AppSidebar() {
             try {
                 const token = await getToken();
                 if (!token) return;
-
-                const userResponse = await userApi.getMe(token);
-                if (userResponse.data) {
-                    setIsAdmin(userResponse.data.organizationRole === 'ADMIN');
-                    if (userResponse.data.organization) {
-                        setOrganizationId(userResponse.data.organization.id);
-                        setOrganization(userResponse.data.organization);
-                    }
-                }
 
                 const workspacesResponse =
                     await workspaceApi.getWorkspaces(token);
@@ -130,7 +113,7 @@ export function AppSidebar() {
         router.push('/');
     };
 
-    const canAccessOrgSettings = !!organizationId && isAdmin;
+    const canAccessOrgSettings = !!organization?.id && isAdmin;
 
     const handleSettings = () => {
         if (canAccessOrgSettings) {
@@ -141,16 +124,14 @@ export function AppSidebar() {
     };
 
     const userInitial =
-        user?.firstName?.[0] ||
-        user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ||
+        dbUser?.firstName?.[0]?.toUpperCase() ||
+        dbUser?.email?.[0]?.toUpperCase() ||
         'U';
 
     const userDisplayName =
-        user?.firstName && user?.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : user?.firstName ||
-              user?.emailAddresses?.[0]?.emailAddress ||
-              'User';
+        dbUser?.firstName && dbUser?.lastName
+            ? `${dbUser.firstName} ${dbUser.lastName}`
+            : dbUser?.firstName || dbUser?.email || 'User';
 
     const navItems = [
         {

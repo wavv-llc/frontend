@@ -36,9 +36,14 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
 
         if (isLoading) return;
 
-        // User not found or API error → send to auth/callback
+        // User not found or API error → redirect appropriately
         if (error || !user) {
-            router.replace('/auth/callback');
+            // If DB record is missing (pre-onboarding), skip the extra
+            // auth/callback hop and go directly to onboarding
+            const isUserNotFound = error?.message.includes(
+                'complete onboarding',
+            );
+            router.replace(isUserNotFound ? '/onboarding' : '/auth/callback');
             return;
         }
 

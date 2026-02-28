@@ -93,17 +93,24 @@ export type ApprovalRole = 'NONE' | 'PREPARER' | 'REVIEWER';
 export interface ApprovalChainEntry {
     role: 'PREPARER' | 'REVIEWER';
     customFieldId: string;
-    reviewerOrder: number | null;
+    stepOrder: number;
     user: (User & { clerkId?: string }) | null;
 }
 
-/** @deprecated Project-level workflow steps replaced by per-task approvalChain */
+/** Project-level workflow step as returned by GET/PUT /projects/:projectId/approval-workflow */
 export interface ApprovalWorkflowStep {
     id: string;
+    type: 'PREPARER' | 'REVIEWER';
     order: number;
-    userId: string;
-    user: User & { clerkId?: string };
+    customFieldId: string;
     projectId: string;
+    customField: {
+        id: string;
+        name: string;
+        dataType: DataType;
+    };
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface Task {
@@ -114,14 +121,12 @@ export interface Task {
     dueAt?: string;
     // Approval workflow fields
     approvalStatus: ApprovalStatus;
-    currentReviewerIndex: number;
-    isLocked: boolean;
+    currentStepIndex: number;
     createdAt: string;
     updatedAt: string;
     project: {
         id: string;
         description?: string;
-        approvalWorkflowSteps?: ApprovalWorkflowStep[];
     };
     approvalChain?: ApprovalChainEntry[];
     linkedFiles: Document[];
@@ -139,8 +144,7 @@ export interface CustomFieldValue {
         name: string;
         dataType: DataType;
         required: boolean;
-        approvalRole?: ApprovalRole;
-        reviewerOrder?: number | null;
+        order: number;
         customOptions?: string[];
     };
 }
@@ -163,9 +167,8 @@ export interface CustomField {
     color?: string;
     required: boolean;
     multiple: boolean;
+    order: number;
     customOptions?: string[];
-    approvalRole: ApprovalRole;
-    reviewerOrder?: number | null;
     projectId: string;
     createdAt: string;
     updatedAt: string;
@@ -524,40 +527,15 @@ export const sharepointApi = {
 
 // Sign-up request API functions
 export const signupRequestApi = {
-    createRequest: async (data: { email: string }) => {
+    createRequest: async (data: {
+        name: string;
+        email: string;
+        organization: string;
+        message?: string;
+    }) => {
         return apiRequest('/api/v1/signup-requests', {
             method: 'POST',
             body: JSON.stringify(data),
-        });
-    },
-
-    getAllRequests: async (token: string) => {
-        return apiRequest<{
-            requests: Array<{
-                id: string;
-                name: string;
-                email: string;
-                organization: string;
-                message?: string;
-                status: 'PENDING' | 'APPROVED' | 'REJECTED';
-                createdAt: string;
-                updatedAt: string;
-            }>;
-        }>('/api/v1/signup-requests', {
-            method: 'GET',
-            token,
-        });
-    },
-
-    updateRequestStatus: async (
-        token: string,
-        requestId: string,
-        status: 'PENDING' | 'APPROVED' | 'REJECTED',
-    ) => {
-        return apiRequest(`/api/v1/signup-requests/${requestId}/status`, {
-            method: 'PATCH',
-            token,
-            body: JSON.stringify({ status }),
         });
     },
 };
@@ -693,8 +671,8 @@ export const customFieldApi = {
             color?: string;
             required?: boolean;
             multiple?: boolean;
+            order?: number;
             customOptions?: string[];
-            approvalRole?: ApprovalRole;
         },
     ) => {
         return apiRequest<CustomField>(
@@ -718,7 +696,9 @@ export const customFieldApi = {
             dataType?: DataType;
             color?: string;
             required?: boolean;
-            approvalRole?: ApprovalRole;
+            multiple?: boolean;
+            order?: number;
+            customOptions?: string[];
         },
     ) => {
         return apiRequest<CustomField>(
@@ -864,7 +844,11 @@ export const approvalApi = {
     setWorkflow: async (
         token: string,
         projectId: string,
-        steps: Array<{ userId: string }>,
+        steps: Array<{
+            type: 'PREPARER' | 'REVIEWER';
+            customFieldId: string;
+            order: number;
+        }>,
     ) => {
         return apiRequest<ApprovalWorkflowStep[]>(
             `/api/v1/projects/${projectId}/approval-workflow`,

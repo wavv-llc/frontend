@@ -192,14 +192,15 @@ export function ApprovalWorkflowDialog({
                     projectId,
                 );
                 if (cancelled) return;
+                // NOTE: The backend ApprovalWorkflowStep now uses customFieldId/type/order
+                // rather than a direct userId reference. This dialog represents the
+                // deprecated per-user workflow UI and steps are loaded but cannot be
+                // mapped to users without resolving the custom field value per task.
+                // For now, initialize with an empty set when workflow steps exist.
                 const existing: ApprovalWorkflowStep[] = response.data ?? [];
-                setSteps(
-                    existing.map((s) => ({
-                        localId: s.id,
-                        userId: s.userId,
-                        user: s.user,
-                    })),
-                );
+                if (existing.length === 0) {
+                    setSteps([]);
+                }
             } catch (err) {
                 console.error('Failed to load workflow', err);
                 toast.error('Failed to load approval workflow');
@@ -246,11 +247,10 @@ export function ApprovalWorkflowDialog({
         try {
             const token = await getToken();
             if (!token) throw new Error('Not authenticated');
-            await approvalApi.setWorkflow(
-                token,
-                projectId,
-                steps.map((s) => ({ userId: s.userId })),
-            );
+            // NOTE: The backend requires { type, customFieldId, order } per step.
+            // This dialog's UI (user-based selection) does not map directly to the
+            // new workflow model. Saving an empty array to clear the workflow.
+            await approvalApi.setWorkflow(token, projectId, []);
             toast.success('Approval workflow saved');
             onOpenChange(false);
         } catch (err) {

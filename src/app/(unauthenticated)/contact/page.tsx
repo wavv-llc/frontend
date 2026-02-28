@@ -48,7 +48,10 @@ export default function ContactPage() {
 
         try {
             await signupRequestApi.createRequest({
+                name: formData.name,
                 email: formData.email,
+                organization: formData.firmName,
+                message: formData.message || undefined,
             });
 
             setSubmitted(true);
