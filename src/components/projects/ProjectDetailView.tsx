@@ -36,6 +36,7 @@ import {
     LayoutGrid,
     Loader2,
     LayoutTemplate,
+    GitBranch,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,7 @@ import { TaskDetailView } from '@/components/tasks/TaskDetailView';
 import { TaskList, type TaskListRef } from './TaskList';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { ManageTemplatesDialog } from '@/components/dialogs/ManageTemplatesDialog';
+import { ApprovalWorkflowDialog } from './ApprovalWorkflowDialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -561,6 +563,8 @@ export function ProjectDetailView({
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     // Templates
     const [templatesOpen, setTemplatesOpen] = useState(false);
+    // Approval Workflow
+    const [approvalWorkflowOpen, setApprovalWorkflowOpen] = useState(false);
     // Import modal
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
@@ -1364,6 +1368,16 @@ export function ProjectDetailView({
                             <LayoutTemplate className="h-3.5 w-3.5" />
                             Templates
                         </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                            onClick={() => setApprovalWorkflowOpen(true)}
+                        >
+                            <GitBranch className="h-3.5 w-3.5" />
+                            Approval
+                        </Button>
                     </div>
                 </div>
             )}
@@ -1456,6 +1470,16 @@ export function ProjectDetailView({
                 open={templatesOpen}
                 onOpenChange={setTemplatesOpen}
                 workspaceId={project.workspaceId}
+            />
+
+            {/* Approval Workflow Dialog */}
+            <ApprovalWorkflowDialog
+                open={approvalWorkflowOpen}
+                onOpenChange={setApprovalWorkflowOpen}
+                projectId={project.id}
+                userCustomFields={customFields.filter(
+                    (f) => f.dataType === 'USER',
+                )}
             />
 
             {/* Import Tasks Dialog (#9) */}

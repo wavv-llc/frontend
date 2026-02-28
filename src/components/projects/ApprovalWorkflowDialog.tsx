@@ -28,6 +28,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -35,30 +36,31 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useAuth } from '@clerk/nextjs';
-import { type User, type ApprovalWorkflowStep, approvalApi } from '@/lib/api';
+import {
+    type CustomField,
+    type ApprovalWorkflowStep,
+    approvalApi,
+} from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 interface StepEntry {
-    /** Temporary local id for dnd-kit (not the DB id which may not exist yet) */
     localId: string;
-    userId: string;
-    user: User;
+    customFieldId: string;
+    fieldName: string;
+    type: 'PREPARER' | 'REVIEWER';
 }
 
-function userDisplayName(user: User) {
-    return user.firstName
-        ? `${user.firstName} ${user.lastName ?? ''}`.trim()
-        : user.email;
+function roleLabel(type: 'PREPARER' | 'REVIEWER') {
+    return type === 'PREPARER' ? 'Preparer' : 'Reviewer';
 }
 
-function userInitials(user: User) {
-    return user.firstName
-        ? `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase()
-        : user.email[0].toUpperCase();
+function roleBadgeClass(type: 'PREPARER' | 'REVIEWER') {
+    return type === 'PREPARER'
+        ? 'bg-violet-100 text-violet-700 border-violet-200'
+        : 'bg-blue-100 text-blue-700 border-blue-200';
 }
 
 // ── Sortable row ──────────────────────────────────────────────────────────────
@@ -109,26 +111,25 @@ function SortableStep({
                 {index + 1}
             </span>
 
-            {/* Avatar */}
-            <Avatar className="h-6 w-6 shrink-0">
-                <AvatarFallback className="text-[9px] bg-accent/30">
-                    {userInitials(step.user)}
-                </AvatarFallback>
-            </Avatar>
+            {/* Role badge */}
+            <Badge
+                variant="outline"
+                className={cn(
+                    'text-[10px] px-1.5 py-0 shrink-0',
+                    roleBadgeClass(step.type),
+                )}
+            >
+                {roleLabel(step.type)}
+            </Badge>
 
-            {/* Name */}
-            <span className="flex-1 text-sm truncate">
-                {userDisplayName(step.user)}
-            </span>
-            <span className="text-xs text-muted-foreground truncate max-w-30 hidden sm:block">
-                {step.user.email}
-            </span>
+            {/* Field name */}
+            <span className="flex-1 text-sm truncate">{step.fieldName}</span>
 
             {/* Remove */}
             <button
                 onClick={() => onRemove(step.localId)}
                 className="shrink-0 text-muted-foreground hover:text-destructive transition-colors focus:outline-none"
-                aria-label={`Remove ${userDisplayName(step.user)}`}
+                aria-label={`Remove ${step.fieldName}`}
             >
                 <X className="w-3.5 h-3.5" />
             </button>
@@ -141,22 +142,22 @@ export interface ApprovalWorkflowDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     projectId: string;
-    projectMembers: User[];
-    projectOwners: User[];
+    /** USER-type custom fields for this project */
+    userCustomFields: CustomField[];
 }
 
 export function ApprovalWorkflowDialog({
     open,
     onOpenChange,
     projectId,
-    projectMembers,
-    projectOwners,
+    userCustomFields,
 }: ApprovalWorkflowDialogProps) {
     const { getToken } = useAuth();
     const [steps, setSteps] = useState<StepEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [addUserId, setAddUserId] = useState<string>('');
+    const [addFieldId, setAddFieldId] = useState<string>('');
+    const [addType, setAddType] = useState<'PREPARER' | 'REVIEWER'>('REVIEWER');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -165,17 +166,9 @@ export function ApprovalWorkflowDialog({
         }),
     );
 
-    // All project members + owners as candidates
-    const allCandidates: User[] = [
-        ...projectOwners.map((u) => ({ ...u, _role: 'Owner' as const })),
-        ...projectMembers.map((u) => ({ ...u, _role: 'Member' as const })),
-    ].filter(
-        (u, i, arr) => arr.findIndex((x) => x.id === u.id) === i, // dedupe
-    );
-
-    // Users not already in the workflow
-    const availableToAdd = allCandidates.filter(
-        (u) => !steps.some((s) => s.userId === u.id),
+    // Fields not yet in the workflow
+    const availableToAdd = userCustomFields.filter(
+        (f) => !steps.some((s) => s.customFieldId === f.id),
     );
 
     // Load existing workflow when dialog opens
@@ -192,15 +185,16 @@ export function ApprovalWorkflowDialog({
                     projectId,
                 );
                 if (cancelled) return;
-                // NOTE: The backend ApprovalWorkflowStep now uses customFieldId/type/order
-                // rather than a direct userId reference. This dialog represents the
-                // deprecated per-user workflow UI and steps are loaded but cannot be
-                // mapped to users without resolving the custom field value per task.
-                // For now, initialize with an empty set when workflow steps exist.
                 const existing: ApprovalWorkflowStep[] = response.data ?? [];
-                if (existing.length === 0) {
-                    setSteps([]);
-                }
+                const loaded: StepEntry[] = existing
+                    .sort((a, b) => a.order - b.order)
+                    .map((ws) => ({
+                        localId: ws.id,
+                        customFieldId: ws.customFieldId,
+                        fieldName: ws.customField?.name ?? ws.customFieldId,
+                        type: ws.type,
+                    }));
+                setSteps(loaded);
             } catch (err) {
                 console.error('Failed to load workflow', err);
                 toast.error('Failed to load approval workflow');
@@ -223,19 +217,20 @@ export function ApprovalWorkflowDialog({
         });
     }
 
-    function handleAddReviewer() {
-        if (!addUserId) return;
-        const user = allCandidates.find((u) => u.id === addUserId);
-        if (!user) return;
+    function handleAddStep() {
+        if (!addFieldId) return;
+        const field = userCustomFields.find((f) => f.id === addFieldId);
+        if (!field) return;
         setSteps((prev) => [
             ...prev,
             {
-                localId: `new-${addUserId}-${Date.now()}`,
-                userId: addUserId,
-                user,
+                localId: `new-${addFieldId}-${Date.now()}`,
+                customFieldId: addFieldId,
+                fieldName: field.name,
+                type: addType,
             },
         ]);
-        setAddUserId('');
+        setAddFieldId('');
     }
 
     function handleRemove(localId: string) {
@@ -247,10 +242,15 @@ export function ApprovalWorkflowDialog({
         try {
             const token = await getToken();
             if (!token) throw new Error('Not authenticated');
-            // NOTE: The backend requires { type, customFieldId, order } per step.
-            // This dialog's UI (user-based selection) does not map directly to the
-            // new workflow model. Saving an empty array to clear the workflow.
-            await approvalApi.setWorkflow(token, projectId, []);
+            await approvalApi.setWorkflow(
+                token,
+                projectId,
+                steps.map((s, i) => ({
+                    type: s.type,
+                    customFieldId: s.customFieldId,
+                    order: i,
+                })),
+            );
             toast.success('Approval workflow saved');
             onOpenChange(false);
         } catch (err) {
@@ -270,38 +270,30 @@ export function ApprovalWorkflowDialog({
                         Approval Workflow
                     </DialogTitle>
                     <DialogDescription>
-                        Set the order of reviewers for tasks in this project.
-                        Drag to reorder. Tasks must pass each reviewer in
-                        sequence before being marked complete.
+                        Configure which person columns define the approval
+                        chain. Drag to reorder. Tasks pass each step in sequence
+                        before being marked complete.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3 py-2">
-                    {/* Preparer row — always first, non-removable */}
-                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/30 bg-muted/30">
-                        <span className="shrink-0 w-4 h-4" />
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary">
-                            P
-                        </span>
-                        <Avatar className="h-6 w-6 shrink-0">
-                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                —
-                            </AvatarFallback>
-                        </Avatar>
-                        <span className="flex-1 text-sm text-muted-foreground italic">
-                            Preparer (any project member)
-                        </span>
-                    </div>
+                    {userCustomFields.length === 0 && (
+                        <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/40 rounded-lg">
+                            No person columns found. Add a{' '}
+                            <span className="font-medium">Person</span> column
+                            to this project first.
+                        </div>
+                    )}
 
-                    {/* Reviewer steps */}
+                    {/* Configured steps */}
                     {loading ? (
                         <div className="text-sm text-muted-foreground text-center py-4">
                             Loading…
                         </div>
-                    ) : steps.length === 0 ? (
+                    ) : steps.length === 0 && userCustomFields.length > 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border/40 rounded-lg">
-                            No reviewers configured — tasks go directly to
-                            Complete on submit.
+                            No steps configured — tasks go directly to Complete
+                            on submit.
                         </div>
                     ) : (
                         <DndContext
@@ -327,22 +319,40 @@ export function ApprovalWorkflowDialog({
                         </DndContext>
                     )}
 
-                    {/* Add reviewer */}
+                    {/* Add step */}
                     {availableToAdd.length > 0 && (
                         <>
                             <Separator className="my-1" />
                             <div className="flex items-center gap-2">
                                 <Select
-                                    value={addUserId}
-                                    onValueChange={setAddUserId}
+                                    value={addType}
+                                    onValueChange={(v) =>
+                                        setAddType(v as 'PREPARER' | 'REVIEWER')
+                                    }
                                 >
-                                    <SelectTrigger className="flex-1 h-8 text-sm">
-                                        <SelectValue placeholder="Add a reviewer…" />
+                                    <SelectTrigger className="w-32 h-8 text-sm">
+                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {availableToAdd.map((u) => (
-                                            <SelectItem key={u.id} value={u.id}>
-                                                {userDisplayName(u)}
+                                        <SelectItem value="PREPARER">
+                                            Preparer
+                                        </SelectItem>
+                                        <SelectItem value="REVIEWER">
+                                            Reviewer
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select
+                                    value={addFieldId}
+                                    onValueChange={setAddFieldId}
+                                >
+                                    <SelectTrigger className="flex-1 h-8 text-sm">
+                                        <SelectValue placeholder="Add a column…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableToAdd.map((f) => (
+                                            <SelectItem key={f.id} value={f.id}>
+                                                {f.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -350,8 +360,8 @@ export function ApprovalWorkflowDialog({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={handleAddReviewer}
-                                    disabled={!addUserId}
+                                    onClick={handleAddStep}
+                                    disabled={!addFieldId}
                                     className="h-8 px-2"
                                 >
                                     <Plus className="w-4 h-4" />

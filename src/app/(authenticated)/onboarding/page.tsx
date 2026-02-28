@@ -22,8 +22,17 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
+    ClipboardList,
 } from 'lucide-react';
-import { sharepointApi, userApi } from '@/lib/api';
+import { sharepointApi, userApi, organizationApi } from '@/lib/api';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -46,9 +55,27 @@ interface SharePointSite {
 
 const STEPS = [
     { id: 0, title: 'Create Organization', icon: Building2 },
-    { id: 1, title: 'Connect SharePoint', icon: Share2 },
-    { id: 2, title: 'Invite Members', icon: UserPlus },
+    { id: 1, title: 'Complete Profile', icon: ClipboardList },
+    { id: 2, title: 'Connect SharePoint', icon: Share2 },
+    { id: 3, title: 'Invite Members', icon: UserPlus },
 ];
+
+const INDUSTRY_OPTIONS = [
+    'Accounting',
+    'Banking & Finance',
+    'Consulting',
+    'Government',
+    'Healthcare',
+    'Insurance',
+    'Law',
+    'Manufacturing',
+    'Non-Profit',
+    'Real Estate',
+    'Technology',
+    'Other',
+];
+
+const SIZE_OPTIONS = ['1–10', '11–50', '51–200', '201–500', '500+'];
 
 export default function OnboardingPage() {
     const { isLoaded, isSignedIn, getToken } = useAuth();
@@ -65,15 +92,21 @@ export default function OnboardingPage() {
     const [lastName, setLastName] = useState('');
     const [userEmail, setUserEmail] = useState('');
     const [isOrgCreated, setIsOrgCreated] = useState(false);
+    const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
 
-    // Step 1: SharePoint sites
+    // Step 1: Complete organization profile
+    const [orgIndustry, setOrgIndustry] = useState('');
+    const [orgSize, setOrgSize] = useState('');
+    const [orgDescription, setOrgDescription] = useState('');
+
+    // Step 2: SharePoint sites
     const [sites, setSites] = useState<SharePointSite[]>([]);
     const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(
         new Set(),
     );
     const [isLoadingSites, setIsLoadingSites] = useState(false);
 
-    // Step 2: Member invitations
+    // Step 3: Member invitations
     const [memberEmails, setMemberEmails] = useState<string[]>(['']);
 
     // General loading states
@@ -164,14 +197,53 @@ export default function OnboardingPage() {
         }
     };
 
-    // Load sites when moving to step 1
+    // Load sites when moving to step 2
     useEffect(() => {
-        if (currentStep === 1 && sites.length === 0) {
+        if (currentStep === 2 && sites.length === 0) {
             loadSites();
         }
     }, [currentStep]);
 
+    const handleCompleteOrganization = async () => {
+        // All fields optional — save if org exists, then advance
+        try {
+            if (createdOrgId && (orgIndustry || orgSize || orgDescription)) {
+                setIsSaving(true);
+                const token = await getToken();
+                if (!token) {
+                    toast.error('Authentication required');
+                    return;
+                }
+                await organizationApi.updateDetails(token, createdOrgId, {
+                    industry: orgIndustry || undefined,
+                    size: orgSize || undefined,
+                    description: orgDescription.trim() || undefined,
+                });
+            }
+            setCurrentStep(2);
+        } catch (err) {
+            console.error('Error saving organization details:', err);
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to save organization details',
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleCreateOrganization = async () => {
+        if (!firstName.trim()) {
+            toast.error('Please enter your first name');
+            return;
+        }
+
+        if (!lastName.trim()) {
+            toast.error('Please enter your last name');
+            return;
+        }
+
         if (!orgName.trim()) {
             toast.error('Please enter an organization name');
             return;
@@ -195,14 +267,17 @@ export default function OnboardingPage() {
                 return;
             }
 
-            await userApi.completeOnboarding(token, {
+            const response = await userApi.completeOnboarding(token, {
                 email,
-                firstName: firstName.trim() || undefined,
-                lastName: lastName.trim() || undefined,
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
                 organizationName: orgName.trim(),
             });
 
             setIsOrgCreated(true);
+            if (response.data?.organization?.id) {
+                setCreatedOrgId(response.data.organization.id);
+            }
             toast.success('Organization created successfully');
             setCurrentStep(1);
         } catch (err) {
@@ -232,11 +307,11 @@ export default function OnboardingPage() {
             toast.error('Please select at least one SharePoint site');
             return;
         }
-        setCurrentStep(2);
+        setCurrentStep(3);
     };
 
     const handleSharePointSkip = () => {
-        setCurrentStep(2);
+        setCurrentStep(3);
     };
 
     const handleAddEmail = () => {
@@ -282,8 +357,28 @@ export default function OnboardingPage() {
             const validEmails = memberEmails.filter(
                 (email) => email.trim() !== '',
             );
-            if (validEmails.length > 0) {
-                console.log('Members to invite:', validEmails);
+            if (validEmails.length > 0 && createdOrgId) {
+                const inviteResults = await Promise.allSettled(
+                    validEmails.map((email) =>
+                        organizationApi.inviteMember(
+                            token,
+                            createdOrgId,
+                            email.trim(),
+                        ),
+                    ),
+                );
+                const failed = inviteResults.filter(
+                    (r) => r.status === 'rejected',
+                ).length;
+                if (failed > 0) {
+                    toast.warning(
+                        `${validEmails.length - failed} invitation(s) sent. ${failed} failed.`,
+                    );
+                } else {
+                    toast.success(
+                        `${validEmails.length} invitation(s) sent successfully`,
+                    );
+                }
             }
 
             toast.success('Onboarding completed successfully!');
@@ -330,8 +425,10 @@ export default function OnboardingPage() {
             case 0:
                 return isOrgCreated;
             case 1:
-                return selectedSiteIds.size > 0;
+                return currentStep > 1; // Complete Profile is always skippable
             case 2:
+                return selectedSiteIds.size > 0;
+            case 3:
                 return true; // Optional step
             default:
                 return false;
@@ -367,7 +464,7 @@ export default function OnboardingPage() {
                                         htmlFor="first-name"
                                         className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
                                     >
-                                        First Name
+                                        First Name *
                                     </Label>
                                     <Input
                                         id="first-name"
@@ -385,7 +482,7 @@ export default function OnboardingPage() {
                                         htmlFor="last-name"
                                         className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
                                     >
-                                        Last Name
+                                        Last Name *
                                     </Label>
                                     <Input
                                         id="last-name"
@@ -420,6 +517,8 @@ export default function OnboardingPage() {
                                     onClick={handleCreateOrganization}
                                     disabled={
                                         isSaving ||
+                                        !firstName.trim() ||
+                                        !lastName.trim() ||
                                         !orgName.trim() ||
                                         isOrgCreated
                                     }
@@ -452,6 +551,141 @@ export default function OnboardingPage() {
                 );
 
             case 1:
+                return (
+                    <>
+                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
+                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                Complete Your Organization Profile
+                            </CardTitle>
+                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
+                                Tell us a bit more about your organization
+                                (optional).
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-[18px] p-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="org-industry"
+                                        className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                    >
+                                        Industry
+                                    </Label>
+                                    <Select
+                                        value={orgIndustry}
+                                        onValueChange={setOrgIndustry}
+                                    >
+                                        <SelectTrigger
+                                            id="org-industry"
+                                            className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] rounded-lg"
+                                        >
+                                            <SelectValue placeholder="Select industry" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {INDUSTRY_OPTIONS.map((opt) => (
+                                                <SelectItem
+                                                    key={opt}
+                                                    value={opt}
+                                                >
+                                                    {opt}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label
+                                        htmlFor="org-size"
+                                        className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                    >
+                                        Company Size
+                                    </Label>
+                                    <Select
+                                        value={orgSize}
+                                        onValueChange={setOrgSize}
+                                    >
+                                        <SelectTrigger
+                                            id="org-size"
+                                            className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] rounded-lg"
+                                        >
+                                            <SelectValue placeholder="Select size" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SIZE_OPTIONS.map((opt) => (
+                                                <SelectItem
+                                                    key={opt}
+                                                    value={opt}
+                                                >
+                                                    {opt}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label
+                                    htmlFor="org-description"
+                                    className="font-sans text-[13px] font-medium text-[var(--dashboard-text-primary)]"
+                                >
+                                    Description
+                                </Label>
+                                <Textarea
+                                    id="org-description"
+                                    placeholder="What does your organization do?"
+                                    value={orgDescription}
+                                    onChange={(e) =>
+                                        setOrgDescription(e.target.value)
+                                    }
+                                    rows={3}
+                                    className="px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg resize-none"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-[var(--dashboard-border-light)]">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentStep(0)}
+                                    className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
+                                >
+                                    <ChevronLeft className="mr-1.5 h-4 w-4" />
+                                    Back
+                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setCurrentStep(2)}
+                                        className="h-9 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
+                                    >
+                                        Skip for now
+                                    </Button>
+                                    <Button
+                                        onClick={handleCompleteOrganization}
+                                        disabled={isSaving}
+                                        size="lg"
+                                        className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <Spinner
+                                                    size="sm"
+                                                    className="mr-2 text-current"
+                                                />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Continue
+                                                <ChevronRight className="ml-1.5 h-4 w-4" />
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </>
+                );
+
+            case 2:
                 return (
                     <>
                         <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
@@ -559,7 +793,7 @@ export default function OnboardingPage() {
                                             <Button
                                                 variant="outline"
                                                 onClick={() =>
-                                                    setCurrentStep(0)
+                                                    setCurrentStep(1)
                                                 }
                                                 className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                             >
@@ -605,7 +839,7 @@ export default function OnboardingPage() {
                     </>
                 );
 
-            case 2:
+            case 3:
                 return (
                     <>
                         <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
@@ -659,7 +893,7 @@ export default function OnboardingPage() {
                             <div className="flex items-center justify-between pt-4 border-t border-[var(--dashboard-border-light)]">
                                 <Button
                                     variant="outline"
-                                    onClick={() => setCurrentStep(1)}
+                                    onClick={() => setCurrentStep(2)}
                                     className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                 >
                                     <ChevronLeft className="mr-1.5 h-4 w-4" />

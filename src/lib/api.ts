@@ -471,6 +471,21 @@ export const organizationApi = {
             },
         );
     },
+
+    updateDetails: async (
+        token: string,
+        organizationId: string,
+        data: { industry?: string; size?: string; description?: string },
+    ) => {
+        return apiRequest<OrganizationDetails>(
+            `/api/v1/organizations/${organizationId}/details`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify(data),
+            },
+        );
+    },
 };
 
 // SharePoint API functions

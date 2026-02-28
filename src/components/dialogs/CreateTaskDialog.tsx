@@ -3,22 +3,18 @@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
-import { taskApi, User } from '@/lib/api';
+import { taskApi } from '@/lib/api';
 import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
 import { useDialogForm } from '@/hooks/useDialogForm';
-import { useCustomFields } from '@/hooks/useCustomFields';
 import { FormDialog } from './shared/FormDialog';
 import { FormDialogField } from './shared/FormDialogField';
 import { FormDialogActions } from './shared/FormDialogActions';
-import { CustomFieldsSection } from './shared/CustomFieldsSection';
-import { TemplateSelector } from './shared/TemplateSelector';
 
 interface CreateTaskDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     projectId: string;
     workspaceId: string;
-    projectMembers?: User[];
     onSuccess?: () => void;
 }
 
@@ -32,13 +28,9 @@ export function CreateTaskDialog({
     open,
     onOpenChange,
     projectId,
-    workspaceId,
-    projectMembers,
+    workspaceId: _workspaceId,
     onSuccess,
 }: CreateTaskDialogProps) {
-    // Custom fields hook
-    const customFieldsHook = useCustomFields(projectId, open);
-
     // Mutation hook
     const { mutate, isLoading } = useAuthenticatedMutation({
         mutationFn: (
@@ -48,14 +40,10 @@ export function CreateTaskDialog({
                 description?: string;
                 dueAt?: string;
                 status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
-                customFields: Record<string, string | number | null>;
             },
         ) => taskApi.createTask(token, projectId, data),
         successMessage: 'Task created successfully',
         onSuccess: () => {
-            // Reset custom fields after success
-            customFieldsHook.resetCustomFields();
-            // Delay to ensure dialog closes first
             setTimeout(() => {
                 onSuccess?.();
             }, 100);
@@ -73,10 +61,6 @@ export function CreateTaskDialog({
             if (!values.name.trim()) {
                 return { name: 'Please enter a task name' };
             }
-            // Validate custom fields
-            if (!customFieldsHook.validateCustomFields()) {
-                return { customFields: 'Custom field validation failed' };
-            }
             return null;
         },
         onSubmit: async (values) => {
@@ -87,18 +71,11 @@ export function CreateTaskDialog({
                     ? values.dueDate.toISOString()
                     : undefined,
                 status: 'PENDING',
-                customFields: customFieldsHook.getCustomFieldsPayload(),
             });
             onOpenChange(false);
         },
         resetOnSuccess: true,
     });
-
-    function handleApplyTemplate(values: Record<string, string>) {
-        Object.entries(values).forEach(([fieldId, value]) => {
-            customFieldsHook.updateCustomFieldValue(fieldId, value);
-        });
-    }
 
     return (
         <FormDialog
@@ -159,29 +136,6 @@ export function CreateTaskDialog({
                             placeholder="Select a due date"
                         />
                     </FormDialogField>
-
-                    {/* Template Selector — shown when custom fields exist */}
-                    {!customFieldsHook.isLoadingFields &&
-                        customFieldsHook.customFields.length > 0 && (
-                            <TemplateSelector
-                                workspaceId={workspaceId}
-                                customFields={customFieldsHook.customFields}
-                                customFieldValues={
-                                    customFieldsHook.customFieldValues
-                                }
-                                onApply={handleApplyTemplate}
-                            />
-                        )}
-
-                    {/* Custom Fields Section */}
-                    <CustomFieldsSection
-                        customFields={customFieldsHook.customFields}
-                        customFieldValues={customFieldsHook.customFieldValues}
-                        onChange={customFieldsHook.updateCustomFieldValue}
-                        disabled={isLoading}
-                        isLoading={customFieldsHook.isLoadingFields}
-                        projectMembers={projectMembers}
-                    />
                 </div>
 
                 <FormDialogActions
@@ -189,7 +143,6 @@ export function CreateTaskDialog({
                     submitLabel="Create Task"
                     isLoading={isLoading}
                     loadingLabel="Creating..."
-                    disabled={customFieldsHook.isLoadingFields}
                 />
             </form>
         </FormDialog>
