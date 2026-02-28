@@ -149,9 +149,11 @@ export function UniversalSearch() {
     );
 
     useEffect(() => {
-        if (open) {
+        if (!open) return;
+        const timer = setTimeout(() => {
             fetchResults(query);
-        }
+        }, 300);
+        return () => clearTimeout(timer);
     }, [open, query, fetchResults]);
 
     const navigate = (path: string) => {

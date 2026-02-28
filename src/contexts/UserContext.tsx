@@ -43,9 +43,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const getTokenRef = useRef(getToken);
     getTokenRef.current = getToken;
 
+    // Use a ref so pathname is never a useCallback dependency — every client-side
+    // navigation changes pathname, which would recreate fetchUser, re-run the
+    // effect, set isLoading=true, and fire a new GET /users/me on every page change.
+    const pathnameRef = useRef(pathname);
+    pathnameRef.current = pathname;
+
     const fetchUser = useCallback(async () => {
         const isExcluded = SKIP_FETCH_PATHS.some((p) =>
-            pathname?.startsWith(p),
+            pathnameRef.current?.startsWith(p),
         );
 
         if (!isLoaded || !isSignedIn || isExcluded) {
@@ -79,18 +85,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoaded, isSignedIn, pathname]); // getToken accessed via ref — see getTokenRef above
+    }, [isLoaded, isSignedIn]); // getToken + pathname accessed via refs — see getTokenRef/pathnameRef above
 
     // Initial fetch
     useEffect(() => {
         fetchUser();
     }, [fetchUser]);
 
+    // Synchronously guard against the transient (user=null, isLoading=false) state
+    // that occurs when navigating FROM an excluded path (e.g. /auth/callback) TO a
+    // normal route. The child AuthenticatedGuard effect fires before the parent
+    // UserProvider effect, so it would see stale null/false state and redirect back
+    // to /auth/callback before fetchUser even starts. Treat it as "loading" until we
+    // actually have a result.
+    const isExcludedPath = SKIP_FETCH_PATHS.some((p) =>
+        pathname?.startsWith(p),
+    );
+    const effectiveIsLoading =
+        !isExcludedPath && isLoaded && isSignedIn && !user && !error
+            ? true
+            : isLoading;
+
     return (
         <UserContext.Provider
             value={{
                 user,
-                isLoading,
+                isLoading: effectiveIsLoading,
                 error,
                 refreshUser: fetchUser,
             }}

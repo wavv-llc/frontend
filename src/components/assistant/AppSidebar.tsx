@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useUser as useDbUser } from '@/contexts/UserContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -30,6 +30,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Empty } from '@/components/ui/empty';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import {
     Plus,
@@ -50,6 +51,11 @@ export function AppSidebar() {
     const { getToken, signOut } = useAuth();
     const { user: dbUser } = useDbUser();
     const { refreshTrigger } = useSidebarRefresh();
+
+    // Clerk's getToken is not referentially stable — keep it in a ref so it
+    // never appears in effect dep arrays (which would re-fire fetches spuriously).
+    const getTokenRef = useRef(getToken);
+    getTokenRef.current = getToken;
     useSidebar();
 
     const isAdmin = dbUser?.organizationRole === 'ADMIN';
@@ -66,7 +72,7 @@ export function AppSidebar() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = await getToken();
+                const token = await getTokenRef.current();
                 if (!token) return;
 
                 const workspacesResponse =
@@ -80,12 +86,12 @@ export function AppSidebar() {
         };
 
         fetchData();
-    }, [getToken, refreshTrigger]);
+    }, [refreshTrigger]);
 
     useEffect(() => {
         const fetchChats = async () => {
             try {
-                const token = await getToken();
+                const token = await getTokenRef.current();
                 if (!token) return;
 
                 const response = await chatApi.getChats(token);
@@ -98,7 +104,7 @@ export function AppSidebar() {
         };
 
         fetchChats();
-    }, [getToken, refreshTrigger]);
+    }, [refreshTrigger]);
 
     const handleChatClick = (chatId: string) => router.push(`/chats/${chatId}`);
     const handleNewChat = () => {
@@ -225,7 +231,16 @@ export function AppSidebar() {
                             </SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {!loading && workspaces.length > 0 ? (
+                                    {loading ? (
+                                        [1, 2, 3].map((i) => (
+                                            <SidebarMenuItem key={i}>
+                                                <div className="flex items-center gap-2 px-2 py-1.5">
+                                                    <Skeleton className="h-3.5 w-3.5 rounded-sm shrink-0" />
+                                                    <Skeleton className="h-3 flex-1 rounded-sm" />
+                                                </div>
+                                            </SidebarMenuItem>
+                                        ))
+                                    ) : workspaces.length > 0 ? (
                                         workspaces.map((workspace) => (
                                             <SidebarMenuItem key={workspace.id}>
                                                 <SidebarMenuButton

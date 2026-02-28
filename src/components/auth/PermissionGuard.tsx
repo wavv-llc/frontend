@@ -34,7 +34,7 @@ export function PermissionGuard({
     }, [isLoading, hasAccess, redirectTo, router]);
 
     if (isLoading) {
-        return null;
+        return <>{fallback}</>;
     }
 
     if (!hasAccess) {
