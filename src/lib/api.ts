@@ -1333,7 +1333,7 @@ export const chatApi = {
     getChat: async (
         token: string,
         chatId: string,
-    ): Promise<ApiResponse<Chat>> => {
+    ): Promise<ApiResponse<ChatConversation>> => {
         const response = await apiRequest<ChatConversation>(
             `/api/v1/chats/${chatId}`,
             {
@@ -1341,13 +1341,23 @@ export const chatApi = {
                 token,
             },
         );
-        if (response.data) {
-            return {
-                ...response,
-                data: normalizeChatConversation(response.data),
-            };
-        }
-        return response as unknown as ApiResponse<Chat>;
+        return response;
+    },
+
+    sendMessage: async (
+        token: string,
+        conversationId: string,
+        message: string,
+        externalSearchEnabled: boolean = false,
+    ): Promise<ApiResponse<ChatMessage>> => {
+        return apiRequest<ChatMessage>(
+            `/api/v1/chats/${conversationId}/messages`,
+            {
+                method: 'POST',
+                token,
+                body: JSON.stringify({ message, externalSearchEnabled }),
+            },
+        );
     },
 
     createChat: async (
@@ -1382,8 +1392,9 @@ export const chatApi = {
 
     pollChatStatus: async (
         token: string,
-        chatId: string,
-        onUpdate: (chat: Chat) => void,
+        conversationId: string,
+        messageId: string,
+        onUpdate: (conv: ChatConversation) => void,
         options: {
             interval?: number;
             maxAttempts?: number;
@@ -1402,13 +1413,19 @@ export const chatApi = {
             attempts++;
 
             try {
-                const response = await chatApi.getChat(token, chatId);
+                const response = await chatApi.getChat(token, conversationId);
 
                 if (!response.data) {
-                    throw new Error('Chat not found');
+                    throw new Error('Conversation not found');
                 }
 
-                if (response.data.response !== null) {
+                const targetMsg = response.data.messages?.find(
+                    (m) => m.id === messageId,
+                );
+                if (
+                    targetMsg?.response !== null &&
+                    targetMsg?.response !== undefined
+                ) {
                     onUpdate(response.data);
                     return;
                 }

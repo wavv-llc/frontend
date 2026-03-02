@@ -14,8 +14,9 @@ import {
     Bot,
     RefreshCw,
     Send,
+    Globe,
 } from 'lucide-react';
-import { chatApi, type Chat } from '@/lib/api';
+import { chatApi, type ChatConversation, type ChatMessage } from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -113,21 +114,28 @@ export default function ChatDetailPage() {
     const chatId = params.chatId as string;
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const [chat, setChat] = useState<Chat | null>(null);
+    const [conversation, setConversation] = useState<ChatConversation | null>(
+        null,
+    );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isRetrying, setIsRetrying] = useState(false);
-    const [isThinking, setIsThinking] = useState(false);
-    const [streamedResponse, setStreamedResponse] = useState('');
+    const [pendingMessageId, setPendingMessageId] = useState<string | null>(
+        null,
+    );
+    const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+        null,
+    );
+    const [streamedText, setStreamedText] = useState('');
     const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const cancelPollingRef = useRef<(() => void) | null>(null);
     const [followUpMessage, setFollowUpMessage] = useState('');
+    const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
     const [isSubmittingFollowUp, setIsSubmittingFollowUp] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        let cancelPolling: (() => void) | null = null;
-
         const fetchChat = async () => {
             try {
                 const token = await getToken();
@@ -139,20 +147,28 @@ export default function ChatDetailPage() {
 
                 const response = await chatApi.getChat(token, chatId);
                 if (response.data) {
-                    setChat(response.data);
+                    setConversation(response.data);
 
-                    // If response is not complete, start polling and show thinking
-                    if (response.data.response === null) {
-                        setIsThinking(true);
-                        cancelPolling = await chatApi.pollChatStatus(
+                    const msgs = response.data.messages ?? [];
+                    const lastMsg = msgs[msgs.length - 1];
+
+                    if (lastMsg && lastMsg.response === null) {
+                        setPendingMessageId(lastMsg.id);
+                        cancelPollingRef.current = await chatApi.pollChatStatus(
                             token,
                             chatId,
-                            (updatedChat) => {
-                                setChat(updatedChat);
-                                setIsThinking(false);
-                                // Trigger streaming animation
-                                if (updatedChat.response) {
-                                    animateResponse(updatedChat.response);
+                            lastMsg.id,
+                            (updatedConv) => {
+                                setConversation(updatedConv);
+                                setPendingMessageId(null);
+                                const updatedMsg = updatedConv.messages?.find(
+                                    (m) => m.id === lastMsg.id,
+                                );
+                                if (updatedMsg?.response) {
+                                    animateResponse(
+                                        lastMsg.id,
+                                        updatedMsg.response,
+                                    );
                                 }
                             },
                             {
@@ -160,15 +176,11 @@ export default function ChatDetailPage() {
                                 maxAttempts: 120,
                                 onError: (err) => {
                                     console.error('Polling error:', err);
-                                    setError('Failed to receive response');
                                     toast.error('Failed to receive response');
-                                    setIsThinking(false);
+                                    setPendingMessageId(null);
                                 },
                             },
                         );
-                    } else if (response.data.response) {
-                        // Response already complete, show it immediately
-                        setStreamedResponse(response.data.response);
                     }
                 } else {
                     setError('Chat not found');
@@ -185,57 +197,52 @@ export default function ChatDetailPage() {
 
         fetchChat();
 
-        // Cleanup: cancel polling and streaming animation when component unmounts
         return () => {
-            if (cancelPolling) {
-                cancelPolling();
-            }
-            if (streamIntervalRef.current) {
+            cancelPollingRef.current?.();
+            if (streamIntervalRef.current)
                 clearInterval(streamIntervalRef.current);
-            }
         };
     }, [getToken, chatId]);
 
-    // Animate the response text streaming in
-    const animateResponse = (text: string) => {
-        // Clear any existing animation
-        if (streamIntervalRef.current) {
-            clearInterval(streamIntervalRef.current);
-        }
-
+    const animateResponse = (messageId: string, text: string) => {
+        if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
+        setStreamingMessageId(messageId);
+        setStreamedText('');
         const words = text.split(' ');
         let currentIndex = 0;
-
         streamIntervalRef.current = setInterval(() => {
             if (currentIndex < words.length) {
-                setStreamedResponse(words.slice(0, currentIndex + 1).join(' '));
+                setStreamedText(words.slice(0, currentIndex + 1).join(' '));
                 currentIndex++;
             } else {
-                if (streamIntervalRef.current) {
-                    clearInterval(streamIntervalRef.current);
-                    streamIntervalRef.current = null;
-                }
+                clearInterval(streamIntervalRef.current!);
+                streamIntervalRef.current = null;
+                setStreamingMessageId(null);
             }
-        }, 30); // Adjust speed here (lower = faster)
+        }, 30);
     };
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [chat, streamedResponse]);
+    }, [conversation, streamedText]);
 
-    const handleCopy = (idx: number, content: string) => {
+    const handleCopy = (messageId: string, content: string) => {
         navigator.clipboard?.writeText(
             content.replace(/\*\*/g, '').replace(/#{2,3}\s/g, ''),
         );
-        setCopiedIdx(idx);
-        setTimeout(() => setCopiedIdx(null), 1500);
+        setCopiedId(messageId);
+        setTimeout(() => setCopiedId(null), 1500);
     };
 
     const handleFollowUp = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!followUpMessage.trim() || isSubmittingFollowUp) return;
+        if (!followUpMessage.trim() || isSubmittingFollowUp || pendingMessageId)
+            return;
+
+        const text = followUpMessage.trim();
+        setFollowUpMessage('');
 
         try {
             setIsSubmittingFollowUp(true);
@@ -245,16 +252,90 @@ export default function ChatDetailPage() {
                 return;
             }
 
-            const response = await chatApi.createChat(
+            // Optimistically append a pending message to the UI
+            const optimisticId = `optimistic-${Date.now()}`;
+            setConversation((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    messages: [
+                        ...prev.messages,
+                        {
+                            id: optimisticId,
+                            message: text,
+                            response: null,
+                            externalSearchEnabled,
+                            conversationId: chatId,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                        } as ChatMessage,
+                    ],
+                };
+            });
+
+            const sendResp = await chatApi.sendMessage(
                 token,
-                followUpMessage.trim(),
+                chatId,
+                text,
+                externalSearchEnabled,
             );
-            if (response.data?.id) {
-                setFollowUpMessage('');
-                router.push(`/chats/${response.data.id}`);
+
+            if (!sendResp.data) {
+                toast.error('Failed to send message');
+                setConversation((prev) => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        messages: prev.messages.filter(
+                            (m) => m.id !== optimisticId,
+                        ),
+                    };
+                });
+                return;
             }
+
+            const realId = sendResp.data.id;
+
+            // Replace optimistic entry with the real message from server
+            setConversation((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    messages: prev.messages.map((m) =>
+                        m.id === optimisticId ? { ...sendResp.data! } : m,
+                    ),
+                };
+            });
+
+            setPendingMessageId(realId);
+
+            cancelPollingRef.current?.();
+            cancelPollingRef.current = await chatApi.pollChatStatus(
+                token,
+                chatId,
+                realId,
+                (updatedConv) => {
+                    setConversation(updatedConv);
+                    setPendingMessageId(null);
+                    const updatedMsg = updatedConv.messages?.find(
+                        (m) => m.id === realId,
+                    );
+                    if (updatedMsg?.response) {
+                        animateResponse(realId, updatedMsg.response);
+                    }
+                },
+                {
+                    interval: 1000,
+                    maxAttempts: 120,
+                    onError: () => {
+                        toast.error('Failed to receive response');
+                        setPendingMessageId(null);
+                    },
+                },
+            );
         } catch {
             toast.error('Failed to send message');
+            setFollowUpMessage(text);
         } finally {
             setIsSubmittingFollowUp(false);
         }
@@ -269,27 +350,12 @@ export default function ChatDetailPage() {
         }
     };
 
-    const handleRetry = async () => {
-        if (!chat || isRetrying) return;
-
+    const handleRetry = async (msgText: string) => {
+        if (!conversation || isRetrying || pendingMessageId) return;
         setIsRetrying(true);
         try {
-            const token = await getToken();
-            if (!token) {
-                console.error('No auth token available');
-                setIsRetrying(false);
-                return;
-            }
-
-            // Create a new chat with the same message
-            const response = await chatApi.createChat(token, chat.message);
-
-            if (response.data?.id) {
-                // Navigate to the new chat
-                router.push(`/chats/${response.data.id}`);
-            }
-        } catch (err) {
-            console.error('Failed to retry chat:', err);
+            setFollowUpMessage(msgText);
+        } finally {
             setIsRetrying(false);
         }
     };
@@ -363,7 +429,7 @@ export default function ChatDetailPage() {
         );
     }
 
-    if (error || !chat) {
+    if (error || !conversation) {
         return (
             <div className="cr-root">
                 <style>{styles}</style>
@@ -394,31 +460,13 @@ export default function ChatDetailPage() {
         );
     }
 
-    // Build messages array from chat data
-    type Message = {
-        role: 'user' | 'assistant';
-        content: string;
-        time: string;
-        isThinking?: boolean;
-    };
-
-    const messages: Message[] = [
-        {
-            role: 'user',
-            content: chat.message,
-            time: formatTimestamp(chat.createdAt),
-        },
-    ];
-
-    // Show assistant message if we have a response or are thinking
-    if (chat.response || isThinking) {
-        messages.push({
-            role: 'assistant',
-            content: streamedResponse || chat.response || '',
-            time: formatTimestamp(chat.updatedAt),
-            isThinking: isThinking,
-        });
-    }
+    const firstMsg = conversation.messages?.[0];
+    const displayTitle =
+        conversation.title ??
+        (firstMsg?.message && firstMsg.message.length > 60
+            ? firstMsg.message.slice(0, 60) + '...'
+            : (firstMsg?.message ?? ''));
+    const totalMessages = conversation.messages?.length ?? 0;
 
     return (
         <>
@@ -436,140 +484,201 @@ export default function ChatDetailPage() {
                             <ArrowLeft size={14} />
                         </button>
                         <div className="top-bar-info">
-                            <div className="top-bar-title">
-                                {chat.message.length > 60
-                                    ? chat.message.slice(0, 60) + '...'
-                                    : chat.message}
-                            </div>
+                            <div className="top-bar-title">{displayTitle}</div>
                             <div className="top-bar-meta">
-                                {messages.length} message
-                                {messages.length !== 1 ? 's' : ''} ·{' '}
-                                {formatTimestamp(chat.createdAt)}
+                                {totalMessages} message
+                                {totalMessages !== 1 ? 's' : ''} ·{' '}
+                                {formatTimestamp(conversation.createdAt)}
                             </div>
                         </div>
                         <div className="top-bar-badge">
-                            {formatDateBadge(chat.createdAt)}
+                            {formatDateBadge(conversation.createdAt)}
                         </div>
                     </header>
 
-                    {/* Messages */}
+                    {/* Messages — one user bubble + one assistant bubble per ChatMessage */}
                     <div
                         className="messages-scroll"
                         ref={scrollRef}
                         style={{ paddingBottom: '80px' }}
                     >
                         <div className="messages-inner">
-                            {messages.map((msg, i) =>
-                                msg.role === 'user' ? (
-                                    <div key={i} className="msg msg-user">
-                                        <div>
-                                            <div className="msg-user-bubble">
-                                                {msg.content}
-                                            </div>
-                                            <div className="msg-user-footer">
-                                                <div className="msg-user-time">
-                                                    {msg.time}
+                            {conversation.messages?.map((msg) => {
+                                const isPending = msg.id === pendingMessageId;
+                                const isStreaming =
+                                    msg.id === streamingMessageId;
+                                const responseContent = isStreaming
+                                    ? streamedText
+                                    : (msg.response ?? '');
+                                const showAssistant =
+                                    msg.response !== null || isPending;
+
+                                return (
+                                    <React.Fragment key={msg.id}>
+                                        {/* User bubble */}
+                                        <div className="msg msg-user">
+                                            <div>
+                                                <div className="msg-user-bubble">
+                                                    {msg.message}
                                                 </div>
-                                                <button
-                                                    className="retry-btn"
-                                                    onClick={handleRetry}
-                                                    disabled={isRetrying}
-                                                    title="Retry message"
-                                                >
-                                                    <RefreshCw
-                                                        size={10}
-                                                        className={
-                                                            isRetrying
-                                                                ? 'animate-spin'
-                                                                : ''
-                                                        }
-                                                    />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div key={i} className="msg msg-assistant">
-                                        <div className="msg-asst-header">
-                                            <div className="msg-asst-icon">
-                                                <Bot size={13} />
-                                            </div>
-                                            <span className="msg-asst-label">
-                                                Wavv
-                                            </span>
-                                            <span className="msg-asst-time">
-                                                {msg.time}
-                                            </span>
-                                        </div>
-                                        <div className="msg-asst-body">
-                                            {msg.isThinking ? (
-                                                <ThinkingAnimation />
-                                            ) : (
-                                                <RenderMarkdown
-                                                    text={msg.content}
-                                                />
-                                            )}
-                                        </div>
-                                        {!msg.isThinking && (
-                                            <div className="msg-actions">
-                                                <button
-                                                    className={`action-btn${copiedIdx === i ? ' copied' : ''}`}
-                                                    onClick={() =>
-                                                        handleCopy(
-                                                            i,
-                                                            msg.content,
-                                                        )
-                                                    }
-                                                >
-                                                    {copiedIdx === i ? (
-                                                        <Check size={12} />
-                                                    ) : (
-                                                        <Copy size={12} />
+                                                <div className="msg-user-footer">
+                                                    <div className="msg-user-time">
+                                                        {formatTimestamp(
+                                                            msg.createdAt,
+                                                        )}
+                                                    </div>
+                                                    {!isPending && (
+                                                        <button
+                                                            className="retry-btn"
+                                                            onClick={() =>
+                                                                handleRetry(
+                                                                    msg.message,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isRetrying
+                                                            }
+                                                            title="Re-ask this question"
+                                                        >
+                                                            <RefreshCw
+                                                                size={10}
+                                                                className={
+                                                                    isRetrying
+                                                                        ? 'animate-spin'
+                                                                        : ''
+                                                                }
+                                                            />
+                                                        </button>
                                                     )}
-                                                    <span className="action-tooltip">
-                                                        {copiedIdx === i
-                                                            ? 'Copied'
-                                                            : 'Copy'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Assistant bubble */}
+                                        {showAssistant && (
+                                            <div className="msg msg-assistant">
+                                                <div className="msg-asst-header">
+                                                    <div className="msg-asst-icon">
+                                                        <Bot size={13} />
+                                                    </div>
+                                                    <span className="msg-asst-label">
+                                                        Wavv
                                                     </span>
-                                                </button>
-                                                <button className="action-btn">
-                                                    <Share2 size={12} />
-                                                    <span className="action-tooltip">
-                                                        Share
-                                                    </span>
-                                                </button>
-                                                <button className="action-btn">
-                                                    <Download size={12} />
-                                                    <span className="action-tooltip">
-                                                        Download
-                                                    </span>
-                                                </button>
-                                                <div className="action-divider" />
-                                                <button className="action-btn">
-                                                    <ThumbsUp size={12} />
-                                                    <span className="action-tooltip">
-                                                        Good
-                                                    </span>
-                                                </button>
-                                                <button className="action-btn">
-                                                    <ThumbsDown size={12} />
-                                                    <span className="action-tooltip">
-                                                        Bad
-                                                    </span>
-                                                </button>
+                                                    {!isPending && (
+                                                        <span className="msg-asst-time">
+                                                            {formatTimestamp(
+                                                                msg.createdAt,
+                                                            )}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="msg-asst-body">
+                                                    {isPending ? (
+                                                        <ThinkingAnimation />
+                                                    ) : (
+                                                        <RenderMarkdown
+                                                            text={
+                                                                responseContent
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                                {!isPending &&
+                                                    responseContent && (
+                                                        <div className="msg-actions">
+                                                            <button
+                                                                className={`action-btn${copiedId === msg.id ? ' copied' : ''}`}
+                                                                onClick={() =>
+                                                                    handleCopy(
+                                                                        msg.id,
+                                                                        responseContent,
+                                                                    )
+                                                                }
+                                                            >
+                                                                {copiedId ===
+                                                                msg.id ? (
+                                                                    <Check
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                ) : (
+                                                                    <Copy
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                )}
+                                                                <span className="action-tooltip">
+                                                                    {copiedId ===
+                                                                    msg.id
+                                                                        ? 'Copied'
+                                                                        : 'Copy'}
+                                                                </span>
+                                                            </button>
+                                                            <button className="action-btn">
+                                                                <Share2
+                                                                    size={12}
+                                                                />
+                                                                <span className="action-tooltip">
+                                                                    Share
+                                                                </span>
+                                                            </button>
+                                                            <button className="action-btn">
+                                                                <Download
+                                                                    size={12}
+                                                                />
+                                                                <span className="action-tooltip">
+                                                                    Download
+                                                                </span>
+                                                            </button>
+                                                            <div className="action-divider" />
+                                                            <button className="action-btn">
+                                                                <ThumbsUp
+                                                                    size={12}
+                                                                />
+                                                                <span className="action-tooltip">
+                                                                    Good
+                                                                </span>
+                                                            </button>
+                                                            <button className="action-btn">
+                                                                <ThumbsDown
+                                                                    size={12}
+                                                                />
+                                                                <span className="action-tooltip">
+                                                                    Bad
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                             </div>
                                         )}
-                                    </div>
-                                ),
-                            )}
+                                    </React.Fragment>
+                                );
+                            })}
                         </div>
                     </div>
-                    {/* Persistent Follow-up Input Bar */}
+
+                    {/* Follow-up Input Bar */}
                     <div className="follow-up-bar">
                         <form
                             onSubmit={handleFollowUp}
                             className="follow-up-form"
                         >
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setExternalSearchEnabled((v) => !v)
+                                }
+                                className={`follow-up-globe${externalSearchEnabled ? ' active' : ''}`}
+                                title={
+                                    externalSearchEnabled
+                                        ? 'External search on'
+                                        : 'External search off'
+                                }
+                            >
+                                <Globe size={14} />
+                            </button>
                             <textarea
                                 ref={inputRef}
                                 value={followUpMessage}
@@ -578,7 +687,10 @@ export default function ChatDetailPage() {
                                 }
                                 onKeyDown={handleInputKeyDown}
                                 placeholder="Follow up or ask a new question..."
-                                disabled={isSubmittingFollowUp || isThinking}
+                                disabled={
+                                    isSubmittingFollowUp ||
+                                    pendingMessageId !== null
+                                }
                                 rows={1}
                                 className="follow-up-input"
                             />
@@ -587,7 +699,7 @@ export default function ChatDetailPage() {
                                 disabled={
                                     !followUpMessage.trim() ||
                                     isSubmittingFollowUp ||
-                                    isThinking
+                                    pendingMessageId !== null
                                 }
                                 className="follow-up-send"
                             >
@@ -1147,5 +1259,30 @@ const styles = `
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;
+  }
+
+  .follow-up-globe {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    color: ${colors.steelAlt[400]};
+    cursor: pointer;
+    transition: all 180ms ${ease};
+    flex-shrink: 0;
+  }
+
+  .follow-up-globe:hover {
+    background: ${colors.steelAlt[100]};
+    color: ${colors.steelAlt[600]};
+  }
+
+  .follow-up-globe.active {
+    background: ${colors.steelAlt[800]};
+    color: ${colors.steelAlt[100]};
   }
 `;
