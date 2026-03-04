@@ -1,20 +1,24 @@
 import { type Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { DM_Sans, DM_Serif_Display } from 'next/font/google';
+import { Sora, Lora } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
 
-const dmSans = DM_Sans({
-    variable: '--font-dm-sans',
+// ─── GLOBAL FONT CONFIG ───────────────────────────────────────────────────────
+// To change fonts app-wide, update these two imports and their `variable` names,
+// then update --font-sans / --font-serif in globals.css to match.
+
+const sora = Sora({
+    variable: '--font-sora',
     subsets: ['latin'],
     weight: ['300', '400', '500', '600', '700'],
 });
 
-const dmSerifDisplay = DM_Serif_Display({
-    variable: '--font-dm-serif',
+const lora = Lora({
+    variable: '--font-lora',
     subsets: ['latin'],
-    weight: ['400'],
+    weight: ['400', '500', '600', '700'],
     style: ['normal', 'italic'],
 });
 
@@ -32,7 +36,7 @@ export default function RootLayout({
         <ClerkProvider>
             <html lang="en">
                 <body
-                    className={`${dmSans.variable} ${dmSerifDisplay.variable} antialiased`}
+                    className={`${sora.variable} ${lora.variable} antialiased`}
                 >
                     {children}
                     <Toaster />

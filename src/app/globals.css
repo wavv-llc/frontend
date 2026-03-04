@@ -7,11 +7,9 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-    --font-sans: var(--font-dm-sans);
-    --font-serif: var(--font-dm-serif);
-    --font-sf-pro:
-        -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
-        'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    /* ── Global font switches ── change these two lines to retheme the whole app */
+    --font-sans: var(--font-sora);
+    --font-serif: var(--font-lora);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
