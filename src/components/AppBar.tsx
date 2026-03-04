@@ -118,7 +118,7 @@ export function AppBar({
                                     <NavigationMenuItem key={item.name}>
                                         <NavigationMenuLink
                                             asChild
-                                            className="font-sans text-sm font-medium text-steel-500 hover:text-steel-950 transition-colors bg-transparent hover:bg-transparent focus:bg-transparent px-0 py-0 rounded-none"
+                                            className="text-sm font-medium text-steel-500 hover:text-steel-950 transition-colors bg-transparent hover:bg-transparent focus:bg-transparent px-0 py-0 rounded-none"
                                         >
                                             <Link href={item.href}>
                                                 {item.name}
@@ -136,7 +136,7 @@ export function AppBar({
                     {showLoginLink && (
                         <Link
                             href="/sign-in"
-                            className="font-sans text-sm font-medium text-steel-700 hover:text-steel-950 transition-colors"
+                            className="text-sm font-medium text-steel-700 hover:text-steel-950 transition-colors"
                         >
                             Login
                         </Link>
@@ -208,7 +208,7 @@ export function AppBar({
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className="block font-sans text-sm font-medium text-steel-500 hover:text-steel-950 py-2 transition-colors"
+                                        className="block text-sm font-medium text-steel-500 hover:text-steel-950 py-2 transition-colors"
                                         onClick={() =>
                                             setIsMobileMenuOpen(false)
                                         }
@@ -225,7 +225,7 @@ export function AppBar({
                                 {showLoginLink && (
                                     <Link
                                         href="/sign-in"
-                                        className="block font-sans text-sm font-medium text-steel-700 hover:text-steel-950 py-1 transition-colors"
+                                        className="block text-sm font-medium text-steel-700 hover:text-steel-950 py-1 transition-colors"
                                         onClick={() =>
                                             setIsMobileMenuOpen(false)
                                         }
