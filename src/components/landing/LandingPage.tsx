@@ -62,7 +62,7 @@ const NAV_ITEMS = [
 
 export function LandingPage() {
     return (
-        <div className="min-h-screen text-steel-950 overflow-x-hidden bg-white font-sf-pro">
+        <div className="min-h-screen text-steel-950 overflow-x-hidden bg-white font-sans">
             {/* Navigation - no login button */}
             <AppBar navItems={NAV_ITEMS} showLoginLink={false} />
 
@@ -96,74 +96,76 @@ export function LandingPage() {
 // ============ HERO SECTION ============
 function HeroSection() {
     return (
-        <section className="relative pt-32 pb-16 md:pt-40 md:pb-20">
+        <section className="relative overflow-hidden">
             {/* Animated water background */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <RetroWaterAnimation intensity="medium" />
             </div>
 
-            <div className="max-w-4xl mx-auto px-6 relative z-10">
-                {/* Semi-transparent backdrop for text readability */}
-                <div className="flex flex-col items-center text-center bg-white/92 backdrop-blur-md rounded-2xl py-10 px-6 md:py-14 md:px-10 border border-steel-200/60 shadow-xl">
-                    {/* Eyebrow label */}
+            {/* Card — vertically centered in the viewport */}
+            <div className="min-h-screen flex flex-col items-center justify-center px-5 relative z-10">
+                <div className="w-full max-w-3xl">
+                    <div className="flex flex-col items-center text-center bg-white/92 backdrop-blur-md rounded-xl py-8 px-5 md:py-11 md:px-8 border border-steel-200/60 shadow-xl">
+                        {/* Main Headline */}
+                        <motion.h1
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                                duration: 0.65,
+                                delay: 0.05,
+                                ease: 'easeOut',
+                            }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-serif tracking-tight mb-4 leading-[1.05] text-steel-950"
+                        >
+                            Tax Intelligence,
+                            <br />
+                            <span className="italic font-normal text-steel-600">
+                                Unleashed.
+                            </span>
+                        </motion.h1>
 
-                    {/* Main Headline */}
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                            duration: 0.65,
-                            delay: 0.05,
-                            ease: 'easeOut',
-                        }}
-                        className="text-4xl md:text-5xl lg:text-6xl font-serif tracking-tight mb-5 leading-[1.05] text-steel-950"
-                    >
-                        Tax Intelligence,
-                        <br />
-                        <span className="italic font-normal text-steel-600">
-                            Unleashed.
-                        </span>
-                    </motion.h1>
+                        {/* Subheadline */}
+                        <motion.p
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                                duration: 0.65,
+                                delay: 0.1,
+                                ease: 'easeOut',
+                            }}
+                            className="text-sm md:text-base max-w-xl leading-relaxed mb-6 text-steel-600"
+                        >
+                            The unified AI workspace where tax professionals
+                            find answers, automate reviews, and reclaim time.
+                        </motion.p>
 
-                    {/* Subheadline */}
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                            duration: 0.65,
-                            delay: 0.1,
-                            ease: 'easeOut',
-                        }}
-                        className="text-base md:text-lg max-w-xl leading-relaxed mb-8 text-steel-600"
-                    >
-                        The unified AI workspace where tax professionals find
-                        answers, automate reviews, and reclaim time.
-                    </motion.p>
-
-                    {/* CTA */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{
-                            duration: 0.65,
-                            delay: 0.15,
-                            ease: 'easeOut',
-                        }}
-                        className="flex flex-col sm:flex-row items-center gap-3"
-                    >
-                        <Link href="/contact">
-                            <Button
-                                size="lg"
-                                className="h-11 px-8 text-sm font-medium rounded-lg"
-                            >
-                                Request Access
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                            </Button>
-                        </Link>
-                    </motion.div>
+                        {/* CTA */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                                duration: 0.65,
+                                delay: 0.15,
+                                ease: 'easeOut',
+                            }}
+                            className="flex flex-col sm:flex-row items-center gap-3"
+                        >
+                            <Link href="/contact">
+                                <Button
+                                    size="lg"
+                                    className="h-11 px-8 text-sm font-medium rounded-lg"
+                                >
+                                    Request Access
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </Link>
+                        </motion.div>
+                    </div>
                 </div>
+            </div>
 
-                {/* Dashboard Preview */}
+            {/* Dashboard Preview — flows below the fold */}
+            <div className="relative z-10 max-w-3xl mx-auto px-5 pb-24 -mt-16">
                 <motion.div
                     initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -172,7 +174,6 @@ function HeroSection() {
                         delay: 0.2,
                         ease: [0.16, 1, 0.3, 1],
                     }}
-                    className="mt-48 md:mt-64 relative"
                 >
                     <DashboardPreview />
                 </motion.div>
@@ -244,11 +245,11 @@ function DashboardPreview() {
             initial={{ opacity: 0, y: 40, scale: 0.98 }}
             animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
             transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
-            className="relative mx-auto max-w-5xl"
+            className="relative mx-auto max-w-4xl"
         >
             {/* Subtle glow */}
             <div
-                className="absolute -inset-6 rounded-3xl blur-3xl opacity-20"
+                className="absolute -inset-5 rounded-2xl blur-3xl opacity-20"
                 style={{
                     background:
                         'radial-gradient(circle at center, rgba(30,41,59,0.15), transparent 70%)',
@@ -257,7 +258,7 @@ function DashboardPreview() {
 
             {/* Main container */}
             <div
-                className="relative rounded-2xl border shadow-2xl overflow-hidden"
+                className="relative rounded-xl border shadow-2xl overflow-hidden"
                 style={{
                     backgroundColor: '#FFFFFF',
                     borderColor: '#d1d5db',
@@ -290,7 +291,7 @@ function DashboardPreview() {
                 </div>
 
                 {/* App layout */}
-                <div className="flex h-120">
+                <div className="flex h-96">
                     {/* Sidebar */}
                     <div
                         className="hidden md:flex flex-col w-52 border-r shrink-0"
@@ -308,7 +309,7 @@ function DashboardPreview() {
                                 className="w-6 h-6 rounded flex items-center justify-center shrink-0"
                                 style={{ backgroundColor: '#1e293b' }}
                             >
-                                <span className="text-white font-sf-pro italic text-[11px] font-semibold">
+                                <span className="text-white font-sans italic text-[11px] font-semibold">
                                     w
                                 </span>
                             </div>
@@ -599,26 +600,26 @@ function ProblemSection() {
     return (
         <section
             ref={ref}
-            className="py-24 md:py-32 relative overflow-hidden"
+            className="py-20 md:py-24 relative overflow-hidden"
             style={{ backgroundColor: '#f8fafc' }}
         >
-            <div className="max-w-6xl mx-auto px-6">
+            <div className="max-w-5xl mx-auto px-5">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.65, ease: 'easeOut' }}
-                    className="text-center mb-16"
+                    className="text-center mb-12"
                 >
-                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl font-serif mb-4 leading-tight text-steel-950">
                         The Reality of Tax Work
                     </h2>
-                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
+                    <p className="text-base max-w-2xl mx-auto leading-relaxed text-steel-500">
                         Your profession demands precision. Your tools should
                         rise to meet it.
                     </p>
                 </motion.div>
 
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-3 gap-5">
                     {problems.map((problem, i) => (
                         <motion.div
                             key={problem.title}
@@ -631,21 +632,21 @@ function ProblemSection() {
                             }}
                         >
                             <Card
-                                className="h-full rounded-xl border shadow-none gap-0 py-0 bg-white"
+                                className="h-full rounded-lg border shadow-none gap-0 py-0 bg-white"
                                 style={{ borderColor: '#e2e8f0' }}
                             >
-                                <CardHeader className="px-6 pt-6 pb-0">
+                                <CardHeader className="px-5 pt-5 pb-0">
                                     <div
-                                        className="w-9 h-9 rounded-lg flex items-center justify-center mb-4"
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center mb-3"
                                         style={{ backgroundColor: '#0f172a' }}
                                     >
                                         <problem.icon className="w-4 h-4 text-white" />
                                     </div>
-                                    <CardTitle className="text-lg font-serif text-steel-950">
+                                    <CardTitle className="text-base font-serif text-steel-950">
                                         {problem.title}
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="px-6 pb-6 pt-2">
+                                <CardContent className="px-5 pb-5 pt-2">
                                     <p className="leading-relaxed text-[13px] text-steel-500">
                                         {problem.description}
                                     </p>
@@ -699,30 +700,30 @@ function SolutionSection() {
         <section
             id="features"
             ref={ref}
-            className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
+            className="min-h-screen py-20 md:py-24 scroll-mt-20 relative overflow-hidden flex items-center"
             style={{ backgroundColor: '#FFFFFF' }}
         >
             {/* Subtle grid overlay */}
             <ExcelGridBackground className="z-0 opacity-50" />
 
-            <div className="max-w-6xl mx-auto px-6 relative z-10">
+            <div className="max-w-5xl mx-auto px-5 relative z-10">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.65, ease: 'easeOut' }}
-                    className="text-center mb-16"
+                    className="text-center mb-12"
                 >
-                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl font-serif mb-4 leading-tight text-steel-950">
                         One Hub. All Answers.
                     </h2>
-                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
+                    <p className="text-base max-w-2xl mx-auto leading-relaxed text-steel-500">
                         Stop switching between twelve tabs. Wavv unifies your
                         internal knowledge with external tax authority in a
                         single, intelligent search.
                     </p>
                 </motion.div>
 
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="grid lg:grid-cols-2 gap-10 items-center">
                     {/* Features list */}
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
@@ -732,7 +733,7 @@ function SolutionSection() {
                             delay: 0.08,
                             ease: 'easeOut',
                         }}
-                        className="space-y-4"
+                        className="space-y-3"
                     >
                         {features.map((feature) => (
                             <HoverCard
@@ -742,7 +743,7 @@ function SolutionSection() {
                             >
                                 <HoverCardTrigger asChild>
                                     <div
-                                        className="flex gap-3 p-5 rounded-xl border transition-all hover:shadow-md hover:border-steel-300 cursor-pointer bg-white"
+                                        className="flex gap-2 p-4 rounded-lg border transition-all hover:shadow-md hover:border-steel-300 cursor-pointer bg-white"
                                         style={{ borderColor: '#e2e8f0' }}
                                     >
                                         <Tooltip>
@@ -765,7 +766,7 @@ function SolutionSection() {
                                             </TooltipContent>
                                         </Tooltip>
                                         <div>
-                                            <h4 className="font-serif text-base mb-1 text-steel-950">
+                                            <h4 className="font-serif text-sm mb-1 text-steel-950">
                                                 {feature.title}
                                             </h4>
                                             <p className="text-sm leading-relaxed text-steel-500">
@@ -872,7 +873,7 @@ function KnowledgeGraphVisualization() {
 
     return (
         <div
-            className="aspect-square relative rounded-xl border p-8 z-20 bg-white"
+            className="aspect-square relative rounded-lg border p-8 z-20 bg-white"
             style={{ borderColor: '#e2e8f0' }}
         >
             {/* Connection lines */}
@@ -898,7 +899,7 @@ function KnowledgeGraphVisualization() {
                         repeat: Infinity,
                         ease: 'easeInOut',
                     }}
-                    className="rounded-xl flex items-center justify-center shadow-lg"
+                    className="rounded-lg flex items-center justify-center shadow-lg"
                     style={{
                         backgroundColor: '#0f172a',
                         width: 60,
@@ -999,26 +1000,26 @@ function FeaturesSection() {
         <section
             id="how-it-works"
             ref={ref}
-            className="min-h-screen py-24 md:py-32 scroll-mt-20 relative overflow-hidden flex items-center"
+            className="min-h-screen py-20 md:py-24 scroll-mt-20 relative overflow-hidden flex items-center"
             style={{ backgroundColor: '#f8fafc' }}
         >
-            <div className="max-w-6xl mx-auto px-6 relative z-10">
+            <div className="max-w-5xl mx-auto px-5 relative z-10">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.65, ease: 'easeOut' }}
-                    className="text-center mb-16"
+                    className="text-center mb-12"
                 >
-                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl font-serif mb-4 leading-tight text-steel-950">
                         Built for How You Work
                     </h2>
-                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
+                    <p className="text-base max-w-2xl mx-auto leading-relaxed text-steel-500">
                         From task creation to multi-level review approval, Wavv
                         streamlines your entire workflow.
                     </p>
                 </motion.div>
 
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                <div className="grid lg:grid-cols-2 gap-10 items-center">
                     {/* Text content */}
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
@@ -1029,11 +1030,11 @@ function FeaturesSection() {
                             ease: 'easeOut',
                         }}
                     >
-                        <h3 className="text-2xl md:text-3xl font-serif mb-6 leading-tight text-steel-950">
+                        <h3 className="text-xl md:text-2xl font-serif mb-5 leading-tight text-steel-950">
                             Automated Review Workflows
                         </h3>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             {checklistItems.map((item, i) => (
                                 <motion.div
                                     key={item}
@@ -1046,7 +1047,7 @@ function FeaturesSection() {
                                         delay: i * 0.07,
                                         ease: 'easeOut',
                                     }}
-                                    className="flex items-center gap-3"
+                                    className="flex items-center gap-2"
                                 >
                                     <div
                                         className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
@@ -1062,7 +1063,7 @@ function FeaturesSection() {
                         </div>
 
                         <Separator
-                            className="my-8"
+                            className="my-6"
                             style={{ backgroundColor: '#e2e8f0' }}
                         />
 
@@ -1101,20 +1102,20 @@ function TestimonialSection() {
         <section
             id="why-wavv"
             ref={ref}
-            className="py-24 md:py-32 scroll-mt-20 relative overflow-hidden"
+            className="py-20 md:py-24 scroll-mt-20 relative overflow-hidden"
             style={{ backgroundColor: '#FFFFFF' }}
         >
-            <div className="max-w-5xl mx-auto px-6">
+            <div className="max-w-4xl mx-auto px-5">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.65, ease: 'easeOut' }}
-                    className="text-center mb-14"
+                    className="text-center mb-11"
                 >
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-steel-200 bg-steel-50 text-xs font-medium text-steel-600 tracking-wide uppercase mb-5">
+                    <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full border border-steel-200 bg-steel-50 text-xs font-medium text-steel-600 tracking-wide uppercase mb-4">
                         Backed by Industry Veterans
                     </div>
-                    <h2 className="text-4xl md:text-5xl font-serif leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl font-serif leading-tight text-steel-950">
                         Built with practitioners,
                         <br />
                         <span className="italic font-normal text-steel-500">
@@ -1131,12 +1132,12 @@ function TestimonialSection() {
                 >
                     {/* Quote card */}
                     <div
-                        className="rounded-2xl border p-8 md:p-10 relative overflow-hidden bg-white"
+                        className="rounded-xl border p-6 md:p-8 relative overflow-hidden bg-white"
                         style={{ borderColor: '#e2e8f0' }}
                     >
                         {/* Large decorative quote mark */}
                         <div
-                            className="absolute top-6 left-8 font-sf-pro text-[90px] leading-none select-none pointer-events-none"
+                            className="absolute top-5 left-6 font-sans text-[90px] leading-none select-none pointer-events-none"
                             style={{ color: '#f1f5f9' }}
                             aria-hidden
                         >
@@ -1144,7 +1145,7 @@ function TestimonialSection() {
                         </div>
 
                         <div className="relative z-10">
-                            <blockquote className="text-lg md:text-xl font-serif leading-relaxed text-steel-800 mb-8">
+                            <blockquote className="text-base md:text-lg font-serif leading-relaxed text-steel-800 mb-6">
                                 I've spent over two decades navigating some of
                                 the most complex tax environments in the world —
                                 Big 4 firms, Fortune 500 treasury departments.
@@ -1155,22 +1156,22 @@ function TestimonialSection() {
                                 actually operate. This will change the industry.
                             </blockquote>
 
-                            <div className="flex items-center gap-5">
+                            <div className="flex items-center gap-4">
                                 {/* Avatar */}
                                 <div
-                                    className="w-11 h-11 rounded-full flex items-center justify-center text-white font-sf-pro font-bold text-base shrink-0"
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-sans font-bold text-sm shrink-0"
                                     style={{ backgroundColor: '#0f172a' }}
                                 >
                                     R
                                 </div>
 
                                 <div>
-                                    <div className="font-semibold text-steel-950 text-base">
+                                    <div className="font-semibold text-steel-950 text-sm">
                                         Frank C., CPA
                                     </div>
                                     <div className="text-sm text-steel-500 mt-0.5">
-                                        20+ Year Tax Veteran · Former Big 4
-                                        Partner · Fortune 500 Tax Executive
+                                        20+ Year Tax Veteran · Big 4 · Fortune
+                                        500
                                     </div>
                                     <div className="flex items-center gap-1.5 mt-2">
                                         <Badge
@@ -1195,31 +1196,6 @@ function TestimonialSection() {
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Supporting stats */}
-                    <div
-                        className="grid grid-cols-3 gap-px mt-px overflow-hidden rounded-xl border"
-                        style={{ borderColor: '#e2e8f0' }}
-                    >
-                        {[
-                            { value: '20+', label: 'Years in Tax Practice' },
-                            { value: 'Big 4', label: 'Firm Experience' },
-                            { value: 'F500', label: 'Corporate Background' },
-                        ].map((stat) => (
-                            <div
-                                key={stat.label}
-                                className="py-4 text-center bg-white"
-                                style={{ borderColor: '#e2e8f0' }}
-                            >
-                                <div className="text-xl font-serif text-steel-950 mb-1">
-                                    {stat.value}
-                                </div>
-                                <div className="text-xs text-steel-400 font-medium">
-                                    {stat.label}
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </motion.div>
             </div>
@@ -1261,27 +1237,27 @@ function FAQSection() {
     return (
         <section
             ref={ref}
-            className="py-24 md:py-32 relative overflow-hidden"
+            className="py-20 md:py-24 relative overflow-hidden"
             style={{ backgroundColor: '#f8fafc' }}
         >
-            <div className="max-w-3xl mx-auto px-6">
+            <div className="max-w-2xl mx-auto px-5">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ duration: 0.65, ease: 'easeOut' }}
-                    className="text-center mb-16"
+                    className="text-center mb-12"
                 >
-                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl font-serif mb-4 leading-tight text-steel-950">
                         Common Questions
                     </h2>
-                    <p className="text-lg max-w-xl mx-auto leading-relaxed text-steel-500">
+                    <p className="text-base max-w-xl mx-auto leading-relaxed text-steel-500">
                         Everything you need to know before bringing Wavv to your
                         firm.
                     </p>
                 </motion.div>
 
                 <Separator
-                    className="mb-8"
+                    className="mb-6"
                     style={{ backgroundColor: '#e2e8f0' }}
                 />
 
@@ -1298,7 +1274,7 @@ function FAQSection() {
                                 className="border-b"
                                 style={{ borderColor: '#e2e8f0' }}
                             >
-                                <AccordionTrigger className="font-serif text-base text-left hover:no-underline py-5 text-steel-950 cursor-pointer">
+                                <AccordionTrigger className="font-serif text-sm text-left hover:no-underline py-5 text-steel-950 cursor-pointer">
                                     {faq.question}
                                 </AccordionTrigger>
                                 <AccordionContent className="text-sm leading-relaxed pb-5 text-steel-500">
@@ -1310,7 +1286,7 @@ function FAQSection() {
                 </motion.div>
 
                 <Separator
-                    className="mt-8"
+                    className="mt-6"
                     style={{ backgroundColor: '#e2e8f0' }}
                 />
             </div>
@@ -1326,10 +1302,10 @@ function CTASection() {
     return (
         <section
             ref={ref}
-            className="py-32 md:py-40 relative overflow-hidden"
+            className="py-24 md:py-32 relative overflow-hidden"
             style={{ backgroundColor: '#FFFFFF' }}
         >
-            <div className="max-w-4xl mx-auto px-6 relative z-10">
+            <div className="max-w-3xl mx-auto px-5 relative z-10">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -1345,15 +1321,15 @@ function CTASection() {
                             delay: 0.1,
                             ease: 'easeOut',
                         }}
-                        className="h-px mx-auto mb-10"
+                        className="h-px mx-auto mb-8"
                         style={{ backgroundColor: '#0f172a' }}
                     />
 
-                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif mb-6 leading-tight text-steel-950">
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif mb-5 leading-tight text-steel-950">
                         Join the firms that work like the 1%.
                     </h2>
 
-                    <p className="text-lg md:text-xl mb-12 max-w-2xl mx-auto leading-relaxed text-steel-500">
+                    <p className="text-base md:text-lg mb-10 max-w-2xl mx-auto leading-relaxed text-steel-500">
                         See how Wavv transforms tax practice. Schedule a
                         personalized demo with our team.
                     </p>
