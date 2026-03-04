@@ -111,8 +111,12 @@ function HeroSection() {
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.05 }}
-                        className="text-4xl md:text-5xl lg:text-6xl font-sf-pro font-bold tracking-tight mb-5 leading-[1.05] text-steel-950"
+                        transition={{
+                            duration: 0.65,
+                            delay: 0.05,
+                            ease: 'easeOut',
+                        }}
+                        className="text-4xl md:text-5xl lg:text-6xl font-serif tracking-tight mb-5 leading-[1.05] text-steel-950"
                     >
                         Tax Intelligence,
                         <br />
@@ -125,7 +129,11 @@ function HeroSection() {
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.1 }}
+                        transition={{
+                            duration: 0.65,
+                            delay: 0.1,
+                            ease: 'easeOut',
+                        }}
                         className="text-base md:text-lg max-w-xl leading-relaxed mb-8 text-steel-600"
                     >
                         The unified AI workspace where tax professionals find
@@ -136,7 +144,11 @@ function HeroSection() {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.15 }}
+                        transition={{
+                            duration: 0.65,
+                            delay: 0.15,
+                            ease: 'easeOut',
+                        }}
                         className="flex flex-col sm:flex-row items-center gap-3"
                     >
                         <Link href="/contact">
@@ -153,9 +165,13 @@ function HeroSection() {
 
                 {/* Dashboard Preview */}
                 <motion.div
-                    initial={{ opacity: 0, y: 60 }}
+                    initial={{ opacity: 0, y: 40 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
+                    transition={{
+                        duration: 0.9,
+                        delay: 0.2,
+                        ease: [0.16, 1, 0.3, 1],
+                    }}
                     className="mt-48 md:mt-64 relative"
                 >
                     <DashboardPreview />
@@ -225,9 +241,9 @@ function DashboardPreview() {
     return (
         <motion.div
             ref={ref}
-            initial={{ opacity: 0, y: 60, scale: 0.97 }}
+            initial={{ opacity: 0, y: 40, scale: 0.98 }}
             animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
             className="relative mx-auto max-w-5xl"
         >
             {/* Subtle glow */}
@@ -454,7 +470,9 @@ function DashboardPreview() {
                                             isInView ? { opacity: 1, x: 0 } : {}
                                         }
                                         transition={{
-                                            delay: 0.1 + i * 0.05,
+                                            duration: 0.5,
+                                            delay: 0.15 + i * 0.07,
+                                            ease: 'easeOut',
                                         }}
                                         className="grid px-5 py-3 border-b items-center hover:bg-[#f8fafc] transition-colors cursor-pointer"
                                         style={{
@@ -588,10 +606,10 @@ function ProblemSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-4xl md:text-5xl font-sf-pro font-bold mb-5 leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
                         The Reality of Tax Work
                     </h2>
                     <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
@@ -606,25 +624,29 @@ function ProblemSection() {
                             key={problem.title}
                             initial={{ opacity: 0, y: 30 }}
                             animate={isInView ? { opacity: 1, y: 0 } : {}}
-                            transition={{ duration: 0.35, delay: i * 0.07 }}
+                            transition={{
+                                duration: 0.6,
+                                delay: i * 0.08,
+                                ease: 'easeOut',
+                            }}
                         >
                             <Card
                                 className="h-full rounded-xl border shadow-none gap-0 py-0 bg-white"
                                 style={{ borderColor: '#e2e8f0' }}
                             >
-                                <CardHeader className="px-8 pt-8 pb-0">
+                                <CardHeader className="px-6 pt-6 pb-0">
                                     <div
-                                        className="w-10 h-10 rounded-lg flex items-center justify-center mb-5"
+                                        className="w-9 h-9 rounded-lg flex items-center justify-center mb-4"
                                         style={{ backgroundColor: '#0f172a' }}
                                     >
-                                        <problem.icon className="w-5 h-5 text-white" />
+                                        <problem.icon className="w-4 h-4 text-white" />
                                     </div>
-                                    <CardTitle className="text-xl font-sf-pro font-bold text-steel-950">
+                                    <CardTitle className="text-lg font-serif text-steel-950">
                                         {problem.title}
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="px-8 pb-8 pt-3">
-                                    <p className="leading-relaxed text-[15px] text-steel-500">
+                                <CardContent className="px-6 pb-6 pt-2">
+                                    <p className="leading-relaxed text-[13px] text-steel-500">
                                         {problem.description}
                                     </p>
                                 </CardContent>
@@ -687,10 +709,10 @@ function SolutionSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-4xl md:text-5xl font-sf-pro font-bold mb-5 leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
                         One Hub. All Answers.
                     </h2>
                     <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
@@ -705,7 +727,11 @@ function SolutionSection() {
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
                         animate={isInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 0.35, delay: 0.05 }}
+                        transition={{
+                            duration: 0.6,
+                            delay: 0.08,
+                            ease: 'easeOut',
+                        }}
                         className="space-y-4"
                     >
                         {features.map((feature) => (
@@ -716,13 +742,13 @@ function SolutionSection() {
                             >
                                 <HoverCardTrigger asChild>
                                     <div
-                                        className="flex gap-4 p-6 rounded-xl border transition-all hover:shadow-md hover:border-steel-300 cursor-pointer bg-white"
+                                        className="flex gap-3 p-5 rounded-xl border transition-all hover:shadow-md hover:border-steel-300 cursor-pointer bg-white"
                                         style={{ borderColor: '#e2e8f0' }}
                                     >
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <div
-                                                    className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 cursor-default"
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 cursor-default"
                                                     style={{
                                                         backgroundColor:
                                                             '#0f172a',
@@ -739,7 +765,7 @@ function SolutionSection() {
                                             </TooltipContent>
                                         </Tooltip>
                                         <div>
-                                            <h4 className="font-sf-pro font-bold text-lg mb-1 text-steel-950">
+                                            <h4 className="font-serif text-base mb-1 text-steel-950">
                                                 {feature.title}
                                             </h4>
                                             <p className="text-sm leading-relaxed text-steel-500">
@@ -762,7 +788,7 @@ function SolutionSection() {
                                             <feature.icon className="w-4 h-4 text-white" />
                                         </div>
                                         <div>
-                                            <p className="font-sf-pro font-bold text-sm mb-1 text-steel-950">
+                                            <p className="font-serif text-sm mb-1 text-steel-950">
                                                 {feature.title}
                                             </p>
                                             <p className="text-xs leading-relaxed text-steel-500">
@@ -779,7 +805,11 @@ function SolutionSection() {
                     <motion.div
                         initial={{ opacity: 0, x: 40 }}
                         animate={isInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 0.35, delay: 0.05 }}
+                        transition={{
+                            duration: 0.6,
+                            delay: 0.08,
+                            ease: 'easeOut',
+                        }}
                         className="relative"
                     >
                         <KnowledgeGraphVisualization />
@@ -850,7 +880,7 @@ function KnowledgeGraphVisualization() {
                 <circle
                     cx="50%"
                     cy="50%"
-                    r="120"
+                    r="105"
                     fill="none"
                     stroke="#e2e8f0"
                     strokeWidth="1"
@@ -868,21 +898,21 @@ function KnowledgeGraphVisualization() {
                         repeat: Infinity,
                         ease: 'easeInOut',
                     }}
-                    className="w-18 h-18 rounded-xl flex items-center justify-center shadow-lg"
+                    className="rounded-xl flex items-center justify-center shadow-lg"
                     style={{
                         backgroundColor: '#0f172a',
-                        width: 72,
-                        height: 72,
+                        width: 60,
+                        height: 60,
                     }}
                 >
-                    <Brain className="w-9 h-9 text-white" />
+                    <Brain className="w-7 h-7 text-white" />
                 </motion.div>
             </div>
 
             {/* Orbiting nodes */}
             {graphNodes.map((node) => {
-                const x = Math.cos((node.angle * Math.PI) / 180) * 120;
-                const y = Math.sin((node.angle * Math.PI) / 180) * 120;
+                const x = Math.cos((node.angle * Math.PI) / 180) * 105;
+                const y = Math.sin((node.angle * Math.PI) / 180) * 105;
 
                 return (
                     <motion.div
@@ -899,7 +929,7 @@ function KnowledgeGraphVisualization() {
                             <HoverCardTrigger asChild>
                                 <div className="flex flex-col items-center gap-2 cursor-pointer">
                                     <Avatar
-                                        className="w-11 h-11 rounded-lg border border-steel-200 shadow-sm"
+                                        className="w-9 h-9 rounded-lg border border-steel-200 shadow-sm"
                                         style={{
                                             backgroundColor: node.color,
                                         }}
@@ -935,7 +965,7 @@ function KnowledgeGraphVisualization() {
                                         <node.icon className="w-3.5 h-3.5 text-white" />
                                     </div>
                                     <div>
-                                        <p className="font-sf-pro font-bold text-sm mb-1 text-steel-950">
+                                        <p className="font-serif text-sm mb-1 text-steel-950">
                                             {node.label}
                                         </p>
                                         <p className="text-steel-500">
@@ -976,10 +1006,10 @@ function FeaturesSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-4xl md:text-5xl font-sf-pro font-bold mb-5 leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
                         Built for How You Work
                     </h2>
                     <p className="text-lg max-w-2xl mx-auto leading-relaxed text-steel-500">
@@ -993,9 +1023,13 @@ function FeaturesSection() {
                     <motion.div
                         initial={{ opacity: 0, x: -40 }}
                         animate={isInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 0.35, delay: 0.05 }}
+                        transition={{
+                            duration: 0.6,
+                            delay: 0.08,
+                            ease: 'easeOut',
+                        }}
                     >
-                        <h3 className="text-2xl md:text-3xl font-sf-pro font-bold mb-6 leading-tight text-steel-950">
+                        <h3 className="text-2xl md:text-3xl font-serif mb-6 leading-tight text-steel-950">
                             Automated Review Workflows
                         </h3>
 
@@ -1007,7 +1041,11 @@ function FeaturesSection() {
                                     animate={
                                         isInView ? { opacity: 1, x: 0 } : {}
                                     }
-                                    transition={{ delay: i * 0.05 }}
+                                    transition={{
+                                        duration: 0.5,
+                                        delay: i * 0.07,
+                                        ease: 'easeOut',
+                                    }}
                                     className="flex items-center gap-3"
                                 >
                                     <div
@@ -1039,7 +1077,11 @@ function FeaturesSection() {
                     <motion.div
                         initial={{ opacity: 0, x: 40 }}
                         animate={isInView ? { opacity: 1, x: 0 } : {}}
-                        transition={{ duration: 0.35, delay: 0.05 }}
+                        transition={{
+                            duration: 0.6,
+                            delay: 0.08,
+                            ease: 'easeOut',
+                        }}
                         className="hidden lg:block"
                     >
                         <ReviewerFlowAnimation />
@@ -1066,13 +1108,13 @@ function TestimonialSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center mb-14"
                 >
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-steel-200 bg-steel-50 text-xs font-medium text-steel-600 tracking-wide uppercase mb-5">
                         Backed by Industry Veterans
                     </div>
-                    <h2 className="text-4xl md:text-5xl font-sf-pro font-bold leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl font-serif leading-tight text-steel-950">
                         Built with practitioners,
                         <br />
                         <span className="italic font-normal text-steel-500">
@@ -1084,17 +1126,17 @@ function TestimonialSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4, delay: 0.1 }}
+                    transition={{ duration: 0.65, delay: 0.1, ease: 'easeOut' }}
                     className="relative"
                 >
                     {/* Quote card */}
                     <div
-                        className="rounded-2xl border p-10 md:p-14 relative overflow-hidden bg-white"
+                        className="rounded-2xl border p-8 md:p-10 relative overflow-hidden bg-white"
                         style={{ borderColor: '#e2e8f0' }}
                     >
                         {/* Large decorative quote mark */}
                         <div
-                            className="absolute top-8 left-10 font-sf-pro text-[120px] leading-none select-none pointer-events-none"
+                            className="absolute top-6 left-8 font-sf-pro text-[90px] leading-none select-none pointer-events-none"
                             style={{ color: '#f1f5f9' }}
                             aria-hidden
                         >
@@ -1102,7 +1144,7 @@ function TestimonialSection() {
                         </div>
 
                         <div className="relative z-10">
-                            <blockquote className="text-xl md:text-2xl font-sf-pro leading-relaxed text-steel-800 mb-10">
+                            <blockquote className="text-lg md:text-xl font-serif leading-relaxed text-steel-800 mb-8">
                                 I've spent over two decades navigating some of
                                 the most complex tax environments in the world —
                                 Big 4 firms, Fortune 500 treasury departments.
@@ -1116,7 +1158,7 @@ function TestimonialSection() {
                             <div className="flex items-center gap-5">
                                 {/* Avatar */}
                                 <div
-                                    className="w-14 h-14 rounded-full flex items-center justify-center text-white font-sf-pro font-bold text-xl shrink-0"
+                                    className="w-11 h-11 rounded-full flex items-center justify-center text-white font-sf-pro font-bold text-base shrink-0"
                                     style={{ backgroundColor: '#0f172a' }}
                                 >
                                     R
@@ -1167,10 +1209,10 @@ function TestimonialSection() {
                         ].map((stat) => (
                             <div
                                 key={stat.label}
-                                className="py-6 text-center bg-white"
+                                className="py-4 text-center bg-white"
                                 style={{ borderColor: '#e2e8f0' }}
                             >
-                                <div className="text-2xl font-sf-pro font-bold text-steel-950 mb-1">
+                                <div className="text-xl font-serif text-steel-950 mb-1">
                                     {stat.value}
                                 </div>
                                 <div className="text-xs text-steel-400 font-medium">
@@ -1226,10 +1268,10 @@ function FAQSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center mb-16"
                 >
-                    <h2 className="text-4xl md:text-5xl font-sf-pro font-bold mb-5 leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl font-serif mb-5 leading-tight text-steel-950">
                         Common Questions
                     </h2>
                     <p className="text-lg max-w-xl mx-auto leading-relaxed text-steel-500">
@@ -1246,7 +1288,7 @@ function FAQSection() {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4, delay: 0.1 }}
+                    transition={{ duration: 0.65, delay: 0.1, ease: 'easeOut' }}
                 >
                     <Accordion type="single" collapsible className="w-full">
                         {faqs.map((faq) => (
@@ -1256,7 +1298,7 @@ function FAQSection() {
                                 className="border-b"
                                 style={{ borderColor: '#e2e8f0' }}
                             >
-                                <AccordionTrigger className="font-sf-pro font-semibold text-base text-left hover:no-underline py-5 text-steel-950">
+                                <AccordionTrigger className="font-serif text-base text-left hover:no-underline py-5 text-steel-950 cursor-pointer">
                                     {faq.question}
                                 </AccordionTrigger>
                                 <AccordionContent className="text-sm leading-relaxed pb-5 text-steel-500">
@@ -1291,19 +1333,23 @@ function CTASection() {
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.65, ease: 'easeOut' }}
                     className="text-center"
                 >
                     {/* Accent line */}
                     <motion.div
                         initial={{ width: 0 }}
                         animate={isInView ? { width: '48px' } : {}}
-                        transition={{ duration: 0.4, delay: 0.05 }}
+                        transition={{
+                            duration: 0.6,
+                            delay: 0.1,
+                            ease: 'easeOut',
+                        }}
                         className="h-px mx-auto mb-10"
                         style={{ backgroundColor: '#0f172a' }}
                     />
 
-                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-sf-pro font-bold mb-6 leading-tight text-steel-950">
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif mb-6 leading-tight text-steel-950">
                         Join the firms that work like the 1%.
                     </h2>
 

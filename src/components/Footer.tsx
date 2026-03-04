@@ -1,11 +1,9 @@
 import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
 
 export function Footer() {
     return (
         <footer className="py-12 border-t bg-background border-border">
             <div className="max-w-6xl mx-auto px-6">
-                <Separator className="mb-8 opacity-50" />
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
@@ -23,13 +21,13 @@ export function Footer() {
                     <nav className="flex gap-8" aria-label="Footer navigation">
                         <Link
                             href="/privacy"
-                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
                         >
                             Privacy Policy
                         </Link>
                         <Link
                             href="/terms"
-                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline cursor-pointer"
                         >
                             Terms of Service
                         </Link>
