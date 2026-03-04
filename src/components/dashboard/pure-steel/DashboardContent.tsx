@@ -1,0 +1,101 @@
+'use client';
+
+import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { DashboardHeader } from './DashboardHeader';
+import { CalendarSection, type CalendarEvent } from './CalendarSection';
+import { TaskTable, type Task } from './TaskTable';
+import {
+    ActivityFeed,
+    type ActivityItem,
+    type ActivityStat,
+} from './ActivityFeed';
+
+interface DashboardContentProps {
+    userName: string;
+    tasks: Task[];
+    events: CalendarEvent[];
+    activities: ActivityItem[];
+    stats: ActivityStat[];
+    onTaskClick?: (task: Task) => void;
+    onEventClick?: (event: CalendarEvent) => void;
+    className?: string;
+    isLoading?: boolean;
+}
+
+function getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    return new Date(d.setDate(diff));
+}
+
+export function DashboardContent({
+    userName,
+    tasks,
+    events,
+    activities,
+    stats,
+    onTaskClick,
+    onEventClick,
+    className,
+    isLoading = false,
+}: DashboardContentProps) {
+    const [currentWeekStart, setCurrentWeekStart] = useState(() =>
+        getWeekStart(new Date()),
+    );
+
+    const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
+        if (direction === 'today') {
+            setCurrentWeekStart(getWeekStart(new Date()));
+        } else if (direction === 'prev') {
+            const newDate = new Date(currentWeekStart);
+            newDate.setDate(newDate.getDate() - 7);
+            setCurrentWeekStart(newDate);
+        } else {
+            const newDate = new Date(currentWeekStart);
+            newDate.setDate(newDate.getDate() + 7);
+            setCurrentWeekStart(newDate);
+        }
+    };
+
+    return (
+        <div
+            className={cn(
+                'h-full flex flex-col bg-[var(--dashboard-bg)]',
+                className,
+            )}
+        >
+            {/* Header - Sticky */}
+            <DashboardHeader userName={userName} className="animate-fade-up" />
+
+            {/* Main Content Area */}
+            <main className="px-8 py-6 flex-1 min-h-0 flex flex-col">
+                {/* Calendar - Full Width */}
+                <CalendarSection
+                    events={events}
+                    currentWeekStart={currentWeekStart}
+                    onNavigate={handleNavigate}
+                    onEventClick={onEventClick}
+                    className="animate-fade-up animate-delay-100"
+                />
+
+                {/* Bottom Row - Tasks + Activity */}
+                <div className="mt-4 flex-1 min-h-0 grid grid-cols-1 gap-3.5 lg:grid-cols-[2fr_1fr]">
+                    <TaskTable
+                        tasks={tasks}
+                        onTaskClick={onTaskClick}
+                        isLoading={isLoading}
+                        className="animate-fade-up animate-delay-140"
+                    />
+                    <ActivityFeed
+                        activities={activities}
+                        stats={stats}
+                        isLoading={isLoading}
+                        className="animate-fade-up animate-delay-160"
+                    />
+                </div>
+            </main>
+        </div>
+    );
+}

@@ -1,139 +1,81 @@
-'use client'
+'use client';
 
-import { useAuth } from '@clerk/nextjs'
-import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { userApi } from '@/lib/api'
-import { AuthenticatedSkeleton } from '@/components/skeletons/AuthenticatedSkeleton'
-import { UserProvider, useUser } from '@/contexts/UserContext'
+import { useAuth } from '@clerk/nextjs';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { UserProvider, useUser } from '@/contexts/UserContext';
 
-const EXCLUDED_PATHS = ['/onboarding', '/auth/callback', '/member-setup', '/invite/callback']
-const ONBOARDING_CACHE_KEY = 'wavv_onboarding_completed'
+const EXCLUDED_PATHS = [
+    '/onboarding',
+    '/auth/callback',
+    '/member-setup',
+    '/invite/callback',
+];
 
 function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
-    const { user, isLoading, error } = useUser()
-    const { isLoaded, isSignedIn, getToken, userId } = useAuth()
-    const router = useRouter()
-    const pathname = usePathname()
-    const [isAuthorized, setIsAuthorized] = useState(false)
-    const hasCheckedRef = useRef(false)
+    const { user, isLoading, error } = useUser();
+    const { isLoaded, isSignedIn } = useAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const hasCheckedRef = useRef(false);
 
     useEffect(() => {
-        if (!isLoaded) return
+        if (!isLoaded) return;
+        if (!isSignedIn) return;
 
-        if (!isSignedIn) {
-            return
+        const isExcluded = EXCLUDED_PATHS.some((path) =>
+            pathname?.startsWith(path),
+        );
+
+        if (isExcluded) {
+            setIsAuthorized(true);
+            hasCheckedRef.current = true;
+            return;
         }
 
-        const checkStatus = async () => {
-            if (hasCheckedRef.current && isAuthorized) return
+        if (isLoading) return;
 
-            const isExcluded = EXCLUDED_PATHS.some(path => pathname?.startsWith(path))
-
-            // 1. Check Cache first
-            const cachedStatus = sessionStorage.getItem(ONBOARDING_CACHE_KEY)
-            const cachedUserId = sessionStorage.getItem('wavv_cached_user_id')
-
-            if (isExcluded) {
-                setIsAuthorized(true)
-                hasCheckedRef.current = true
-                return
-            }
-
-            if (cachedStatus === 'true' && cachedUserId === userId) {
-                if (pathname?.startsWith('/onboarding')) {
-                    router.replace('/home')
-                    return
-                }
-                setIsAuthorized(true)
-                hasCheckedRef.current = true
-                return
-            }
-
-            // 2. Wait for User from Context
-            if (isLoading) return
-
-            // 3. Handle Error (User not found)
-            if (error || !user) {
-                if (isExcluded) {
-                    setIsAuthorized(true)
-                    hasCheckedRef.current = true
-                    return
-                }
-                // Redirect to auth callback to sync user
-                router.replace('/auth/callback')
-                return
-            }
-
-            // 4. Check Onboarding Status from User data
-            const hasCompleted = user.hasCompletedOnboarding
-            const userOrgId = user.organization?.id
-
-            if (hasCompleted) {
-                sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true')
-                sessionStorage.setItem('wavv_cached_user_id', userId || '')
-
-                if (pathname?.startsWith('/onboarding')) {
-                    router.replace('/home')
-                    return
-                }
-            } else {
-                // User has NOT completed onboarding
-                if (userOrgId) {
-                    // Invited member -> Auto-complete
-                    try {
-                        const token = await getToken()
-                        if (token) {
-                            await userApi.completeOnboarding(token)
-                            sessionStorage.setItem(ONBOARDING_CACHE_KEY, 'true')
-                            sessionStorage.setItem('wavv_cached_user_id', userId || '')
-                        }
-                    } catch (e) {
-                        console.warn('Could not auto-complete onboarding:', e)
-                    }
-                } else {
-                    // New Admin -> go to onboarding
-                    if (!isExcluded) {
-                        router.replace('/onboarding')
-                        return
-                    }
-                }
-            }
-
-            setIsAuthorized(true)
-            hasCheckedRef.current = true
+        // User not found or API error → redirect appropriately
+        if (error || !user) {
+            // If DB record is missing (pre-onboarding), skip the extra
+            // auth/callback hop and go directly to onboarding
+            const isUserNotFound = error?.message.includes(
+                'complete onboarding',
+            );
+            router.replace(isUserNotFound ? '/onboarding' : '/auth/callback');
+            return;
         }
 
-        checkStatus()
-    }, [isLoaded, isSignedIn, isLoading, user, error, pathname, router, userId, isAuthorized, getToken])
+        // User exists but has no organization → needs onboarding
+        if (!user.organization) {
+            router.replace('/onboarding');
+            return;
+        }
+
+        setIsAuthorized(true);
+        hasCheckedRef.current = true;
+    }, [isLoaded, isSignedIn, isLoading, user, error, pathname, router]);
 
     if (!isLoaded || !isSignedIn) {
-        return <AuthenticatedSkeleton />
+        return null;
     }
-
-    // While loading user data (if not cached/excluded handled above)
-    // Actually, checkStatus handles the logic. If isLoading is true, we return Skeleton?
-    // But checkStatus returns early if isLoading is true. 
-    // And isAuthorized defaults to false.
-    // So if isAuthorized is false, we show Skeleton.
 
     if (!isAuthorized) {
-        return <AuthenticatedSkeleton />
+        return null;
     }
 
-    return <>{children}</>
+    return <>{children}</>;
 }
 
 export default function AuthenticatedLayout({
     children,
 }: {
-    children: React.ReactNode
+    children: React.ReactNode;
 }) {
     return (
         <UserProvider>
-            <AuthenticatedGuard>
-                {children}
-            </AuthenticatedGuard>
+            <AuthenticatedGuard>{children}</AuthenticatedGuard>
         </UserProvider>
-    )
+    );
 }

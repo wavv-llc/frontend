@@ -1,27 +1,23 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useAuth } from '@clerk/nextjs'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { workspaceApi } from '@/lib/api'
-import { toast } from 'sonner'
-import { useSidebar } from '@/contexts/SidebarContext'
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { workspaceApi } from '@/lib/api';
+import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
+import { useDialogForm } from '@/hooks/useDialogForm';
+import { FormDialog } from './shared/FormDialog';
+import { FormDialogField } from './shared/FormDialogField';
+import { FormDialogActions } from './shared/FormDialogActions';
 
 interface CreateWorkspaceDialogProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    onSuccess?: () => void
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess?: () => void;
+}
+
+interface WorkspaceFormData {
+    name: string;
+    description: string;
 }
 
 export function CreateWorkspaceDialog({
@@ -29,103 +25,83 @@ export function CreateWorkspaceDialog({
     onOpenChange,
     onSuccess,
 }: CreateWorkspaceDialogProps) {
-    const { getToken } = useAuth()
-    const { triggerRefresh } = useSidebar()
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
+    const { mutate, isLoading } = useAuthenticatedMutation({
+        mutationFn: (token, name: string, description?: string) =>
+            workspaceApi.createWorkspace(token, name, description),
+        successMessage: 'Workspace created successfully',
+        requiresSidebarRefresh: true,
+        onSuccess: () => {
+            onSuccess?.();
+        },
+    });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-
-        if (!name.trim()) {
-            toast.error('Please enter a workspace name')
-            return
-        }
-
-        setIsLoading(true)
-        try {
-            const token = await getToken()
-            if (!token) {
-                toast.error('You must be logged in to create a workspace')
-                return
+    const form = useDialogForm<WorkspaceFormData>({
+        initialValues: { name: '', description: '' },
+        validate: (values) => {
+            if (!values.name.trim()) {
+                return { name: 'Please enter a workspace name' };
             }
-
-            await workspaceApi.createWorkspace(token, name, description || undefined)
-            toast.success('Workspace created successfully')
-
-            // Reset form
-            setName('')
-            setDescription('')
-            onOpenChange(false)
-
-            // Trigger sidebar refresh to show new workspace
-            triggerRefresh()
-
-            // Call success callback to refresh data
-            onSuccess?.()
-        } catch (error) {
-            console.error('Failed to create workspace:', error)
-            toast.error(error instanceof Error ? error.message : 'Failed to create workspace')
-        } finally {
-            setIsLoading(false)
-        }
-    }
+            return null;
+        },
+        onSubmit: async (values) => {
+            await mutate(values.name, values.description || undefined);
+            onOpenChange(false);
+        },
+        resetOnSuccess: true,
+    });
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>Create New Workspace</DialogTitle>
-                        <DialogDescription>
-                            Create a new workspace to organize your tax projects and files.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">
-                                Workspace Name <span className="text-destructive">*</span>
-                            </Label>
-                            <Input
-                                id="name"
-                                placeholder="e.g., 2024 Tax Returns"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                disabled={isLoading}
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="description">Description (Optional)</Label>
-                            <Textarea
-                                id="description"
-                                placeholder="Add a description for this workspace..."
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                disabled={isLoading}
-                                rows={3}
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
+        <FormDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            title="Create New Workspace"
+            description="Create a new workspace to organize your tax projects and files."
+        >
+            <form onSubmit={form.handleSubmit}>
+                <div className="grid gap-4 py-4">
+                    <FormDialogField
+                        label="Workspace Name"
+                        name="name"
+                        required
+                        error={form.errors.name}
+                    >
+                        <Input
+                            id="name"
+                            placeholder="e.g., 2024 Tax Returns"
+                            value={form.values.name}
+                            onChange={(e) =>
+                                form.handleChange('name', e.target.value)
+                            }
                             disabled={isLoading}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? 'Creating...' : 'Create Workspace'}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    )
+                            autoFocus
+                        />
+                    </FormDialogField>
+
+                    <FormDialogField
+                        label="Description"
+                        name="description"
+                        description="Optional"
+                    >
+                        <Textarea
+                            id="description"
+                            placeholder="Add a description for this workspace..."
+                            value={form.values.description}
+                            onChange={(e) =>
+                                form.handleChange('description', e.target.value)
+                            }
+                            disabled={isLoading}
+                            rows={3}
+                        />
+                    </FormDialogField>
+                </div>
+
+                <FormDialogActions
+                    onCancel={() => onOpenChange(false)}
+                    submitLabel="Create Workspace"
+                    isLoading={isLoading}
+                    loadingLabel="Creating..."
+                />
+            </form>
+        </FormDialog>
+    );
 }

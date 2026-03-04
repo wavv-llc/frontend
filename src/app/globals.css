@@ -1,272 +1,454 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-crimson);
-  --font-mono: var(--font-geist-mono);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-dm-sans);
+    --font-serif: var(--font-dm-serif);
+    --font-sf-pro:
+        -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+        'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-steel-950: var(--steel-950);
+    --color-steel-900: var(--steel-900);
+    --color-steel-800: var(--steel-800);
+    --color-steel-700: var(--steel-700);
+    --color-steel-600: var(--steel-600);
+    --color-steel-500: var(--steel-500);
+    --color-steel-400: var(--steel-400);
+    --color-steel-300: var(--steel-300);
+    --color-steel-200: var(--steel-200);
+    --color-steel-100: var(--steel-100);
+    --color-steel-50: var(--steel-50);
+
+    --color-steel-alt-950: var(--steel-alt-950);
+    --color-steel-alt-900: var(--steel-alt-900);
+    --color-steel-alt-800: var(--steel-alt-800);
+    --color-steel-alt-700: var(--steel-alt-700);
+    --color-steel-alt-600: var(--steel-alt-600);
+    --color-steel-alt-500: var(--steel-alt-500);
+    --color-steel-alt-400: var(--steel-alt-400);
+    --color-steel-alt-300: var(--steel-alt-300);
+    --color-steel-alt-200: var(--steel-alt-200);
+    --color-steel-alt-100: var(--steel-alt-100);
+    --color-steel-alt-50: var(--steel-alt-50);
+
+    /* Pure Steel Light Dashboard Tokens */
+    --color-dashboard-bg: var(--dashboard-bg);
+    --color-dashboard-surface: var(--dashboard-surface);
+    --color-dashboard-border: var(--dashboard-border);
+    --color-dashboard-border-light: var(--dashboard-border-light);
+    --color-dashboard-text-primary: var(--dashboard-text-primary);
+    --color-dashboard-text-body: var(--dashboard-text-body);
+    --color-dashboard-text-muted: var(--dashboard-text-muted);
+    --color-dashboard-text-faint: var(--dashboard-text-faint);
+    --color-accent-blue: var(--accent);
+    --color-accent-light: var(--accent-light);
+    --color-accent-subtle: var(--accent-subtle);
+    --color-accent-hover: var(--accent-hover);
+    --color-accent-row-hover: var(--accent-row-hover);
+    --color-status-review: var(--status-review);
+    --color-status-review-bg: var(--status-review-bg);
+    --color-status-pending: var(--status-pending);
+    --color-status-pending-bg: var(--status-pending-bg);
+    --color-status-in-progress: var(--status-in-progress);
+    --color-status-in-progress-bg: var(--status-in-progress-bg);
+    --color-status-complete: var(--status-complete);
+    --color-status-complete-bg: var(--status-complete-bg);
+    --color-status-urgent: var(--status-urgent);
+    --color-status-urgent-bg: var(--status-urgent-bg);
+    --color-status-urgent-text: var(--status-urgent-text);
 }
 
 :root {
-  --radius: 0.5rem;
+    /* Border Radius Scale - Pure Steel */
+    --radius: 0.45rem; /* 7.2px base */
+    --radius-sm: 0.34rem; /* 5.4px */
+    --radius-md: 0.45rem; /* 7.2px */
+    --radius-lg: 0.68rem; /* 10.8px */
+    --radius-xl: 1.13rem; /* 18px */
 
-  /* Editorial Monochrome SaaS Design System */
-  /* Base Colors - Strictly Monochrome */
-  --background: #FFFFFF; /* pure white */
-  --foreground: #000000; /* pure black for primary text */
-  --card: #FFFFFF; /* white cards */
-  --card-foreground: #000000; /* black text on cards */
-  --popover: #FFFFFF; /* white popovers */
-  --popover-foreground: #000000; /* black text */
+    /* ============ PURE STEEL COLOR SYSTEM ============ */
+    /* Steel Grayscale - Only Color Palette */
+    --steel-950: #0b1120; /* Deepest black */
+    --steel-900: #0f172a; /* Dark backgrounds */
+    --steel-800: #1e293b; /* Headlines, CTA fills */
+    --steel-700: #334155; /* Strong secondary text */
+    --steel-600: #475569; /* "Unleashed" italic accent */
+    --steel-500: #64748b; /* Body copy, nav links */
+    --steel-400: #94a3b8; /* Muted text, placeholders */
+    --steel-300: #cbd5e1; /* Subtle borders */
+    --steel-200: #e2e8f0; /* Card borders, dividers */
+    --steel-100: #f1f5f9; /* Subtle backgrounds */
+    --steel-50: #f8fafc; /* Card backgrounds */
 
-  /* Accent Color - Warm Brown for CTAs and highlights */
-  --primary: #8B5E3C; /* warm brown accent */
-  --primary-foreground: #FFFFFF; /* white text on accent */
+    /* Alternative Steel Palette (Chat & Additional Components) */
+    --steel-alt-950: #0e1117;
+    --steel-alt-900: #181d25;
+    --steel-alt-800: #272f3b;
+    --steel-alt-700: #3a4557;
+    --steel-alt-600: #4e5d74;
+    --steel-alt-500: #6b7a94;
+    --steel-alt-400: #8d9ab0;
+    --steel-alt-300: #b8c1ce;
+    --steel-alt-200: #dce1e8;
+    --steel-alt-100: #eef0f3;
+    --steel-alt-50: #f8f9fa;
 
-  /* Secondary stays as blue for hero section only */
-  --secondary: #7FB3E6; /* soft light blue (hero only) */
-  --secondary-foreground: #FFFFFF; /* white text */
+    /* Semantic Token Mapping */
+    --background: #ffffff;
+    --foreground: var(--steel-950);
 
-  /* Neutral Grays */
-  --muted: #FAFAFA; /* off-white for subtle backgrounds */
-  --muted-foreground: #666666; /* medium gray for secondary text */
-  --accent: #8B5E3C; /* warm brown accent */
-  --accent-foreground: #FFFFFF; /* white text on accent */
+    --card: #ffffff;
+    --card-foreground: var(--steel-950);
 
-  --destructive: #DC2626; /* red for destructive actions */
-  --destructive-foreground: #FFFFFF; /* white text */
+    --popover: #ffffff;
+    --popover-foreground: var(--steel-950);
 
-  /* Borders & Inputs - Very Subtle */
-  --border: #E5E5E5; /* very light gray borders */
-  --input: #F5F5F5; /* light gray input backgrounds */
-  --ring: #8B5E3C; /* warm brown focus rings */
+    --primary: var(--steel-800); /* NO brown */
+    --primary-foreground: var(--steel-50);
 
-  /* Chart Colors */
-  --chart-1: #8B5E3C; /* warm brown */
-  --chart-2: #7FB3E6; /* soft blue */
-  --chart-3: #999999; /* medium gray */
-  --chart-4: #666666; /* dark gray */
-  --chart-5: #CCCCCC; /* light gray */
+    --secondary: var(--steel-200);
+    --secondary-foreground: var(--steel-800);
 
-  /* Sidebar */
-  --sidebar: #FFFFFF; /* white */
-  --sidebar-foreground: #000000; /* black text */
-  --sidebar-primary: #8B5E3C; /* warm brown */
-  --sidebar-primary-foreground: #FFFFFF; /* white */
-  --sidebar-accent: #FAFAFA; /* off-white hover */
-  --sidebar-accent-foreground: #000000; /* black text */
-  --sidebar-border: #E5E5E5; /* light gray borders */
-  --sidebar-ring: #8B5E3C; /* warm brown focus */
+    --muted: var(--steel-100);
+    --muted-foreground: var(--steel-600);
 
-  /* Design Token Variables - Monochrome System */
-  --mono-white: #FFFFFF;
-  --mono-off-white: #FAFAFA;
-  --mono-light-gray: #F5F5F5;
-  --mono-border-gray: #E5E5E5;
-  --mono-muted-gray: #999999;
-  --mono-secondary-gray: #666666;
-  --mono-black: #000000;
+    --accent: var(--steel-600); /* "Unleashed" only */
+    --accent-foreground: var(--steel-50);
 
-  /* Accent Color */
-  --accent-brown: #8B5E3C; /* warm brown for CTAs */
-  --accent-brown-hover: #734D2F; /* darker on hover */
+    --destructive: #ef4444; /* Modern red */
+    --destructive-foreground: #ffffff;
+    --destructive-border: #fca5a5; /* Light red border */
 
-  /* Hero Section Only - Blue Lake Colors (preserved) */
-  --lake-blue-100: #E6F3FA;
-  --lake-blue-200: #B8DCEF;
-  --lake-blue-300: #9CCAE8;
-  --lake-blue-400: #7FB3E6; /* soft light blue */
-  --lake-blue-500: #5A9BD4;
+    --border: var(--steel-200);
+    --input: var(--steel-100);
+    --ring: var(--steel-500);
 
-  /* Legacy variable mapping for backward compatibility */
-  --ivory-50: #FFFFFF;
-  --ivory-100: #FAFAFA;
-  --ivory-200: #F5F5F5;
-  --ivory-300: #E5E5E5;
+    /* Chart Colors - Grayscale only */
+    --chart-1: var(--steel-800);
+    --chart-2: var(--steel-600);
+    --chart-3: var(--steel-500);
+    --chart-4: var(--steel-400);
+    --chart-5: var(--steel-300);
 
-  --mahogany-300: #999999;
-  --mahogany-400: #666666;
-  --mahogany-500: #666666;
-  --mahogany-600: #8B5E3C; /* maps to accent brown */
-  --mahogany-700: #333333;
-  --mahogany-800: #000000;
+    /* Sidebar - Pure Steel Light Integration */
+    --sidebar: var(--dashboard-surface); /* White card surface for sidebar */
+    --sidebar-foreground: var(--dashboard-text-primary);
+    --sidebar-primary: var(--accent); /* Steel blue accent */
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--accent-subtle); /* Steel blue tinted bg */
+    --sidebar-accent-foreground: var(--accent); /* Steel blue text */
+    --sidebar-border: var(--dashboard-border);
+    --sidebar-ring: var(--accent);
 
-  --excel-green-300: #8B5E3C;
-  --excel-green-400: #8B5E3C;
-  --excel-green-500: #734D2F;
-  --excel-green-600: #5A3D24;
+    /* ============ PURE STEEL LIGHT - DASHBOARD SYSTEM ============ */
+    /* Base Palette */
+    --dashboard-bg: #f5f5f3; /* Warm off-white - page & sidebar background */
+    --dashboard-surface: #ffffff; /* Pure white - card backgrounds */
+    --dashboard-border: #e2e2df; /* Soft taupe - primary borders */
+    --dashboard-border-light: #ededeb; /* Subtle inner borders, dividers */
 
-  --gold-400: #8B5E3C;
-  --gold-500: #8B5E3C;
+    /* Text Hierarchy */
+    --dashboard-text-primary: #2e3b44; /* Headings, client names, emphasis */
+    --dashboard-text-body: #3d4a52; /* Default body text */
+    --dashboard-text-muted: #8c969e; /* Secondary text, labels */
+    --dashboard-text-faint: #b8c0c6; /* Tertiary text, timestamps */
+
+    /* Steel Blue Accent System */
+    --accent: #5a7f9a; /* Primary interactive color */
+    --accent-light: #7ba3bf; /* Gradient endpoint, lighter variant */
+    --accent-subtle: rgba(90, 127, 154, 0.07); /* Tinted backgrounds */
+    --accent-hover: rgba(90, 127, 154, 0.05); /* Hover state background */
+    --accent-row-hover: rgba(90, 127, 154, 0.025); /* Table row hover */
+
+    /* Status Colors */
+    --status-review: #b5880a; /* Needs Review - warm yellow */
+    --status-review-bg: rgba(181, 136, 10, 0.08);
+    --status-pending: #8494a4; /* Pending - neutral gray-blue */
+    --status-pending-bg: rgba(132, 148, 164, 0.08);
+    --status-in-progress: #5e8ead; /* In Progress - active blue */
+    --status-in-progress-bg: rgba(94, 142, 173, 0.08);
+    --status-complete: #3b9b72; /* Complete - success green */
+    --status-complete-bg: rgba(59, 155, 114, 0.08);
+    --status-urgent: #e05252; /* Urgent/Deadline - alert red */
+    --status-urgent-bg: rgba(224, 82, 82, 0.08);
+    --status-urgent-text: #c53030; /* Darker urgent text */
+
+    /* Scrollbar Styling */
+    --scrollbar-thumb: #d0d0cd;
 }
 
 .dark {
-  --background: hsl(240 5.9% 10%);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+    --background: var(--steel-950);
+    --foreground: var(--steel-50);
+
+    --card: var(--steel-900);
+    --card-foreground: var(--steel-50);
+
+    --popover: var(--steel-900);
+    --popover-foreground: var(--steel-50);
+
+    --primary: var(--steel-200);
+    --primary-foreground: var(--steel-950);
+
+    --secondary: var(--steel-800);
+    --secondary-foreground: var(--steel-200);
+
+    --muted: var(--steel-900);
+    --muted-foreground: var(--steel-500);
+
+    --accent: var(--steel-800);
+    --accent-foreground: var(--steel-200);
+
+    --destructive: #ef4444; /* Modern red */
+    --destructive-foreground: #ffffff;
+    --destructive-border: #f87171; /* Light red border for dark mode */
+
+    --border: var(--steel-800);
+    --input: var(--steel-900);
+    --ring: var(--steel-600);
+
+    /* Dark mode charts */
+    --chart-1: var(--steel-200);
+    --chart-2: var(--steel-400);
+    --chart-3: var(--steel-500);
+    --chart-4: var(--steel-600);
+    --chart-5: var(--steel-700);
+
+    /* Dark mode sidebar */
+    --sidebar: var(--steel-950);
+    --sidebar-foreground: var(--steel-50);
+    --sidebar-primary: var(--steel-200);
+    --sidebar-primary-foreground: var(--steel-950);
+    --sidebar-accent: var(--steel-900);
+    --sidebar-accent-foreground: var(--steel-200);
+    --sidebar-border: var(--steel-800);
+    --sidebar-ring: var(--steel-600);
 }
 
 @layer base {
-  * {
-    border-color: var(--border);
-    outline-color: hsl(var(--ring) / 0.5);
-  }
+    * {
+        border-color: var(--border);
+        outline-color: hsl(var(--ring) / 0.5);
+    }
 
-  html {
-    background-color: theme('colors.background');
-    scroll-behavior: smooth;
-    min-height: 100vh;
-  }
+    html {
+        background-color: theme('colors.background');
+        scroll-behavior: smooth;
+        min-height: 100vh;
+    }
 
-  body {
-    background-color: theme('colors.background');
-    color: theme('colors.foreground');
-    min-height: 100vh;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
+    body {
+        background-color: theme('colors.background');
+        color: theme('colors.foreground');
+        min-height: 100vh;
+        font-feature-settings:
+            'rlig' 1,
+            'calt' 1;
+    }
 }
 
 @keyframes bounce-slow {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
 
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
+    animation: bounce-slow 2s ease-in-out infinite;
 }
 
 @keyframes pulse-slow {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
 
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
 }
 
 .animate-pulse-slow {
-  animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Pure Steel Light Dashboard Animations */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-fade-up {
+    animation: fadeUp 0.4s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.35s ease-out;
+}
+
+/* Animation Stagger Delays */
+.animate-delay-100 {
+    animation-delay: 100ms;
+}
+
+.animate-delay-140 {
+    animation-delay: 140ms;
+}
+
+.animate-delay-160 {
+    animation-delay: 160ms;
+}
+
+.animate-delay-250 {
+    animation-delay: 250ms;
+}
+
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-slide-in,
+    .animate-bounce-slow,
+    .animate-pulse-slow {
+        animation: none !important;
+    }
+
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Pure Steel Button Ripple Effect */
+@layer components {
+    .pure-steel-ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        transform: scale(0);
+        animation: pure-steel-ripple-animation 600ms
+            cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes pure-steel-ripple-animation {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pure-steel-ripple {
+        animation: none !important;
+        display: none;
+    }
 }
 
 /* Clerk card styling overrides for borderless, full-screen auth */
 .cl-card,
 .cl-cardBox,
-[class*="cl-card"] {
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
+[class*='cl-card'] {
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
 }
 
 .cl-rootBox {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .cl-main {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Remove any background from Clerk components */
 .cl-form,
 .cl-formBox,
-[class*="cl-formBox"] {
-  background: transparent !important;
+[class*='cl-formBox'] {
+    background: transparent !important;
 }
 
 /* Fix Clerk sign-in page specific styling */
-.cl-main>div,
+.cl-main > div,
 .cl-main__body,
-.cl-main__body>div {
-  background: transparent !important;
+.cl-main__body > div {
+    background: transparent !important;
 }
 
 /* Remove striped patterns and unwanted backgrounds */
-[class*="cl-cardBox"]>div,
-.cl-cardBox>div>div {
-  background: transparent !important;
-  background-image: none !important;
+[class*='cl-cardBox'] > div,
+.cl-cardBox > div > div {
+    background: transparent !important;
+    background-image: none !important;
 }
 
 /* Hide Clerk footer branding and sign-up links */
@@ -274,63 +456,63 @@
 .cl-footerPages__wrapper,
 .cl-footerPages__link,
 .cl-footerPages__linkWrapper,
-[class*="cl-footerPages"],
-[class*="footerPages"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='cl-footerPages'],
+[class*='footerPages'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide "Don't have an account? Sign up" */
 .cl-footerAction,
 .cl-footerActionLink,
 .cl-footerActionText,
-[class*="footerAction"],
-[class*="cl-footerAction"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='footerAction'],
+[class*='cl-footerAction'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide "Secured by clerk" branding - target all possible variations */
-[data-testid*="footer"],
-[class*="branding"],
-[aria-label*="Secured"],
-[aria-label*="Clerk"],
+[data-testid*='footer'],
+[class*='branding'],
+[aria-label*='Secured'],
+[aria-label*='Clerk'],
 .cl-footerPages *,
-[class*="cl-footerPages"] * {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[class*='cl-footerPages'] * {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide development mode badge */
-[data-testid*="dev"],
-[class*="dev-mode"],
-[class*="development"],
+[data-testid*='dev'],
+[class*='dev-mode'],
+[class*='development'],
 .cl-devBadge,
 .cl-environmentBadge,
-[aria-label*="Development"],
-[class*="environment"][class*="mode"],
-[class*="badge"][class*="dev"],
-span[class*="dev"]:not([class*="device"]),
-div[class*="dev-mode"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
+[aria-label*='Development'],
+[class*='environment'][class*='mode'],
+[class*='badge'][class*='dev'],
+span[class*='dev']:not([class*='device']),
+div[class*='dev-mode'] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
 }
 
 /* Hide Clerk footer entirely except for essential form elements */
 .cl-footer:not(:has(.cl-formButton)):not(:has(.cl-socialButtonsBlockButton)) {
-  display: none !important;
+    display: none !important;
 }
 
 /* TODO: What is this */
@@ -342,22 +524,22 @@ a[href*="signUp"] {
 
 /* Fix social button backgrounds */
 .cl-socialButtonsBlockButton {
-  background: transparent !important;
+    background: transparent !important;
 }
 
 .cl-socialButtonsBlockButton:hover {
-  background: hsl(var(--muted) / 0.3) !important;
+    background: hsl(var(--muted) / 0.3) !important;
 }
 
 /* Ensure form inputs have proper backgrounds */
 .cl-formFieldInput {
-  background: hsl(var(--background)) !important;
+    background: hsl(var(--background)) !important;
 }
 
 /* Remove any pattern overlays */
-[style*="background-image"],
-[style*="background-pattern"] {
-  background-image: none !important;
+[style*='background-image'],
+[style*='background-pattern'] {
+    background-image: none !important;
 }
 
 /* Center Clerk form elements */
@@ -365,58 +547,49 @@ a[href*="signUp"] {
 .cl-main__body,
 .cl-form,
 .cl-formBox {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
 }
 
 .cl-formField,
 .cl-socialButtonsBlockButton,
 .cl-formButton {
-  width: 100% !important;
-  max-width: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Ensure even spacing above social button */
 .cl-main__body,
 .cl-socialButtons,
 .cl-socialButtonsBlockButton:first-child {
-  margin-top: 0 !important;
-  padding-top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
 
 /* UserButton hover styling */
 .cl-userButtonTrigger:hover,
 .cl-userButtonBox:hover,
 .cl-avatarBox:hover,
-[class*="cl-userButton"]:hover {
-  background-color: rgb(239 246 255) !important; /* blue-50 */
+[class*='cl-userButton']:hover {
+    background-color: rgb(239 246 255) !important; /* blue-50 */
 }
 
 .dark .cl-userButtonTrigger:hover,
 .dark .cl-userButtonBox:hover,
 .dark .cl-avatarBox:hover,
-.dark [class*="cl-userButton"]:hover {
-  background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
+.dark [class*='cl-userButton']:hover {
+    background-color: rgb(23 37 84 / 0.3) !important; /* blue-950/30 */
 }
 
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: #6FA8C6; /* lake-blue-400 for dark mode */
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: #8B5A3C; /* mahogany-400 */
-}
+/* Removed duplicate dark mode sidebar - now defined in main .dark block above */
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
 
-  body {
-    @apply bg-background text-foreground;
-  }
+    body {
+        @apply bg-background text-foreground;
+    }
 }

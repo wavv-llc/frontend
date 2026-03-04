@@ -1,20 +1,63 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@clerk/nextjs'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Loader2, Settings as SettingsIcon, CheckCircle2, RefreshCw, UserPlus, Mail, FileText, RotateCcw, Search, Filter, Users, Trash2 } from 'lucide-react'
-import { sharepointApi, organizationApi, documentsApi, OrganizationDocument, OrganizationDocumentsResponse, roleApi, OrganizationMember, Role } from '@/lib/api'
-import { SettingsSkeleton } from '@/components/skeletons/SettingsSkeleton'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Skeleton } from "@/components/ui/skeleton"
-import { useUser } from '@/contexts/UserContext'
-import { PermissionGuard } from '@/components/auth/PermissionGuard'
-import { toast } from 'sonner'
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@clerk/nextjs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Loader2,
+    CheckCircle2,
+    RefreshCw,
+    Mail,
+    FileText,
+    RotateCcw,
+    Search,
+    Filter,
+    Users,
+    Trash2,
+    Building2,
+    Database,
+    Table,
+    Upload,
+    X,
+    Check,
+    ArrowLeft,
+    Clock,
+    ChevronDown,
+    ChevronRight,
+    ChevronUp,
+    Briefcase,
+    CheckCircle,
+    XCircle,
+    AlertCircle,
+    PlayCircle,
+    Pencil,
+} from 'lucide-react';
+import {
+    sharepointApi,
+    organizationApi,
+    documentsApi,
+    OrganizationDocument,
+    OrganizationDocumentsResponse,
+    OrganizationDetails,
+    OrganizationMember,
+    OrganizationRole,
+    taxLibraryApi,
+    TaxLibraryDocument,
+    jobsApi,
+    ServiceJob,
+    DocumentDetail,
+} from '@/lib/api';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useUser } from '@/contexts/UserContext';
+import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { toast } from 'sonner';
 import {
     Dialog,
     DialogContent,
@@ -22,917 +65,3456 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
 
 interface SharePointSite {
-  id: string
-  name: string
-  displayName: string
-  webUrl: string
-  description?: string
+    id: string;
+    name: string;
+    displayName: string;
+    webUrl: string;
+    description?: string;
 }
 
 interface SelectedSite {
-  id: string
-  siteId: string
-  siteName: string
-  webUrl: string
+    id: string;
+    siteId: string;
+    siteName: string;
+    webUrl: string;
 }
 
+type TabType =
+    | 'documents'
+    | 'users'
+    | 'sharepoint'
+    | 'organization'
+    | 'taxlibrary';
+
 export default function SettingsPage() {
-  const router = useRouter()
-  const { isLoaded, getToken } = useAuth()
-  const { user, isLoading: isUserLoading } = useUser()
-  const [sites, setSites] = useState<SharePointSite[]>([])
-  const [, setSelectedSites] = useState<SelectedSite[]>([])
-  const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(new Set())
-  const [isLoadingSites, setIsLoadingSites] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    const { isLoaded, getToken } = useAuth();
+    const { user, isLoading: isUserLoading } = useUser();
 
-  // Invite member state
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [isInviting, setIsInviting] = useState(false)
-  const [inviteError, setInviteError] = useState<string | null>(null)
-  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+    // Tab state
+    const [activeTab, setActiveTab] = useState<TabType>('documents');
+    const [indicatorStyle, setIndicatorStyle] = useState({
+        left: 0,
+        width: 0,
+    });
+    const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+    const [sites, setSites] = useState<SharePointSite[]>([]);
+    const [, setSelectedSites] = useState<SelectedSite[]>([]);
+    const [selectedSiteIds, setSelectedSiteIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [isLoadingSites, setIsLoadingSites] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  // Documents state
-  const [documents, setDocuments] = useState<OrganizationDocument[]>([])
-  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
-  const [documentsError, setDocumentsError] = useState<string | null>(null)
-  const [retryingDocumentId, setRetryingDocumentId] = useState<string | null>(null)
-  const [documentSearch, setDocumentSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+    // Invite member state
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [isInviting, setIsInviting] = useState(false);
+    const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
-  // Members state
-  const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
-  const [membersError, setMembersError] = useState<string | null>(null)
-  const [memberToRemove, setMemberToRemove] = useState<OrganizationMember | null>(null)
-  const [isRemovingMember, setIsRemovingMember] = useState(false)
-  const [updatingRoleForUserId, setUpdatingRoleForUserId] = useState<string | null>(null)
+    // Documents state
+    const [documents, setDocuments] = useState<OrganizationDocument[]>([]);
+    const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+    const [retryingDocumentId, setRetryingDocumentId] = useState<string | null>(
+        null,
+    );
+    const [documentSearch, setDocumentSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+        null,
+    );
 
-  const organizationId = user?.organization?.id
+    // Members state
+    const [members, setMembers] = useState<OrganizationMember[]>([]);
+    const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+    const [memberToRemove, setMemberToRemove] =
+        useState<OrganizationMember | null>(null);
+    const [isRemovingMember, setIsRemovingMember] = useState(false);
+    const [updatingRoleForUserId, setUpdatingRoleForUserId] = useState<
+        string | null
+    >(null);
 
-  useEffect(() => {
-    if (isLoaded && organizationId) {
-      loadSharePointData()
-      loadDocuments(organizationId)
-      loadMembers()
-      loadRoles()
+    const organizationId = user?.organization?.id;
+
+    // Update indicator position when active tab changes
+    useEffect(() => {
+        const activeTabElement = tabRefs.current[activeTab];
+        if (activeTabElement) {
+            const { offsetLeft, offsetWidth } = activeTabElement;
+            setIndicatorStyle({
+                left: offsetLeft,
+                width: offsetWidth,
+            });
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (isLoaded && organizationId) {
+            loadSharePointData();
+            loadDocuments(organizationId);
+            loadMembers();
+        }
+    }, [isLoaded, getToken, organizationId]);
+
+    const loadDocuments = async (orgId?: string) => {
+        const targetOrgId = orgId || organizationId;
+        if (!targetOrgId) return;
+
+        try {
+            setIsLoadingDocuments(true);
+            const token = await getToken();
+            if (!token) return;
+
+            const response = await documentsApi.getOrganizationDocuments(
+                token,
+                targetOrgId,
+            );
+            // Handle both array response and wrapped object response
+            const docs = Array.isArray(response.data)
+                ? response.data
+                : (response.data as OrganizationDocumentsResponse)?.documents ||
+                  [];
+            setDocuments(docs);
+        } catch (err) {
+            console.error('Error loading documents:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load documents';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingDocuments(false);
+        }
+    };
+
+    const handleRetryDocument = async (documentId: string) => {
+        try {
+            setRetryingDocumentId(documentId);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            await documentsApi.retryDocument(token, documentId);
+            toast.success('Document processing restarted successfully');
+            // Reload documents to get updated status
+            await loadDocuments();
+        } catch (err) {
+            console.error('Error retrying document:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to retry document';
+            toast.error(errorMessage);
+        } finally {
+            setRetryingDocumentId(null);
+        }
+    };
+
+    const handleReembedDocument = async (
+        documentId: string,
+        resume = false,
+    ) => {
+        try {
+            setRetryingDocumentId(documentId);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            await documentsApi.reembedDocument(token, documentId, resume);
+            toast.success(
+                resume
+                    ? 'Retrying failed chunks started successfully'
+                    : 'Document re-embedding started successfully',
+            );
+            // Reload documents to get updated status
+            await loadDocuments();
+        } catch (err) {
+            console.error('Error re-embedding document:', err);
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to re-embed document';
+            toast.error(errorMessage);
+        } finally {
+            setRetryingDocumentId(null);
+        }
+    };
+
+    const getStatusBadge = (status: OrganizationDocument['status']) => {
+        switch (status) {
+            case 'READY':
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        Ready
+                    </span>
+                );
+            case 'UPLOADING':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        Uploading
+                    </span>
+                );
+            case 'PROCESSING':
+            case 'EMBEDDING':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        Processing
+                    </span>
+                );
+            case 'FAILED':
+            case 'FAILED_CORRUPTED':
+            case 'FAILED_UNSUPPORTED':
+            case 'FAILED_TOO_LARGE':
+            case 'FAILED_PROCESSING':
+            case 'FAILED_EMBEDDING':
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#272f3b]10 text-[#272f3b] dark:bg-red-900/30 dark:text-red-400">
+                        Error
+                    </span>
+                );
+            case 'DELETING':
+            case 'DELETED':
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        {status === 'DELETING' ? 'Deleting' : 'Deleted'}
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        {status}
+                    </span>
+                );
+        }
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const handleInviteMember = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inviteEmail.trim() || !organizationId) return;
+
+        try {
+            setIsInviting(true);
+            setInviteSuccess(null);
+
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            await organizationApi.inviteMember(
+                token,
+                organizationId,
+                inviteEmail.trim(),
+            );
+            toast.success(`Invitation sent to ${inviteEmail}`);
+            setInviteSuccess(`Invitation sent to ${inviteEmail}`);
+            setInviteEmail('');
+        } catch (err) {
+            console.error('Error inviting member:', err);
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to send invitation';
+            toast.error(errorMessage);
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
+    const loadMembers = async () => {
+        if (!organizationId) return;
+
+        try {
+            setIsLoadingMembers(true);
+            const token = await getToken();
+            if (!token) return;
+
+            const response = await organizationApi.getMembers(
+                token,
+                organizationId,
+            );
+            setMembers(response.data || []);
+        } catch (err) {
+            console.error('Error loading members:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load members';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingMembers(false);
+        }
+    };
+
+    const handleRoleChange = async (userId: string, newRoleId: string) => {
+        if (!organizationId) return;
+
+        try {
+            setUpdatingRoleForUserId(userId);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            await organizationApi.updateMemberRole(
+                token,
+                organizationId,
+                userId,
+                newRoleId as OrganizationRole,
+            );
+            toast.success('Member role updated successfully');
+            await loadMembers();
+        } catch (err) {
+            console.error('Error updating member role:', err);
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to update member role',
+            );
+        } finally {
+            setUpdatingRoleForUserId(null);
+        }
+    };
+
+    const handleRemoveMember = async () => {
+        if (!organizationId || !memberToRemove) return;
+
+        try {
+            setIsRemovingMember(true);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            await organizationApi.removeMember(
+                token,
+                organizationId,
+                memberToRemove.id,
+            );
+            toast.success(
+                `${memberToRemove.email} has been removed from the organization`,
+            );
+            setMemberToRemove(null);
+            await loadMembers();
+        } catch (err) {
+            console.error('Error removing member:', err);
+            toast.error(
+                err instanceof Error ? err.message : 'Failed to remove member',
+            );
+        } finally {
+            setIsRemovingMember(false);
+        }
+    };
+
+    const getMemberRole = (member: OrganizationMember): OrganizationRole => {
+        return member.organizationRole;
+    };
+
+    const isCurrentUser = (member: OrganizationMember) => {
+        return member.id === user?.id;
+    };
+
+    const loadSharePointData = async () => {
+        try {
+            setIsLoadingSites(true);
+            setError(null);
+            const token = await getToken();
+            if (!token) return;
+
+            // Load available sites and selected sites in parallel
+            const [sitesResponse, selectedResponse] = await Promise.all([
+                sharepointApi
+                    .getSites(token)
+                    .catch(() => ({ data: { sites: [] } })),
+                sharepointApi
+                    .getSelectedSites(token)
+                    .catch(() => ({ data: { selectedSites: [] } })),
+            ]);
+
+            if (sitesResponse.data?.sites) {
+                setSites(sitesResponse.data.sites);
+            }
+
+            if (selectedResponse.data?.selectedSites) {
+                setSelectedSites(selectedResponse.data.selectedSites);
+                setSelectedSiteIds(
+                    new Set(
+                        selectedResponse.data.selectedSites.map(
+                            (s) => s.siteId,
+                        ),
+                    ),
+                );
+            }
+        } catch (err) {
+            console.error('Error loading SharePoint data:', err);
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to load SharePoint data',
+            );
+        } finally {
+            setIsLoadingSites(false);
+        }
+    };
+
+    const toggleSite = (siteId: string) => {
+        const newSelected = new Set(selectedSiteIds);
+        if (newSelected.has(siteId)) {
+            newSelected.delete(siteId);
+        } else {
+            newSelected.add(siteId);
+        }
+        setSelectedSiteIds(newSelected);
+    };
+
+    const handleSaveSites = async () => {
+        try {
+            setIsSaving(true);
+            setError(null);
+            const token = await getToken();
+            if (!token) {
+                setError('Authentication required');
+                return;
+            }
+
+            const sitesToSave = sites
+                .filter((site) => selectedSiteIds.has(site.id))
+                .map((site) => ({
+                    id: site.id,
+                    name: site.displayName || site.name,
+                    webUrl: site.webUrl,
+                }));
+
+            await sharepointApi.saveSelectedSites(token, sitesToSave);
+
+            // Reload selected sites
+            const selectedResponse =
+                await sharepointApi.getSelectedSites(token);
+            if (selectedResponse.data?.selectedSites) {
+                setSelectedSites(selectedResponse.data.selectedSites);
+            }
+        } catch (err) {
+            console.error('Error saving selected sites:', err);
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to save selected sites',
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!isLoaded || isUserLoading) {
+        return null;
     }
-  }, [isLoaded, getToken, organizationId])
 
-  const loadDocuments = async (orgId?: string) => {
-    const targetOrgId = orgId || organizationId
-    if (!targetOrgId) return
+    const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
+        {
+            id: 'documents',
+            label: 'Documents',
+            icon: <FileText className="h-3 w-3" />,
+        },
+        { id: 'users', label: 'Users', icon: <Users className="h-3 w-3" /> },
+        {
+            id: 'sharepoint',
+            label: 'SharePoint',
+            icon: <Building2 className="h-3 w-3" />,
+        },
+        {
+            id: 'organization',
+            label: 'Organization',
+            icon: <Building2 className="h-3 w-3" />,
+        },
+        {
+            id: 'taxlibrary',
+            label: 'Tax Library',
+            icon: <FileText className="h-3 w-3" />,
+        },
+    ];
 
-    try {
-      setIsLoadingDocuments(true)
-      setDocumentsError(null)
-      const token = await getToken()
-      if (!token) return
-
-      const response = await documentsApi.getOrganizationDocuments(token, targetOrgId)
-      // Handle both array response and wrapped object response
-      const docs = Array.isArray(response.data)
-        ? response.data
-        : (response.data as OrganizationDocumentsResponse)?.documents || []
-      setDocuments(docs)
-    } catch (err) {
-      console.error('Error loading documents:', err)
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
-    } finally {
-      setIsLoadingDocuments(false)
-    }
-  }
-
-  const handleRetryDocument = async (documentId: string) => {
-    try {
-      setRetryingDocumentId(documentId)
-      const token = await getToken()
-      if (!token) {
-        toast.error('Authentication required')
-        return
-      }
-
-      await documentsApi.retryDocument(token, documentId)
-      toast.success('Document processing restarted successfully')
-      // Reload documents to get updated status
-      await loadDocuments()
-    } catch (err) {
-      console.error('Error retrying document:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to retry document'
-      setDocumentsError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setRetryingDocumentId(null)
-    }
-  }
-
-  const handleReembedDocument = async (documentId: string) => {
-    try {
-      setRetryingDocumentId(documentId)
-      const token = await getToken()
-      if (!token) {
-        toast.error('Authentication required')
-        return
-      }
-
-      await documentsApi.reembedDocument(token, documentId)
-      toast.success('Document re-embedding started successfully')
-      // Reload documents to get updated status
-      await loadDocuments()
-    } catch (err) {
-      console.error('Error re-embedding document:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to re-embed document'
-      setDocumentsError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setRetryingDocumentId(null)
-    }
-  }
-
-  const getStatusBadge = (status: OrganizationDocument['status']) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Completed</span>
-      case 'PROCESSING':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">Processing</span>
-      case 'EMBEDDING':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">Embedding</span>
-      case 'READY':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ready</span>
-      case 'PENDING':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Pending</span>
-      case 'FAILED':
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Failed</span>
-      default:
-        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400">{status}</span>
-    }
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const handleInviteMember = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inviteEmail.trim() || !organizationId) return
-
-    try {
-      setIsInviting(true)
-      setInviteError(null)
-      setInviteSuccess(null)
-
-      const token = await getToken()
-      if (!token) {
-        setInviteError('Authentication required')
-        return
-      }
-
-      await organizationApi.inviteMember(token, organizationId, inviteEmail.trim())
-      setInviteSuccess(`Invitation sent to ${inviteEmail}`)
-      setInviteEmail('')
-    } catch (err) {
-      console.error('Error inviting member:', err)
-      setInviteError(err instanceof Error ? err.message : 'Failed to send invitation')
-    } finally {
-      setIsInviting(false)
-    }
-  }
-
-  const loadMembers = async () => {
-    if (!organizationId) return
-
-    try {
-      setIsLoadingMembers(true)
-      setMembersError(null)
-      const token = await getToken()
-      if (!token) return
-
-      const response = await organizationApi.getMembers(token, organizationId)
-      setMembers(response.data || [])
-    } catch (err) {
-      console.error('Error loading members:', err)
-      setMembersError(err instanceof Error ? err.message : 'Failed to load members')
-    } finally {
-      setIsLoadingMembers(false)
-    }
-  }
-
-  const loadRoles = async () => {
-    try {
-      const token = await getToken()
-      if (!token) return
-
-      const response = await roleApi.getAllRoles(token)
-      // Filter to only organization-level roles
-      const orgRoles = (response.data || []).filter(role =>
-        role.permissions.some(p =>
-          ['ORG_VIEW', 'ORG_EDIT', 'ORG_DELETE', 'ORG_MANAGE_MEMBERS'].includes(p.key)
-        )
-      )
-      setRoles(orgRoles)
-    } catch (err) {
-      console.error('Error loading roles:', err)
-    }
-  }
-
-  const handleRoleChange = async (userId: string, newRoleId: string) => {
-    if (!organizationId) return
-
-    try {
-      setUpdatingRoleForUserId(userId)
-      const token = await getToken()
-      if (!token) {
-        toast.error('Authentication required')
-        return
-      }
-
-      await organizationApi.updateMemberRole(token, organizationId, userId, newRoleId)
-      toast.success('Member role updated successfully')
-      await loadMembers()
-    } catch (err) {
-      console.error('Error updating member role:', err)
-      toast.error(err instanceof Error ? err.message : 'Failed to update member role')
-    } finally {
-      setUpdatingRoleForUserId(null)
-    }
-  }
-
-  const handleRemoveMember = async () => {
-    if (!organizationId || !memberToRemove) return
-
-    try {
-      setIsRemovingMember(true)
-      const token = await getToken()
-      if (!token) {
-        toast.error('Authentication required')
-        return
-      }
-
-      await organizationApi.removeMember(token, organizationId, memberToRemove.id)
-      toast.success(`${memberToRemove.email} has been removed from the organization`)
-      setMemberToRemove(null)
-      await loadMembers()
-    } catch (err) {
-      console.error('Error removing member:', err)
-      toast.error(err instanceof Error ? err.message : 'Failed to remove member')
-    } finally {
-      setIsRemovingMember(false)
-    }
-  }
-
-  const getMemberRole = (member: OrganizationMember) => {
-    const orgRoleAssignment = member.roleAssignments.find(ra => ra.organizationId === organizationId)
-    return orgRoleAssignment?.role
-  }
-
-  const isCurrentUser = (member: OrganizationMember) => {
-    return member.id === user?.id
-  }
-
-  const loadSharePointData = async () => {
-    try {
-      setIsLoadingSites(true)
-      setError(null)
-      const token = await getToken()
-      if (!token) return
-
-      // Load available sites and selected sites in parallel
-      const [sitesResponse, selectedResponse] = await Promise.all([
-        sharepointApi.getSites(token).catch(() => ({ data: { sites: [] } })),
-        sharepointApi.getSelectedSites(token).catch(() => ({ data: { selectedSites: [] } })),
-      ])
-
-      if (sitesResponse.data?.sites) {
-        setSites(sitesResponse.data.sites)
-      }
-
-      if (selectedResponse.data?.selectedSites) {
-        setSelectedSites(selectedResponse.data.selectedSites)
-        setSelectedSiteIds(new Set(selectedResponse.data.selectedSites.map(s => s.siteId)))
-      }
-    } catch (err) {
-      console.error('Error loading SharePoint data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load SharePoint data')
-    } finally {
-      setIsLoadingSites(false)
-    }
-  }
-
-  const toggleSite = (siteId: string) => {
-    const newSelected = new Set(selectedSiteIds)
-    if (newSelected.has(siteId)) {
-      newSelected.delete(siteId)
-    } else {
-      newSelected.add(siteId)
-    }
-    setSelectedSiteIds(newSelected)
-  }
-
-  const handleSaveSites = async () => {
-    try {
-      setIsSaving(true)
-      setError(null)
-      const token = await getToken()
-      if (!token) {
-        setError('Authentication required')
-        return
-      }
-
-      const sitesToSave = sites
-        .filter(site => selectedSiteIds.has(site.id))
-        .map(site => ({
-          id: site.id,
-          name: site.displayName || site.name,
-          webUrl: site.webUrl,
-        }))
-
-      await sharepointApi.saveSelectedSites(token, sitesToSave)
-
-      // Reload selected sites
-      const selectedResponse = await sharepointApi.getSelectedSites(token)
-      if (selectedResponse.data?.selectedSites) {
-        setSelectedSites(selectedResponse.data.selectedSites)
-      }
-    } catch (err) {
-      console.error('Error saving selected sites:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save selected sites')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  if (!isLoaded || isUserLoading) {
-    return <SettingsSkeleton />
-  }
-
-  return (
-    <PermissionGuard
-      scope="organization"
-      permission="ORG_EDIT"
-      redirectTo="/home"
-    >
-      <div className="h-full overflow-auto p-6 pb-12 animate-in fade-in duration-300">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-3xl font-serif font-semibold flex items-center gap-2">
-              <SettingsIcon className="h-8 w-8" />
-              Organization Settings
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your organization settings
-            </p>
-          </div>
-
-          {/* SharePoint Sites Management */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>SharePoint Sites</CardTitle>
-                  <CardDescription>
-                    Manage which SharePoint sites are selected for AI auditing
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadSharePointData}
-                  disabled={isLoadingSites}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                  {error}
-                </div>
-              )}
-
-              {isLoadingSites ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="p-4 border rounded-lg flex items-center gap-3">
-                      <Skeleton className="h-5 w-5 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-5 w-40" />
-                        <Skeleton className="h-4 w-56" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : sites.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No SharePoint sites found. Make sure you have access to SharePoint sites.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="max-h-[400px] overflow-y-auto space-y-2">
-                    {sites.map((site) => {
-                      const isSelected = selectedSiteIds.has(site.id)
-                      return (
-                        <div
-                          key={site.id}
-                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-input hover:bg-muted'
-                            }`}
-                          onClick={() => toggleSite(site.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center shrink-0">
-                              {isSelected ? (
-                                <CheckCircle2 className="h-5 w-5 text-primary" />
-                              ) : (
-                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium truncate">
-                                {site.displayName || site.name}
-                              </h3>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {site.webUrl}
-                              </p>
-                              {site.description && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {site.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      {selectedSiteIds.size} site{selectedSiteIds.size !== 1 ? 's' : ''} selected
-                    </p>
-                    <Button
-                      onClick={handleSaveSites}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Changes'
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Invite Members */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                <div>
-                  <CardTitle>Invite Members</CardTitle>
-                  <CardDescription>
-                    Invite new members to join your organization
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {inviteError && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                  {inviteError}
-                </div>
-              )}
-
-              {inviteSuccess && (
-                <div className="mb-4 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400 text-sm flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {inviteSuccess}
-                </div>
-              )}
-
-              {!organizationId ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  <p>Unable to load organization information.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleInviteMember} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-email">Email Address</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="invite-email"
-                          type="email"
-                          placeholder="colleague@example.com"
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          className="pl-9"
-                          required
-                        />
-                      </div>
-                      <Button type="submit" disabled={isInviting || !inviteEmail.trim()}>
-                        {isInviting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          'Send Invite'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    An invitation link will be sent to the email address provided.
-                  </p>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Members Management */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  <div>
-                    <CardTitle>Organization Members</CardTitle>
-                    <CardDescription>
-                      View and manage member roles and access
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadMembers}
-                  disabled={isLoadingMembers}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingMembers ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {membersError && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                  {membersError}
-                </div>
-              )}
-
-              {!organizationId ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Unable to load organization information.</p>
-                </div>
-              ) : isLoadingMembers ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3 flex-1">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-5 w-1/3" />
-                          <Skeleton className="h-4 w-1/4" />
-                        </div>
-                      </div>
-                      <Skeleton className="h-9 w-32" />
-                    </div>
-                  ))}
-                </div>
-              ) : members.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No members found in your organization.</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {members.map((member) => {
-                    const memberRole = getMemberRole(member)
-                    const isMe = isCurrentUser(member)
-                    const isUpdating = updatingRoleForUserId === member.id
-
-                    return (
-                      <div
-                        key={member.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <span className="text-sm font-medium text-primary">
-                              {member.firstName?.[0]?.toUpperCase() || member.email[0].toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium truncate">
-                                {member.firstName && member.lastName
-                                  ? `${member.firstName} ${member.lastName}`
-                                  : member.email}
-                              </h4>
-                              {isMe && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                  You
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {member.email}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Select
-                            value={memberRole?.id || ''}
-                            onValueChange={(newRoleId) => handleRoleChange(member.id, newRoleId)}
-                            disabled={isMe || isUpdating}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select role">
-                                {isUpdating ? (
-                                  <div className="flex items-center gap-2">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Updating...
-                                  </div>
-                                ) : (
-                                  memberRole?.name || 'No role'
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {roles.map((role) => (
-                                <SelectItem key={role.id} value={role.id}>
-                                  {role.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setMemberToRemove(member)}
-                            disabled={isMe}
-                            title={isMe ? 'You cannot remove yourself' : 'Remove member'}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Organization Documents */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  <div>
-                    <CardTitle>Documents</CardTitle>
-                    <CardDescription>
-                      View and manage documents uploaded to your organization
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadDocuments()}
-                  disabled={isLoadingDocuments || !organizationId}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-              {/* Search and Filter */}
-              {documents.length > 0 && (
-                <div className="flex items-center gap-3 pt-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search documents..."
-                      value={documentSearch}
-                      onChange={(e) => setDocumentSearch(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[140px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="PROCESSING">Processing</SelectItem>
-                      <SelectItem value="EMBEDDING">Embedding</SelectItem>
-                      <SelectItem value="READY">Ready</SelectItem>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                      <SelectItem value="FAILED">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {documentsError && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                  {documentsError}
-                </div>
-              )}
-
-              {!organizationId ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Unable to load organization information.</p>
-                </div>
-              ) : isLoadingDocuments ? (
-                <div className="space-y-2">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3 flex-1">
-                        <Skeleton className="h-8 w-8 rounded-md" />
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-5 w-1/3" />
-                          <Skeleton className="h-4 w-1/4" />
-                        </div>
-                      </div>
-                      <Skeleton className="h-6 w-20 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : documents.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No documents found in your organization.</p>
-                </div>
-              ) : (() => {
-                const filteredDocuments = documents.filter((doc) => {
-                  const matchesSearch = documentSearch === '' ||
-                    doc.originalName.toLowerCase().includes(documentSearch.toLowerCase())
-                  const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
-                  return matchesSearch && matchesStatus
-                })
-
-                if (filteredDocuments.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>No documents match your search or filter criteria.</p>
-                    </div>
-                  )
+    return (
+        <PermissionGuard
+            scope="organization"
+            permission="ORG_EDIT"
+            redirectTo="/home"
+        >
+            <style jsx>{`
+                @keyframes fadeUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
                 }
 
-                return (
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {filteredDocuments.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                        onClick={() => router.push(`/documents/${doc.id}`)}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <h4 className="font-medium truncate" title={doc.originalName}>
-                              {doc.originalName}
-                            </h4>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>{formatFileSize(doc.filesize)}</span>
-                              <span>•</span>
-                              <span>{doc.mimeType}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {getStatusBadge(doc.status)}
-                          {(doc.status === 'EMBEDDING' || doc.status === 'READY') && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleReembedDocument(doc.id)
-                                }}
-                                disabled={retryingDocumentId === doc.id}
-                              >
-                                {retryingDocumentId === doc.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <RefreshCw className="h-4 w-4 mr-1" />
-                                    Retry Embed
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleRetryDocument(doc.id)
-                                }}
-                                disabled={retryingDocumentId === doc.id}
-                              >
-                                {retryingDocumentId === doc.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <RotateCcw className="h-4 w-4 mr-1" />
-                                    Retry Process
-                                  </>
-                                )}
-                              </Button>
-                            </>
-                          )}
-                          {(doc.status === 'FAILED' || doc.status === 'PROCESSING') && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleRetryDocument(doc.id)
-                              }}
-                              disabled={retryingDocumentId === doc.id}
-                            >
-                              {retryingDocumentId === doc.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <RotateCcw className="h-4 w-4 mr-1" />
-                                  Retry Process
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                @keyframes fadeSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
 
-      {/* Confirmation Dialog for Member Removal */}
-      <Dialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove Member</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to remove {memberToRemove?.email} from the organization?
-              This action will deactivate their account and remove all their access.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setMemberToRemove(null)}
-              disabled={isRemovingMember}
+                .fade-up-1 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1)
+                        forwards;
+                }
+
+                .fade-up-2 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) 120ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .fade-up-3 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) 180ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .section-header-anim {
+                    animation: fadeUp 450ms cubic-bezier(0.23, 1, 0.32, 1) 60ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .tab-content-enter {
+                    animation: fadeSlideIn 350ms cubic-bezier(0.23, 1, 0.32, 1)
+                        forwards;
+                }
+            `}</style>
+
+            <div className="h-full overflow-auto bg-[#f8f9fa] dark:bg-gray-950 relative">
+                {/* Background gradient */}
+                <div className="fixed inset-0 opacity-20 pointer-events-none">
+                    <div className="absolute w-[55%] h-[40%] top-[20%] left-[30%] bg-[#dce1e8] rounded-full blur-3xl" />
+                    <div className="absolute w-[40%] h-[30%] top-[70%] left-[75%] bg-[#dce1e8]/60 rounded-full blur-3xl" />
+                </div>
+
+                {/* Top Tab Bar */}
+                <header className="sticky top-0 z-10 flex items-center justify-center h-[43px] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-[#dce1e8]/60 dark:border-gray-800/60">
+                    <nav className="relative flex items-stretch gap-1">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                ref={(el) => {
+                                    tabRefs.current[tab.id] = el;
+                                }}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`relative flex items-center gap-2 px-5 py-2 text-[11px] font-medium transition-all duration-300 ease-out cursor-pointer rounded-lg ${
+                                    activeTab === tab.id
+                                        ? 'text-[#272f3b] dark:text-gray-50 bg-[#f8f9fa]/50 dark:bg-gray-800/50'
+                                        : 'text-[#8d9ab0] dark:text-gray-400 hover:text-[#4e5d74] dark:hover:text-gray-300 hover:bg-[#f8f9fa]/30 dark:hover:bg-gray-800/30'
+                                }`}
+                            >
+                                <span
+                                    className={`flex items-center transition-all duration-300 ${activeTab === tab.id ? 'opacity-100 scale-100' : 'opacity-60 scale-95'}`}
+                                >
+                                    {tab.icon}
+                                </span>
+                                <span className="relative">{tab.label}</span>
+                            </button>
+                        ))}
+                        {/* Sliding active indicator */}
+                        <div
+                            className="absolute bottom-0 h-[2px] bg-linear-to-r from-[#3a4557] to-[#272f3b] dark:from-gray-100 dark:to-gray-50 rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(58,69,87,0.35)] dark:shadow-[0_0_12px_rgba(255,255,255,0.25)]"
+                            style={{
+                                left: `${indicatorStyle.left + indicatorStyle.width * 0.15}px`,
+                                width: `${indicatorStyle.width * 0.7}px`,
+                            }}
+                        />
+                    </nav>
+                </header>
+
+                {/* Tab Content */}
+                <div className="w-full pl-6 pr-6 py-6 pb-12 relative z-[1]">
+                    <div className="max-w-[900px] mx-auto">
+                        <div key={activeTab} className="tab-content-enter">
+                            {activeTab === 'documents' &&
+                                (selectedDocumentId ? (
+                                    <DocumentDetailView
+                                        documentId={selectedDocumentId}
+                                        onBack={() =>
+                                            setSelectedDocumentId(null)
+                                        }
+                                        handleRetryDocument={
+                                            handleRetryDocument
+                                        }
+                                        handleReembedDocument={
+                                            handleReembedDocument
+                                        }
+                                        retryingDocumentId={retryingDocumentId}
+                                        getStatusBadge={getStatusBadge}
+                                        formatFileSize={formatFileSize}
+                                        getToken={getToken}
+                                    />
+                                ) : (
+                                    <DocumentsTab
+                                        documents={documents}
+                                        isLoadingDocuments={isLoadingDocuments}
+                                        organizationId={organizationId}
+                                        documentSearch={documentSearch}
+                                        setDocumentSearch={setDocumentSearch}
+                                        statusFilter={statusFilter}
+                                        setStatusFilter={setStatusFilter}
+                                        retryingDocumentId={retryingDocumentId}
+                                        handleRetryDocument={
+                                            handleRetryDocument
+                                        }
+                                        handleReembedDocument={
+                                            handleReembedDocument
+                                        }
+                                        loadDocuments={loadDocuments}
+                                        getStatusBadge={getStatusBadge}
+                                        formatFileSize={formatFileSize}
+                                        onDocumentClick={(id) =>
+                                            setSelectedDocumentId(id)
+                                        }
+                                    />
+                                ))}
+
+                            {activeTab === 'users' && (
+                                <UsersTab
+                                    members={members}
+                                    isLoadingMembers={isLoadingMembers}
+                                    organizationId={organizationId}
+                                    updatingRoleForUserId={
+                                        updatingRoleForUserId
+                                    }
+                                    getMemberRole={getMemberRole}
+                                    isCurrentUser={isCurrentUser}
+                                    handleRoleChange={handleRoleChange}
+                                    setMemberToRemove={setMemberToRemove}
+                                    loadMembers={loadMembers}
+                                    inviteEmail={inviteEmail}
+                                    setInviteEmail={setInviteEmail}
+                                    isInviting={isInviting}
+                                    inviteSuccess={inviteSuccess}
+                                    handleInviteMember={handleInviteMember}
+                                />
+                            )}
+
+                            {activeTab === 'sharepoint' && (
+                                <SharePointTab
+                                    sites={sites}
+                                    selectedSiteIds={selectedSiteIds}
+                                    isLoadingSites={isLoadingSites}
+                                    error={error}
+                                    isSaving={isSaving}
+                                    toggleSite={toggleSite}
+                                    handleSaveSites={handleSaveSites}
+                                    loadSharePointData={loadSharePointData}
+                                />
+                            )}
+
+                            {activeTab === 'organization' && (
+                                <OrganizationTab
+                                    organizationId={organizationId}
+                                />
+                            )}
+
+                            {activeTab === 'taxlibrary' && (
+                                <TaxLibraryTab
+                                    organizationId={organizationId}
+                                    getToken={getToken}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Confirmation Dialog for Member Removal */}
+            <Dialog
+                open={!!memberToRemove}
+                onOpenChange={(open) => !open && setMemberToRemove(null)}
             >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRemoveMember}
-              disabled={isRemovingMember}
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Remove Member</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to remove{' '}
+                            {memberToRemove?.email} from the organization? This
+                            action will deactivate their account and remove all
+                            their access.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setMemberToRemove(null)}
+                            disabled={isRemovingMember}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleRemoveMember}
+                            disabled={isRemovingMember}
+                        >
+                            {isRemovingMember ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Removing...
+                                </>
+                            ) : (
+                                'Remove Member'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </PermissionGuard>
+    );
+}
+
+// Tab Components
+interface DocumentsTabProps {
+    documents: OrganizationDocument[];
+    isLoadingDocuments: boolean;
+    organizationId?: string;
+    documentSearch: string;
+    setDocumentSearch: (value: string) => void;
+    statusFilter: string;
+    setStatusFilter: (value: string) => void;
+    retryingDocumentId: string | null;
+    handleRetryDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string, resume?: boolean) => void;
+    loadDocuments: () => void;
+    getStatusBadge: (
+        status: OrganizationDocument['status'],
+    ) => React.ReactElement;
+    formatFileSize: (bytes: number) => string;
+    onDocumentClick: (documentId: string) => void;
+}
+
+function DocumentsTab({
+    documents,
+    isLoadingDocuments,
+    organizationId,
+    documentSearch,
+    setDocumentSearch,
+    statusFilter,
+    setStatusFilter,
+    retryingDocumentId,
+    handleRetryDocument,
+    handleReembedDocument,
+    loadDocuments,
+    getStatusBadge,
+    formatFileSize,
+    onDocumentClick,
+}: DocumentsTabProps) {
+    // Helper to get file icon and colors based on file type
+    const getFileIcon = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) {
+            return {
+                icon: Table,
+                color: '#4e5d74',
+                bg: '#4e5d7412',
+            };
+        }
+        return {
+            icon: FileText,
+            color: '#6b7a94',
+            bg: '#6b7a9410',
+        };
+    };
+
+    // Helper to get file type label
+    const getFileType = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        return ext.toUpperCase();
+    };
+
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Document Management
+                </h2>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                    View and manage documents uploaded to your organization
+                </p>
+            </div>
+
+            {/* Documents List Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Card Header */}
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    {/* Search and Filter */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8d9ab0]" />
+                            <Input
+                                placeholder="Search documents..."
+                                value={documentSearch}
+                                onChange={(e) =>
+                                    setDocumentSearch(e.target.value)
+                                }
+                                className="pl-9 h-8 rounded-md border border-[#dce1e8] dark:border-gray-700 text-[11px] focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20 bg-white dark:bg-gray-900"
+                            />
+                        </div>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-[120px] h-8 rounded-md border border-[#dce1e8] dark:border-gray-700 text-[11px] bg-white dark:bg-gray-900">
+                                <div className="flex items-center gap-1.5">
+                                    <Filter className="h-3 w-3" />
+                                    <SelectValue />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All</SelectItem>
+                                <SelectItem value="ready">Ready</SelectItem>
+                                <SelectItem value="in-progress">
+                                    In Progress
+                                </SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => loadDocuments()}
+                            disabled={isLoadingDocuments || !organizationId}
+                            className="rounded-md h-8"
+                        >
+                            <RefreshCw
+                                className={`h-3 w-3 mr-2 ${isLoadingDocuments ? 'animate-spin' : ''}`}
+                            />
+                            Refresh
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-1.5">
+                    {!organizationId ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
+                            <p>Unable to load organization information.</p>
+                        </div>
+                    ) : isLoadingDocuments ? null : documents.length === 0 ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                            <FileText className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                            <p className="text-[11px]">
+                                No documents found in your organization.
+                            </p>
+                        </div>
+                    ) : (
+                        (() => {
+                            const filteredDocuments = documents.filter(
+                                (doc) => {
+                                    const matchesSearch =
+                                        documentSearch === '' ||
+                                        doc.originalName
+                                            .toLowerCase()
+                                            .includes(
+                                                documentSearch.toLowerCase(),
+                                            );
+
+                                    // Map filter categories to actual statuses
+                                    let matchesStatus = true;
+                                    if (statusFilter === 'ready') {
+                                        matchesStatus = doc.status === 'READY';
+                                    } else if (statusFilter === 'in-progress') {
+                                        matchesStatus = [
+                                            'UPLOADING',
+                                            'PROCESSING',
+                                            'EMBEDDING',
+                                        ].includes(doc.status);
+                                    } else if (statusFilter === 'failed') {
+                                        matchesStatus = [
+                                            'FAILED',
+                                            'FAILED_CORRUPTED',
+                                            'FAILED_UNSUPPORTED',
+                                            'FAILED_TOO_LARGE',
+                                            'FAILED_PROCESSING',
+                                            'FAILED_EMBEDDING',
+                                        ].includes(doc.status);
+                                    }
+                                    // 'all' filter shows everything
+
+                                    return matchesSearch && matchesStatus;
+                                },
+                            );
+
+                            if (filteredDocuments.length === 0) {
+                                return (
+                                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                                        <Search className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                                        <p className="text-[11px]">
+                                            No documents match your search or
+                                            filter criteria.
+                                        </p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="overflow-hidden">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-[240px_140px_80px_1fr] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Name
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Source
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Size
+                                        </div>
+                                        <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                            Status
+                                        </div>
+                                    </div>
+
+                                    {/* Table Body */}
+                                    <div className="max-h-[400px] overflow-y-auto">
+                                        {filteredDocuments.map((doc) => {
+                                            const fileIcon = getFileIcon(
+                                                doc.originalName,
+                                            );
+                                            const FileIconComponent =
+                                                fileIcon.icon;
+
+                                            return (
+                                                <div
+                                                    key={doc.id}
+                                                    onClick={() =>
+                                                        onDocumentClick(doc.id)
+                                                    }
+                                                    className="grid grid-cols-[240px_140px_80px_1fr] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors cursor-pointer"
+                                                >
+                                                    {/* File Name */}
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div
+                                                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-transform hover:scale-105"
+                                                            style={{
+                                                                background:
+                                                                    fileIcon.bg,
+                                                                color: fileIcon.color,
+                                                            }}
+                                                        >
+                                                            <FileIconComponent
+                                                                size={14}
+                                                            />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div
+                                                                className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100 truncate"
+                                                                title={
+                                                                    doc.originalName
+                                                                }
+                                                            >
+                                                                {
+                                                                    doc.originalName
+                                                                }
+                                                            </div>
+                                                            <div className="text-[9px] text-[#8d9ab0] dark:text-gray-400 mt-0.5">
+                                                                {getFileType(
+                                                                    doc.originalName,
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Source */}
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <span className="text-[#8d9ab0] dark:text-gray-400 shrink-0">
+                                                            <Database
+                                                                size={11}
+                                                            />
+                                                        </span>
+                                                        <span
+                                                            className="text-[10px] font-medium text-[#6b7a94] dark:text-gray-400 truncate"
+                                                            title={
+                                                                doc
+                                                                    .sharepointSite
+                                                                    ?.siteName ||
+                                                                'SharePoint'
+                                                            }
+                                                        >
+                                                            {doc.sharepointSite
+                                                                ?.siteName ||
+                                                                'SharePoint'}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Size */}
+                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                        {formatFileSize(
+                                                            doc.filesize,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Status with Action Buttons */}
+                                                    <div className="flex items-center gap-2">
+                                                        {getStatusBadge(
+                                                            doc.status,
+                                                        )}
+                                                        {(doc.status ===
+                                                            'FAILED_PROCESSING' ||
+                                                            doc.status ===
+                                                                'PROCESSING' ||
+                                                            doc.status ===
+                                                                'FAILED' ||
+                                                            doc.status ===
+                                                                'FAILED_EMBEDDING' ||
+                                                            doc.status ===
+                                                                'READY' ||
+                                                            doc.status ===
+                                                                'EMBEDDING') && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleRetryDocument(
+                                                                            doc.id,
+                                                                        );
+                                                                    }}
+                                                                    disabled={
+                                                                        retryingDocumentId ===
+                                                                        doc.id
+                                                                    }
+                                                                    className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                                                >
+                                                                    {retryingDocumentId ===
+                                                                    doc.id ? (
+                                                                        <>
+                                                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                                            <span>
+                                                                                Processing...
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <RotateCcw
+                                                                                size={
+                                                                                    12
+                                                                                }
+                                                                                className="mr-1.5"
+                                                                            />
+                                                                            <span>
+                                                                                Retry
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                                {(doc.status ===
+                                                                    'FAILED' ||
+                                                                    doc.status ===
+                                                                        'FAILED_EMBEDDING' ||
+                                                                    doc.status ===
+                                                                        'READY' ||
+                                                                    doc.status ===
+                                                                        'EMBEDDING') && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            e.stopPropagation();
+                                                                            handleReembedDocument(
+                                                                                doc.id,
+                                                                                false,
+                                                                            );
+                                                                        }}
+                                                                        disabled={
+                                                                            retryingDocumentId ===
+                                                                            doc.id
+                                                                        }
+                                                                        className="rounded-md h-7 px-2.5 hover:bg-[#eef0f3] dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                                                    >
+                                                                        {retryingDocumentId ===
+                                                                        doc.id ? (
+                                                                            <>
+                                                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                                                <span>
+                                                                                    Embedding...
+                                                                                </span>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <RefreshCw
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    className="mr-1.5"
+                                                                                />
+                                                                                <span>
+                                                                                    Re-embed
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })()
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+// Document Detail View
+interface DocumentDetailViewProps {
+    documentId: string;
+    onBack: () => void;
+    handleRetryDocument: (documentId: string) => void;
+    handleReembedDocument: (documentId: string, resume?: boolean) => void;
+    retryingDocumentId: string | null;
+    getStatusBadge: (
+        status: OrganizationDocument['status'],
+    ) => React.ReactElement;
+    formatFileSize: (bytes: number) => string;
+    getToken: () => Promise<string | null>;
+}
+
+function DocumentDetailView({
+    documentId,
+    onBack,
+    handleRetryDocument,
+    handleReembedDocument,
+    retryingDocumentId,
+    getStatusBadge,
+    formatFileSize,
+    getToken,
+}: DocumentDetailViewProps) {
+    const [document, setDocument] = useState<DocumentDetail | null>(null);
+    const [jobs, setJobs] = useState<ServiceJob[]>([]);
+    const [isLoadingDocument, setIsLoadingDocument] = useState(true);
+    const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+    const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [jobSortOrder, setJobSortOrder] = useState<'desc' | 'asc'>('desc');
+
+    useEffect(() => {
+        loadDocument();
+        loadJobs();
+    }, [documentId]);
+
+    const loadDocument = async () => {
+        try {
+            setIsLoadingDocument(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await documentsApi.getDocument(token, documentId);
+            if (response.data) {
+                setDocument(response.data.document);
+            }
+        } catch (err) {
+            console.error('Error loading document:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load document';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingDocument(false);
+        }
+    };
+
+    const loadJobs = async () => {
+        try {
+            setIsLoadingJobs(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await jobsApi.getJobsByDocument(token, documentId);
+            if (response.data) {
+                const jobsData = Array.isArray(response.data)
+                    ? response.data
+                    : [];
+                setJobs(jobsData);
+            }
+        } catch (err) {
+            console.error('Error loading jobs:', err);
+            const errorMessage =
+                err instanceof Error ? err.message : 'Failed to load jobs';
+            toast.error(errorMessage);
+        } finally {
+            setIsLoadingJobs(false);
+        }
+    };
+
+    const toggleJobExpanded = (jobId: string) => {
+        setExpandedJobIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(jobId)) {
+                next.delete(jobId);
+            } else {
+                next.add(jobId);
+            }
+            return next;
+        });
+    };
+
+    const getJobStatusBadge = (status: ServiceJob['status']) => {
+        switch (status) {
+            case 'COMPLETED':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <CheckCircle size={10} />
+                        Completed
+                    </span>
+                );
+            case 'IN_PROGRESS':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#dce1e8] text-[#6b7a94] dark:bg-gray-700 dark:text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#6b7a94] dark:bg-gray-400 animate-pulse" />
+                        In Progress
+                    </span>
+                );
+            case 'PENDING':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#8d9ab0] dark:bg-gray-800 dark:text-gray-400">
+                        <Clock size={10} />
+                        Pending
+                    </span>
+                );
+            case 'FAILED':
+                return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                        <XCircle size={10} />
+                        Failed
+                    </span>
+                );
+            default:
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold bg-[#eef0f3] text-[#4e5d74] dark:bg-gray-800 dark:text-gray-400">
+                        {status}
+                    </span>
+                );
+        }
+    };
+
+    const getPhaseBadge = (phase: ServiceJob['documentStatusPhase']) => {
+        if (!phase) return null;
+        const colors: Record<string, string> = {
+            UPLOADING:
+                'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+            PROCESSING:
+                'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+            EMBEDDING:
+                'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+        };
+        return (
+            <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold ${colors[phase] || 'bg-[#eef0f3] text-[#4e5d74]'}`}
             >
-              {isRemovingMember ? (
+                {phase.charAt(0) + phase.slice(1).toLowerCase()}
+            </span>
+        );
+    };
+
+    const getFileIcon = (fileName: string) => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) {
+            return { icon: Table, color: '#4e5d74', bg: '#4e5d7412' };
+        }
+        return { icon: FileText, color: '#6b7a94', bg: '#6b7a9410' };
+    };
+
+    const getFileType = (fileName: string) => {
+        return (fileName.split('.').pop()?.toLowerCase() || '').toUpperCase();
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    if (isLoadingDocument) {
+        return null;
+    }
+
+    if (!document) {
+        return (
+            <div className="space-y-5">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 text-[11px] font-medium text-[#6b7a94] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+                >
+                    <ArrowLeft size={14} />
+                    Back to Documents
+                </button>
+                <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                    <AlertCircle className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                    <p className="text-[11px]">Document not found.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const fileIcon = getFileIcon(document.originalName);
+    const FileIconComponent = fileIcon.icon;
+    const showRetryProcessing =
+        document.status === 'FAILED_PROCESSING' ||
+        document.status === 'PROCESSING' ||
+        document.status === 'FAILED' ||
+        document.status === 'FAILED_EMBEDDING' ||
+        document.status === 'READY' ||
+        document.status === 'EMBEDDING';
+    const showReembed =
+        document.status === 'FAILED' ||
+        document.status === 'FAILED_EMBEDDING' ||
+        document.status === 'READY' ||
+        document.status === 'EMBEDDING';
+
+    return (
+        <div className="space-y-5 section-header-anim">
+            {/* Back Button */}
+            <button
+                onClick={onBack}
+                className="flex items-center gap-2 text-[11px] font-medium text-[#6b7a94] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+            >
+                <ArrowLeft size={14} />
+                Back to Documents
+            </button>
+
+            {/* Document Info Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                <div className="px-5 py-5">
+                    <div className="flex items-start gap-4">
+                        <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                            style={{
+                                background: fileIcon.bg,
+                                color: fileIcon.color,
+                            }}
+                        >
+                            <FileIconComponent size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-[14px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                {document.originalName}
+                            </h2>
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#f0f1f4] text-[#6b7a94] dark:bg-gray-800 dark:text-gray-400">
+                                    {getFileType(document.originalName)}
+                                </span>
+                                {getStatusBadge(document.status)}
+                                <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                                    {formatFileSize(document.filesize)}
+                                </span>
+                                <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400 flex items-center gap-1">
+                                    <Clock size={10} />
+                                    {formatDate(document.createdAt)}
+                                </span>
+                            </div>
+                        </div>
+                        {/* Retry / Re-embed Buttons */}
+                        {showRetryProcessing && (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                        handleRetryDocument(document.id)
+                                    }
+                                    disabled={
+                                        retryingDocumentId === document.id
+                                    }
+                                    className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                >
+                                    {retryingDocumentId === document.id ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RotateCcw
+                                                size={12}
+                                                className="mr-1.5"
+                                            />
+                                            <span>Retry</span>
+                                        </>
+                                    )}
+                                </Button>
+                                {showReembed && (
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleReembedDocument(
+                                                    document.id,
+                                                    false,
+                                                )
+                                            }
+                                            disabled={
+                                                retryingDocumentId ===
+                                                document.id
+                                            }
+                                            className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                        >
+                                            {retryingDocumentId ===
+                                            document.id ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                    <span>Embedding...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <RefreshCw
+                                                        size={12}
+                                                        className="mr-1.5"
+                                                    />
+                                                    <span>Re-embed</span>
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleReembedDocument(
+                                                    document.id,
+                                                    true,
+                                                )
+                                            }
+                                            disabled={
+                                                retryingDocumentId ===
+                                                document.id
+                                            }
+                                            className="rounded-md h-7 px-2.5 bg-[#f5f6f8] hover:bg-[#eef0f3] dark:bg-gray-800/50 dark:hover:bg-gray-800 cursor-pointer text-[10px]"
+                                        >
+                                            {retryingDocumentId ===
+                                            document.id ? (
+                                                <>
+                                                    <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                                    <span>Retrying...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <PlayCircle
+                                                        size={12}
+                                                        className="mr-1.5"
+                                                    />
+                                                    <span>Retry chunks</span>
+                                                </>
+                                            )}
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Jobs Section */}
+            <div>
+                <h3 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Processing Jobs
+                </h3>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400 mb-4">
+                    All jobs associated with this document
+                </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Jobs Header */}
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Briefcase size={14} className="text-[#6b7a94]" />
+                        <span className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100">
+                            Jobs
+                        </span>
+                        {!isLoadingJobs && (
+                            <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                                ({jobs.length})
+                            </span>
+                        )}
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadJobs}
+                        disabled={isLoadingJobs}
+                        className="rounded-md h-8"
+                    >
+                        <RefreshCw
+                            className={`h-3 w-3 mr-2 ${isLoadingJobs ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Jobs Content */}
+                <div className="p-1.5">
+                    {isLoadingJobs ? null : jobs.length === 0 ? (
+                        <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                            <Briefcase className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                            <p className="text-[11px]">
+                                No jobs found for this document.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="overflow-hidden">
+                            {/* Table Header */}
+                            <div className="grid grid-cols-[1fr_140px_100px_120px] gap-3 px-5 py-2.5 border-b border-[#eef0f3] dark:border-gray-800">
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Job
+                                </div>
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Phase
+                                </div>
+                                <div className="text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400">
+                                    Status
+                                </div>
+                                <button
+                                    onClick={() =>
+                                        setJobSortOrder((prev) =>
+                                            prev === 'desc' ? 'asc' : 'desc',
+                                        )
+                                    }
+                                    className="flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-wider text-[#8d9ab0] dark:text-gray-400 hover:text-[#272f3b] dark:hover:text-gray-200 transition-colors cursor-pointer"
+                                >
+                                    Date
+                                    {jobSortOrder === 'desc' ? (
+                                        <ChevronDown size={10} />
+                                    ) : (
+                                        <ChevronUp size={10} />
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Table Body */}
+                            <div className="max-h-[500px] overflow-y-auto">
+                                {[...jobs]
+                                    .sort((a, b) => {
+                                        const diff =
+                                            new Date(a.createdAt).getTime() -
+                                            new Date(b.createdAt).getTime();
+                                        return jobSortOrder === 'asc'
+                                            ? diff
+                                            : -diff;
+                                    })
+                                    .map((job) => {
+                                        const hasChildren =
+                                            job.childJobs.length > 0;
+                                        const isChildJob =
+                                            job.parentJob !== null;
+                                        const isExpanded = expandedJobIds.has(
+                                            job.id,
+                                        );
+
+                                        return (
+                                            <div key={job.id}>
+                                                <div
+                                                    className={`grid grid-cols-[1fr_140px_100px_120px] gap-3 items-center px-5 py-3.5 border-b border-[#eef0f3]66 dark:border-gray-800/40 hover:bg-[#f8f9fa] dark:hover:bg-gray-800/30 transition-colors ${hasChildren ? 'cursor-pointer' : ''}`}
+                                                    onClick={
+                                                        hasChildren
+                                                            ? () =>
+                                                                  toggleJobExpanded(
+                                                                      job.id,
+                                                                  )
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {/* Task Name & Description */}
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        {hasChildren && (
+                                                            <span className="shrink-0 text-[#8d9ab0]">
+                                                                {isExpanded ? (
+                                                                    <ChevronDown
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                ) : (
+                                                                    <ChevronRight
+                                                                        size={
+                                                                            12
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <div className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                                                {job.jobName}
+                                                            </div>
+                                                            <div
+                                                                className="text-[9px] text-[#8d9ab0] dark:text-gray-400 mt-0.5 truncate"
+                                                                title={
+                                                                    job.description
+                                                                }
+                                                            >
+                                                                {isChildJob ? (
+                                                                    <>
+                                                                        <span className="text-[#6b7a94] dark:text-gray-500">
+                                                                            Parent:{' '}
+                                                                        </span>
+                                                                        {
+                                                                            job
+                                                                                .parentJob!
+                                                                                .jobName
+                                                                        }
+                                                                    </>
+                                                                ) : (
+                                                                    job.description
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Phase */}
+                                                    <div>
+                                                        {getPhaseBadge(
+                                                            job.documentStatusPhase,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Status */}
+                                                    <div>
+                                                        {getJobStatusBadge(
+                                                            job.status,
+                                                        )}
+                                                    </div>
+
+                                                    {/* Date */}
+                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                        {formatDate(
+                                                            job.createdAt,
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded Child Jobs */}
+                                                {hasChildren && isExpanded && (
+                                                    <div className="bg-[#f8f9fa]/60 dark:bg-gray-800/20 border-b border-[#eef0f3]66 dark:border-gray-800/40">
+                                                        {job.childJobs.map(
+                                                            (child) => (
+                                                                <div
+                                                                    key={
+                                                                        child.id
+                                                                    }
+                                                                    className="grid grid-cols-[1fr_140px_100px_120px] gap-3 items-center pl-12 pr-5 py-2.5 border-b border-[#eef0f3]33 dark:border-gray-800/20 last:border-b-0"
+                                                                >
+                                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 truncate">
+                                                                        {
+                                                                            child.jobName
+                                                                        }
+                                                                    </div>
+                                                                    <div />
+                                                                    <div>
+                                                                        {getJobStatusBadge(
+                                                                            child.status,
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-[#6b7a94] dark:text-gray-400 font-medium">
+                                                                        {formatDate(
+                                                                            child.createdAt,
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+interface UsersTabProps {
+    members: OrganizationMember[];
+    isLoadingMembers: boolean;
+    organizationId?: string;
+    updatingRoleForUserId: string | null;
+    getMemberRole: (member: OrganizationMember) => OrganizationRole;
+    isCurrentUser: (member: OrganizationMember) => boolean;
+    handleRoleChange: (userId: string, newRoleId: string) => void;
+    setMemberToRemove: (member: OrganizationMember) => void;
+    loadMembers: () => void;
+    inviteEmail: string;
+    setInviteEmail: (value: string) => void;
+    isInviting: boolean;
+    inviteSuccess: string | null;
+    handleInviteMember: (e: React.FormEvent) => void;
+}
+
+function UsersTab({
+    members,
+    isLoadingMembers,
+    organizationId,
+    updatingRoleForUserId,
+    getMemberRole,
+    isCurrentUser,
+    handleRoleChange,
+    setMemberToRemove,
+    inviteEmail,
+    setInviteEmail,
+    isInviting,
+    inviteSuccess,
+    handleInviteMember,
+}: UsersTabProps) {
+    const [memberSearch, setMemberSearch] = useState('');
+
+    // Filter members based on search
+    const filteredMembers = members.filter((member) => {
+        const matchesSearch =
+            memberSearch === '' ||
+            member.email.toLowerCase().includes(memberSearch.toLowerCase()) ||
+            (member.firstName &&
+                member.firstName
+                    .toLowerCase()
+                    .includes(memberSearch.toLowerCase())) ||
+            (member.lastName &&
+                member.lastName
+                    .toLowerCase()
+                    .includes(memberSearch.toLowerCase()));
+
+        return matchesSearch;
+    });
+
+    return (
+        <>
+            {/* Team Members Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Search Bar */}
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8d9ab0]" />
+                        <Input
+                            placeholder="Search members..."
+                            value={memberSearch}
+                            onChange={(e) => setMemberSearch(e.target.value)}
+                            className="pl-9 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px] focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20"
+                        />
+                    </div>
+                </div>
+
+                {/* Card Content */}
+                {!organizationId ? (
+                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
+                        <p>Unable to load organization information.</p>
+                    </div>
+                ) : isLoadingMembers ? null : filteredMembers.length === 0 ? (
+                    <div className="text-center py-12 text-[#8d9ab0] dark:text-gray-400">
+                        <Users className="h-10 w-10 mx-auto mb-2.5 opacity-40" />
+                        <p className="text-[11px]">
+                            {memberSearch
+                                ? 'No members match your search.'
+                                : 'No members found in your organization.'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="p-4 space-y-2">
+                        {filteredMembers.map((member) => {
+                            const memberRole = getMemberRole(member);
+                            const isMe = isCurrentUser(member);
+                            const isUpdating =
+                                updatingRoleForUserId === member.id;
+
+                            // Get initials for avatar
+                            const initials =
+                                member.firstName && member.lastName
+                                    ? `${member.firstName[0]}${member.lastName[0]}`.toUpperCase()
+                                    : member.email
+                                          .substring(0, 2)
+                                          .toUpperCase();
+
+                            return (
+                                <div
+                                    key={member.id}
+                                    className="flex items-center justify-between p-4 rounded-xl hover:bg-[#f8f9fa]/50 dark:hover:bg-gray-800/30 transition-colors"
+                                >
+                                    {/* Left: Avatar + Info */}
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        {/* Circular Avatar */}
+                                        <div className="h-10 w-10 rounded-full bg-[#272f3b] dark:bg-gray-700 flex items-center justify-center shrink-0">
+                                            <span className="text-[11px] font-bold text-white dark:text-gray-200">
+                                                {initials}
+                                            </span>
+                                        </div>
+
+                                        {/* Name and Email + Badge + Status */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 truncate">
+                                                    {member.firstName &&
+                                                    member.lastName
+                                                        ? `${member.firstName} ${member.lastName}`
+                                                        : member.email}
+                                                </div>
+                                                {isMe && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-[#eef0f3] text-[#6b7a94] dark:bg-gray-800 dark:text-gray-400 uppercase">
+                                                        YOU
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-[11px] text-[#8d9ab0] dark:text-gray-400 truncate">
+                                                {member.email}
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                {/* Status Dot + Text */}
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                    <span className="text-[10px] text-[#6b7a94] dark:text-gray-400">
+                                                        Active
+                                                    </span>
+                                                </div>
+                                                <span className="text-[#dce1e8] dark:text-gray-700">
+                                                    •
+                                                </span>
+                                                <span className="text-[10px] text-[#6b7a94] dark:text-gray-400">
+                                                    {new Date(
+                                                        member.createdAt,
+                                                    ).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Role Dropdown + Actions */}
+                                    <div className="flex items-center gap-2 ml-4">
+                                        <Select
+                                            value={memberRole}
+                                            onValueChange={(newRole) =>
+                                                handleRoleChange(
+                                                    member.id,
+                                                    newRole,
+                                                )
+                                            }
+                                            disabled={isMe || isUpdating}
+                                        >
+                                            <SelectTrigger className="w-[140px] h-8 rounded-lg border-[#dce1e8] dark:border-gray-700 text-[11px]">
+                                                <SelectValue>
+                                                    {isUpdating ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                            <span className="text-[10px]">
+                                                                Updating...
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[11px] font-medium text-[#272f3b] dark:text-gray-100">
+                                                            {memberRole ===
+                                                            'ADMIN'
+                                                                ? 'Admin'
+                                                                : 'Member'}
+                                                        </span>
+                                                    )}
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ADMIN">
+                                                    Admin
+                                                </SelectItem>
+                                                <SelectItem value="MEMBER">
+                                                    Member
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            onClick={() =>
+                                                setMemberToRemove(member)
+                                            }
+                                            disabled={isMe}
+                                            title={
+                                                isMe
+                                                    ? 'You cannot remove yourself'
+                                                    : 'Remove member'
+                                            }
+                                            className="rounded-lg hover:bg-[#eef0f3] dark:hover:bg-gray-800 h-8 w-8"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Invite Members Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2 mt-4">
+                <div className="p-5">
+                    {inviteSuccess && (
+                        <div className="mb-3 p-2.5 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[11px] flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3 w-3" />
+                            {inviteSuccess}
+                        </div>
+                    )}
+
+                    {!organizationId ? (
+                        <div className="text-center py-10 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
+                            <p>Unable to load organization information.</p>
+                        </div>
+                    ) : (
+                        <div className="flex items-start gap-4">
+                            {/* Mail Icon */}
+                            <div className="w-12 h-12 rounded-xl bg-[#f8f9fa] dark:bg-gray-800 flex items-center justify-center shrink-0">
+                                <Mail className="h-5 w-5 text-[#6b7a94] dark:text-gray-400" />
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-[13px] font-semibold text-[#272f3b] dark:text-gray-100 mb-1">
+                                    Invite a team member
+                                </h3>
+                                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400 mb-3">
+                                    They'll receive a link to join your
+                                    organization
+                                </p>
+
+                                {/* Single Row Form */}
+                                <form onSubmit={handleInviteMember}>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="email"
+                                            placeholder="email@example.com"
+                                            value={inviteEmail}
+                                            onChange={(e) =>
+                                                setInviteEmail(e.target.value)
+                                            }
+                                            className="flex-1 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]"
+                                            required
+                                        />
+                                        <Button
+                                            type="submit"
+                                            variant="default"
+                                            size="default"
+                                            disabled={
+                                                isInviting ||
+                                                !inviteEmail.trim()
+                                            }
+                                            className="rounded-xl h-9 text-[11px] px-4"
+                                        >
+                                            {isInviting ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                                    Sending...
+                                                </>
+                                            ) : (
+                                                'Send Invite'
+                                            )}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}
+
+interface OrganizationTabProps {
+    organizationId?: string;
+}
+
+function OrganizationTab({ organizationId }: OrganizationTabProps) {
+    const { getToken } = useAuth();
+    const { user, refreshUser } = useUser();
+    const [orgDetails, setOrgDetails] = useState<OrganizationDetails | null>(
+        null,
+    );
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [nameInput, setNameInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (organizationId) {
+            loadOrgDetails();
+        }
+    }, [organizationId]);
+
+    const loadOrgDetails = async () => {
+        if (!organizationId) return;
+        try {
+            setIsLoading(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await organizationApi.getOrganization(
+                token,
+                organizationId,
+            );
+            if (response.data) {
+                setOrgDetails(response.data);
+                setNameInput(response.data.name);
+            }
+        } catch {
+            toast.error('Failed to load organization details');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRename = async () => {
+        if (!organizationId || !nameInput.trim()) return;
+        try {
+            setIsSaving(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await organizationApi.renameOrganization(
+                token,
+                organizationId,
+                nameInput.trim(),
+            );
+            if (response.data) {
+                setOrgDetails(response.data);
+                setIsEditing(false);
+                await refreshUser();
+                toast.success('Organization renamed successfully');
+            }
+        } catch {
+            toast.error('Failed to rename organization');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setNameInput(orgDetails?.name || user?.organization?.name || '');
+    };
+
+    const displayName =
+        orgDetails?.name || user?.organization?.name || '\u2014';
+    const memberCount = orgDetails?.users?.length;
+    const documentCount = orgDetails?._count?.documents;
+    const createdAt = orgDetails?.createdAt;
+
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    Organization
+                </h2>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                    General settings for your organization
+                </p>
+            </div>
+
+            {/* Organization Name Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1 mb-4">
+                <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                        Organization Name
+                    </h3>
+                    <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                        The display name for your organization
+                    </p>
+                </div>
+                <div className="p-5">
+                    {isLoading ? (
+                        <div className="flex items-center gap-2 text-[#8d9ab0]">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span className="text-[11px]">Loading...</span>
+                        </div>
+                    ) : isEditing ? (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                value={nameInput}
+                                onChange={(e) => setNameInput(e.target.value)}
+                                className="h-8 text-[11px] rounded-lg border-[1.5px] border-[#dce1e8] dark:border-gray-700 focus:border-[#b8c1ce] focus:ring-1 focus:ring-[#b8c1ce]/20 max-w-xs"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRename();
+                                    if (e.key === 'Escape') handleCancelEdit();
+                                }}
+                                autoFocus
+                            />
+                            <Button
+                                size="sm"
+                                onClick={handleRename}
+                                disabled={
+                                    isSaving ||
+                                    !nameInput.trim() ||
+                                    nameInput.trim() === displayName
+                                }
+                                className="h-8 text-[11px]"
+                            >
+                                {isSaving ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <Check className="h-3 w-3" />
+                                )}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleCancelEdit}
+                                disabled={isSaving}
+                                className="h-8 text-[11px]"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <span className="text-[13px] font-medium text-[#272f3b] dark:text-gray-100">
+                                {displayName}
+                            </span>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="text-[#8d9ab0] hover:text-[#272f3b] dark:hover:text-gray-100 transition-colors"
+                            >
+                                <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Organization Details Card */}
+            {!isLoading && orgDetails && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-2">
+                    <div className="px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                        <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            Details
+                        </h3>
+                        <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                            Information about your organization
+                        </p>
+                    </div>
+                    <div className="divide-y divide-[#eef0f3] dark:divide-gray-800">
+                        <div className="flex items-center justify-between px-5 py-3">
+                            <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                Organization ID
+                            </span>
+                            <span className="text-[11px] text-[#272f3b] dark:text-gray-300 font-mono">
+                                {organizationId}
+                            </span>
+                        </div>
+                        {memberCount !== undefined && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Members
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {memberCount}
+                                </span>
+                            </div>
+                        )}
+                        {documentCount !== undefined && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Documents
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {documentCount}
+                                </span>
+                            </div>
+                        )}
+                        {createdAt && (
+                            <div className="flex items-center justify-between px-5 py-3">
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Created
+                                </span>
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {new Date(createdAt).toLocaleDateString(
+                                        'en-US',
+                                        {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                        },
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
+interface SharePointTabProps {
+    sites: SharePointSite[];
+    selectedSiteIds: Set<string>;
+    isLoadingSites: boolean;
+    error: string | null;
+    isSaving: boolean;
+    toggleSite: (siteId: string) => void;
+    handleSaveSites: () => void;
+    loadSharePointData: () => void;
+}
+
+function SharePointTab({
+    sites,
+    selectedSiteIds,
+    isLoadingSites,
+    error,
+    isSaving,
+    toggleSite,
+    handleSaveSites,
+    loadSharePointData,
+}: SharePointTabProps) {
+    return (
+        <>
+            {/* Section Header */}
+            <div className="mb-5 section-header-anim">
+                <h2 className="text-lg font-serif text-[#272f3b] dark:text-gray-100 tracking-tight mb-1">
+                    SharePoint Integration
+                </h2>
+                <p className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                    Configure SharePoint sites for AI auditing
+                </p>
+            </div>
+
+            {/* SharePoint Sites Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-1">
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                    <div>
+                        <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                            SharePoint Sites
+                        </h3>
+                        <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                            Select which sites are available for AI auditing
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={loadSharePointData}
+                        disabled={isLoadingSites}
+                        className="rounded-xl"
+                    >
+                        <RefreshCw
+                            className={`h-3 w-3 mr-2 ${isLoadingSites ? 'animate-spin' : ''}`}
+                        />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Card Content */}
+                <div className="p-1.5">
+                    {error && (
+                        <div className="mx-1.5 mt-1.5 p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[11px]">
+                            {error}
+                        </div>
+                    )}
+
+                    {isLoadingSites ? null : sites.length === 0 ? (
+                        <div className="text-center py-10 text-[#8d9ab0] dark:text-gray-400 text-[11px]">
+                            <p>
+                                No SharePoint sites found. Make sure you have
+                                access to SharePoint sites.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-0.5 p-1">
+                            {sites.map((site) => {
+                                const isSelected = selectedSiteIds.has(site.id);
+                                return (
+                                    <div
+                                        key={site.id}
+                                        className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                                            isSelected
+                                                ? 'bg-[#eef0f3]/60 dark:bg-gray-800'
+                                                : 'hover:bg-[#f8f9fa] dark:hover:bg-gray-800/50'
+                                        }`}
+                                        onClick={() => toggleSite(site.id)}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex items-center justify-center shrink-0 mt-0.5">
+                                                <div
+                                                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                                        isSelected
+                                                            ? 'border-[#3a4557] bg-[#3a4557] dark:border-gray-100 dark:bg-gray-100'
+                                                            : 'border-[#b8c1ce] dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-white dark:bg-gray-900" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-[11px] font-semibold text-[#272f3b] dark:text-gray-100">
+                                                    {site.displayName ||
+                                                        site.name}
+                                                </h4>
+                                                <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400 truncate mt-0.5">
+                                                    {site.webUrl}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Card Footer */}
+                {sites.length > 0 && (
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-[#eef0f3] dark:border-gray-800">
+                        <span className="text-[10px] text-[#8d9ab0] dark:text-gray-400 font-medium">
+                            {selectedSiteIds.size} site
+                            {selectedSiteIds.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleSaveSites}
+                            disabled={isSaving}
+                            className="rounded-xl text-[10px] h-7 px-3"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save Changes'
+                            )}
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}
+
+// Tax Library Tab Component
+interface TaxDocument {
+    id: string;
+    name: string;
+    type: string;
+    size: string;
+    date: string;
+}
+
+interface TaxLibraryTabProps {
+    organizationId?: string;
+    getToken: () => Promise<string | null>;
+}
+
+const FILE_TYPES: Record<string, { label: string; color: string; bg: string }> =
+    {
+        pdf: { label: 'PDF', color: '#6b7a94', bg: '#f5f5f5' },
+        docx: { label: 'DOCX', color: '#6b7a94', bg: '#f5f5f5' },
+        xlsx: { label: 'XLSX', color: '#6b7a94', bg: '#f5f5f5' },
+        csv: { label: 'CSV', color: '#6b7a94', bg: '#f5f5f5' },
+        txt: { label: 'TXT', color: '#6b7a94', bg: '#f5f5f5' },
+    };
+
+type SortBy = 'name' | 'size' | 'date';
+type SortDir = 'asc' | 'desc';
+
+function TaxLibraryTab({ organizationId, getToken }: TaxLibraryTabProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dragOver, setDragOver] = useState(false);
+    const [taxDocs, setTaxDocs] = useState<TaxDocument[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+    const [deleteConfirm, setDeleteConfirm] = useState<Set<string> | null>(
+        null,
+    );
+    const [sortBy, setSortBy] = useState<SortBy>('name');
+    const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+    // Load documents on mount
+    useEffect(() => {
+        if (organizationId) {
+            loadDocuments();
+        }
+    }, [organizationId]);
+
+    const loadDocuments = async () => {
+        if (!organizationId) return;
+
+        try {
+            setIsLoading(true);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            const response = await taxLibraryApi.getOrganizationDocuments(
+                token,
+                organizationId,
+            );
+
+            // Map API response to TaxDocument format
+            const docs: TaxDocument[] = (
+                response.data?.taxLibraryDocuments || []
+            ).map((doc: TaxLibraryDocument) => ({
+                id: doc.id,
+                name: doc.document.originalName,
+                type: doc.document.mimeType,
+                size: formatBytes(doc.document.filesize),
+                date: doc.createdAt.split('T')[0],
+            }));
+            setTaxDocs(docs);
+        } catch (err) {
+            console.error('Error loading tax library documents:', err);
+            toast.error(
+                err instanceof Error ? err.message : 'Failed to load documents',
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleFileDrop = async (e: React.DragEvent | React.ChangeEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+
+        if (!organizationId) {
+            toast.error('Organization ID not found');
+            return;
+        }
+
+        let files: FileList | null = null;
+        if ('dataTransfer' in e) {
+            files = e.dataTransfer.files;
+        } else if ('target' in e && e.target instanceof HTMLInputElement) {
+            files = e.target.files;
+        }
+
+        if (files && files.length > 0) {
+            setIsUploading(true);
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const file of Array.from(files)) {
+                try {
+                    const token = await getToken();
+                    if (!token) {
+                        toast.error('Authentication required');
+                        errorCount++;
+                        continue;
+                    }
+
+                    await taxLibraryApi.uploadDocument(
+                        token,
+                        organizationId,
+                        file,
+                    );
+                    successCount++;
+                } catch (err) {
+                    console.error('Error uploading file:', file.name, err);
+                    errorCount++;
+                }
+            }
+
+            setIsUploading(false);
+
+            if (successCount > 0) {
+                toast.success(
+                    `${successCount} file${successCount !== 1 ? 's' : ''} uploaded successfully`,
+                );
+                await loadDocuments();
+            }
+
+            if (errorCount > 0) {
+                toast.error(
+                    `Failed to upload ${errorCount} file${errorCount !== 1 ? 's' : ''}`,
+                );
+            }
+
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const formatBytes = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    };
+
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        });
+    };
+
+    const toggleDocSelect = (docId: string) => {
+        const newSelected = new Set(selectedDocs);
+        if (newSelected.has(docId)) {
+            newSelected.delete(docId);
+        } else {
+            newSelected.add(docId);
+        }
+        setSelectedDocs(newSelected);
+    };
+
+    const selectAll = () => {
+        if (
+            selectedDocs.size === filteredDocs.length &&
+            filteredDocs.length > 0
+        ) {
+            setSelectedDocs(new Set());
+        } else {
+            setSelectedDocs(new Set(filteredDocs.map((d) => d.id)));
+        }
+    };
+
+    const toggleSort = (field: SortBy) => {
+        if (sortBy === field) {
+            setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(field);
+            setSortDir('asc');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteConfirm) return;
+
+        try {
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const docId of Array.from(deleteConfirm)) {
+                try {
+                    await taxLibraryApi.deleteDocument(token, docId);
+                    successCount++;
+                } catch (err) {
+                    console.error('Error deleting document:', docId, err);
+                    errorCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                toast.success(
+                    `${successCount} document${successCount !== 1 ? 's' : ''} deleted`,
+                );
+                await loadDocuments();
+            }
+
+            if (errorCount > 0) {
+                toast.error(
+                    `Failed to delete ${errorCount} document${errorCount !== 1 ? 's' : ''}`,
+                );
+            }
+
+            setSelectedDocs(new Set());
+            setDeleteConfirm(null);
+        } catch (err) {
+            console.error('Error in handleDelete:', err);
+            toast.error('Failed to delete documents');
+            setDeleteConfirm(null);
+        }
+    };
+
+    // Filter documents
+    const filteredDocs = taxDocs
+        .filter(
+            (doc) =>
+                searchQuery === '' ||
+                doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                doc.type.toLowerCase().includes(searchQuery.toLowerCase()),
+        )
+        .sort((a, b) => {
+            let compareA: string | number = '';
+            let compareB: string | number = '';
+
+            if (sortBy === 'name') {
+                compareA = a.name.toLowerCase();
+                compareB = b.name.toLowerCase();
+            } else if (sortBy === 'size') {
+                compareA = parseSize(a.size);
+                compareB = parseSize(b.size);
+            } else if (sortBy === 'date') {
+                compareA = new Date(a.date).getTime();
+                compareB = new Date(b.date).getTime();
+            }
+
+            if (compareA < compareB) return sortDir === 'asc' ? -1 : 1;
+            if (compareA > compareB) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+    const parseSize = (sizeStr: string): number => {
+        const match = sizeStr.match(/(\d+\.?\d*)\s*(Bytes|KB|MB|GB)/);
+        if (!match) return 0;
+        const value = parseFloat(match[1]);
+        const unit = match[2];
+        const multipliers = {
+            Bytes: 1,
+            KB: 1024,
+            MB: 1024 ** 2,
+            GB: 1024 ** 3,
+        };
+        return value * (multipliers[unit as keyof typeof multipliers] || 1);
+    };
+
+    return (
+        <>
+            <style jsx>{`
+                .section-subtitle {
+                    font-size: 11px;
+                    color: #8d9ab0;
+                    margin-bottom: 16px;
+                }
+
+                .card {
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow:
+                        0 1px 3px rgba(14, 17, 23, 0.04),
+                        0 4px 16px rgba(14, 17, 23, 0.03);
+                    overflow: hidden;
+                    margin-bottom: 16px;
+                }
+
+                .card.delay-1 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1)
+                        forwards;
+                }
+
+                .card.delay-2 {
+                    animation: fadeUp 400ms cubic-bezier(0.23, 1, 0.32, 1) 120ms
+                        forwards;
+                    opacity: 0;
+                }
+
+                .card-header {
+                    padding: 20px;
+                    border-bottom: 1px solid #eef0f3;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .card-header-left {
+                    flex: 1;
+                }
+
+                .card-title {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: #272f3b;
+                    margin-bottom: 4px;
+                }
+
+                .card-desc {
+                    font-size: 10px;
+                    color: #8d9ab0;
+                }
+
+                .tl-upload-zone {
+                    padding: 32px;
+                    border: 2px dashed #dce1e8;
+                    border-radius: 12px;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    margin: 0;
+                }
+
+                .tl-upload-zone:hover,
+                .tl-upload-zone.drag-over {
+                    border-color: #4e5d74;
+                    background: #f8f9fa;
+                }
+
+                .tl-upload-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 12px;
+                    background: #f8f9fa;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 16px;
+                    color: #6b7a94;
+                }
+
+                .tl-upload-text {
+                    margin-bottom: 12px;
+                }
+
+                .tl-upload-text strong {
+                    display: block;
+                    font-size: 13px;
+                    color: #272f3b;
+                    margin-bottom: 4px;
+                }
+
+                .tl-upload-text span {
+                    font-size: 11px;
+                    color: #8d9ab0;
+                }
+
+                .browse-link {
+                    color: #4e5d74;
+                    font-weight: 600;
+                    text-decoration: underline;
+                }
+
+                .tl-upload-formats {
+                    display: flex;
+                    gap: 6px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+
+                .tl-format-tag {
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 9px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                }
+
+                .tl-toolbar {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid #eef0f3;
+                }
+
+                .tl-search-wrap {
+                    position: relative;
+                }
+
+                .tl-search-icon {
+                    position: absolute;
+                    left: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #8d9ab0;
+                    pointer-events: none;
+                }
+
+                .tl-search {
+                    width: 100%;
+                    height: 32px;
+                    padding: 0 12px 0 36px;
+                    border: 1px solid #dce1e8;
+                    border-radius: 8px;
+                    font-size: 11px;
+                    color: #272f3b;
+                    background: white;
+                    transition: all 0.2s;
+                }
+
+                .tl-search:focus {
+                    outline: none;
+                    border-color: #b8c1ce;
+                    box-shadow: 0 0 0 3px rgba(184, 193, 206, 0.1);
+                }
+
+                .tl-bulk-bar {
+                    padding: 12px 20px;
+                    background: #f8f9fa;
+                    border-bottom: 1px solid #eef0f3;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    font-size: 11px;
+                    color: #4e5d74;
+                    font-weight: 600;
+                }
+
+                .tl-bulk-actions {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .tl-bulk-btn {
+                    padding: 6px 12px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 10px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.2s;
+                }
+
+                .tl-bulk-btn.deselect {
+                    background: white;
+                    color: #6b7a94;
+                }
+
+                .tl-bulk-btn.deselect:hover {
+                    background: #eef0f3;
+                }
+
+                .tl-bulk-btn.delete {
+                    background: #272f3b;
+                    color: white;
+                }
+
+                .tl-bulk-btn.delete:hover {
+                    background: #1a2230;
+                }
+
+                .tl-list-header {
+                    display: grid;
+                    grid-template-columns: 32px 1fr 100px 100px 48px;
+                    gap: 12px;
+                    padding: 12px 20px;
+                    border-bottom: 1px solid #eef0f3;
+                    align-items: center;
+                }
+
+                .tl-header-check {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid #dce1e8;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s;
+                }
+
+                .tl-header-check:hover {
+                    border-color: #4e5d74;
+                }
+
+                .tl-header-check.checked {
+                    background: #272f3b;
+                    border-color: #272f3b;
+                }
+
+                .tl-sort-btn {
+                    background: none;
+                    border: none;
+                    font-size: 10px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    color: #8d9ab0;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 0;
+                    text-align: left;
+                    transition: color 0.2s;
+                }
+
+                .tl-sort-btn:hover {
+                    color: #4e5d74;
+                }
+
+                .tl-sort-btn.active {
+                    color: #272f3b;
+                }
+
+                .tl-sort-arrow {
+                    font-size: 8px;
+                    transition: transform 0.2s;
+                }
+
+                .tl-sort-arrow.desc {
+                    transform: rotate(180deg);
+                }
+
+                .tl-doc-list {
+                    max-height: 500px;
+                    overflow-y: auto;
+                }
+
+                .tl-doc-row {
+                    display: grid;
+                    grid-template-columns: 32px 1fr 100px 100px 48px;
+                    gap: 12px;
+                    padding: 12px 20px;
+                    border-bottom: 1px solid #eef0f366;
+                    align-items: center;
+                    transition: background 0.2s;
+                }
+
+                .tl-doc-row:hover {
+                    background: #f8f9fa;
+                }
+
+                .tl-doc-row.is-selected {
+                    background: #eef0f3;
+                }
+
+                .tl-doc-check {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid #dce1e8;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s;
+                }
+
+                .tl-doc-check:hover {
+                    border-color: #4e5d74;
+                }
+
+                .tl-doc-check.checked {
+                    background: #272f3b;
+                    border-color: #272f3b;
+                }
+
+                .tl-doc-main {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    min-width: 0;
+                }
+
+                .tl-file-badge {
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 9px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    flex-shrink: 0;
+                }
+
+                .tl-doc-info {
+                    min-width: 0;
+                    flex: 1;
+                }
+
+                .tl-doc-name {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #272f3b;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .tl-doc-meta {
+                    font-size: 9px;
+                    color: #8d9ab0;
+                    margin-top: 2px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .tl-doc-meta-dot {
+                    width: 2px;
+                    height: 2px;
+                    border-radius: 50%;
+                    background: #dce1e8;
+                }
+
+                .tl-doc-size {
+                    font-size: 10px;
+                    color: #6b7a94;
+                    font-weight: 500;
+                    text-align: right;
+                }
+
+                .tl-doc-date {
+                    font-size: 10px;
+                    color: #6b7a94;
+                    font-weight: 500;
+                    text-align: right;
+                }
+
+                .tl-doc-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                }
+
+                .tl-action-btn {
+                    padding: 6px;
+                    border: none;
+                    border-radius: 6px;
+                    background: none;
+                    cursor: pointer;
+                    color: #8d9ab0;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .tl-action-btn:hover {
+                    background: #eef0f3;
+                    color: #4e5d74;
+                }
+
+                .tl-action-btn.danger:hover {
+                    background: #272f3b10;
+                    color: #272f3b;
+                }
+
+                .tl-empty {
+                    padding: 48px 20px;
+                    text-align: center;
+                }
+
+                .tl-empty-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 12px;
+                    background: #f8f9fa;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 12px;
+                    color: #8d9ab0;
+                }
+
+                .tl-empty strong {
+                    display: block;
+                    font-size: 12px;
+                    color: #272f3b;
+                    margin-bottom: 4px;
+                }
+
+                .tl-empty span {
+                    font-size: 11px;
+                    color: #8d9ab0;
+                }
+            `}</style>
+
+            <div className="section-header">
+                <div className="section-subtitle">
+                    Upload and manage your organization&apos;s tax reference
+                    library
+                </div>
+            </div>
+
+            {!organizationId ? (
+                <div
+                    className="card delay-1"
+                    style={{ padding: '48px 20px', textAlign: 'center' }}
+                >
+                    <p
+                        style={{
+                            fontSize: '11px',
+                            color: '#8d9ab0',
+                        }}
+                    >
+                        Unable to load organization information.
+                    </p>
+                </div>
+            ) : (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Removing...
+                    {/* Upload Zone */}
+                    <div
+                        className="card delay-1"
+                        style={{ overflow: 'visible' }}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            accept=".pdf,.docx,.xlsx,.csv,.txt"
+                            style={{ display: 'none' }}
+                            onChange={handleFileDrop}
+                            disabled={isUploading}
+                        />
+                        <div
+                            className={`tl-upload-zone${dragOver ? ' drag-over' : ''}${isUploading ? ' uploading' : ''}`}
+                            onClick={() =>
+                                !isUploading && fileInputRef.current?.click()
+                            }
+                            onDragOver={(e) => {
+                                if (!isUploading) {
+                                    e.preventDefault();
+                                    setDragOver(true);
+                                }
+                            }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={(e) => !isUploading && handleFileDrop(e)}
+                            style={{
+                                opacity: isUploading ? 0.6 : 1,
+                                cursor: isUploading ? 'not-allowed' : 'pointer',
+                            }}
+                        >
+                            <div className="tl-upload-icon">
+                                {isUploading ? (
+                                    <Loader2
+                                        size={24}
+                                        className="animate-spin"
+                                    />
+                                ) : (
+                                    <Upload size={24} />
+                                )}
+                            </div>
+                            <div className="tl-upload-text">
+                                <strong>
+                                    {isUploading
+                                        ? 'Uploading...'
+                                        : dragOver
+                                          ? 'Drop files here'
+                                          : 'Upload to Tax Library'}
+                                </strong>
+                                {!isUploading && (
+                                    <span>
+                                        Drag and drop files, or{' '}
+                                        <span className="browse-link">
+                                            browse
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
+                            {!isUploading && (
+                                <div className="tl-upload-formats">
+                                    {Object.entries(FILE_TYPES).map(
+                                        ([ext, ft]) => (
+                                            <span
+                                                key={ext}
+                                                className="tl-format-tag"
+                                                style={{
+                                                    background: ft.bg,
+                                                    color: ft.color,
+                                                }}
+                                            >
+                                                {ft.label}
+                                            </span>
+                                        ),
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Document Library */}
+                    <div className="card delay-2">
+                        <div className="card-header">
+                            <div className="card-header-left">
+                                <div className="card-title">
+                                    Library Documents
+                                </div>
+                                <div className="card-desc">
+                                    {taxDocs.length} document
+                                    {taxDocs.length !== 1 ? 's' : ''} in your
+                                    tax library
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Toolbar */}
+                        <div className="tl-toolbar">
+                            <div className="tl-search-wrap">
+                                <div className="tl-search-icon">
+                                    <Search size={15} />
+                                </div>
+                                <input
+                                    className="tl-search"
+                                    type="text"
+                                    placeholder="Search documents by name or type…"
+                                    value={searchQuery}
+                                    onChange={(e) =>
+                                        setSearchQuery(e.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        {/* Bulk actions */}
+                        {selectedDocs.size > 0 && (
+                            <div className="tl-bulk-bar">
+                                <span>
+                                    {selectedDocs.size} document
+                                    {selectedDocs.size !== 1 ? 's' : ''}{' '}
+                                    selected
+                                </span>
+                                <div className="tl-bulk-actions">
+                                    <button
+                                        className="tl-bulk-btn deselect"
+                                        onClick={() =>
+                                            setSelectedDocs(new Set())
+                                        }
+                                    >
+                                        <X size={13} /> Clear
+                                    </button>
+                                    <button
+                                        className="tl-bulk-btn delete"
+                                        onClick={() =>
+                                            setDeleteConfirm(selectedDocs)
+                                        }
+                                    >
+                                        <Trash2 size={13} /> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Loading State */}
+                        {isLoading ? (
+                            <div
+                                style={{
+                                    padding: '48px 20px',
+                                    textAlign: 'center',
+                                }}
+                            >
+                                <Loader2
+                                    size={32}
+                                    className="animate-spin"
+                                    style={{
+                                        margin: '0 auto 12px',
+                                        color: '#8d9ab0',
+                                    }}
+                                />
+                                <p
+                                    style={{
+                                        fontSize: '11px',
+                                        color: '#8d9ab0',
+                                    }}
+                                >
+                                    Loading documents...
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="tl-list-header">
+                                    <div
+                                        className={`tl-header-check${selectedDocs.size === filteredDocs.length && filteredDocs.length > 0 ? ' checked' : ''}`}
+                                        onClick={selectAll}
+                                    >
+                                        {selectedDocs.size ===
+                                            filteredDocs.length &&
+                                            filteredDocs.length > 0 && (
+                                                <Check
+                                                    size={12}
+                                                    stroke="white"
+                                                    strokeWidth={2.5}
+                                                />
+                                            )}
+                                    </div>
+                                    <button
+                                        className={`tl-sort-btn${sortBy === 'name' ? ' active' : ''}`}
+                                        onClick={() => toggleSort('name')}
+                                    >
+                                        Name
+                                        {sortBy === 'name' && (
+                                            <span
+                                                className={`tl-sort-arrow${sortDir === 'desc' ? ' desc' : ''}`}
+                                            >
+                                                ▲
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`tl-sort-btn${sortBy === 'size' ? ' active' : ''}`}
+                                        onClick={() => toggleSort('size')}
+                                        style={{ justifySelf: 'end' }}
+                                    >
+                                        Size
+                                        {sortBy === 'size' && (
+                                            <span
+                                                className={`tl-sort-arrow${sortDir === 'desc' ? ' desc' : ''}`}
+                                            >
+                                                ▲
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className={`tl-sort-btn${sortBy === 'date' ? ' active' : ''}`}
+                                        onClick={() => toggleSort('date')}
+                                        style={{ justifySelf: 'end' }}
+                                    >
+                                        Date
+                                        {sortBy === 'date' && (
+                                            <span
+                                                className={`tl-sort-arrow${sortDir === 'desc' ? ' desc' : ''}`}
+                                            >
+                                                ▲
+                                            </span>
+                                        )}
+                                    </button>
+                                    <div />
+                                </div>
+
+                                <div className="tl-doc-list">
+                                    {filteredDocs.length === 0 ? (
+                                        <div className="tl-empty">
+                                            <div className="tl-empty-icon">
+                                                <Search size={22} />
+                                            </div>
+                                            <strong>No documents found</strong>
+                                            <span>
+                                                Try adjusting your search
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        filteredDocs.map((doc) => {
+                                            const ft =
+                                                FILE_TYPES[doc.type] ||
+                                                FILE_TYPES.txt;
+                                            const isSel = selectedDocs.has(
+                                                doc.id,
+                                            );
+                                            return (
+                                                <div
+                                                    key={doc.id}
+                                                    className={`tl-doc-row${isSel ? ' is-selected' : ''}`}
+                                                >
+                                                    <div
+                                                        className={`tl-doc-check${isSel ? ' checked' : ''}`}
+                                                        onClick={() =>
+                                                            toggleDocSelect(
+                                                                doc.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        {isSel && (
+                                                            <Check
+                                                                size={11}
+                                                                stroke="white"
+                                                                strokeWidth={
+                                                                    2.5
+                                                                }
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="tl-doc-main">
+                                                        <div
+                                                            className="tl-file-badge"
+                                                            style={{
+                                                                background:
+                                                                    ft.bg,
+                                                                color: ft.color,
+                                                            }}
+                                                        >
+                                                            {ft.label}
+                                                        </div>
+                                                        <div className="tl-doc-info">
+                                                            <div className="tl-doc-name">
+                                                                {doc.name}
+                                                            </div>
+                                                            <div className="tl-doc-meta">
+                                                                <span>
+                                                                    {doc.type.toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="tl-doc-size">
+                                                        {doc.size}
+                                                    </div>
+                                                    <div className="tl-doc-date">
+                                                        {formatDate(doc.date)}
+                                                    </div>
+                                                    <div className="tl-doc-actions">
+                                                        <button
+                                                            className="tl-action-btn danger"
+                                                            onClick={() =>
+                                                                setDeleteConfirm(
+                                                                    new Set([
+                                                                        doc.id,
+                                                                    ]),
+                                                                )
+                                                            }
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </>
-              ) : (
-                'Remove Member'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </PermissionGuard>
-  )
+            )}
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={!!deleteConfirm}
+                onOpenChange={(open) => !open && setDeleteConfirm(null)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Documents</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete{' '}
+                            {deleteConfirm?.size || 0} document
+                            {deleteConfirm && deleteConfirm.size !== 1
+                                ? 's'
+                                : ''}
+                            ? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteConfirm(null)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDelete}>
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
 }

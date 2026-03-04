@@ -1,16 +1,25 @@
-'use client'
+'use client';
 
-import { useRef, useEffect } from 'react'
-import { Send, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
+import { useRef, useEffect, useState } from 'react';
+import { Send, Loader2, Globe } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Kbd } from '@/components/ui/kbd';
+import { Separator } from '@/components/ui/separator';
+import { Toggle } from '@/components/ui/toggle';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ChatCommandBarProps {
-    message: string
-    onChange: (value: string) => void
-    onSubmit: (e: React.FormEvent) => void
-    isSubmitting: boolean
-    placeholder?: string
+    message: string;
+    onChange: (value: string) => void;
+    onSubmit: (e: React.FormEvent, externalSearchEnabled: boolean) => void;
+    isSubmitting: boolean;
+    placeholder?: string;
 }
 
 export function ChatCommandBar({
@@ -18,28 +27,32 @@ export function ChatCommandBar({
     onChange,
     onSubmit,
     isSubmitting,
-    placeholder = 'Ask me anything...'
+    placeholder = 'Ask me anything...',
 }: ChatCommandBarProps) {
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
 
-    // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
         }
-    }, [message])
+    }, [message]);
 
-    // Handle keyboard shortcuts
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            onSubmit(e)
+            e.preventDefault();
+            onSubmit(e, externalSearchEnabled);
         }
-    }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSubmit(e, externalSearchEnabled);
+    };
 
     return (
-        <form onSubmit={onSubmit} className="relative">
+        <form onSubmit={handleSubmit} className="relative">
             <div className="relative bg-background/80 backdrop-blur-xl border border-border/50 rounded-2xl md:rounded-3xl shadow-2xl shadow-black/5 hover:shadow-black/10 transition-all focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-border">
                 <Textarea
                     ref={textareaRef}
@@ -47,10 +60,34 @@ export function ChatCommandBar({
                     onChange={(e) => onChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
-                    className="min-h-[56px] max-h-[200px] resize-none border-0 bg-transparent px-4 md:px-6 py-4 pr-14 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm md:text-base placeholder:text-muted-foreground/60 scrollbar-thin"
+                    className="min-h-14 max-h-50 resize-none border-0 bg-transparent pl-14 pr-14 md:pl-16 md:pr-16 py-4 focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/60 scrollbar-thin"
                     disabled={isSubmitting}
                     rows={1}
                 />
+                <div className="absolute left-3 bottom-3">
+                    <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Toggle
+                                    pressed={externalSearchEnabled}
+                                    onPressedChange={setExternalSearchEnabled}
+                                    size="sm"
+                                    className="h-8 w-8 rounded-full p-0 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                                    aria-label="Toggle external search"
+                                >
+                                    <Globe className="h-4 w-4" />
+                                </Toggle>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>
+                                    {externalSearchEnabled
+                                        ? 'External search enabled'
+                                        : 'Enable external search'}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
                 <div className="absolute right-3 bottom-3">
                     <Button
                         type="submit"
@@ -66,9 +103,14 @@ export function ChatCommandBar({
                     </Button>
                 </div>
             </div>
-            <p className="text-xs text-muted-foreground/60 text-center mt-3">
-                Press <span className="font-medium">Enter</span> to send • <span className="font-medium">Shift+Enter</span> for new line
-            </p>
+            <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground/60">
+                <span>Press</span>
+                <Kbd>Enter</Kbd>
+                <span>to send</span>
+                <Separator orientation="vertical" className="h-3" />
+                <Kbd>Shift+Enter</Kbd>
+                <span>for new line</span>
+            </div>
         </form>
-    )
+    );
 }

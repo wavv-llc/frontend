@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+.next
+out
+build
+
+# Build outputs
+dist
+*.min.js
+*.min.css
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.github
+
+# Misc
+coverage
+.nyc_output
+.cache
+.parcel-cache

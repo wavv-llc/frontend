@@ -1,19 +1,22 @@
-'use client'
+'use client';
 
-import { Clock } from 'lucide-react'
-import { type RecentItem } from '@/lib/api'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { ItemIcon } from '../shared'
+import { Clock } from 'lucide-react';
+import { type RecentItem } from '@/lib/api';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ItemIcon } from '../shared';
 
-export function RecentsWidget({ items, isLoading, onItemClick }: {
-    items: RecentItem[]
-    isLoading: boolean
-    onItemClick: (item: RecentItem) => void
+export function RecentsWidget({
+    items,
+    isLoading,
+    onItemClick,
+}: {
+    items: RecentItem[];
+    isLoading: boolean;
+    onItemClick: (item: RecentItem) => void;
 }) {
     if (isLoading) {
-        return <Skeleton className="h-full w-full rounded-xl" />
+        return null;
     }
 
     return (
@@ -38,7 +41,7 @@ export function RecentsWidget({ items, isLoading, onItemClick }: {
                             <button
                                 key={`${item.type}-${item.id}`}
                                 onClick={() => onItemClick(item)}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 hover:border-primary/10 border border-transparent transition-all group text-left"
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 hover:border-primary/10 border border-transparent transition-all group text-left cursor-pointer"
                             >
                                 <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                     <ItemIcon type={item.type} />
@@ -59,5 +62,5 @@ export function RecentsWidget({ items, isLoading, onItemClick }: {
                 </div>
             </ScrollArea>
         </Card>
-    )
+    );
 }

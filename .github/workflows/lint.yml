@@ -1,0 +1,25 @@
+name: Service Lint
+
+on:
+    # Trigger the workflow on push or pull request
+    push:
+        branches:
+            - '**'
+    pull_request:
+        branches:
+            - '**'
+
+jobs:
+    run-linters:
+        name: Run linters
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out Git repository
+              uses: actions/checkout@v3
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+
+            - run: npm i
+            - run: npm run lint

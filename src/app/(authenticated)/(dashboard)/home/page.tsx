@@ -1,103 +1,159 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth, useUser } from '@clerk/nextjs'
-import { Plus } from 'lucide-react'
-import { dashboardApi, type RecentItem, type DashboardTask } from '@/lib/api'
-import { DraggableDashboard } from '@/components/dashboard/DraggableDashboard'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth, useUser } from '@clerk/nextjs';
+import { dashboardApi, type RecentItem, type DashboardTask } from '@/lib/api';
+import {
+    DashboardContent,
+    type Task,
+    type CalendarEvent,
+    type ActivityItem,
+    type ActivityStat,
+} from '@/components/dashboard/pure-steel';
+import { getCached, setCached } from '@/lib/pageCache';
+
+type DashboardData = {
+    recents: RecentItem[];
+    tasks: DashboardTask[];
+    calendar: DashboardTask[];
+};
+
+const CACHE_KEY = 'dashboard';
 
 export default function HomePage() {
-    const router = useRouter()
-    const { getToken } = useAuth()
-    const { user } = useUser()
-    const [greeting, setGreeting] = useState('')
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const { user } = useUser();
 
-    // Data State
-    const [data, setData] = useState<{
-        recents: RecentItem[],
-        tasks: DashboardTask[],
-        calendar: DashboardTask[]
-    }>({ recents: [], tasks: [], calendar: [] })
-
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        const hour = new Date().getHours()
-        if (hour < 12) setGreeting('Good morning')
-        else if (hour < 17) setGreeting('Good afternoon')
-        else setGreeting('Good evening')
-    }, [])
+    // Data State — initialize from cache so returning users see content instantly
+    const [data, setData] = useState<DashboardData>(
+        () =>
+            getCached<DashboardData>(CACHE_KEY) ?? {
+                recents: [],
+                tasks: [],
+                calendar: [],
+            },
+    );
+    const [loading, setLoading] = useState(() => !getCached(CACHE_KEY));
 
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const token = await getToken()
-                if (!token) return
+                const token = await getToken();
+                if (!token) return;
 
                 const [recent, tasks, calendar] = await Promise.all([
                     dashboardApi.getRecentItems(token, 10),
                     dashboardApi.getMyTasks(token),
-                    dashboardApi.getCalendarTasks(token)
-                ])
+                    dashboardApi.getCalendarTasks(token),
+                ]);
 
-                setData({
+                const newData: DashboardData = {
                     recents: recent.data || [],
                     tasks: tasks.data || [],
                     calendar: calendar.data || [],
-                })
+                };
+                setCached(CACHE_KEY, newData);
+                setData(newData);
             } catch (error) {
-                console.error("Dashboard error:", error)
+                console.error('Dashboard error:', error);
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }
-        fetchAll()
-    }, [getToken])
+        };
+        fetchAll();
+    }, [getToken]);
 
     // Routing Handlers
-    const handleRecentClick = (item: RecentItem) => {
-        if (item.type === 'workspace') router.push(`/workspaces/${item.id}`)
-        if (item.type === 'project') router.push(`/workspaces/${item.workspaceId}/projects/${item.id}`)
-        if (item.type === 'task') router.push(`/workspaces/${item.workspaceId}/projects/${item.parentId}?task=${item.id}`)
-    }
+    const handleTaskClick = (task: Task) => {
+        // Find the original DashboardTask to get workspace/project IDs
+        const originalTask = data.tasks.find((t) => t.id === task.id);
+        if (originalTask) {
+            router.push(
+                `/workspaces/${originalTask.project.workspace.id}/projects/${originalTask.project.id}?task=${originalTask.id}`,
+            );
+        }
+    };
 
-    const handleTaskClick = (t: DashboardTask) => {
-        router.push(`/workspaces/${t.project.workspace.id}/projects/${t.project.id}?task=${t.id}`)
-    }
+    const handleEventClick = (event: CalendarEvent) => {
+        // Find the original task for the calendar event
+        const originalTask = data.calendar.find((t) => t.id === event.id);
+        if (originalTask) {
+            router.push(
+                `/workspaces/${originalTask.project.workspace.id}/projects/${originalTask.project.id}?task=${originalTask.id}`,
+            );
+        }
+    };
+
+    // Map API data to Pure Steel Light interfaces
+    const mappedTasks = useMemo<Task[]>(() => {
+        return data.tasks.map((task) => ({
+            id: task.id,
+            clientName: task.project.name,
+            formType: 'Task',
+            priority: 'medium' as const,
+            status: (task.approvalStatus === 'COMPLETED'
+                ? 'complete'
+                : task.approvalStatus === 'IN_REVIEW'
+                  ? 'review'
+                  : 'pending') as Task['status'],
+            dueDate: task.dueAt ? new Date(task.dueAt) : new Date(),
+        }));
+    }, [data.tasks]);
+
+    const mappedEvents = useMemo<CalendarEvent[]>(() => {
+        return data.calendar.map((task) => ({
+            id: task.id,
+            title: task.name || task.project.name,
+            date: task.dueAt ? new Date(task.dueAt) : new Date(),
+            type: 'task' as const,
+            status: (task.approvalStatus === 'COMPLETED'
+                ? 'complete'
+                : task.approvalStatus === 'IN_REVIEW'
+                  ? 'review'
+                  : 'pending') as CalendarEvent['status'],
+        }));
+    }, [data.calendar]);
+
+    const mappedActivities = useMemo<ActivityItem[]>(() => {
+        return data.recents.slice(0, 8).map((item) => ({
+            id: item.id,
+            type: item.type === 'task' ? 'assignment' : 'review',
+            title: item.name,
+            description: `${item.name}${item.parentName ? ` in ${item.parentName}` : ''}`,
+            user: {
+                name: 'Unknown',
+            },
+            timestamp: new Date(item.updatedAt),
+        }));
+    }, [data.recents]);
+
+    const stats = useMemo<ActivityStat[]>(() => {
+        return [
+            {
+                label: 'Active Tasks',
+                value: data.tasks.length,
+                subLabel: 'Total',
+            },
+            {
+                label: 'This Week',
+                value: data.calendar.length,
+                subLabel: 'Due items',
+            },
+        ];
+    }, [data.tasks.length, data.calendar.length]);
 
     return (
-        <div className="h-full w-full bg-background selection:bg-primary/20 overflow-hidden flex flex-col">
-
-            <div className="flex-1 p-6 flex flex-col gap-6 min-h-0">
-
-                {/* Header */}
-                <div className="flex items-center justify-between shrink-0">
-                    <div>
-                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-foreground">
-                            {greeting}, {user?.firstName}
-                        </h1>
-                    </div>
-
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add card
-                    </Button>
-                </div>
-
-                {/* Draggable Dashboard */}
-                <div className="flex-1 min-h-0">
-                    <DraggableDashboard
-                        data={{
-                            ...data,
-                            loading,
-                            onTaskClick: handleTaskClick,
-                            onRecentClick: handleRecentClick
-                        }}
-                    />
-                </div>
-            </div>
-        </div>
-    )
+        <DashboardContent
+            userName={user?.firstName || 'User'}
+            tasks={mappedTasks}
+            events={mappedEvents}
+            activities={mappedActivities}
+            stats={stats}
+            onTaskClick={handleTaskClick}
+            onEventClick={handleEventClick}
+            isLoading={loading}
+        />
+    );
 }

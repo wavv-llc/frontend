@@ -5,8 +5,18 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, User } from 'lucide-react';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Field } from '@/components/ui/field';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { User } from 'lucide-react';
 import { userApi } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -28,12 +38,10 @@ export default function MemberSetupPage() {
             return;
         }
 
-        // Pre-fill with existing values from Clerk
         if (user) {
             setFirstName(user.firstName || '');
             setLastName(user.lastName || '');
 
-            // If user already has both names, redirect to home
             if (user.firstName && user.lastName) {
                 router.replace('/home');
                 return;
@@ -54,13 +62,11 @@ export default function MemberSetupPage() {
         setIsSubmitting(true);
 
         try {
-            // Update Clerk user profile
             await user?.update({
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
             });
 
-            // Update our backend user record
             const token = await getToken();
             if (token) {
                 await userApi.updateProfile(token, {
@@ -71,7 +77,6 @@ export default function MemberSetupPage() {
 
             toast.success('Profile updated successfully!');
 
-            // Cache onboarding as complete
             sessionStorage.setItem('wavv_onboarding_completed', 'true');
             sessionStorage.setItem('wavv_cached_user_id', userId || '');
 
@@ -85,73 +90,111 @@ export default function MemberSetupPage() {
     };
 
     if (isLoading || !isLoaded || !isUserLoaded) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
+        return null;
     }
 
+    const initials =
+        `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase() || undefined;
+
     return (
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-            <div className="w-full max-w-md">
-                <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <User className="h-8 w-8 text-primary" />
-                        </div>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            Complete Your Profile
-                        </h1>
-                        <p className="text-muted-foreground mt-2">
-                            Please provide your name to continue
-                        </p>
+        <div className="min-h-screen bg-dashboard-bg flex flex-col items-center justify-center p-6">
+            <div className="w-full max-w-md space-y-6">
+                {/* Brand */}
+                <div className="text-center">
+                    <div className="w-9 h-9 rounded bg-steel-800 flex items-center justify-center mx-auto mb-3">
+                        <span className="text-white font-serif italic text-base">
+                            w
+                        </span>
                     </div>
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="firstName">First Name</Label>
-                            <Input
-                                id="firstName"
-                                type="text"
-                                placeholder="Enter your first name"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                required
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="lastName">Last Name</Label>
-                            <Input
-                                id="lastName"
-                                type="text"
-                                placeholder="Enter your last name"
-                                value={lastName}
-                                onChange={(e) => setLastName(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={isSubmitting || !firstName.trim() || !lastName.trim()}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                'Continue to Dashboard'
-                            )}
-                        </Button>
-                    </form>
+                    <p className="text-xs text-muted-foreground tracking-widest uppercase">
+                        wavv
+                    </p>
                 </div>
+
+                <Card className="border-dashboard-border shadow-[0_2px_16px_rgba(90,127,154,0.08)]">
+                    <CardHeader className="text-center pb-4">
+                        <div className="flex justify-center mb-4">
+                            <Avatar className="h-16 w-16">
+                                <AvatarFallback className="bg-linear-to-br from-[#3d4a52] to-[#2e3b44] text-white text-lg font-semibold">
+                                    {initials || <User className="h-7 w-7" />}
+                                </AvatarFallback>
+                            </Avatar>
+                        </div>
+                        <CardTitle className="font-serif text-xl text-dashboard-text-primary">
+                            Complete Your Profile
+                        </CardTitle>
+                        <CardDescription>
+                            Please provide your name to continue to your
+                            dashboard
+                        </CardDescription>
+                    </CardHeader>
+
+                    <Separator />
+
+                    <CardContent className="pt-6">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    label="First Name"
+                                    htmlFor="firstName"
+                                    required
+                                >
+                                    <Input
+                                        id="firstName"
+                                        type="text"
+                                        placeholder="First name"
+                                        value={firstName}
+                                        onChange={(e) =>
+                                            setFirstName(e.target.value)
+                                        }
+                                        required
+                                        autoFocus
+                                        className="h-10"
+                                    />
+                                </Field>
+                                <Field
+                                    label="Last Name"
+                                    htmlFor="lastName"
+                                    required
+                                >
+                                    <Input
+                                        id="lastName"
+                                        type="text"
+                                        placeholder="Last name"
+                                        value={lastName}
+                                        onChange={(e) =>
+                                            setLastName(e.target.value)
+                                        }
+                                        required
+                                        className="h-10"
+                                    />
+                                </Field>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                className="w-full h-11"
+                                disabled={
+                                    isSubmitting ||
+                                    !firstName.trim() ||
+                                    !lastName.trim()
+                                }
+                            >
+                                {isSubmitting ? (
+                                    <span className="flex items-center gap-2">
+                                        <Spinner
+                                            size="sm"
+                                            className="text-current"
+                                        />
+                                        Saving...
+                                    </span>
+                                ) : (
+                                    'Continue to Dashboard'
+                                )}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );

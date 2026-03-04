@@ -1,88 +1,35 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useAuth } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
-import { userApi } from '@/lib/api'
-import { Loader2 } from 'lucide-react'
-import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton"
-import { AppSidebar } from '@/components/assistant/AppSidebar'
-import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext'
-import { KnockClientProvider } from '@/components/providers/KnockClientProvider'
+import { AppSidebar } from '@/components/assistant/AppSidebar';
+import {
+    SidebarProvider,
+    SidebarInset,
+    SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { SidebarRefreshProvider } from '@/contexts/SidebarContext';
+import { KnockClientProvider } from '@/components/providers/KnockClientProvider';
+import { UniversalSearch } from '@/components/search/UniversalSearch';
 
 interface DashboardLayoutProps {
-    children: React.ReactNode
-}
-
-function DashboardContent({ children }: { children: React.ReactNode }) {
-    const { isOpen } = useSidebar()
-
-    return (
-        <div className="flex h-screen w-full bg-background">
-            <AppSidebar />
-            <main
-                className={`flex-1 min-w-0 overflow-hidden transition-all duration-300 ${isOpen ? 'md:ml-[260px]' : 'md:ml-[60px]'
-                    }`}
-            >
-                {children}
-            </main>
-        </div>
-    )
+    children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-    const { isLoaded, isSignedIn, getToken } = useAuth()
-    const router = useRouter()
-    const [isChecking, setIsChecking] = useState(true)
-
-    useEffect(() => {
-        if (!isLoaded) return
-
-        if (!isSignedIn) {
-            // Let Clerk middleware or page-level redirects handle sign-in redirection ideally, 
-            // but we can enforce it here too.
-            // If we are on a public page that uses this layout (unlikely), this might be an issue.
-            // Assuming DashboardLayout is ONLY for protected pages.
-            setIsChecking(false)
-            return
-        }
-
-        const checkOnboarding = async () => {
-            try {
-                const token = await getToken()
-                if (!token) {
-                    setIsChecking(false)
-                    return
-                }
-
-                const response = await userApi.getMe(token)
-
-                if (response.data && !response.data.hasCompletedOnboarding) {
-                    router.push('/onboarding')
-                    return
-                }
-            } catch (error) {
-                console.error('Error checking onboarding status:', error)
-                // If user doesn't exist in Core API, redirect to onboarding
-                router.push('/onboarding')
-                return
-            } finally {
-                setIsChecking(false)
-            }
-        }
-
-        checkOnboarding()
-    }, [isLoaded, isSignedIn, getToken, router])
-
-    if (!isLoaded || (isSignedIn && isChecking)) {
-        return <DashboardSkeleton />
-    }
-
     return (
         <KnockClientProvider>
             <SidebarProvider>
-                <DashboardContent>{children}</DashboardContent>
+                <SidebarRefreshProvider>
+                    <AppSidebar />
+                    <SidebarInset className="min-w-0 overflow-hidden bg-dashboard-bg h-svh flex flex-col">
+                        {/* Mobile sidebar trigger — fixed top-left, desktop hidden */}
+                        <div className="md:hidden fixed left-3 top-3 z-40">
+                            <SidebarTrigger className="h-8 w-8 text-dashboard-text-primary hover:bg-accent-hover rounded-lg" />
+                        </div>
+                        <UniversalSearch />
+                        {children}
+                    </SidebarInset>
+                </SidebarRefreshProvider>
             </SidebarProvider>
         </KnockClientProvider>
-    )
+    );
 }

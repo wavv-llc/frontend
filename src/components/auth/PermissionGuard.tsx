@@ -1,57 +1,43 @@
-"use client";
+'use client';
 
-import { useUser } from "@/contexts/UserContext";
-import { Permission } from "@/lib/api";
-import { useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
+import { useUser } from '@/contexts/UserContext';
+import { useRouter } from 'next/navigation';
+import { ReactNode, useEffect } from 'react';
 
 interface PermissionGuardProps {
     children: ReactNode;
-    resourceId?: string;
-    scope: "organization" | "project";
-    permission: Permission;
+    /** When true, only ADMIN org role is allowed. Defaults to true. */
+    requireAdmin?: boolean;
     fallback?: ReactNode;
     redirectTo?: string;
+    // Legacy props kept for backwards-compatibility at call sites
+    scope?: string;
+    permission?: string;
+    resourceId?: string;
 }
 
 export function PermissionGuard({
     children,
-    resourceId,
-    scope,
-    permission,
+    requireAdmin = true,
     fallback = null,
     redirectTo,
 }: PermissionGuardProps) {
-    const { user, checkPermission, isLoading } = useUser();
+    const { user, isLoading } = useUser();
     const router = useRouter();
 
-    const targetId = resourceId || (scope === "organization" ? user?.organization?.id : undefined);
-
-    // We can't check permissions until user is loaded
-    // but we also don't want to show fallback immediately if just loading?
-    // If UserContext handles loading state globally, maybe we do.
-
-    // If resourceId is missing (and couldn't be inferred), we can't check.
-    // Assuming access denied or just waiting?
-    // For now, if no target ID found, we assume denied (safe default).
-
-    const hasPermission = targetId ? checkPermission(scope, targetId, permission) : false;
-
-    const showContent = !isLoading && hasPermission;
+    const hasAccess = !requireAdmin || user?.organizationRole === 'ADMIN';
 
     useEffect(() => {
-        if (!isLoading && !hasPermission && redirectTo) {
+        if (!isLoading && !hasAccess && redirectTo) {
             router.push(redirectTo);
         }
-    }, [isLoading, hasPermission, redirectTo, router]);
+    }, [isLoading, hasAccess, redirectTo, router]);
 
     if (isLoading) {
-        // You might want to pass a specific loading component or just return null/children?
-        // Usually returning null avoids flashing the protected content.
-        return null;
+        return <>{fallback}</>;
     }
 
-    if (!hasPermission) {
+    if (!hasAccess) {
         return <>{fallback}</>;
     }
 
