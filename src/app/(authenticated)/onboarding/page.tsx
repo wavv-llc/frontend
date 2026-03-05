@@ -22,7 +22,7 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
-    ClipboardList,
+    User,
 } from 'lucide-react';
 import { sharepointApi, userApi, organizationApi } from '@/lib/api';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,8 +54,8 @@ interface SharePointSite {
 }
 
 const STEPS = [
-    { id: 0, title: 'Create Organization', icon: Building2 },
-    { id: 1, title: 'Complete Profile', icon: ClipboardList },
+    { id: 0, title: 'Your Profile', icon: User },
+    { id: 1, title: 'Create Organization', icon: Building2 },
     { id: 2, title: 'Connect SharePoint', icon: Share2 },
     { id: 3, title: 'Invite Members', icon: UserPlus },
 ];
@@ -204,46 +204,7 @@ export default function OnboardingPage() {
         }
     }, [currentStep]);
 
-    const handleCompleteOrganization = async () => {
-        // All fields optional — save if org exists, then advance
-        try {
-            if (createdOrgId && (orgIndustry || orgSize || orgDescription)) {
-                setIsSaving(true);
-                const token = await getToken();
-                if (!token) {
-                    toast.error('Authentication required');
-                    return;
-                }
-                await organizationApi.updateDetails(token, createdOrgId, {
-                    industry: orgIndustry || undefined,
-                    size: orgSize || undefined,
-                    description: orgDescription.trim() || undefined,
-                });
-            }
-            setCurrentStep(2);
-        } catch (err) {
-            console.error('Error saving organization details:', err);
-            toast.error(
-                err instanceof Error
-                    ? err.message
-                    : 'Failed to save organization details',
-            );
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
     const handleCreateOrganization = async () => {
-        if (!firstName.trim()) {
-            toast.error('Please enter your first name');
-            return;
-        }
-
-        if (!lastName.trim()) {
-            toast.error('Please enter your last name');
-            return;
-        }
-
         if (!orgName.trim()) {
             toast.error('Please enter an organization name');
             return;
@@ -267,6 +228,7 @@ export default function OnboardingPage() {
                 return;
             }
 
+            // Creates user as ADMIN of the new organization
             const response = await userApi.completeOnboarding(token, {
                 email,
                 firstName: firstName.trim(),
@@ -274,12 +236,21 @@ export default function OnboardingPage() {
                 organizationName: orgName.trim(),
             });
 
+            const orgId = response.data?.organization?.id;
             setIsOrgCreated(true);
-            if (response.data?.organization?.id) {
-                setCreatedOrgId(response.data.organization.id);
+            if (orgId) {
+                setCreatedOrgId(orgId);
+                // Save optional profile fields in the same step
+                if (orgIndustry || orgSize || orgDescription.trim()) {
+                    await organizationApi.updateDetails(token, orgId, {
+                        industry: orgIndustry || undefined,
+                        size: orgSize || undefined,
+                        description: orgDescription.trim() || undefined,
+                    });
+                }
             }
             toast.success('Organization created successfully');
-            setCurrentStep(1);
+            setCurrentStep(2);
         } catch (err) {
             console.error('Error creating organization:', err);
             toast.error(
@@ -420,16 +391,28 @@ export default function OnboardingPage() {
         }
     };
 
+    const handleProfileContinue = () => {
+        if (!firstName.trim()) {
+            toast.error('Please enter your first name');
+            return;
+        }
+        if (!lastName.trim()) {
+            toast.error('Please enter your last name');
+            return;
+        }
+        setCurrentStep(1);
+    };
+
     const canProceedFromStep = (step: number): boolean => {
         switch (step) {
             case 0:
-                return isOrgCreated;
+                return !!firstName.trim() && !!lastName.trim();
             case 1:
-                return currentStep > 1; // Complete Profile is always skippable
+                return isOrgCreated;
             case 2:
                 return selectedSiteIds.size > 0;
             case 3:
-                return true; // Optional step
+                return true;
             default:
                 return false;
         }
@@ -450,11 +433,10 @@ export default function OnboardingPage() {
                     <>
                         <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
                             <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
-                                Create Your Organization
+                                Your Profile
                             </CardTitle>
                             <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
-                                Set up your organization to get started with
-                                Wavv.
+                                Tell us your name to get started.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-[18px] p-5">
@@ -473,7 +455,6 @@ export default function OnboardingPage() {
                                         onChange={(e) =>
                                             setFirstName(e.target.value)
                                         }
-                                        disabled={isOrgCreated}
                                         className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
                                     />
                                 </div>
@@ -491,11 +472,40 @@ export default function OnboardingPage() {
                                         onChange={(e) =>
                                             setLastName(e.target.value)
                                         }
-                                        disabled={isOrgCreated}
                                         className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
                                     />
                                 </div>
                             </div>
+                            <div className="flex justify-end pt-2">
+                                <Button
+                                    onClick={handleProfileContinue}
+                                    disabled={
+                                        !firstName.trim() || !lastName.trim()
+                                    }
+                                    size="lg"
+                                    className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    Continue
+                                    <ChevronRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </>
+                );
+
+            case 1:
+                return (
+                    <>
+                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
+                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
+                                Create Your Organization
+                            </CardTitle>
+                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
+                                Set up your organization to get started with
+                                Wavv.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-[18px] p-5">
                             <div className="space-y-2">
                                 <Label
                                     htmlFor="org-name"
@@ -512,57 +522,6 @@ export default function OnboardingPage() {
                                     className="h-9 px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg"
                                 />
                             </div>
-                            <div className="flex justify-end pt-2">
-                                <Button
-                                    onClick={handleCreateOrganization}
-                                    disabled={
-                                        isSaving ||
-                                        !firstName.trim() ||
-                                        !lastName.trim() ||
-                                        !orgName.trim() ||
-                                        isOrgCreated
-                                    }
-                                    size="lg"
-                                    className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <Spinner
-                                                size="sm"
-                                                className="mr-2 text-current"
-                                            />
-                                            Creating...
-                                        </>
-                                    ) : isOrgCreated ? (
-                                        <>
-                                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                                            Created
-                                        </>
-                                    ) : (
-                                        <>
-                                            Continue
-                                            <ChevronRight className="ml-2 h-4 w-4" />
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </>
-                );
-
-            case 1:
-                return (
-                    <>
-                        <CardHeader className="border-b border-[var(--dashboard-border-light)] pb-4">
-                            <CardTitle className="font-serif text-lg font-semibold tracking-tight text-[var(--dashboard-text-primary)]">
-                                Complete Your Organization Profile
-                            </CardTitle>
-                            <CardDescription className="font-sans text-[13px] text-[var(--dashboard-text-body)] mt-1.5">
-                                Tell us a bit more about your organization
-                                (optional).
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-[18px] p-5">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label
@@ -574,6 +533,7 @@ export default function OnboardingPage() {
                                     <Select
                                         value={orgIndustry}
                                         onValueChange={setOrgIndustry}
+                                        disabled={isOrgCreated}
                                     >
                                         <SelectTrigger
                                             id="org-industry"
@@ -603,6 +563,7 @@ export default function OnboardingPage() {
                                     <Select
                                         value={orgSize}
                                         onValueChange={setOrgSize}
+                                        disabled={isOrgCreated}
                                     >
                                         <SelectTrigger
                                             id="org-size"
@@ -637,6 +598,7 @@ export default function OnboardingPage() {
                                     onChange={(e) =>
                                         setOrgDescription(e.target.value)
                                     }
+                                    disabled={isOrgCreated}
                                     rows={3}
                                     className="px-3.5 font-sans text-[13px] bg-[var(--dashboard-surface)] border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] placeholder:text-[var(--dashboard-text-muted)] focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-colors rounded-lg resize-none"
                                 />
@@ -645,41 +607,42 @@ export default function OnboardingPage() {
                                 <Button
                                     variant="outline"
                                     onClick={() => setCurrentStep(0)}
+                                    disabled={isSaving}
                                     className="h-8 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-primary)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
                                 >
                                     <ChevronLeft className="mr-1.5 h-4 w-4" />
                                     Back
                                 </Button>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setCurrentStep(2)}
-                                        className="h-9 px-3.5 font-sans text-[13px] font-medium border-[var(--dashboard-border)] text-[var(--dashboard-text-muted)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent)] transition-colors rounded-lg cursor-pointer"
-                                    >
-                                        Skip for now
-                                    </Button>
-                                    <Button
-                                        onClick={handleCompleteOrganization}
-                                        disabled={isSaving}
-                                        size="lg"
-                                        className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                    >
-                                        {isSaving ? (
-                                            <>
-                                                <Spinner
-                                                    size="sm"
-                                                    className="mr-2 text-current"
-                                                />
-                                                Saving...
-                                            </>
-                                        ) : (
-                                            <>
-                                                Continue
-                                                <ChevronRight className="ml-1.5 h-4 w-4" />
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
+                                <Button
+                                    onClick={handleCreateOrganization}
+                                    disabled={
+                                        isSaving ||
+                                        !orgName.trim() ||
+                                        isOrgCreated
+                                    }
+                                    size="lg"
+                                    className="h-9 px-[25px] font-sans text-[13px] font-medium bg-[var(--accent)] hover:bg-[var(--accent-light)] text-white rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Spinner
+                                                size="sm"
+                                                className="mr-2 text-current"
+                                            />
+                                            Creating...
+                                        </>
+                                    ) : isOrgCreated ? (
+                                        <>
+                                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                                            Created
+                                        </>
+                                    ) : (
+                                        <>
+                                            Create Organization
+                                            <ChevronRight className="ml-2 h-4 w-4" />
+                                        </>
+                                    )}
+                                </Button>
                             </div>
                         </CardContent>
                     </>
