@@ -1991,7 +1991,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                             opt.value,
                                                                         )
                                                                     }
-                                                                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                                                                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors cursor-pointer ${
                                                                         selectedApprovalRole ===
                                                                         opt.value
                                                                             ? 'bg-primary text-primary-foreground border-primary'
@@ -2187,7 +2187,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                               </span>
                                                                           </button>
                                                                           <button
-                                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
+                                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
                                                                               onClick={(
                                                                                   e,
                                                                               ) => {

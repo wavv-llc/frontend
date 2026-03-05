@@ -955,7 +955,7 @@ export function TaskDetailView({
                                         onClick={() =>
                                             setUploadDialogOpen(true)
                                         }
-                                        className="mt-2 text-xs text-accent-blue hover:underline"
+                                        className="mt-2 text-xs text-accent-blue hover:underline cursor-pointer"
                                     >
                                         Upload a file
                                     </button>
@@ -1673,7 +1673,7 @@ function CommentBubble({
                                 <button
                                     key={emoji}
                                     onClick={() => handleReaction(emoji)}
-                                    className="p-1.5 hover:bg-accent-hover rounded text-base leading-none transition-colors"
+                                    className="p-1.5 hover:bg-accent-hover rounded text-base leading-none transition-colors cursor-pointer"
                                 >
                                     {emoji}
                                 </button>
@@ -1888,7 +1888,7 @@ function CommentThread({
                     <button
                         onClick={handleReopen}
                         disabled={isSubmitting}
-                        className="ml-auto text-xs text-muted-foreground hover:text-dashboard-text-primary transition-colors flex items-center gap-1 disabled:opacity-50"
+                        className="ml-auto text-xs text-muted-foreground hover:text-dashboard-text-primary transition-colors flex items-center gap-1 disabled:opacity-50 cursor-pointer"
                     >
                         <RotateCcw className="h-3 w-3" />
                         Reopen

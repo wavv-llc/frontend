@@ -509,7 +509,7 @@ function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
                 <button
                     onClick={() => setCalendarMode('week')}
                     className={cn(
-                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors',
+                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer',
                         calendarMode === 'week'
                             ? 'bg-accent-blue text-white border-accent-blue'
                             : 'text-dashboard-text-body border-dashboard-border hover:bg-accent-subtle/50',
@@ -521,7 +521,7 @@ function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
                 <button
                     onClick={() => setCalendarMode('month')}
                     className={cn(
-                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors',
+                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer',
                         calendarMode === 'month'
                             ? 'bg-accent-blue text-white border-accent-blue'
                             : 'text-dashboard-text-body border-dashboard-border hover:bg-accent-subtle/50',

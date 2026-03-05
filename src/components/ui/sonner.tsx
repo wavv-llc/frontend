@@ -8,37 +8,26 @@ interface ToasterProps extends Omit<SonnerProps, 'toastOptions'> {
 
 const Toaster = ({ errorClassName, ...props }: ToasterProps) => {
     return (
-        <>
-            <style jsx global>{`
-                [data-sonner-toast] [data-close-button] {
-                    opacity: 0;
-                    transition: opacity 150ms ease;
-                }
-                [data-sonner-toast]:hover [data-close-button] {
-                    opacity: 1;
-                }
-            `}</style>
-            <Sonner
-                className="toaster group"
-                closeButton
-                toastOptions={{
-                    classNames: {
-                        toast: 'group toast group-[.toaster]:bg-dashboard-surface group-[.toaster]:text-dashboard-text-body group-[.toaster]:border-dashboard-border group-[.toaster]:shadow-lg',
-                        description: 'group-[.toast]:text-dashboard-text-muted',
-                        actionButton:
-                            'group-[.toast]:bg-accent-blue group-[.toast]:text-white',
-                        cancelButton:
-                            'group-[.toast]:bg-dashboard-surface group-[.toast]:text-dashboard-text-muted',
-                        closeButton:
-                            'group-[.toaster]:!bg-transparent group-[.toaster]:!border-none group-[.toaster]:!text-current group-[.toaster]:hover:!bg-black/5',
-                        error:
-                            errorClassName ||
-                            'group-[.toaster]:!bg-[#fef2f2] group-[.toaster]:!text-[#dc2626] group-[.toaster]:!border-[#fecaca]',
-                    },
-                }}
-                {...props}
-            />
-        </>
+        <Sonner
+            className="toaster group"
+            closeButton
+            toastOptions={{
+                classNames: {
+                    toast: 'group toast group-[.toaster]:bg-dashboard-surface group-[.toaster]:text-dashboard-text-body group-[.toaster]:border-dashboard-border group-[.toaster]:shadow-lg',
+                    description: 'group-[.toast]:text-dashboard-text-muted',
+                    actionButton:
+                        'group-[.toast]:bg-accent-blue group-[.toast]:text-white',
+                    cancelButton:
+                        'group-[.toast]:bg-dashboard-surface group-[.toast]:text-dashboard-text-muted',
+                    closeButton:
+                        'group-[.toaster]:!bg-transparent group-[.toaster]:!border-none group-[.toaster]:!text-current group-[.toaster]:hover:!bg-black/5',
+                    error:
+                        errorClassName ||
+                        'group-[.toaster]:!bg-[#fef2f2] group-[.toaster]:!text-[#dc2626] group-[.toaster]:!border-[#fecaca]',
+                },
+            }}
+            {...props}
+        />
     );
 };
 

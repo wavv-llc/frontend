@@ -334,12 +334,19 @@ export function UniversalSearch() {
 }
 
 export function SearchTrigger() {
+    const [isMac, setIsMac] = useState(true);
+
+    useEffect(() => {
+        setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
+    }, []);
+
     return (
         <button
             onClick={() => {
                 const event = new KeyboardEvent('keydown', {
                     key: 'k',
-                    metaKey: true,
+                    metaKey: isMac,
+                    ctrlKey: !isMac,
                     bubbles: true,
                 });
                 document.dispatchEvent(event);
@@ -349,7 +356,7 @@ export function SearchTrigger() {
             <Search className="h-3.5 w-3.5" />
             <span>Search</span>
             <span className="flex items-center gap-0.5 text-[10px] text-dashboard-text-faint bg-dashboard-surface border border-dashboard-border rounded px-1 py-0.5 ml-1">
-                <span>⌘</span>
+                <span>{isMac ? '⌘' : 'Ctrl'}</span>
                 <span>K</span>
             </span>
         </button>

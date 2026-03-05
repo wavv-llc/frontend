@@ -506,13 +506,16 @@ export default function SettingsPage() {
             if (selectedResponse.data?.selectedSites) {
                 setSelectedSites(selectedResponse.data.selectedSites);
             }
+
+            toast.success('SharePoint sites updated successfully');
         } catch (err) {
             console.error('Error saving selected sites:', err);
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : 'Failed to save selected sites',
-            );
+                    : 'Failed to save selected sites';
+            setError(message);
+            toast.error(message);
         } finally {
             setIsSaving(false);
         }
@@ -2206,7 +2209,7 @@ function OrganizationTab({ organizationId }: OrganizationTabProps) {
                             </span>
                             <button
                                 onClick={() => setIsEditing(true)}
-                                className="text-[#8d9ab0] hover:text-[#272f3b] dark:hover:text-gray-100 transition-colors"
+                                className="text-[#8d9ab0] hover:text-[#272f3b] dark:hover:text-gray-100 transition-colors cursor-pointer"
                             >
                                 <Pencil className="h-3.5 w-3.5" />
                             </button>
