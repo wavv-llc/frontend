@@ -44,9 +44,11 @@ import {
     type Project,
     type Task,
     type CustomField,
+    type Section,
     projectApi,
     taskApi,
     customFieldApi,
+    sectionApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -602,6 +604,10 @@ export function ProjectDetailView({
     const [isLoadingCustomFields, setIsLoadingCustomFields] = useState(false);
     const taskListRef = useRef<TaskListRef>(null);
 
+    // Sections state
+    const [sections, setSections] = useState<Section[]>([]);
+    const [isCreatingSection, setIsCreatingSection] = useState(false);
+
     // Grouping & Deep Filtering
     const [groupByField, setGroupByField] = useState<string | null>(null);
     const [columnFilters, setColumnFilters] = useState<
@@ -640,6 +646,22 @@ export function ProjectDetailView({
             toast.error('Failed to update project');
             // Revert on error
             setLocalProject(project);
+        }
+    };
+
+    const handleArchiveProject = async () => {
+        try {
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+            await projectApi.archiveProject(token, project.id);
+            toast.success('Project archived successfully');
+            router.back();
+        } catch (error) {
+            console.error('Failed to archive project:', error);
+            toast.error('Failed to archive project');
         }
     };
 
@@ -945,6 +967,70 @@ export function ProjectDetailView({
         }
     }, [getToken, project.id]);
 
+    const fetchSections = useCallback(async () => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            const response = await sectionApi.getSections(token, project.id);
+            setSections(response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch sections:', error);
+        }
+    }, [getToken, project.id]);
+
+    const handleAddSection = async () => {
+        if (isCreatingSection) return;
+        try {
+            setIsCreatingSection(true);
+            const token = await getToken();
+            if (!token) {
+                toast.error('Authentication required');
+                return;
+            }
+            const response = await sectionApi.createSection(
+                token,
+                project.id,
+                'Untitled section',
+            );
+            if (response.data) {
+                setSections((prev) => [...prev, response.data!]);
+            }
+        } catch (error) {
+            console.error('Failed to create section:', error);
+            toast.error('Failed to create section');
+        } finally {
+            setIsCreatingSection(false);
+        }
+    };
+
+    const handleRenameSection = async (sectionId: string, name: string) => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await sectionApi.updateSection(token, project.id, sectionId, {
+                name,
+            });
+            setSections((prev) =>
+                prev.map((s) => (s.id === sectionId ? { ...s, name } : s)),
+            );
+        } catch (error) {
+            console.error('Failed to rename section:', error);
+            toast.error('Failed to rename section');
+        }
+    };
+
+    const handleDeleteSection = async (sectionId: string) => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await sectionApi.deleteSection(token, project.id, sectionId);
+            setSections((prev) => prev.filter((s) => s.id !== sectionId));
+        } catch (error) {
+            console.error('Failed to delete section:', error);
+            toast.error('Failed to delete section');
+        }
+    };
+
     // getStatusIcon and getStatusLabel removed
 
     // Filter tasks
@@ -997,6 +1083,11 @@ export function ProjectDetailView({
     useEffect(() => {
         fetchCustomFields();
     }, [fetchCustomFields]);
+
+    // Fetch sections on mount
+    useEffect(() => {
+        fetchSections();
+    }, [fetchSections]);
 
     // Sync URL with selected task
     useEffect(() => {
@@ -1200,11 +1291,7 @@ export function ProjectDetailView({
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Delete</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() =>
-                                    toast.info('Archive feature coming soon')
-                                }
-                            >
+                            <DropdownMenuItem onClick={handleArchiveProject}>
                                 <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
                                 <span>Archive</span>
                             </DropdownMenuItem>
@@ -1219,9 +1306,8 @@ export function ProjectDetailView({
                     <div className="flex items-center gap-2">
                         <Button
                             className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
-                            onClick={() =>
-                                toast.info('New Section feature coming soon')
-                            }
+                            onClick={handleAddSection}
+                            disabled={isCreatingSection}
                         >
                             New <Plus className="ml-1 h-4 w-4" />
                         </Button>
@@ -1419,6 +1505,10 @@ export function ProjectDetailView({
                                     onColumnFilterChange={
                                         handleColumnFilterChange
                                     }
+                                    sections={sections}
+                                    onAddSection={handleAddSection}
+                                    onRenameSection={handleRenameSection}
+                                    onDeleteSection={handleDeleteSection}
                                 />
                             </div>
                         )}

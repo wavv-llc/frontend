@@ -9,14 +9,32 @@ import {
     useMemo,
 } from 'react';
 import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    KeyboardSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    horizontalListSortingStrategy,
+    useSortable,
+    arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
     Plus,
     CheckCircle2,
     MoreVertical,
     Trash2,
-    Copy,
     Calendar,
     Type,
     Hash,
+    GripVertical,
     User as UserIcon,
     ChevronRight,
     ChevronDown,
@@ -26,7 +44,12 @@ import {
     CheckSquare,
     Pencil,
     ExternalLink,
-    LayoutTemplate,
+    Bell,
+    Send,
+    XCircle,
+    RefreshCw,
+    Link2,
+    Activity,
 } from 'lucide-react';
 import {
     Dialog,
@@ -52,10 +75,13 @@ import {
     type DataType,
     type User as ApiUser,
     type OrganizationDocument,
+    type Section,
     customFieldApi,
     taskApi,
+    approvalApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     DropdownMenu,
@@ -113,6 +139,10 @@ interface TaskListProps {
         value: string,
         type?: 'text' | 'date',
     ) => void;
+    sections?: Section[];
+    onAddSection?: () => void;
+    onRenameSection?: (sectionId: string, name: string) => void;
+    onDeleteSection?: (sectionId: string) => void;
 }
 
 // Concise field types per CPA feedback
@@ -513,6 +543,71 @@ const EditableHeader = ({
     );
 };
 
+/** Thin sortable wrapper for task rows — exposes drag handle props via render prop */
+function SortableRow({
+    id,
+    children,
+}: {
+    id: string;
+    children: (
+        dragHandleProps: React.HTMLAttributes<HTMLElement>,
+    ) => React.ReactNode;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={isDragging ? 'opacity-50 relative z-50' : undefined}
+        >
+            {children({ ...attributes, ...listeners })}
+        </div>
+    );
+}
+
+/** Thin sortable wrapper for column headers */
+function SortableColumn({
+    id,
+    className,
+    children,
+}: {
+    id: string;
+    className?: string;
+    children: (
+        dragHandleProps: React.HTMLAttributes<HTMLElement>,
+    ) => React.ReactNode;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={cn(
+                className,
+                isDragging ? 'opacity-50 z-50' : undefined,
+            )}
+        >
+            {children({ ...attributes, ...listeners })}
+        </div>
+    );
+}
+
 export const TaskList = forwardRef<TaskListRef, TaskListProps>(
     (
         {
@@ -520,8 +615,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             customFields,
             onTaskClick,
             onTaskEdit: _onTaskEdit,
-            onTaskDelete,
-            onTaskCopy,
+            onTaskDelete: _onTaskDelete,
+            onTaskCopy: _onTaskCopy,
             onCustomFieldCreated,
             onTaskCreated,
             projectId,
@@ -531,6 +626,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             groupByField,
             columnFilters,
             onColumnFilterChange,
+            sections = [],
+            onAddSection,
+            onRenameSection,
+            onDeleteSection,
         },
         ref,
     ) => {
@@ -580,6 +679,99 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             return Array.from(new Map(members.map((m) => [m.id, m])).values());
         }, [members]);
 
+        // ─── DnD state & sensors ────────────────────────────────────────────
+        // Local task ID order (drives flat-list rendering + row reorder)
+        const [taskOrder, setTaskOrder] = useState<string[]>(() =>
+            tasks.map((t) => t.id),
+        );
+
+        // Sync taskOrder when the tasks prop changes (adds/removes tasks)
+        useLayoutEffect(() => {
+            setTaskOrder((prev) => {
+                const incoming = tasks.map((t) => t.id);
+                const prevSet = new Set(prev);
+                const incomingSet = new Set(incoming);
+                // Keep existing order, remove deleted, append new at end
+                const kept = prev.filter((id) => incomingSet.has(id));
+                const added = incoming.filter((id) => !prevSet.has(id));
+                return [...kept, ...added];
+            });
+        }, [tasks]);
+
+        // Local field order (drives column header + cell rendering)
+        const [fieldOrder, setFieldOrder] = useState<string[]>(() =>
+            customFields.map((f) => f.id),
+        );
+
+        useLayoutEffect(() => {
+            setFieldOrder((prev) => {
+                const incoming = customFields.map((f) => f.id);
+                const prevSet = new Set(prev);
+                const incomingSet = new Set(incoming);
+                const kept = prev.filter((id) => incomingSet.has(id));
+                const added = incoming.filter((id) => !prevSet.has(id));
+                return [...kept, ...added];
+            });
+        }, [customFields]);
+
+        const dndSensors = useSensors(
+            useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+            useSensor(KeyboardSensor, {
+                coordinateGetter: sortableKeyboardCoordinates,
+            }),
+        );
+
+        const handleRowDragEnd = async (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+
+            const oldIndex = taskOrder.indexOf(active.id as string);
+            const newIndex = taskOrder.indexOf(over.id as string);
+            const newOrder = arrayMove(taskOrder, oldIndex, newIndex);
+            setTaskOrder(newOrder);
+
+            try {
+                const token = await getToken();
+                if (!token) return;
+                await taskApi.reorderTasks(
+                    token,
+                    projectId,
+                    newOrder.map((id, idx) => ({ id, order: idx })),
+                );
+            } catch {
+                // revert on failure
+                setTaskOrder(taskOrder);
+                toast.error('Failed to save new task order');
+            }
+        };
+
+        const handleColumnDragEnd = async (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+
+            const oldIndex = fieldOrder.indexOf(active.id as string);
+            const newIndex = fieldOrder.indexOf(over.id as string);
+            const newOrder = arrayMove(fieldOrder, oldIndex, newIndex);
+            setFieldOrder(newOrder);
+
+            try {
+                const token = await getToken();
+                if (!token) return;
+                // Persist order for each affected field
+                await Promise.all(
+                    newOrder.map((id, idx) =>
+                        customFieldApi.updateCustomField(token, projectId, id, {
+                            order: idx,
+                        }),
+                    ),
+                );
+            } catch {
+                setFieldOrder(fieldOrder);
+                toast.error('Failed to save new column order');
+            }
+        };
+        // ────────────────────────────────────────────────────────────────────
+
         // Clear optimistic updates when tasks change (e.g., after successful refresh)
         // This prevents stale optimistic updates from persisting
         useLayoutEffect(() => {
@@ -619,6 +811,22 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         }, [tasks, optimisticUpdates]);
 
+        // Scroll preservation on task create
+        const scrollContainerRef = useRef<HTMLDivElement>(null);
+        const pendingScrollRestore = useRef<number | null>(null);
+
+        // Restore scroll position after tasks refresh (fixes MIN#1 jump-to-top)
+        useLayoutEffect(() => {
+            if (
+                pendingScrollRestore.current !== null &&
+                scrollContainerRef.current
+            ) {
+                scrollContainerRef.current.scrollTop =
+                    pendingScrollRestore.current;
+                pendingScrollRestore.current = null;
+            }
+        }, [tasks]);
+
         // Inline task creation
         const [isCreatingTask, setIsCreatingTask] = useState(false);
         const [newTaskName, setNewTaskName] = useState('');
@@ -631,6 +839,74 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 ...prev,
                 [groupValue]: !prev[groupValue],
             }));
+        };
+
+        // Section state
+        const [collapsedSections, setCollapsedSections] = useState<
+            Record<string, boolean>
+        >({});
+        const [editingSectionId, setEditingSectionId] = useState<string | null>(
+            null,
+        );
+        const [editingSectionName, setEditingSectionName] = useState('');
+        // Per-section inline task creation
+        const [creatingSectionTask, setCreatingSectionTask] = useState<
+            string | null
+        >(null);
+        const [newSectionTaskName, setNewSectionTaskName] = useState('');
+
+        const toggleSection = (sectionId: string) => {
+            setCollapsedSections((prev) => ({
+                ...prev,
+                [sectionId]: !prev[sectionId],
+            }));
+        };
+
+        const startRenamingSection = (section: Section) => {
+            setEditingSectionId(section.id);
+            setEditingSectionName(section.name);
+        };
+
+        const commitRenameSection = async () => {
+            if (!editingSectionId || !onRenameSection) return;
+            const name = editingSectionName.trim() || 'Untitled section';
+            onRenameSection(editingSectionId, name);
+            setEditingSectionId(null);
+            setEditingSectionName('');
+        };
+
+        const handleCreateSectionTask = async (
+            sectionId: string,
+            name: string,
+        ) => {
+            if (!name.trim()) {
+                setCreatingSectionTask(null);
+                setNewSectionTaskName('');
+                return;
+            }
+            try {
+                const token = await getToken();
+                if (!token) {
+                    toast.error('Authentication required');
+                    return;
+                }
+                await taskApi.createTask(token, projectId, {
+                    name: name.trim(),
+                    status: 'PENDING',
+                    customFields: {},
+                    sectionId,
+                });
+                setNewSectionTaskName('');
+                setCreatingSectionTask(null);
+                if (scrollContainerRef.current) {
+                    pendingScrollRestore.current =
+                        scrollContainerRef.current.scrollTop;
+                }
+                onTaskCreated();
+            } catch (error) {
+                console.error('Failed to create task:', error);
+                toast.error('Failed to create task');
+            }
         };
 
         // Bulk selection state
@@ -696,13 +972,23 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             },
         }));
 
-        // Sort fields by creation date (oldest first) so new fields appear at the end
-        // Then limit to 5
-        const displayedFields = [...customFields].sort(
-            (a, b) =>
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime(),
-        );
+        // Order fields by fieldOrder state (respects drag reorder), fallback to createdAt
+        const displayedFields = useMemo(() => {
+            const byId = new Map(customFields.map((f) => [f.id, f]));
+            const ordered = fieldOrder
+                .map((id) => byId.get(id))
+                .filter((f): f is CustomField => f !== undefined);
+            // Include any new fields not yet in fieldOrder
+            const inOrder = new Set(fieldOrder);
+            const extras = customFields
+                .filter((f) => !inOrder.has(f.id))
+                .sort(
+                    (a, b) =>
+                        new Date(a.createdAt).getTime() -
+                        new Date(b.createdAt).getTime(),
+                );
+            return [...ordered, ...extras];
+        }, [customFields, fieldOrder]);
 
         const handleCreateTask = async (name: string) => {
             if (!name.trim()) {
@@ -727,6 +1013,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
                 setNewTaskName('');
                 setIsCreatingTask(false);
+                // Save scroll position so the list doesn't jump to top on refresh
+                if (scrollContainerRef.current) {
+                    pendingScrollRestore.current =
+                        scrollContainerRef.current.scrollTop;
+                }
                 onTaskCreated();
             } catch (error) {
                 console.error('Failed to create task:', error);
@@ -736,6 +1027,50 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         : 'Failed to create task';
                 toast.error(errorMessage);
             }
+        };
+
+        // Task action handlers for the row menu
+        const handleSubmitTask = async (task: Task) => {
+            try {
+                const token = await getToken();
+                if (!token) return;
+                await approvalApi.submitTask(token, projectId, task.id);
+                toast.success('Task submitted for review');
+                onTaskCreated();
+            } catch {
+                toast.error('Failed to submit task');
+            }
+        };
+
+        const handleRejectTask = async (task: Task) => {
+            try {
+                const token = await getToken();
+                if (!token) return;
+                await approvalApi.rejectTask(token, projectId, task.id);
+                toast.success('Task rejected');
+                onTaskCreated();
+            } catch {
+                toast.error('Failed to reject task');
+            }
+        };
+
+        const handleReopenTask = async (task: Task) => {
+            try {
+                const token = await getToken();
+                if (!token) return;
+                await approvalApi.reopenTask(token, projectId, task.id);
+                toast.success('Task reopened');
+                onTaskCreated();
+            } catch {
+                toast.error('Failed to reopen task');
+            }
+        };
+
+        const handleShareTaskLink = (task: Task) => {
+            const url = `${window.location.origin}${window.location.pathname}?taskId=${task.id}`;
+            navigator.clipboard.writeText(url).then(() => {
+                toast.success('Link copied to clipboard');
+            });
         };
 
         const handleUpdateCustomField = async (
@@ -1423,7 +1758,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     </DialogContent>
                 </Dialog>
 
-                <div className="flex-1 overflow-auto relative scroll-smooth">
+                <div
+                    ref={scrollContainerRef}
+                    className="flex-1 overflow-auto relative scroll-smooth"
+                >
                     <div className="min-w-max h-full">
                         {/* Table Header - Sticky Top */}
                         <div className="sticky top-0 z-30 flex border-b border-dashboard-border bg-[#f8f9fb]">
@@ -1557,191 +1895,248 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                             </div>
 
                             {/* Custom Field Columns Headers */}
-                            {displayedFields.map((field) => {
-                                // Get the appropriate icon for this field type
-                                const getFieldIcon = () => {
-                                    switch (field.dataType) {
-                                        case 'DATE':
-                                            return Calendar;
-                                        case 'NUMBER':
-                                            return Hash;
-                                        case 'USER':
-                                            return UserIcon;
-                                        case 'TASK':
-                                            return CheckSquare;
-                                        case 'DOCUMENT':
-                                            return FileText;
-                                        case 'STRING':
-                                            return Type;
-                                        case 'CUSTOM':
-                                            return CheckCircle2;
-                                        default:
-                                            return Type;
-                                    }
-                                };
+                            <DndContext
+                                sensors={dndSensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleColumnDragEnd}
+                            >
+                                <SortableContext
+                                    items={fieldOrder}
+                                    strategy={horizontalListSortingStrategy}
+                                >
+                                    {displayedFields.map((field) => {
+                                        // Get the appropriate icon for this field type
+                                        const getFieldIcon = () => {
+                                            switch (field.dataType) {
+                                                case 'DATE':
+                                                    return Calendar;
+                                                case 'NUMBER':
+                                                    return Hash;
+                                                case 'USER':
+                                                    return UserIcon;
+                                                case 'TASK':
+                                                    return CheckSquare;
+                                                case 'DOCUMENT':
+                                                    return FileText;
+                                                case 'STRING':
+                                                    return Type;
+                                                case 'CUSTOM':
+                                                    return CheckCircle2;
+                                                default:
+                                                    return Type;
+                                            }
+                                        };
 
-                                // USER fields don't get a filter — assignment is managed per-task
-                                const showFilter = field.dataType !== 'USER';
+                                        // USER fields don't get a filter — assignment is managed per-task
+                                        const showFilter =
+                                            field.dataType !== 'USER';
 
-                                return (
-                                    <div
-                                        key={field.id}
-                                        className="w-[150px] shrink-0 px-4 py-2.5 border-r border-dashboard-border flex items-center gap-2 bg-[#f8f9fb] group relative"
-                                    >
-                                        <div className="flex flex-col min-w-0 flex-1 overflow-visible">
-                                            <div className="min-w-0 overflow-visible">
-                                                <EditableHeader
-                                                    initialValue={field.name}
-                                                    icon={getFieldIcon()}
-                                                    onSave={(newName) =>
-                                                        handleUpdateFieldName(
-                                                            field.id,
-                                                            newName,
-                                                        )
-                                                    }
-                                                    placeholder="Field name..."
-                                                />
-                                            </div>
-                                            {field.dataType === 'USER' &&
-                                            field.customOptions?.[0] ? (
-                                                <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
-                                                    {field.customOptions[0]}
-                                                </span>
-                                            ) : null}
-                                        </div>
-
-                                        {/* Single actions dropdown — replaces crowded filter+delete+pencil */}
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className={cn(
-                                                        'h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
-                                                        columnFilters[
-                                                            field.id
-                                                        ] &&
-                                                            'opacity-100 text-accent-blue',
-                                                    )}
-                                                    onClick={(e) =>
-                                                        e.stopPropagation()
-                                                    }
-                                                >
-                                                    <MoreVertical className="h-3 w-3" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                                align="end"
-                                                className="w-40"
+                                        return (
+                                            <SortableColumn
+                                                key={field.id}
+                                                id={field.id}
+                                                className="w-[150px] shrink-0"
                                             >
-                                                {showFilter && (
-                                                    <DropdownMenuItem
-                                                        onSelect={() =>
-                                                            setActiveFilterFieldId(
-                                                                field.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Filter className="h-3.5 w-3.5 mr-2" />
-                                                        Filter
-                                                        {columnFilters[
-                                                            field.id
-                                                        ] && (
-                                                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5a7f9a] shrink-0" />
-                                                        )}
-                                                    </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuItem
-                                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                    onSelect={() =>
-                                                        setFieldToDelete(field)
-                                                    }
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                                    Delete field
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                {(dragHandleProps) => (
+                                                    <div className="px-4 py-2.5 border-r border-dashboard-border flex items-center gap-2 bg-[#f8f9fb] group relative h-full">
+                                                        {/* Column drag handle */}
+                                                        <div
+                                                            {...dragHandleProps}
+                                                            className="opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-grab shrink-0 touch-none"
+                                                            onClick={(e) =>
+                                                                e.stopPropagation()
+                                                            }
+                                                        >
+                                                            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                                                        </div>
+                                                        <div className="flex flex-col min-w-0 flex-1 overflow-visible">
+                                                            <div className="min-w-0 overflow-visible">
+                                                                <EditableHeader
+                                                                    initialValue={
+                                                                        field.name
+                                                                    }
+                                                                    icon={getFieldIcon()}
+                                                                    onSave={(
+                                                                        newName,
+                                                                    ) =>
+                                                                        handleUpdateFieldName(
+                                                                            field.id,
+                                                                            newName,
+                                                                        )
+                                                                    }
+                                                                    placeholder="Field name..."
+                                                                />
+                                                            </div>
+                                                            {field.dataType ===
+                                                                'USER' &&
+                                                            field
+                                                                .customOptions?.[0] ? (
+                                                                <span className="text-[10px] text-muted-foreground/70 pl-5 truncate font-normal mt-0.5">
+                                                                    {
+                                                                        field
+                                                                            .customOptions[0]
+                                                                    }
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
 
-                                        {/* Controlled filter popover anchored to this header cell */}
-                                        {showFilter && (
-                                            <Popover
-                                                open={
-                                                    activeFilterFieldId ===
-                                                    field.id
-                                                }
-                                                onOpenChange={(open) => {
-                                                    if (!open)
-                                                        setActiveFilterFieldId(
-                                                            null,
-                                                        );
-                                                }}
-                                            >
-                                                <PopoverTrigger asChild>
-                                                    <span className="absolute inset-0 pointer-events-none" />
-                                                </PopoverTrigger>
-                                                <PopoverContent
-                                                    className="w-56 p-2"
-                                                    align="end"
-                                                    side="bottom"
-                                                >
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="font-medium text-xs text-muted-foreground">
-                                                                Filter{' '}
-                                                                {field.name}
-                                                            </h4>
-                                                            {columnFilters[
-                                                                field.id
-                                                            ] && (
+                                                        {/* Single actions dropdown — replaces crowded filter+delete+pencil */}
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger
+                                                                asChild
+                                                            >
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-4 w-4"
-                                                                    onClick={() =>
-                                                                        onColumnFilterChange(
-                                                                            field.id,
-                                                                            '',
+                                                                    className={cn(
+                                                                        'h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
+                                                                        columnFilters[
+                                                                            field
+                                                                                .id
+                                                                        ] &&
+                                                                            'opacity-100 text-accent-blue',
+                                                                    )}
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) =>
+                                                                        e.stopPropagation()
+                                                                    }
+                                                                >
+                                                                    <MoreVertical className="h-3 w-3" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent
+                                                                align="end"
+                                                                className="w-40"
+                                                            >
+                                                                {showFilter && (
+                                                                    <DropdownMenuItem
+                                                                        onSelect={() =>
+                                                                            setActiveFilterFieldId(
+                                                                                field.id,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Filter className="h-3.5 w-3.5 mr-2" />
+                                                                        Filter
+                                                                        {columnFilters[
+                                                                            field
+                                                                                .id
+                                                                        ] && (
+                                                                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5a7f9a] shrink-0" />
+                                                                        )}
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                                    onSelect={() =>
+                                                                        setFieldToDelete(
+                                                                            field,
                                                                         )
                                                                     }
                                                                 >
-                                                                    <X className="h-3 w-3" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                        <input
-                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                            placeholder={
-                                                                field.dataType ===
-                                                                'DATE'
-                                                                    ? 'YYYY-MM-DD'
-                                                                    : 'Contains...'
-                                                            }
-                                                            value={
-                                                                columnFilters[
+                                                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                                                    Delete field
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+
+                                                        {/* Controlled filter popover anchored to this header cell */}
+                                                        {showFilter && (
+                                                            <Popover
+                                                                open={
+                                                                    activeFilterFieldId ===
                                                                     field.id
-                                                                ]?.value || ''
-                                                            }
-                                                            onChange={(e) =>
-                                                                onColumnFilterChange(
-                                                                    field.id,
-                                                                    e.target
-                                                                        .value,
-                                                                    field.dataType ===
-                                                                        'DATE'
-                                                                        ? 'date'
-                                                                        : 'text',
-                                                                )
-                                                            }
-                                                            autoFocus
-                                                        />
+                                                                }
+                                                                onOpenChange={(
+                                                                    open,
+                                                                ) => {
+                                                                    if (!open)
+                                                                        setActiveFilterFieldId(
+                                                                            null,
+                                                                        );
+                                                                }}
+                                                            >
+                                                                <PopoverTrigger
+                                                                    asChild
+                                                                >
+                                                                    <span className="absolute inset-0 pointer-events-none" />
+                                                                </PopoverTrigger>
+                                                                <PopoverContent
+                                                                    className="w-56 p-2"
+                                                                    align="end"
+                                                                    side="bottom"
+                                                                >
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex items-center justify-between">
+                                                                            <h4 className="font-medium text-xs text-muted-foreground">
+                                                                                Filter{' '}
+                                                                                {
+                                                                                    field.name
+                                                                                }
+                                                                            </h4>
+                                                                            {columnFilters[
+                                                                                field
+                                                                                    .id
+                                                                            ] && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-4 w-4"
+                                                                                    onClick={() =>
+                                                                                        onColumnFilterChange(
+                                                                                            field.id,
+                                                                                            '',
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <X className="h-3 w-3" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                        <input
+                                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
+                                                                            placeholder={
+                                                                                field.dataType ===
+                                                                                'DATE'
+                                                                                    ? 'YYYY-MM-DD'
+                                                                                    : 'Contains...'
+                                                                            }
+                                                                            value={
+                                                                                columnFilters[
+                                                                                    field
+                                                                                        .id
+                                                                                ]
+                                                                                    ?.value ||
+                                                                                ''
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                onColumnFilterChange(
+                                                                                    field.id,
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                    field.dataType ===
+                                                                                        'DATE'
+                                                                                        ? 'date'
+                                                                                        : 'text',
+                                                                                )
+                                                                            }
+                                                                            autoFocus
+                                                                        />
+                                                                    </div>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        )}
                                                     </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                                )}
+                                            </SortableColumn>
+                                        );
+                                    })}
+                                </SortableContext>
+                            </DndContext>
 
                             {/* Add Column Button */}
                             <div className="w-[150px] shrink-0 px-4 py-3 bg-[#f8f9fb] border-r border-dashboard-border">
@@ -2258,32 +2653,66 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           e,
                                                                                       ) => {
                                                                                           e.stopPropagation();
-                                                                                          onTaskCopy(
-                                                                                              task,
+                                                                                          toast.info(
+                                                                                              'Task notifications coming soon',
                                                                                           );
                                                                                       }}
                                                                                   >
-                                                                                      <Copy className="h-4 w-4 mr-2" />
-                                                                                      Copy
-                                                                                      Task
+                                                                                      <Bell className="h-4 w-4 mr-2" />
+                                                                                      Notify
                                                                                   </DropdownMenuItem>
+                                                                                  <DropdownMenuSeparator />
                                                                                   <DropdownMenuItem
+                                                                                      disabled={
+                                                                                          task.approvalStatus !==
+                                                                                          'IN_PREPARATION'
+                                                                                      }
                                                                                       onClick={(
                                                                                           e,
                                                                                       ) => {
                                                                                           e.stopPropagation();
-                                                                                          setTemplateTask(
+                                                                                          handleSubmitTask(
                                                                                               task,
-                                                                                          );
-                                                                                          setTemplateName(
-                                                                                              '',
                                                                                           );
                                                                                       }}
                                                                                   >
-                                                                                      <LayoutTemplate className="h-4 w-4 mr-2" />
-                                                                                      Save
-                                                                                      as
-                                                                                      Template
+                                                                                      <Send className="h-4 w-4 mr-2" />
+                                                                                      Submit
+                                                                                  </DropdownMenuItem>
+                                                                                  <DropdownMenuItem
+                                                                                      disabled={
+                                                                                          task.approvalStatus !==
+                                                                                          'IN_REVIEW'
+                                                                                      }
+                                                                                      onClick={(
+                                                                                          e,
+                                                                                      ) => {
+                                                                                          e.stopPropagation();
+                                                                                          handleRejectTask(
+                                                                                              task,
+                                                                                          );
+                                                                                      }}
+                                                                                  >
+                                                                                      <XCircle className="h-4 w-4 mr-2" />
+                                                                                      Reject
+                                                                                  </DropdownMenuItem>
+                                                                                  <DropdownMenuItem
+                                                                                      disabled={
+                                                                                          task.approvalStatus ===
+                                                                                          'IN_PREPARATION'
+                                                                                      }
+                                                                                      onClick={(
+                                                                                          e,
+                                                                                      ) => {
+                                                                                          e.stopPropagation();
+                                                                                          handleReopenTask(
+                                                                                              task,
+                                                                                          );
+                                                                                      }}
+                                                                                  >
+                                                                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                                                                      Reopen
+                                                                                      Task
                                                                                   </DropdownMenuItem>
                                                                                   <DropdownMenuSeparator />
                                                                                   <DropdownMenuItem
@@ -2291,15 +2720,27 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           e,
                                                                                       ) => {
                                                                                           e.stopPropagation();
-                                                                                          onTaskDelete(
-                                                                                              task.id,
+                                                                                          onTaskClick(
+                                                                                              task,
                                                                                           );
                                                                                       }}
-                                                                                      className="text-destructive focus:text-destructive"
                                                                                   >
-                                                                                      <Trash2 className="h-4 w-4 mr-2" />
-                                                                                      Delete
-                                                                                      Task
+                                                                                      <Activity className="h-4 w-4 mr-2" />
+                                                                                      Activity
+                                                                                  </DropdownMenuItem>
+                                                                                  <DropdownMenuItem
+                                                                                      onClick={(
+                                                                                          e,
+                                                                                      ) => {
+                                                                                          e.stopPropagation();
+                                                                                          handleShareTaskLink(
+                                                                                              task,
+                                                                                          );
+                                                                                      }}
+                                                                                  >
+                                                                                      <Link2 className="h-4 w-4 mr-2" />
+                                                                                      Share
+                                                                                      Link
                                                                                   </DropdownMenuItem>
                                                                               </DropdownMenuContent>
                                                                           </DropdownMenu>
@@ -2312,143 +2753,542 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                           },
                                       );
                                   })()
-                                : // Render Flat List
-                                  tasks.map((task) => (
-                                      <div
-                                          key={task.id}
-                                          className="flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max"
-                                      >
-                                          {/* Task Name - Sticky */}
-                                          <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
-                                              <div
-                                                  onClick={(e) =>
-                                                      e.stopPropagation()
-                                                  }
-                                                  className="flex items-center shrink-0"
-                                              >
-                                                  <Checkbox
-                                                      checked={selectedTaskIds.has(
-                                                          task.id,
+                                : // Render Flat List (with sections if available)
+                                  (() => {
+                                      const orderedTasks = taskOrder
+                                          .map((id) =>
+                                              tasks.find((t) => t.id === id),
+                                          )
+                                          .filter(
+                                              (t): t is Task => t !== undefined,
+                                          );
+
+                                      const renderTaskRow = (task: Task) => (
+                                          <SortableRow
+                                              key={task.id}
+                                              id={task.id}
+                                          >
+                                              {(dragHandleProps) => (
+                                                  <div className="flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max">
+                                                      {/* Task Name - Sticky */}
+                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
+                                                          {/* Drag handle */}
+                                                          <div
+                                                              {...dragHandleProps}
+                                                              className="opacity-0 group-hover:opacity-40 hover:!opacity-100 cursor-grab shrink-0 -ml-1 touch-none"
+                                                              onClick={(e) =>
+                                                                  e.stopPropagation()
+                                                              }
+                                                          >
+                                                              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                                                          </div>
+                                                          <div
+                                                              onClick={(e) =>
+                                                                  e.stopPropagation()
+                                                              }
+                                                              className="flex items-center shrink-0"
+                                                          >
+                                                              <Checkbox
+                                                                  checked={selectedTaskIds.has(
+                                                                      task.id,
+                                                                  )}
+                                                                  onCheckedChange={(
+                                                                      checked,
+                                                                  ) =>
+                                                                      toggleTaskSelection(
+                                                                          task.id,
+                                                                          !!checked,
+                                                                      )
+                                                                  }
+                                                              />
+                                                          </div>
+                                                          {/* Task name — Notion-style link */}
+                                                          <button
+                                                              className="flex-1 min-w-0 text-left cursor-pointer group/name"
+                                                              onClick={() =>
+                                                                  onTaskClick(
+                                                                      task,
+                                                                  )
+                                                              }
+                                                          >
+                                                              <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
+                                                                  {task.name || (
+                                                                      <span className="text-muted-foreground/50 italic font-normal">
+                                                                          Untitled
+                                                                      </span>
+                                                                  )}
+                                                              </span>
+                                                          </button>
+                                                          <button
+                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
+                                                              onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  onTaskClick(
+                                                                      task,
+                                                                  );
+                                                              }}
+                                                              title="Open task"
+                                                          >
+                                                              <ExternalLink className="h-3 w-3" />
+                                                          </button>
+                                                      </div>
+
+                                                      {/* Status Cell */}
+                                                      <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
+                                                          <StatusBadge
+                                                              status={taskStatusToBadge(
+                                                                  task.approvalStatus,
+                                                              )}
+                                                              size="sm"
+                                                          />
+                                                      </div>
+
+                                                      {/* Custom Field Values */}
+                                                      {displayedFields.map(
+                                                          (field) => (
+                                                              <div
+                                                                  key={field.id}
+                                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
+                                                              >
+                                                                  <div className="w-full">
+                                                                      {renderCustomFieldCell(
+                                                                          task,
+                                                                          field,
+                                                                      )}
+                                                                  </div>
+                                                              </div>
+                                                          ),
                                                       )}
-                                                      onCheckedChange={(
-                                                          checked,
-                                                      ) =>
-                                                          toggleTaskSelection(
-                                                              task.id,
-                                                              !!checked,
+
+                                                      {/* Actions Column */}
+                                                      <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
+                                                          <DropdownMenu>
+                                                              <DropdownMenuTrigger
+                                                                  asChild
+                                                              >
+                                                                  <Button
+                                                                      variant="ghost"
+                                                                      size="icon"
+                                                                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) =>
+                                                                          e.stopPropagation()
+                                                                      }
+                                                                  >
+                                                                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                                                  </Button>
+                                                              </DropdownMenuTrigger>
+                                                              <DropdownMenuContent align="end">
+                                                                  <DropdownMenuItem
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          toast.info(
+                                                                              'Task notifications coming soon',
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <Bell className="h-4 w-4 mr-2" />
+                                                                      Notify
+                                                                  </DropdownMenuItem>
+                                                                  <DropdownMenuSeparator />
+                                                                  <DropdownMenuItem
+                                                                      disabled={
+                                                                          task.approvalStatus !==
+                                                                          'IN_PREPARATION'
+                                                                      }
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          handleSubmitTask(
+                                                                              task,
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <Send className="h-4 w-4 mr-2" />
+                                                                      Submit
+                                                                  </DropdownMenuItem>
+                                                                  <DropdownMenuItem
+                                                                      disabled={
+                                                                          task.approvalStatus !==
+                                                                          'IN_REVIEW'
+                                                                      }
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          handleRejectTask(
+                                                                              task,
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <XCircle className="h-4 w-4 mr-2" />
+                                                                      Reject
+                                                                  </DropdownMenuItem>
+                                                                  <DropdownMenuItem
+                                                                      disabled={
+                                                                          task.approvalStatus ===
+                                                                          'IN_PREPARATION'
+                                                                      }
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          handleReopenTask(
+                                                                              task,
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                                                      Reopen
+                                                                      Task
+                                                                  </DropdownMenuItem>
+                                                                  <DropdownMenuSeparator />
+                                                                  <DropdownMenuItem
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          onTaskClick(
+                                                                              task,
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <Activity className="h-4 w-4 mr-2" />
+                                                                      Activity
+                                                                  </DropdownMenuItem>
+                                                                  <DropdownMenuItem
+                                                                      onClick={(
+                                                                          e,
+                                                                      ) => {
+                                                                          e.stopPropagation();
+                                                                          handleShareTaskLink(
+                                                                              task,
+                                                                          );
+                                                                      }}
+                                                                  >
+                                                                      <Link2 className="h-4 w-4 mr-2" />
+                                                                      Share Link
+                                                                  </DropdownMenuItem>
+                                                              </DropdownMenuContent>
+                                                          </DropdownMenu>
+                                                      </div>
+                                                  </div>
+                                              )}
+                                          </SortableRow>
+                                      );
+
+                                      const renderAddTaskRow = (
+                                          sectionId?: string,
+                                      ) => (
+                                          <div
+                                              key={`add-task-${sectionId ?? 'root'}`}
+                                              className="flex border-b border-dashboard-border hover:bg-accent-subtle/20 transition-colors group min-w-max cursor-pointer"
+                                              onClick={() => {
+                                                  if (sectionId) {
+                                                      setCreatingSectionTask(
+                                                          sectionId,
+                                                      );
+                                                      setNewSectionTaskName('');
+                                                  } else {
+                                                      setIsCreatingTask(true);
+                                                      setNewTaskName('');
+                                                  }
+                                              }}
+                                          >
+                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
+                                                  <Plus className="h-3.5 w-3.5" />
+                                                  Add task
+                                              </div>
+                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
+                                              {displayedFields.map((field) => (
+                                                  <div
+                                                      key={field.id}
+                                                      className="w-[150px] shrink-0 border-r border-dashboard-border"
+                                                  />
+                                              ))}
+                                              <div className="w-[150px] shrink-0" />
+                                          </div>
+                                      );
+
+                                      const renderInlineTaskCreate = (
+                                          sectionId: string,
+                                      ) => (
+                                          <div
+                                              key={`creating-${sectionId}`}
+                                              className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150"
+                                          >
+                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                                  <EditableContent
+                                                      value={newSectionTaskName}
+                                                      onSave={(name) =>
+                                                          handleCreateSectionTask(
+                                                              sectionId,
+                                                              name,
                                                           )
                                                       }
+                                                      placeholder="Task name..."
+                                                      textStyle="text-sm font-medium"
+                                                      autoFocus
                                                   />
                                               </div>
-                                              {/* Task name — Notion-style link */}
-                                              <button
-                                                  className="flex-1 min-w-0 text-left cursor-pointer group/name"
-                                                  onClick={() =>
-                                                      onTaskClick(task)
+                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
+                                              {displayedFields.map((field) => (
+                                                  <div
+                                                      key={field.id}
+                                                      className="w-[150px] shrink-0 border-r border-dashboard-border"
+                                                  />
+                                              ))}
+                                              <div className="w-[150px] shrink-0" />
+                                          </div>
+                                      );
+
+                                      const sectionedIds = new Set(
+                                          sections.flatMap((s) =>
+                                              tasks
+                                                  .filter(
+                                                      (t) =>
+                                                          t.sectionId === s.id,
+                                                  )
+                                                  .map((t) => t.id),
+                                          ),
+                                      );
+                                      const unsectionedOrdered =
+                                          orderedTasks.filter(
+                                              (t) => !sectionedIds.has(t.id),
+                                          );
+
+                                      if (sections.length === 0) {
+                                          return (
+                                              <DndContext
+                                                  sensors={dndSensors}
+                                                  collisionDetection={
+                                                      closestCenter
+                                                  }
+                                                  onDragEnd={handleRowDragEnd}
+                                              >
+                                                  <SortableContext
+                                                      items={taskOrder}
+                                                      strategy={
+                                                          verticalListSortingStrategy
+                                                      }
+                                                  >
+                                                      {orderedTasks.map(
+                                                          renderTaskRow,
+                                                      )}
+                                                  </SortableContext>
+                                              </DndContext>
+                                          );
+                                      }
+
+                                      return (
+                                          <DndContext
+                                              sensors={dndSensors}
+                                              collisionDetection={closestCenter}
+                                              onDragEnd={handleRowDragEnd}
+                                          >
+                                              <SortableContext
+                                                  items={taskOrder}
+                                                  strategy={
+                                                      verticalListSortingStrategy
                                                   }
                                               >
-                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
-                                                      {task.name || (
-                                                          <span className="text-muted-foreground/50 italic font-normal">
-                                                              Untitled
-                                                          </span>
+                                                  <>
+                                                      {/* Unsectioned tasks */}
+                                                      {unsectionedOrdered.map(
+                                                          renderTaskRow,
                                                       )}
-                                                  </span>
-                                              </button>
-                                              <button
-                                                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
-                                                  onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      onTaskClick(task);
-                                                  }}
-                                                  title="Open task"
-                                              >
-                                                  <ExternalLink className="h-3 w-3" />
-                                              </button>
-                                          </div>
 
-                                          {/* Status Cell */}
-                                          <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
-                                              <StatusBadge
-                                                  status={taskStatusToBadge(
-                                                      task.approvalStatus,
-                                                  )}
-                                                  size="sm"
-                                              />
-                                          </div>
+                                                      {/* Sections */}
+                                                      {sections.map(
+                                                          (section) => {
+                                                              const sectionTasks =
+                                                                  orderedTasks.filter(
+                                                                      (t) =>
+                                                                          t.sectionId ===
+                                                                          section.id,
+                                                                  );
+                                                              const isCollapsed =
+                                                                  collapsedSections[
+                                                                      section.id
+                                                                  ];
+                                                              const isEditing =
+                                                                  editingSectionId ===
+                                                                  section.id;
 
-                                          {/* Custom Field Values */}
-                                          {displayedFields.map((field) => (
-                                              <div
-                                                  key={field.id}
-                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
-                                              >
-                                                  <div className="w-full">
-                                                      {renderCustomFieldCell(
-                                                          task,
-                                                          field,
+                                                              return (
+                                                                  <div
+                                                                      key={
+                                                                          section.id
+                                                                      }
+                                                                  >
+                                                                      {/* Section Header */}
+                                                                      <div className="sticky left-0 min-w-full bg-[#f0f2f5] border-y border-dashboard-border px-4 py-2 flex items-center gap-2 group/section">
+                                                                          <button
+                                                                              onClick={() =>
+                                                                                  toggleSection(
+                                                                                      section.id,
+                                                                                  )
+                                                                              }
+                                                                              className="p-0.5 hover:bg-muted rounded cursor-pointer shrink-0"
+                                                                          >
+                                                                              {isCollapsed ? (
+                                                                                  <ChevronRight className="h-4 w-4 text-dashboard-text-muted" />
+                                                                              ) : (
+                                                                                  <ChevronDown className="h-4 w-4 text-dashboard-text-muted" />
+                                                                              )}
+                                                                          </button>
+
+                                                                          {isEditing ? (
+                                                                              <Input
+                                                                                  className="h-6 py-0 px-1 text-sm font-medium border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-accent-blue w-48"
+                                                                                  value={
+                                                                                      editingSectionName
+                                                                                  }
+                                                                                  onChange={(
+                                                                                      e,
+                                                                                  ) =>
+                                                                                      setEditingSectionName(
+                                                                                          e
+                                                                                              .target
+                                                                                              .value,
+                                                                                      )
+                                                                                  }
+                                                                                  onBlur={
+                                                                                      commitRenameSection
+                                                                                  }
+                                                                                  onKeyDown={(
+                                                                                      e,
+                                                                                  ) => {
+                                                                                      if (
+                                                                                          e.key ===
+                                                                                          'Enter'
+                                                                                      )
+                                                                                          commitRenameSection();
+                                                                                      if (
+                                                                                          e.key ===
+                                                                                          'Escape'
+                                                                                      ) {
+                                                                                          setEditingSectionId(
+                                                                                              null,
+                                                                                          );
+                                                                                          setEditingSectionName(
+                                                                                              '',
+                                                                                          );
+                                                                                      }
+                                                                                  }}
+                                                                                  autoFocus
+                                                                              />
+                                                                          ) : (
+                                                                              <span
+                                                                                  className="font-medium text-sm text-dashboard-text-body truncate cursor-pointer hover:text-accent-blue"
+                                                                                  onClick={() =>
+                                                                                      startRenamingSection(
+                                                                                          section,
+                                                                                      )
+                                                                                  }
+                                                                              >
+                                                                                  {
+                                                                                      section.name
+                                                                                  }
+                                                                              </span>
+                                                                          )}
+
+                                                                          <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full shrink-0">
+                                                                              {
+                                                                                  sectionTasks.length
+                                                                              }
+                                                                          </span>
+
+                                                                          {/* Section actions */}
+                                                                          {onDeleteSection && (
+                                                                              <DropdownMenu>
+                                                                                  <DropdownMenuTrigger
+                                                                                      asChild
+                                                                                  >
+                                                                                      <Button
+                                                                                          variant="ghost"
+                                                                                          size="icon"
+                                                                                          className="h-6 w-6 opacity-0 group-hover/section:opacity-100 transition-opacity ml-auto shrink-0"
+                                                                                          onClick={(
+                                                                                              e,
+                                                                                          ) =>
+                                                                                              e.stopPropagation()
+                                                                                          }
+                                                                                      >
+                                                                                          <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                                      </Button>
+                                                                                  </DropdownMenuTrigger>
+                                                                                  <DropdownMenuContent align="end">
+                                                                                      <DropdownMenuItem
+                                                                                          onClick={() =>
+                                                                                              startRenamingSection(
+                                                                                                  section,
+                                                                                              )
+                                                                                          }
+                                                                                      >
+                                                                                          <Pencil className="h-4 w-4 mr-2" />
+                                                                                          Rename
+                                                                                      </DropdownMenuItem>
+                                                                                      <DropdownMenuSeparator />
+                                                                                      <DropdownMenuItem
+                                                                                          onClick={() =>
+                                                                                              onDeleteSection(
+                                                                                                  section.id,
+                                                                                              )
+                                                                                          }
+                                                                                          className="text-destructive focus:text-destructive"
+                                                                                      >
+                                                                                          <Trash2 className="h-4 w-4 mr-2" />
+                                                                                          Delete
+                                                                                          Section
+                                                                                      </DropdownMenuItem>
+                                                                                  </DropdownMenuContent>
+                                                                              </DropdownMenu>
+                                                                          )}
+                                                                      </div>
+
+                                                                      {/* Tasks in section */}
+                                                                      {!isCollapsed && (
+                                                                          <>
+                                                                              {sectionTasks.map(
+                                                                                  renderTaskRow,
+                                                                              )}
+                                                                              {creatingSectionTask ===
+                                                                              section.id
+                                                                                  ? renderInlineTaskCreate(
+                                                                                        section.id,
+                                                                                    )
+                                                                                  : renderAddTaskRow(
+                                                                                        section.id,
+                                                                                    )}
+                                                                          </>
+                                                                      )}
+                                                                  </div>
+                                                              );
+                                                          },
                                                       )}
-                                                  </div>
-                                              </div>
-                                          ))}
 
-                                          {/* Actions Column */}
-                                          <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
-                                              <DropdownMenu>
-                                                  <DropdownMenuTrigger asChild>
-                                                      <Button
-                                                          variant="ghost"
-                                                          size="icon"
-                                                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                          onClick={(e) =>
-                                                              e.stopPropagation()
-                                                          }
-                                                      >
-                                                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                                      </Button>
-                                                  </DropdownMenuTrigger>
-                                                  <DropdownMenuContent align="end">
-                                                      <DropdownMenuItem
-                                                          onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              onTaskCopy(task);
-                                                          }}
-                                                      >
-                                                          <Copy className="h-4 w-4 mr-2" />
-                                                          Copy Task
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem
-                                                          onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              setTemplateTask(
-                                                                  task,
-                                                              );
-                                                              setTemplateName(
-                                                                  '',
-                                                              );
-                                                          }}
-                                                      >
-                                                          <LayoutTemplate className="h-4 w-4 mr-2" />
-                                                          Save as Template
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuSeparator />
-                                                      <DropdownMenuItem
-                                                          onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              onTaskDelete(
-                                                                  task.id,
-                                                              );
-                                                          }}
-                                                          className="text-destructive focus:text-destructive"
-                                                      >
-                                                          <Trash2 className="h-4 w-4 mr-2" />
-                                                          Delete Task
-                                                      </DropdownMenuItem>
-                                                  </DropdownMenuContent>
-                                              </DropdownMenu>
-                                          </div>
-                                      </div>
-                                  ))}
+                                                      {/* Add section row */}
+                                                      {onAddSection && (
+                                                          <div
+                                                              className="sticky left-0 min-w-full border-b border-dashboard-border px-4 py-2 flex items-center gap-2 text-[13px] text-dashboard-text-muted hover:text-accent-blue hover:bg-accent-subtle/20 cursor-pointer transition-colors"
+                                                              onClick={
+                                                                  onAddSection
+                                                              }
+                                                          >
+                                                              <Plus className="h-3.5 w-3.5" />
+                                                              Add section
+                                                          </div>
+                                                      )}
+                                                  </>
+                                              </SortableContext>
+                                          </DndContext>
+                                      );
+                                  })()}
 
                             {/* New Task Row / Add Task - always directly after tasks */}
                             {isCreatingTask ? (

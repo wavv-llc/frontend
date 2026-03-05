@@ -66,6 +66,7 @@ export interface Project {
     name: string;
     description?: string;
     workspaceId: string;
+    isArchived: boolean;
     createdAt: string;
     updatedAt: string;
     workspace: {
@@ -113,11 +114,23 @@ export interface ApprovalWorkflowStep {
     updatedAt: string;
 }
 
+export interface Section {
+    id: string;
+    name: string;
+    order: number;
+    projectId: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface Task {
     id: string;
     name: string;
     description?: string;
     projectId: string;
+    sectionId?: string;
+    section?: { id: string; name: string };
+    order: number;
     dueAt?: string;
     // Approval workflow fields
     approvalStatus: ApprovalStatus;
@@ -661,6 +674,13 @@ export const projectApi = {
             token,
         });
     },
+
+    archiveProject: async (token: string, id: string) => {
+        return apiRequest<Project>(`/api/v1/projects/${id}/archive`, {
+            method: 'PATCH',
+            token,
+        });
+    },
 };
 
 // Custom Field API functions
@@ -766,6 +786,7 @@ export const taskApi = {
             dueAt?: string;
             status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
             customFields?: Record<string, string | number | null>;
+            sectionId?: string;
         },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks`, {
@@ -808,6 +829,69 @@ export const taskApi = {
             `/api/v1/projects/${projectId}/tasks/${taskId}/copy`,
             {
                 method: 'POST',
+                token,
+            },
+        );
+    },
+
+    reorderTasks: async (
+        token: string,
+        projectId: string,
+        orders: Array<{ id: string; order: number }>,
+    ) => {
+        return apiRequest<{ message: string }>(
+            `/api/v1/projects/${projectId}/tasks/reorder`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify({ orders }),
+            },
+        );
+    },
+};
+
+// Section API functions
+export const sectionApi = {
+    getSections: async (token: string, projectId: string) => {
+        return apiRequest<Section[]>(`/api/v1/projects/${projectId}/sections`, {
+            method: 'GET',
+            token,
+        });
+    },
+
+    createSection: async (token: string, projectId: string, name: string) => {
+        return apiRequest<Section>(`/api/v1/projects/${projectId}/sections`, {
+            method: 'POST',
+            token,
+            body: JSON.stringify({ name }),
+        });
+    },
+
+    updateSection: async (
+        token: string,
+        projectId: string,
+        sectionId: string,
+        data: { name?: string; order?: number },
+    ) => {
+        return apiRequest<Section>(
+            `/api/v1/projects/${projectId}/sections/${sectionId}`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify(data),
+            },
+        );
+    },
+
+    deleteSection: async (
+        token: string,
+        projectId: string,
+        sectionId: string,
+    ) => {
+        return apiRequest<{ deleted: boolean }>(
+            `/api/v1/projects/${projectId}/sections/${sectionId}`,
+            {
+                method: 'DELETE',
                 token,
             },
         );
