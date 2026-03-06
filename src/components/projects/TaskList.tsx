@@ -627,7 +627,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             columnFilters,
             onColumnFilterChange,
             sections = [],
-            onAddSection,
+            onAddSection: _onAddSection,
             onRenameSection,
             onDeleteSection,
         },
@@ -829,7 +829,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
         // Inline task creation
         const [isCreatingTask, setIsCreatingTask] = useState(false);
-        const [newTaskName, setNewTaskName] = useState('');
         const [collapsedGroups, setCollapsedGroups] = useState<
             Record<string, boolean>
         >({});
@@ -968,7 +967,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         useImperativeHandle(ref, () => ({
             startCreatingTask: () => {
                 setIsCreatingTask(true);
-                setNewTaskName('');
             },
         }));
 
@@ -989,45 +987,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 );
             return [...ordered, ...extras];
         }, [customFields, fieldOrder]);
-
-        const handleCreateTask = async (name: string) => {
-            if (!name.trim()) {
-                setIsCreatingTask(false);
-                setNewTaskName('');
-                return;
-            }
-
-            try {
-                const token = await getToken();
-                if (!token) {
-                    toast.error('Authentication required');
-                    return;
-                }
-
-                // Only task name is required — all other fields are optional
-                await taskApi.createTask(token, projectId, {
-                    name: name.trim(),
-                    status: 'PENDING',
-                    customFields: {},
-                });
-
-                setNewTaskName('');
-                setIsCreatingTask(false);
-                // Save scroll position so the list doesn't jump to top on refresh
-                if (scrollContainerRef.current) {
-                    pendingScrollRestore.current =
-                        scrollContainerRef.current.scrollTop;
-                }
-                onTaskCreated();
-            } catch (error) {
-                console.error('Failed to create task:', error);
-                const errorMessage =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to create task';
-                toast.error(errorMessage);
-            }
-        };
 
         // Task action handlers for the row menu
         const handleSubmitTask = async (task: Task) => {
@@ -2165,9 +2124,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     >
                                         <div className="space-y-4">
                                             <div>
-                                                <Label htmlFor="field-name">
-                                                    Type property name
-                                                </Label>
                                                 <div className="mt-2">
                                                     <input
                                                         type="text"
@@ -2995,7 +2951,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       setNewSectionTaskName('');
                                                   } else {
                                                       setIsCreatingTask(true);
-                                                      setNewTaskName('');
                                                   }
                                               }}
                                           >
@@ -3271,71 +3226,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                               );
                                                           },
                                                       )}
-
-                                                      {/* Add section row */}
-                                                      {onAddSection && (
-                                                          <div
-                                                              className="sticky left-0 min-w-full border-b border-dashboard-border px-4 py-2 flex items-center gap-2 text-[13px] text-dashboard-text-muted hover:text-accent-blue hover:bg-accent-subtle/20 cursor-pointer transition-colors"
-                                                              onClick={
-                                                                  onAddSection
-                                                              }
-                                                          >
-                                                              <Plus className="h-3.5 w-3.5" />
-                                                              Add section
-                                                          </div>
-                                                      )}
                                                   </>
                                               </SortableContext>
                                           </DndContext>
                                       );
                                   })()}
-
-                            {/* New Task Row / Add Task - always directly after tasks */}
-                            {isCreatingTask ? (
-                                <div className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150">
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
-                                        <EditableContent
-                                            value={newTaskName}
-                                            onSave={(name) =>
-                                                handleCreateTask(name)
-                                            }
-                                            placeholder="Task name..."
-                                            textStyle="text-sm font-medium"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div className="w-35 shrink-0 border-r border-dashboard-border" />
-                                    {displayedFields.map((field) => (
-                                        <div
-                                            key={field.id}
-                                            className="w-[150px] shrink-0 px-4 py-4 border-r border-dashboard-border"
-                                        />
-                                    ))}
-                                    <div className="w-[150px] shrink-0 px-4 py-4" />
-                                </div>
-                            ) : (
-                                <div
-                                    className="flex border-b border-dashboard-border hover:bg-accent-subtle/30 transition-colors group min-w-max cursor-pointer"
-                                    onClick={() => {
-                                        setIsCreatingTask(true);
-                                        setNewTaskName('');
-                                    }}
-                                >
-                                    <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Add task
-                                    </div>
-                                    <div className="w-35 shrink-0 border-r border-dashboard-border" />
-                                    {/* Empty cells for alignment */}
-                                    {displayedFields.map((field) => (
-                                        <div
-                                            key={field.id}
-                                            className="w-[150px] shrink-0 border-r border-dashboard-border"
-                                        />
-                                    ))}
-                                    <div className="w-[150px] shrink-0" />
-                                </div>
-                            )}
 
                             {/* Empty state message - shown below the add task row */}
                             {tasks.length === 0 && !isCreatingTask && (

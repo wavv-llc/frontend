@@ -1309,7 +1309,7 @@ export function ProjectDetailView({
                             onClick={handleAddSection}
                             disabled={isCreatingSection}
                         >
-                            New <Plus className="ml-1 h-4 w-4" />
+                            New Section <Plus className="ml-1 h-4 w-4" />
                         </Button>
                         <div className="relative w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />

@@ -8,12 +8,12 @@ import {
     useMemo,
     forwardRef,
     useImperativeHandle,
+    type ReactNode,
 } from 'react';
 import {
     ArrowLeft,
     MoreVertical,
     Upload,
-    MessageSquare,
     FileText,
     Check,
     Edit2,
@@ -33,6 +33,10 @@ import {
     Send,
     RefreshCw,
     GitBranch,
+    Bold,
+    Italic,
+    Underline,
+    Strikethrough,
 } from 'lucide-react';
 import {
     Popover,
@@ -132,15 +136,6 @@ function sanitizeCommentHtml(html: string): string {
     return div.innerHTML;
 }
 
-const COMMENT_COLORS = [
-    { label: 'Default', value: '#111827', bg: 'bg-gray-900' },
-    { label: 'Red', value: '#ef4444', bg: 'bg-red-500' },
-    { label: 'Blue', value: '#3b82f6', bg: 'bg-blue-500' },
-    { label: 'Green', value: '#22c55e', bg: 'bg-green-500' },
-    { label: 'Orange', value: '#f97316', bg: 'bg-orange-500' },
-    { label: 'Purple', value: '#a855f7', bg: 'bg-purple-500' },
-] as const;
-
 interface RichEditorHandle {
     clear: () => void;
     focus: () => void;
@@ -156,6 +151,7 @@ const RichCommentEditor = forwardRef<
         onBlur?: (isEmpty: boolean) => void;
         placeholder?: string;
         showToolbar?: boolean;
+        toolbarActions?: ReactNode;
     }
 >(function RichCommentEditor(
     {
@@ -166,13 +162,13 @@ const RichCommentEditor = forwardRef<
         onBlur,
         placeholder,
         showToolbar,
+        toolbarActions,
     },
     ref,
 ) {
     const divRef = useRef<HTMLDivElement>(null);
     const [isEmpty, setIsEmpty] = useState(true);
     const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
-    const [colorOpen, setColorOpen] = useState(false);
 
     useImperativeHandle(ref, () => ({
         clear: () => {
@@ -188,6 +184,7 @@ const RichCommentEditor = forwardRef<
     const syncFormats = useCallback(() => {
         const fmts = new Set<string>();
         if (document.queryCommandState('bold')) fmts.add('bold');
+        if (document.queryCommandState('italic')) fmts.add('italic');
         if (document.queryCommandState('underline')) fmts.add('underline');
         if (document.queryCommandState('strikeThrough'))
             fmts.add('strikeThrough');
@@ -242,6 +239,10 @@ const RichCommentEditor = forwardRef<
                 e.preventDefault();
                 execFormat('bold');
             }
+            if (mod && e.key === 'i') {
+                e.preventDefault();
+                execFormat('italic');
+            }
             if (mod && e.key === 'u') {
                 e.preventDefault();
                 execFormat('underline');
@@ -294,7 +295,18 @@ const RichCommentEditor = forwardRef<
                         title="Bold (⌘B)"
                         className={fmtBtnCls(activeFormats.has('bold'))}
                     >
-                        <span className="text-xs font-bold">B</span>
+                        <Bold className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            execFormat('italic');
+                        }}
+                        title="Italic (⌘I)"
+                        className={fmtBtnCls(activeFormats.has('italic'))}
+                    >
+                        <Italic className="h-3.5 w-3.5" />
                     </button>
                     <button
                         type="button"
@@ -305,7 +317,7 @@ const RichCommentEditor = forwardRef<
                         title="Underline (⌘U)"
                         className={fmtBtnCls(activeFormats.has('underline'))}
                     >
-                        <span className="text-xs underline">U</span>
+                        <Underline className="h-3.5 w-3.5" />
                     </button>
                     <button
                         type="button"
@@ -318,50 +330,9 @@ const RichCommentEditor = forwardRef<
                             activeFormats.has('strikeThrough'),
                         )}
                     >
-                        <span className="text-xs line-through">S</span>
+                        <Strikethrough className="h-3.5 w-3.5" />
                     </button>
-                    <Popover open={colorOpen} onOpenChange={setColorOpen}>
-                        <PopoverTrigger asChild>
-                            <button
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                title="Text color"
-                                className={fmtBtnCls(false)}
-                            >
-                                <span className="text-xs font-semibold">A</span>
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                            className="w-auto p-2"
-                            side="top"
-                            align="start"
-                        >
-                            <p className="text-[10px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wider">
-                                Color
-                            </p>
-                            <div className="flex items-center gap-1.5">
-                                {COMMENT_COLORS.map((color) => (
-                                    <button
-                                        key={color.value}
-                                        type="button"
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            execFormat(
-                                                'foreColor',
-                                                color.value,
-                                            );
-                                            setColorOpen(false);
-                                        }}
-                                        title={color.label}
-                                        className={cn(
-                                            'h-5 w-5 rounded-full border-2 border-transparent transition-all hover:scale-110 hover:border-dashboard-border',
-                                            color.bg,
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                    {toolbarActions}
                 </div>
             )}
         </div>
@@ -403,6 +374,7 @@ export function TaskDetailView({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isApprovalLoading, setIsApprovalLoading] = useState(false);
     const newThreadInputRef = useRef<RichEditorHandle>(null);
+    const threadStateBeforeUpload = useRef(false);
 
     // ── Approval workflow derived values ──────────────────────────────────────
     // Per-task chain: derived from approvalChain returned by the backend
@@ -890,80 +862,6 @@ export function TaskDetailView({
             <div className="flex flex-1 min-h-0 overflow-hidden">
                 {/* Main scrollable content */}
                 <div className="flex-1 min-w-0 overflow-y-auto p-8 flex flex-col gap-6">
-                    {/* ── Attachments ──────────────────────────────────────── */}
-                    <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-dashboard-border">
-                            <div className="flex items-center gap-2">
-                                <div className="h-7 w-7 rounded-lg bg-accent-subtle text-accent-blue flex items-center justify-center border border-dashboard-border">
-                                    <Paperclip className="h-3.5 w-3.5" />
-                                </div>
-                                <h3 className="font-serif font-semibold text-base text-dashboard-text-primary">
-                                    Attachments
-                                </h3>
-                                {task.linkedFiles &&
-                                    task.linkedFiles.length > 0 && (
-                                        <Badge
-                                            variant="secondary"
-                                            className="rounded-full px-2 h-5 text-xs bg-accent-subtle text-dashboard-text-muted border-dashboard-border"
-                                        >
-                                            {task.linkedFiles.length}
-                                        </Badge>
-                                    )}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setUploadDialogOpen(true)}
-                                className="h-8 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
-                            >
-                                <Upload className="h-3.5 w-3.5 mr-2" />
-                                Upload
-                            </Button>
-                        </div>
-                        <div className="p-6">
-                            {task.linkedFiles && task.linkedFiles.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {task.linkedFiles.map((file) => (
-                                        <div
-                                            key={file.id}
-                                            className="group flex items-center gap-3 p-3 rounded-lg border border-dashboard-border bg-dashboard-surface hover:border-accent-blue/30 hover:bg-accent-hover hover:shadow-sm transition-all cursor-pointer"
-                                        >
-                                            <div className="h-9 w-9 bg-accent-subtle rounded-lg flex items-center justify-center text-accent-blue shrink-0">
-                                                <FileText className="h-4 w-4" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="font-medium text-sm text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
-                                                    {file.originalName}
-                                                </p>
-                                                <p className="text-[10px] text-dashboard-text-muted uppercase tracking-wider">
-                                                    {(
-                                                        file.filesize / 1024
-                                                    ).toFixed(0)}{' '}
-                                                    KB
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-10 text-center border border-dashed border-dashboard-border rounded-xl bg-accent-subtle/30">
-                                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-dashboard-text-muted opacity-30" />
-                                    <p className="text-sm text-dashboard-text-muted">
-                                        No files attached yet
-                                    </p>
-                                    <button
-                                        onClick={() =>
-                                            setUploadDialogOpen(true)
-                                        }
-                                        className="mt-2 text-xs text-accent-blue hover:underline cursor-pointer"
-                                    >
-                                        Upload a file
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                     {/* ── Activity Log ─────────────────────────────────────── */}
                     {activityItems.length > 0 && (
                         <div>
@@ -1042,105 +940,95 @@ export function TaskDetailView({
                             )}
                         </div>
 
-                        {/* Comment container – Linear-style card */}
-                        <div className="bg-dashboard-surface rounded-xl border border-dashboard-border shadow-sm overflow-hidden">
-                            {/* Thread list */}
-                            <div>
-                                {isLoadingComments ? (
-                                    <div className="p-6 space-y-6">
-                                        {[1, 2].map((i) => (
-                                            <div
-                                                key={i}
-                                                className="flex gap-3 animate-pulse"
-                                            >
-                                                <div className="h-8 w-8 bg-accent-subtle rounded-full shrink-0" />
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="h-3.5 bg-accent-subtle rounded w-1/4" />
-                                                    <div className="h-12 bg-accent-subtle rounded-lg" />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : comments.length === 0 ? (
-                                    <div className="px-6 py-12 text-center">
-                                        <MessageSquare className="h-9 w-9 mx-auto mb-3 text-dashboard-text-muted opacity-20" />
-                                        <p className="text-sm text-dashboard-text-muted">
-                                            No threads yet. Start a conversation
-                                            below.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-dashboard-border/50">
-                                        {comments.map((comment, index) => (
-                                            <div
-                                                key={comment.id}
-                                                className="px-6 py-1"
-                                            >
-                                                <CommentThread
-                                                    index={index + 1}
-                                                    comment={comment}
-                                                    onUpdate={loadComments}
-                                                    taskId={task.id}
-                                                    projectId={task.projectId}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* New thread input */}
-                            <div className="border-t border-dashboard-border/60 px-4 py-3 bg-accent-subtle/20">
-                                <div
-                                    className={cn(
-                                        'rounded-lg border px-3.5 py-2.5 transition-all duration-150 cursor-text',
-                                        isCreatingThread
-                                            ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface shadow-sm'
-                                            : 'border-dashboard-border bg-dashboard-surface hover:border-accent-blue/25',
-                                    )}
-                                    onClick={() => {
-                                        if (!isCreatingThread)
-                                            newThreadInputRef.current?.focus();
-                                    }}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="h-7 w-7 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center shrink-0 mt-0.5">
-                                            <MessageSquare className="h-3 w-3 text-accent-blue/60" />
+                        {/* Thread list */}
+                        {isLoadingComments ? (
+                            <div className="space-y-4 mb-4">
+                                {[1, 2].map((i) => (
+                                    <div
+                                        key={i}
+                                        className="flex gap-3 animate-pulse"
+                                    >
+                                        <div className="h-8 w-8 bg-accent-subtle rounded-full shrink-0" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-3.5 bg-accent-subtle rounded w-1/4" />
+                                            <div className="h-12 bg-accent-subtle rounded-lg" />
                                         </div>
-                                        <RichCommentEditor
-                                            ref={newThreadInputRef}
-                                            onContentChange={(html, empty) => {
-                                                setNewCommentContent(html);
-                                                setIsNewCommentEmpty(empty);
-                                            }}
-                                            onFocus={() =>
-                                                setIsCreatingThread(true)
-                                            }
-                                            onBlur={(empty) => {
-                                                if (empty)
-                                                    setIsCreatingThread(false);
-                                            }}
-                                            onSubmit={handleCreateComment}
-                                            onCancel={() => {
-                                                newThreadInputRef.current?.clear();
-                                                setIsCreatingThread(false);
-                                            }}
-                                            placeholder="Start a new thread…"
-                                            showToolbar={isCreatingThread}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : comments.length > 0 ? (
+                            <div className="divide-y divide-dashboard-border/50 mb-4">
+                                {comments.map((comment, index) => (
+                                    <div key={comment.id} className="py-1">
+                                        <CommentThread
+                                            index={index + 1}
+                                            comment={comment}
+                                            onUpdate={loadComments}
+                                            taskId={task.id}
+                                            projectId={task.projectId}
                                         />
-                                        {isCreatingThread && (
-                                            <div className="flex items-center gap-1 shrink-0 self-end">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
-                                                    tabIndex={-1}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+
+                        {/* Comment input – Linear style */}
+                        <div
+                            className={cn(
+                                'rounded-lg border bg-dashboard-surface transition-all duration-150 cursor-text',
+                                isCreatingThread
+                                    ? 'border-dashboard-border shadow-sm ring-1 ring-accent-blue/15'
+                                    : 'border-dashboard-border hover:border-accent-blue/20',
+                            )}
+                            onClick={() => {
+                                if (!isCreatingThread)
+                                    newThreadInputRef.current?.focus();
+                            }}
+                        >
+                            <div className="px-4 py-3">
+                                <RichCommentEditor
+                                    ref={newThreadInputRef}
+                                    onContentChange={(html, empty) => {
+                                        setNewCommentContent(html);
+                                        setIsNewCommentEmpty(empty);
+                                    }}
+                                    onFocus={() => setIsCreatingThread(true)}
+                                    onBlur={(empty) => {
+                                        if (
+                                            empty &&
+                                            !threadStateBeforeUpload.current
+                                        )
+                                            setIsCreatingThread(false);
+                                    }}
+                                    onSubmit={handleCreateComment}
+                                    onCancel={() => {
+                                        newThreadInputRef.current?.clear();
+                                        setIsCreatingThread(false);
+                                    }}
+                                    placeholder="Leave a comment…"
+                                    showToolbar={isCreatingThread}
+                                    toolbarActions={
+                                        isCreatingThread ? (
+                                            <div className="ml-auto flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        threadStateBeforeUpload.current = true;
+                                                    }}
+                                                    onClick={() =>
+                                                        setUploadDialogOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                    className="h-6 w-6 inline-flex items-center justify-center rounded transition-colors text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover"
+                                                    title="Attach file"
                                                 >
                                                     <Paperclip className="h-3.5 w-3.5" />
-                                                </Button>
+                                                </button>
                                                 <Button
                                                     size="icon"
-                                                    className="h-7 w-7 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
+                                                    className="h-6 w-6 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
                                                     onClick={
                                                         handleCreateComment
                                                     }
@@ -1148,13 +1036,14 @@ export function TaskDetailView({
                                                         isNewCommentEmpty ||
                                                         isSubmitting
                                                     }
+                                                    title="Send (⌘↵)"
                                                 >
                                                     <ArrowUp className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
+                                        ) : undefined
+                                    }
+                                />
                             </div>
                         </div>
                     </div>
@@ -1356,7 +1245,7 @@ export function TaskDetailView({
                     </div>
 
                     {/* Properties / Custom Fields */}
-                    <div className="px-5 py-5 flex-1">
+                    <div className="px-5 py-5 border-b border-dashboard-border">
                         <div className="flex items-center gap-2 mb-4">
                             <SlidersHorizontal className="h-3.5 w-3.5 text-dashboard-text-muted" />
                             <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
@@ -1429,11 +1318,73 @@ export function TaskDetailView({
                             </p>
                         )}
                     </div>
+
+                    {/* Attachments */}
+                    <div className="px-5 py-4 flex-1">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Paperclip className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                            <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
+                                Attachments
+                            </h4>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setUploadDialogOpen(true)}
+                                className="h-5 w-5 ml-auto text-dashboard-text-muted hover:text-accent-blue"
+                            >
+                                <Upload className="h-3 w-3" />
+                            </Button>
+                        </div>
+                        {task.linkedFiles && task.linkedFiles.length > 0 ? (
+                            <div className="flex flex-col gap-1.5">
+                                {task.linkedFiles.map((file) => (
+                                    <div
+                                        key={file.id}
+                                        className="group flex items-center gap-2 p-2 rounded-lg border border-dashboard-border hover:border-accent-blue/30 hover:bg-accent-hover transition-all cursor-pointer"
+                                    >
+                                        <div className="h-7 w-7 bg-accent-subtle rounded-md flex items-center justify-center text-accent-blue shrink-0">
+                                            <FileText className="h-3.5 w-3.5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-xs text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
+                                                {file.originalName}
+                                            </p>
+                                            <p className="text-[10px] text-dashboard-text-muted">
+                                                {(file.filesize / 1024).toFixed(
+                                                    0,
+                                                )}{' '}
+                                                KB
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setUploadDialogOpen(true)}
+                                className="w-full py-3 text-center border border-dashed border-dashboard-border rounded-lg text-xs text-dashboard-text-muted hover:text-accent-blue hover:border-accent-blue/40 transition-colors cursor-pointer"
+                            >
+                                Upload a file
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* ── Upload Dialog ─────────────────────────────────────────────── */}
-            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <Dialog
+                open={uploadDialogOpen}
+                onOpenChange={(open) => {
+                    setUploadDialogOpen(open);
+                    if (!open && threadStateBeforeUpload.current) {
+                        threadStateBeforeUpload.current = false;
+                        setIsCreatingThread(true);
+                        requestAnimationFrame(() =>
+                            newThreadInputRef.current?.focus(),
+                        );
+                    }
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Upload File</DialogTitle>
