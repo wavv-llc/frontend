@@ -470,7 +470,7 @@ const EditableHeader = ({
                 )}
             >
                 {Icon && (
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
                 )}
                 <div className="relative flex-1 min-w-0">
                     <div
@@ -486,7 +486,7 @@ const EditableHeader = ({
                             'rounded px-1 py-0.5 -mx-1 -my-0.5',
                             'bg-muted/40 focus:bg-muted/60',
                             'transition-colors duration-150',
-                            'text-sm font-medium truncate',
+                            'text-[11px] font-medium tracking-wide uppercase truncate',
                             'min-h-[1.5em]',
                         )}
                         onClick={(e) => e.stopPropagation()}
@@ -529,11 +529,11 @@ const EditableHeader = ({
             title="Click to edit"
         >
             {Icon && (
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
             )}
             <span
                 className={cn(
-                    'text-sm font-medium truncate',
+                    'text-[11px] font-medium tracking-wide uppercase truncate',
                     !displayValue && 'text-muted-foreground/50 italic',
                 )}
             >
@@ -891,7 +891,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 }
                 await taskApi.createTask(token, projectId, {
                     name: name.trim(),
-                    status: 'PENDING',
                     customFields: {},
                     sectionId,
                 });
@@ -1064,9 +1063,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     return;
                 }
 
-                await taskApi.updateTask(token, projectId, task.id, {
-                    customFields: { [fieldId]: value },
-                });
+                // NOTE: The backend updateTask endpoint does not currently accept customFields.
+                // Custom field value updates require a dedicated backend endpoint.
+                // This call is a placeholder until that endpoint is available.
+                await taskApi.updateTask(token, projectId, task.id, {});
 
                 // DON'T clear the optimistic update here - let it persist until the refresh completes
                 // The cleanup effect will clear it once the new data arrives
@@ -1764,7 +1764,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </div>
                             )}
                             {/* Task Name Column Header - Sticky Left & Top */}
-                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-4 py-2.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center justify-between shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
+                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-3 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center justify-between shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="flex items-center"
@@ -1846,7 +1846,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                             </div>
 
                             {/* Status Column Header */}
-                            <div className="w-35 shrink-0 px-4 py-2.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center gap-1.5">
+                            <div className="w-35 shrink-0 px-2 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center gap-1.5">
                                 <CheckCircle2 className="h-3.5 w-3.5 text-dashboard-text-muted" />
                                 <span className="text-[11px] font-medium tracking-wide text-dashboard-text-muted uppercase">
                                     Status
@@ -1897,7 +1897,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                 className="w-[150px] shrink-0"
                                             >
                                                 {(dragHandleProps) => (
-                                                    <div className="px-4 py-2.5 border-r border-dashboard-border flex items-center gap-2 bg-[#f8f9fb] group relative h-full">
+                                                    <div className="px-2 py-1.5 border-r border-dashboard-border flex items-center gap-1.5 bg-[#f8f9fb] group relative h-full">
                                                         {/* Column drag handle */}
                                                         <div
                                                             {...dragHandleProps}
@@ -2098,7 +2098,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                             </DndContext>
 
                             {/* Add Column Button */}
-                            <div className="w-[150px] shrink-0 px-4 py-3 bg-[#f8f9fb] border-r border-dashboard-border">
+                            <div className="w-[150px] shrink-0 px-2 py-1.5 bg-[#f8f9fb] border-r border-dashboard-border">
                                 <Popover
                                     open={isCreatingField}
                                     onOpenChange={setIsCreatingField}
@@ -2498,7 +2498,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
-                                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
+                                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
                                                                           <div
                                                                               onClick={(
                                                                                   e,
@@ -2554,7 +2554,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       </div>
 
                                                                       {/* Status Cell */}
-                                                                      <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
+                                                                      <div className="w-35 shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center">
                                                                           <StatusBadge
                                                                               status={taskStatusToBadge(
                                                                                   task.approvalStatus,
@@ -2572,7 +2572,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   key={
                                                                                       field.id
                                                                                   }
-                                                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
+                                                                                  className="w-[150px] shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
                                                                               >
                                                                                   <div className="w-full">
                                                                                       {renderCustomFieldCell(
@@ -2585,7 +2585,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       )}
 
                                                                       {/* Actions Column */}
-                                                                      <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
+                                                                      <div className="w-[150px] shrink-0 px-3 py-2 flex items-center justify-end">
                                                                           <DropdownMenu>
                                                                               <DropdownMenuTrigger
                                                                                   asChild
@@ -2727,7 +2727,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               {(dragHandleProps) => (
                                                   <div className="flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max">
                                                       {/* Task Name - Sticky */}
-                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
+                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
                                                           {/* Drag handle */}
                                                           <div
                                                               {...dragHandleProps}
@@ -2790,7 +2790,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       </div>
 
                                                       {/* Status Cell */}
-                                                      <div className="w-35 shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center">
+                                                      <div className="w-35 shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center">
                                                           <StatusBadge
                                                               status={taskStatusToBadge(
                                                                   task.approvalStatus,
@@ -2804,7 +2804,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                           (field) => (
                                                               <div
                                                                   key={field.id}
-                                                                  className="w-[150px] shrink-0 px-4 py-3.5 border-r border-dashboard-border flex items-center"
+                                                                  className="w-[150px] shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
                                                               >
                                                                   <div className="w-full">
                                                                       {renderCustomFieldCell(
@@ -2817,7 +2817,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       )}
 
                                                       {/* Actions Column */}
-                                                      <div className="w-[150px] shrink-0 px-4 py-4 flex items-center justify-end">
+                                                      <div className="w-[150px] shrink-0 px-3 py-2 flex items-center justify-end">
                                                           <DropdownMenu>
                                                               <DropdownMenuTrigger
                                                                   asChild
@@ -2954,7 +2954,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                   }
                                               }}
                                           >
-                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
+                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
                                                   <Plus className="h-3.5 w-3.5" />
                                                   Add task
                                               </div>
@@ -2976,7 +2976,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               key={`creating-${sectionId}`}
                                               className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150"
                                           >
-                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-4 py-3.5 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
                                                   <EditableContent
                                                       value={newSectionTaskName}
                                                       onSave={(name) =>

@@ -410,7 +410,7 @@ export const organizationApi = {
         organizationId: string,
         email: string,
     ) => {
-        return apiRequest<{ message: string }>(
+        return apiRequest<AccessLink>(
             `/api/v1/organizations/${organizationId}/access-links/member`,
             {
                 method: 'POST',
@@ -617,6 +617,44 @@ export const workspaceApi = {
             },
         );
     },
+
+    addMember: async (
+        token: string,
+        workspaceId: string,
+        userId: string,
+        role?: MembershipRole,
+    ) => {
+        return apiRequest<Workspace>(
+            `/api/v1/workspaces/${workspaceId}/members`,
+            {
+                method: 'POST',
+                token,
+                body: JSON.stringify({ userId, role }),
+            },
+        );
+    },
+
+    removeMember: async (
+        token: string,
+        workspaceId: string,
+        userId: string,
+    ) => {
+        return apiRequest<Workspace>(
+            `/api/v1/workspaces/${workspaceId}/members/${userId}`,
+            {
+                method: 'DELETE',
+                token,
+            },
+        );
+    },
+
+    reorderWorkspace: async (token: string, id: string, order: number) => {
+        return apiRequest<Workspace>(`/api/v1/workspaces/${id}/reorder`, {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ order }),
+        });
+    },
 };
 
 // Project API functions
@@ -679,6 +717,44 @@ export const projectApi = {
         return apiRequest<Project>(`/api/v1/projects/${id}/archive`, {
             method: 'PATCH',
             token,
+        });
+    },
+
+    copyProject: async (token: string, id: string) => {
+        return apiRequest<Project>(`/api/v1/projects/${id}/copy`, {
+            method: 'POST',
+            token,
+        });
+    },
+
+    addMember: async (
+        token: string,
+        projectId: string,
+        userId: string,
+        role?: MembershipRole,
+    ) => {
+        return apiRequest<Project>(`/api/v1/projects/${projectId}/members`, {
+            method: 'POST',
+            token,
+            body: JSON.stringify({ userId, role }),
+        });
+    },
+
+    removeMember: async (token: string, projectId: string, userId: string) => {
+        return apiRequest<Project>(
+            `/api/v1/projects/${projectId}/members/${userId}`,
+            {
+                method: 'DELETE',
+                token,
+            },
+        );
+    },
+
+    reorderProject: async (token: string, id: string, order: number) => {
+        return apiRequest<Project>(`/api/v1/projects/${id}/reorder`, {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ order }),
         });
     },
 };
@@ -784,7 +860,6 @@ export const taskApi = {
             name: string;
             description?: string;
             dueAt?: string;
-            status?: 'PENDING' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
             customFields?: Record<string, string | number | null>;
             sectionId?: string;
         },
@@ -803,8 +878,7 @@ export const taskApi = {
         data: {
             name?: string;
             description?: string;
-            dueAt?: string;
-            customFields?: Record<string, string>;
+            dueAt?: string | null;
         },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
@@ -845,6 +919,53 @@ export const taskApi = {
                 method: 'PATCH',
                 token,
                 body: JSON.stringify({ orders }),
+            },
+        );
+    },
+
+    changeDueDate: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        dueAt: string | null,
+    ) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/due-date`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify({ dueAt }),
+            },
+        );
+    },
+
+    attachFile: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        documentId: string,
+    ) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/files`,
+            {
+                method: 'POST',
+                token,
+                body: JSON.stringify({ documentId }),
+            },
+        );
+    },
+
+    removeFile: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        documentId: string,
+    ) => {
+        return apiRequest<Task>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/files/${documentId}`,
+            {
+                method: 'DELETE',
+                token,
             },
         );
     },
@@ -983,6 +1104,7 @@ export const taskCommentApi = {
         data: {
             comment: string;
             parentId?: string;
+            linkedFileIds?: string[];
         },
     ) => {
         return apiRequest<Comment>(
@@ -993,6 +1115,7 @@ export const taskCommentApi = {
                 body: JSON.stringify({
                     comment: data.comment,
                     parentCommentId: data.parentId,
+                    linkedFileIds: data.linkedFileIds,
                 }),
             },
         );
@@ -1076,6 +1199,71 @@ export const taskCommentApi = {
             taskId,
             id,
             false,
+        );
+    },
+
+    updateComment: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        id: string,
+        comment: string,
+    ) => {
+        return apiRequest<Comment>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify({ comment }),
+            },
+        );
+    },
+
+    deleteComment: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        id: string,
+    ) => {
+        return apiRequest<{ message: string }>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${id}`,
+            {
+                method: 'DELETE',
+                token,
+            },
+        );
+    },
+
+    linkFiles: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        commentId: string,
+        documentIds: string[],
+    ) => {
+        return apiRequest<Comment>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${commentId}/files`,
+            {
+                method: 'POST',
+                token,
+                body: JSON.stringify({ documentIds }),
+            },
+        );
+    },
+
+    unlinkFile: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        commentId: string,
+        documentId: string,
+    ) => {
+        return apiRequest<Comment>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/comments/${commentId}/files/${documentId}`,
+            {
+                method: 'DELETE',
+                token,
+            },
         );
     },
 };
@@ -1252,6 +1440,13 @@ export const dashboardApi = {
                 token,
             },
         );
+    },
+
+    getStats: async (token: string) => {
+        return apiRequest<DashboardStats>('/api/v1/dashboard/stats', {
+            method: 'GET',
+            token,
+        });
     },
 };
 
@@ -1648,5 +1843,82 @@ export const taxLibraryApi = {
                 token,
             },
         );
+    },
+};
+
+// ─── Agent Task Types ────────────────────────────────────────────────────────
+
+export type AgentTaskStatus =
+    | 'PENDING'
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'FAILED';
+
+export interface AgentTaskResponse {
+    id: string;
+    agentTaskId: string;
+    reasoningSteps: Record<string, unknown> | null;
+    output: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface AgentTask {
+    id: string;
+    prompt: string;
+    context: Record<string, unknown>;
+    status: AgentTaskStatus;
+    scopedToken: string;
+    createdById: string;
+    organizationId: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: {
+        id: string;
+        email: string;
+        firstName: string | null;
+        lastName: string | null;
+    };
+    response: AgentTaskResponse | null;
+}
+
+// ─── Agent Task API ──────────────────────────────────────────────────────────
+
+export const agentTaskApi = {
+    /**
+     * GET /api/v1/agent-tasks
+     * Returns all agent tasks for the authenticated user's organization.
+     */
+    getAgentTasks: async (token: string) => {
+        return apiRequest<AgentTask[]>('/api/v1/agent-tasks', {
+            method: 'GET',
+            token,
+        });
+    },
+
+    /**
+     * POST /api/v1/agent-tasks
+     * Creates a new agent task and dispatches it to the agent orchestrator.
+     */
+    createAgentTask: async (
+        token: string,
+        data: { prompt: string; context?: Record<string, unknown> },
+    ) => {
+        return apiRequest<AgentTask>('/api/v1/agent-tasks', {
+            method: 'POST',
+            token,
+            body: JSON.stringify(data),
+        });
+    },
+
+    /**
+     * GET /api/v1/agent-tasks/:id
+     * Returns a single agent task by ID (must belong to the user's organization).
+     */
+    getAgentTaskById: async (token: string, id: string) => {
+        return apiRequest<AgentTask>(`/api/v1/agent-tasks/${id}`, {
+            method: 'GET',
+            token,
+        });
     },
 };

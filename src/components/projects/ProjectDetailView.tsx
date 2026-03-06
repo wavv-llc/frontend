@@ -769,7 +769,6 @@ export function ProjectDetailView({
 
                 await taskApi.createTask(token, project.id, {
                     name: taskName,
-                    status: 'PENDING',
                     customFields: customFieldsPayload,
                 });
                 count++;

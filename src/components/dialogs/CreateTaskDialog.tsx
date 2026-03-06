@@ -70,7 +70,6 @@ export function CreateTaskDialog({
                 dueAt: values.dueDate
                     ? values.dueDate.toISOString()
                     : undefined,
-                status: 'PENDING',
             });
             onOpenChange(false);
         },
