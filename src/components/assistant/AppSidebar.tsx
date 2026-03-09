@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useUser as useDbUser } from '@/contexts/UserContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+
 import {
     Sidebar,
     SidebarContent,
@@ -57,12 +57,12 @@ import {
     User,
     Home,
     MessageSquare,
-    ArrowLeft,
     Folder,
     ChevronRight,
     LayoutList,
     GripVertical,
     Archive,
+    SquarePen,
 } from 'lucide-react';
 import { useSidebarRefresh } from '@/contexts/SidebarContext';
 import {
@@ -178,12 +178,10 @@ export function AppSidebar() {
     const [loadingProjects, setLoadingProjects] = useState<Set<string>>(
         new Set(),
     );
-    const [sidebarView, setSidebarView] = useState<'main' | 'chat-history'>(
-        'main',
-    );
     const [createProjectWorkspaceId, setCreateProjectWorkspaceId] = useState<
         string | null
     >(null);
+    const [chatsExpanded, setChatsExpanded] = useState(true);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -258,7 +256,6 @@ export function AppSidebar() {
     const handleChatClick = (chatId: string) => router.push(`/chats/${chatId}`);
     const handleNewChat = () => {
         router.push('/chats/new');
-        setSidebarView('main');
     };
     const handleWorkspaceClick = (id: string) =>
         router.push(`/workspaces/${id}`);
@@ -389,12 +386,6 @@ export function AppSidebar() {
             isActive: pathname === '/home',
         },
         {
-            icon: MessageSquare,
-            label: 'Conversations',
-            onClick: () => setSidebarView('chat-history'),
-            isActive: pathname?.startsWith('/chats'),
-        },
-        {
             icon: Archive,
             label: 'Archive',
             onClick: () => router.push('/archive'),
@@ -410,11 +401,53 @@ export function AppSidebar() {
         },
     ];
 
+    // Group chats by relative date
+    const groupChatsByDate = (chatList: Chat[]) => {
+        const now = new Date();
+        const today = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+        );
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+
+        const groups: { label: string; chats: Chat[] }[] = [
+            { label: 'Today', chats: [] },
+            { label: 'Yesterday', chats: [] },
+            { label: 'Previous 7 days', chats: [] },
+            { label: 'Previous 30 days', chats: [] },
+            { label: 'Older', chats: [] },
+        ];
+
+        for (const chat of chatList) {
+            const date = new Date(chat.updatedAt);
+            const dateOnly = new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+            );
+            if (dateOnly >= today) groups[0].chats.push(chat);
+            else if (dateOnly >= yesterday) groups[1].chats.push(chat);
+            else if (dateOnly >= sevenDaysAgo) groups[2].chats.push(chat);
+            else if (dateOnly >= thirtyDaysAgo) groups[3].chats.push(chat);
+            else groups[4].chats.push(chat);
+        }
+
+        return groups.filter((g) => g.chats.length > 0);
+    };
+
+    const chatGroups = groupChatsByDate(chats);
+
     return (
         <Sidebar collapsible="icon">
             {/* Header */}
             <SidebarHeader className="border-b border-sidebar-border px-2 py-3">
-                {/* Expanded layout: logo + name/org + trigger */}
+                {/* Expanded layout: logo + name/org + new-chat + trigger */}
                 <div className="flex items-center gap-2.5 px-1 group-data-[collapsible=icon]:hidden">
                     <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-steel-800">
                         <span className="text-white font-serif italic text-sm">
@@ -429,408 +462,439 @@ export function AppSidebar() {
                             {organization?.name || 'Tax Professional'}
                         </div>
                     </div>
+                    <button
+                        onClick={handleNewChat}
+                        title="New chat"
+                        className="h-7 w-7 shrink-0 flex items-center justify-center rounded hover:bg-sidebar-accent/60 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+                    >
+                        <SquarePen className="h-4 w-4" />
+                    </button>
                     <SidebarTrigger className="h-7 w-7 shrink-0 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-transparent" />
                 </div>
 
-                {/* Collapsed layout: just the expand trigger, centered */}
-                <div className="hidden group-data-[collapsible=icon]:flex justify-center">
+                {/* Collapsed layout: new-chat + trigger stacked */}
+                <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-1">
                     <SidebarTrigger className="h-7 w-7 text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-transparent" />
+                    <button
+                        onClick={handleNewChat}
+                        title="New chat"
+                        className="h-7 w-7 flex items-center justify-center rounded hover:bg-sidebar-accent/60 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+                    >
+                        <SquarePen className="h-4 w-4" />
+                    </button>
                 </div>
             </SidebarHeader>
 
             {/* Content */}
             <SidebarContent>
-                {sidebarView === 'main' ? (
-                    <>
-                        {/* Primary nav */}
-                        <SidebarGroup>
-                            <SidebarGroupContent>
-                                <SidebarMenu>
-                                    {navItems.map(
-                                        ({
-                                            icon: Icon,
-                                            label,
-                                            onClick,
-                                            isActive,
-                                        }) => (
-                                            <SidebarMenuItem key={label}>
-                                                <SidebarMenuButton
-                                                    onClick={onClick}
-                                                    isActive={isActive}
-                                                    tooltip={label}
-                                                    className="text-[13px] font-normal cursor-pointer rounded-sm"
-                                                >
-                                                    <Icon className="h-4 w-4 shrink-0" />
-                                                    <span className="tracking-tight">
-                                                        {label}
-                                                    </span>
-                                                </SidebarMenuButton>
-                                            </SidebarMenuItem>
-                                        ),
-                                    )}
-                                </SidebarMenu>
-                            </SidebarGroupContent>
-                        </SidebarGroup>
-
-                        {/* Workspaces — hidden entirely in icon mode */}
-                        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-                            <SidebarGroupLabel className="h-auto py-2 px-0">
-                                <button
-                                    onClick={() => router.push('/workspaces')}
-                                    className="text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors cursor-pointer"
-                                >
-                                    Workspaces
-                                </button>
-                            </SidebarGroupLabel>
-                            <SidebarGroupContent>
-                                <SidebarMenu>
-                                    {loading ? (
-                                        [1, 2, 3].map((i) => (
-                                            <SidebarMenuItem key={i}>
-                                                <div className="flex items-center gap-2 px-2 py-1.5">
-                                                    <Skeleton className="h-3.5 w-3.5 rounded-sm shrink-0" />
-                                                    <Skeleton className="h-3 flex-1 rounded-sm" />
-                                                </div>
-                                            </SidebarMenuItem>
-                                        ))
-                                    ) : workspaces.length > 0 ? (
-                                        <DndContext
-                                            sensors={sensors}
-                                            collisionDetection={closestCenter}
-                                            onDragEnd={handleWorkspaceDragEnd}
+                {/* Primary nav */}
+                <SidebarGroup>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {navItems.map(
+                                ({ icon: Icon, label, onClick, isActive }) => (
+                                    <SidebarMenuItem key={label}>
+                                        <SidebarMenuButton
+                                            onClick={onClick}
+                                            isActive={isActive}
+                                            tooltip={label}
+                                            className="text-[13px] font-normal cursor-pointer rounded-sm"
                                         >
-                                            <SortableContext
-                                                items={workspaces.map(
-                                                    (w) => w.id,
-                                                )}
-                                                strategy={
-                                                    verticalListSortingStrategy
-                                                }
-                                            >
-                                                {workspaces.map((workspace) => {
-                                                    const isExpanded =
-                                                        expandedWorkspaces.has(
-                                                            workspace.id,
-                                                        );
-                                                    const isWorkspaceActive =
-                                                        pathname?.includes(
-                                                            `/workspaces/${workspaceUrlSegment(workspace)}`,
-                                                        );
-                                                    const projects =
-                                                        workspaceProjects[
-                                                            workspace.id
-                                                        ] ?? [];
-                                                    const isLoadingProj =
-                                                        loadingProjects.has(
-                                                            workspace.id,
-                                                        );
-                                                    return (
-                                                        <SortableWorkspaceItem
-                                                            key={workspace.id}
-                                                            id={workspace.id}
-                                                        >
-                                                            {(
-                                                                dragHandleProps,
-                                                            ) => (
-                                                                <>
-                                                                    <SidebarMenuItem>
-                                                                        <div className="flex items-center gap-0 group/ws">
-                                                                            <button
-                                                                                {...dragHandleProps}
-                                                                                className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/ws:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
-                                                                                title="Drag to reorder"
-                                                                            >
-                                                                                <GripVertical className="h-3 w-3" />
-                                                                            </button>
-                                                                            <SidebarMenuButton
-                                                                                onClick={() =>
-                                                                                    handleWorkspaceClick(
-                                                                                        workspaceUrlSegment(
-                                                                                            workspace,
-                                                                                        ),
-                                                                                    )
-                                                                                }
-                                                                                isActive={
-                                                                                    isWorkspaceActive
-                                                                                }
-                                                                                className="text-[12.5px] font-normal cursor-pointer rounded-sm flex-1 min-w-0"
-                                                                            >
-                                                                                <Folder className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" />
-                                                                                <span className="truncate tracking-tight">
-                                                                                    {
-                                                                                        workspace.name
-                                                                                    }
-                                                                                </span>
-                                                                            </SidebarMenuButton>
-                                                                            <button
-                                                                                onClick={(
-                                                                                    e,
-                                                                                ) => {
-                                                                                    e.stopPropagation();
-                                                                                    setCreateProjectWorkspaceId(
-                                                                                        workspace.id,
-                                                                                    );
-                                                                                }}
-                                                                                className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
-                                                                                title="Add project"
-                                                                            >
-                                                                                <Plus className="h-3 w-3 text-sidebar-foreground/50" />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    handleToggleWorkspace(
-                                                                                        workspace.id,
-                                                                                    )
-                                                                                }
-                                                                                className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors mr-1"
-                                                                                title={
-                                                                                    isExpanded
-                                                                                        ? 'Collapse'
-                                                                                        : 'Expand projects'
-                                                                                }
-                                                                            >
-                                                                                <ChevronRight
-                                                                                    className={`h-3 w-3 text-sidebar-foreground/40 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
-                                                                                />
-                                                                            </button>
-                                                                        </div>
-                                                                    </SidebarMenuItem>
+                                            <Icon className="h-4 w-4 shrink-0" />
+                                            <span className="tracking-tight">
+                                                {label}
+                                            </span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ),
+                            )}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
 
-                                                                    {isExpanded && (
-                                                                        <>
-                                                                            {isLoadingProj ? (
-                                                                                [
-                                                                                    1,
-                                                                                    2,
-                                                                                ].map(
-                                                                                    (
-                                                                                        i,
-                                                                                    ) => (
-                                                                                        <SidebarMenuItem
-                                                                                            key={
-                                                                                                i
-                                                                                            }
-                                                                                        >
-                                                                                            <div className="flex items-center gap-2 pl-9 pr-2 py-1.5">
-                                                                                                <Skeleton className="h-3 w-3 rounded-sm shrink-0" />
-                                                                                                <Skeleton className="h-3 flex-1 rounded-sm" />
-                                                                                            </div>
-                                                                                        </SidebarMenuItem>
-                                                                                    ),
-                                                                                )
-                                                                            ) : projects.length >
-                                                                              0 ? (
-                                                                                <DndContext
-                                                                                    sensors={
-                                                                                        sensors
-                                                                                    }
-                                                                                    collisionDetection={
-                                                                                        closestCenter
-                                                                                    }
-                                                                                    onDragEnd={(
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        handleProjectDragEnd(
-                                                                                            workspace.id,
-                                                                                            e,
-                                                                                        )
+                {/* Workspaces — hidden entirely in icon mode */}
+                <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+                    <SidebarGroupLabel className="h-auto py-2 px-0">
+                        <button
+                            onClick={() => router.push('/workspaces')}
+                            className="text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors cursor-pointer"
+                        >
+                            Workspaces
+                        </button>
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {loading ? (
+                                [1, 2, 3].map((i) => (
+                                    <SidebarMenuItem key={i}>
+                                        <div className="flex items-center gap-2 px-2 py-1.5">
+                                            <Skeleton className="h-3.5 w-3.5 rounded-sm shrink-0" />
+                                            <Skeleton className="h-3 flex-1 rounded-sm" />
+                                        </div>
+                                    </SidebarMenuItem>
+                                ))
+                            ) : workspaces.length > 0 ? (
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleWorkspaceDragEnd}
+                                >
+                                    <SortableContext
+                                        items={workspaces.map((w) => w.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        {workspaces.map((workspace) => {
+                                            const isExpanded =
+                                                expandedWorkspaces.has(
+                                                    workspace.id,
+                                                );
+                                            const isWorkspaceActive =
+                                                pathname?.includes(
+                                                    `/workspaces/${workspaceUrlSegment(workspace)}`,
+                                                );
+                                            const projects =
+                                                workspaceProjects[
+                                                    workspace.id
+                                                ] ?? [];
+                                            const isLoadingProj =
+                                                loadingProjects.has(
+                                                    workspace.id,
+                                                );
+                                            return (
+                                                <SortableWorkspaceItem
+                                                    key={workspace.id}
+                                                    id={workspace.id}
+                                                >
+                                                    {(dragHandleProps) => (
+                                                        <>
+                                                            <SidebarMenuItem>
+                                                                <div className="flex items-center gap-0 group/ws">
+                                                                    <button
+                                                                        {...dragHandleProps}
+                                                                        className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/ws:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
+                                                                        title="Drag to reorder"
+                                                                    >
+                                                                        <GripVertical className="h-3 w-3" />
+                                                                    </button>
+                                                                    <SidebarMenuButton
+                                                                        onClick={() =>
+                                                                            handleWorkspaceClick(
+                                                                                workspaceUrlSegment(
+                                                                                    workspace,
+                                                                                ),
+                                                                            )
+                                                                        }
+                                                                        isActive={
+                                                                            isWorkspaceActive
+                                                                        }
+                                                                        className="text-[12.5px] font-normal cursor-pointer rounded-sm flex-1 min-w-0"
+                                                                    >
+                                                                        <Folder className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" />
+                                                                        <span className="truncate tracking-tight">
+                                                                            {
+                                                                                workspace.name
+                                                                            }
+                                                                        </span>
+                                                                    </SidebarMenuButton>
+                                                                    <button
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            e.stopPropagation();
+                                                                            setCreateProjectWorkspaceId(
+                                                                                workspace.id,
+                                                                            );
+                                                                        }}
+                                                                        className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
+                                                                        title="Add project"
+                                                                    >
+                                                                        <Plus className="h-3 w-3 text-sidebar-foreground/50" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleToggleWorkspace(
+                                                                                workspace.id,
+                                                                            )
+                                                                        }
+                                                                        className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors mr-1"
+                                                                        title={
+                                                                            isExpanded
+                                                                                ? 'Collapse'
+                                                                                : 'Expand projects'
+                                                                        }
+                                                                    >
+                                                                        <ChevronRight
+                                                                            className={`h-3 w-3 text-sidebar-foreground/40 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
+                                                                        />
+                                                                    </button>
+                                                                </div>
+                                                            </SidebarMenuItem>
+
+                                                            {isExpanded && (
+                                                                <>
+                                                                    {isLoadingProj ? (
+                                                                        [
+                                                                            1,
+                                                                            2,
+                                                                        ].map(
+                                                                            (
+                                                                                i,
+                                                                            ) => (
+                                                                                <SidebarMenuItem
+                                                                                    key={
+                                                                                        i
                                                                                     }
                                                                                 >
-                                                                                    <SortableContext
-                                                                                        items={projects.map(
-                                                                                            (
-                                                                                                p,
-                                                                                            ) =>
-                                                                                                p.id,
-                                                                                        )}
-                                                                                        strategy={
-                                                                                            verticalListSortingStrategy
-                                                                                        }
-                                                                                    >
-                                                                                        {projects.map(
-                                                                                            (
-                                                                                                project,
-                                                                                            ) => (
-                                                                                                <SortableProjectItem
-                                                                                                    key={
-                                                                                                        project.id
-                                                                                                    }
-                                                                                                    id={
-                                                                                                        project.id
-                                                                                                    }
-                                                                                                >
-                                                                                                    {(
-                                                                                                        projDragHandleProps,
-                                                                                                    ) => (
-                                                                                                        <SidebarMenuItem>
-                                                                                                            <div className="flex items-center group/proj">
-                                                                                                                <button
-                                                                                                                    {...projDragHandleProps}
-                                                                                                                    className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/proj:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
-                                                                                                                    title="Drag to reorder"
-                                                                                                                >
-                                                                                                                    <GripVertical className="h-3 w-3" />
-                                                                                                                </button>
-                                                                                                                <SidebarMenuButton
-                                                                                                                    onClick={() =>
-                                                                                                                        router.push(
-                                                                                                                            `/workspaces/${workspaceUrlSegment(workspace)}/projects/${project.slug ?? project.id}`,
-                                                                                                                        )
-                                                                                                                    }
-                                                                                                                    className="text-[12px] font-normal cursor-pointer rounded-sm pl-5 flex-1"
-                                                                                                                >
-                                                                                                                    <LayoutList className="h-3 w-3 shrink-0 text-sidebar-foreground/30" />
-                                                                                                                    <span className="truncate tracking-tight">
-                                                                                                                        {
-                                                                                                                            project.name
-                                                                                                                        }
-                                                                                                                    </span>
-                                                                                                                </SidebarMenuButton>
-                                                                                                            </div>
-                                                                                                        </SidebarMenuItem>
-                                                                                                    )}
-                                                                                                </SortableProjectItem>
-                                                                                            ),
-                                                                                        )}
-                                                                                    </SortableContext>
-                                                                                </DndContext>
-                                                                            ) : (
-                                                                                <SidebarMenuItem>
-                                                                                    <div className="pl-9 py-1 text-[11px] text-sidebar-foreground/40 italic">
-                                                                                        No
-                                                                                        projects
+                                                                                    <div className="flex items-center gap-2 pl-9 pr-2 py-1.5">
+                                                                                        <Skeleton className="h-3 w-3 rounded-sm shrink-0" />
+                                                                                        <Skeleton className="h-3 flex-1 rounded-sm" />
                                                                                     </div>
                                                                                 </SidebarMenuItem>
-                                                                            )}
-                                                                            {/* Add project row */}
-                                                                            <SidebarMenuItem>
-                                                                                <button
-                                                                                    onClick={() =>
-                                                                                        setCreateProjectWorkspaceId(
-                                                                                            workspace.id,
-                                                                                        )
-                                                                                    }
-                                                                                    className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30"
-                                                                                >
-                                                                                    <Plus className="h-3 w-3 shrink-0" />
-                                                                                    <span>
-                                                                                        Add
-                                                                                        project
-                                                                                    </span>
-                                                                                </button>
-                                                                            </SidebarMenuItem>
-                                                                        </>
+                                                                            ),
+                                                                        )
+                                                                    ) : projects.length >
+                                                                      0 ? (
+                                                                        <DndContext
+                                                                            sensors={
+                                                                                sensors
+                                                                            }
+                                                                            collisionDetection={
+                                                                                closestCenter
+                                                                            }
+                                                                            onDragEnd={(
+                                                                                e,
+                                                                            ) =>
+                                                                                handleProjectDragEnd(
+                                                                                    workspace.id,
+                                                                                    e,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <SortableContext
+                                                                                items={projects.map(
+                                                                                    (
+                                                                                        p,
+                                                                                    ) =>
+                                                                                        p.id,
+                                                                                )}
+                                                                                strategy={
+                                                                                    verticalListSortingStrategy
+                                                                                }
+                                                                            >
+                                                                                {projects.map(
+                                                                                    (
+                                                                                        project,
+                                                                                    ) => (
+                                                                                        <SortableProjectItem
+                                                                                            key={
+                                                                                                project.id
+                                                                                            }
+                                                                                            id={
+                                                                                                project.id
+                                                                                            }
+                                                                                        >
+                                                                                            {(
+                                                                                                projDragHandleProps,
+                                                                                            ) => (
+                                                                                                <SidebarMenuItem>
+                                                                                                    <div className="flex items-center group/proj">
+                                                                                                        <button
+                                                                                                            {...projDragHandleProps}
+                                                                                                            className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/proj:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
+                                                                                                            title="Drag to reorder"
+                                                                                                        >
+                                                                                                            <GripVertical className="h-3 w-3" />
+                                                                                                        </button>
+                                                                                                        <SidebarMenuButton
+                                                                                                            onClick={() =>
+                                                                                                                router.push(
+                                                                                                                    `/workspaces/${workspaceUrlSegment(workspace)}/projects/${project.slug ?? project.id}`,
+                                                                                                                )
+                                                                                                            }
+                                                                                                            className="text-[12px] font-normal cursor-pointer rounded-sm pl-5 flex-1"
+                                                                                                        >
+                                                                                                            <LayoutList className="h-3 w-3 shrink-0 text-sidebar-foreground/30" />
+                                                                                                            <span className="truncate tracking-tight">
+                                                                                                                {
+                                                                                                                    project.name
+                                                                                                                }
+                                                                                                            </span>
+                                                                                                        </SidebarMenuButton>
+                                                                                                    </div>
+                                                                                                </SidebarMenuItem>
+                                                                                            )}
+                                                                                        </SortableProjectItem>
+                                                                                    ),
+                                                                                )}
+                                                                            </SortableContext>
+                                                                        </DndContext>
+                                                                    ) : (
+                                                                        <SidebarMenuItem>
+                                                                            <div className="pl-9 py-1 text-[11px] text-sidebar-foreground/40 italic">
+                                                                                No
+                                                                                projects
+                                                                            </div>
+                                                                        </SidebarMenuItem>
                                                                     )}
+                                                                    <SidebarMenuItem>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                setCreateProjectWorkspaceId(
+                                                                                    workspace.id,
+                                                                                )
+                                                                            }
+                                                                            className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30"
+                                                                        >
+                                                                            <Plus className="h-3 w-3 shrink-0" />
+                                                                            <span>
+                                                                                Add
+                                                                                project
+                                                                            </span>
+                                                                        </button>
+                                                                    </SidebarMenuItem>
                                                                 </>
                                                             )}
-                                                        </SortableWorkspaceItem>
-                                                    );
-                                                })}
-                                            </SortableContext>
-                                        </DndContext>
-                                    ) : (
-                                        <Empty
-                                            icon={
-                                                <Folder className="h-5 w-5" />
-                                            }
-                                            title="No workspaces"
-                                            className="py-6"
-                                        />
-                                    )}
-                                </SidebarMenu>
-                            </SidebarGroupContent>
-                        </SidebarGroup>
-                    </>
-                ) : (
-                    /* Chat History View */
-                    <SidebarGroup>
+                                                        </>
+                                                    )}
+                                                </SortableWorkspaceItem>
+                                            );
+                                        })}
+                                    </SortableContext>
+                                </DndContext>
+                            ) : (
+                                <Empty
+                                    icon={<Folder className="h-5 w-5" />}
+                                    title="No workspaces"
+                                    className="py-6"
+                                />
+                            )}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                {/* Conversations — always visible, grouped by date, collapsible */}
+                <SidebarGroup className="group-data-[collapsible=icon]:hidden flex-1">
+                    <SidebarGroupLabel className="h-auto py-2 px-0">
+                        <div className="flex items-center justify-between w-full pr-1">
+                            <button
+                                onClick={() => setChatsExpanded((v) => !v)}
+                                className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-widest text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors cursor-pointer"
+                            >
+                                <ChevronRight
+                                    className={`h-3 w-3 transition-transform duration-150 ${chatsExpanded ? 'rotate-90' : ''}`}
+                                />
+                                Conversations
+                            </button>
+                            <button
+                                onClick={handleNewChat}
+                                title="New chat"
+                                className="h-5 w-5 flex items-center justify-center rounded hover:bg-sidebar-accent/60 text-sidebar-foreground/30 hover:text-sidebar-foreground transition-colors"
+                            >
+                                <Plus className="h-3 w-3" />
+                            </button>
+                        </div>
+                    </SidebarGroupLabel>
+                    {chatsExpanded && (
                         <SidebarGroupContent>
-                            {/* Back + New Chat — hidden in icon mode */}
-                            <div className="space-y-2 mb-2 group-data-[collapsible=icon]:hidden">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => setSidebarView('main')}
-                                    className="w-full justify-start gap-3 px-3 py-2 text-[13px] font-normal text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors rounded-sm cursor-pointer"
-                                >
-                                    <ArrowLeft className="h-4 w-4 shrink-0" />
-                                    <span className="tracking-tight">
-                                        Back to menu
-                                    </span>
-                                </Button>
-                                <Button
-                                    variant="default"
-                                    onClick={handleNewChat}
-                                    className="w-full justify-center gap-2 px-3 py-2.5 text-[13px] font-medium bg-(--accent) text-white hover:bg-(--accent)/90 transition-all rounded-md cursor-pointer shadow-sm"
-                                >
-                                    <Plus className="h-4 w-4 shrink-0" />
-                                    <span className="tracking-tight">
-                                        New Chat
-                                    </span>
-                                </Button>
-                            </div>
-
-                            {/* Icon mode: new chat only */}
-                            <SidebarMenu>
-                                <SidebarMenuItem className="hidden group-data-[collapsible=icon]:block">
-                                    <SidebarMenuButton
-                                        onClick={handleNewChat}
-                                        tooltip="New Chat"
-                                        className="cursor-pointer"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        <span>New Chat</span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </SidebarMenu>
-
-                            {/* Chat list */}
-                            <SidebarMenu className="mt-1">
-                                {!chatsLoading &&
-                                    chats.map((chat) => (
-                                        <SidebarMenuItem key={chat.id}>
-                                            <SidebarMenuButton
-                                                onClick={() => {
-                                                    handleChatClick(chat.id);
-                                                    setSidebarView('main');
-                                                }}
-                                                isActive={
-                                                    pathname ===
-                                                    `/chats/${chat.id}`
-                                                }
-                                                tooltip={chat.message.slice(
-                                                    0,
-                                                    40,
-                                                )}
-                                                className="text-[12.5px] font-normal cursor-pointer rounded-sm"
-                                            >
-                                                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                                                <span className="truncate tracking-tight">
-                                                    {chat.message.length > 30
-                                                        ? chat.message.slice(
-                                                              0,
-                                                              30,
-                                                          ) + '...'
-                                                        : chat.message}
-                                                </span>
-                                            </SidebarMenuButton>
+                            {chatsLoading ? (
+                                <SidebarMenu>
+                                    {[1, 2, 3, 4].map((i) => (
+                                        <SidebarMenuItem key={i}>
+                                            <div className="flex items-center gap-2 px-2 py-1.5">
+                                                <Skeleton className="h-3 flex-1 rounded-sm" />
+                                            </div>
                                         </SidebarMenuItem>
                                     ))}
-                                {!chatsLoading && chats.length === 0 && (
-                                    <div className="group-data-[collapsible=icon]:hidden">
-                                        <Empty
-                                            icon={
-                                                <MessageSquare className="h-10 w-10" />
-                                            }
-                                            title="No conversations"
-                                            description="Start a new conversation to begin"
-                                            className="py-16"
-                                        />
-                                    </div>
-                                )}
-                            </SidebarMenu>
+                                </SidebarMenu>
+                            ) : chatGroups.length > 0 ? (
+                                <div className="space-y-3">
+                                    {chatGroups.map((group) => (
+                                        <div key={group.label}>
+                                            <div className="px-2 pb-1 text-[10px] font-medium text-sidebar-foreground/30 tracking-tight">
+                                                {group.label}
+                                            </div>
+                                            <SidebarMenu>
+                                                {group.chats.map((chat) => {
+                                                    const label =
+                                                        chat.title ||
+                                                        chat.message;
+                                                    return (
+                                                        <SidebarMenuItem
+                                                            key={chat.id}
+                                                        >
+                                                            <SidebarMenuButton
+                                                                onClick={() =>
+                                                                    handleChatClick(
+                                                                        chat.id,
+                                                                    )
+                                                                }
+                                                                isActive={
+                                                                    pathname ===
+                                                                    `/chats/${chat.id}`
+                                                                }
+                                                                tooltip={label.slice(
+                                                                    0,
+                                                                    40,
+                                                                )}
+                                                                className="text-[12.5px] font-normal cursor-pointer rounded-sm"
+                                                            >
+                                                                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                                                                <span className="truncate tracking-tight">
+                                                                    {label.length >
+                                                                    32
+                                                                        ? label.slice(
+                                                                              0,
+                                                                              32,
+                                                                          ) +
+                                                                          '…'
+                                                                        : label}
+                                                                </span>
+                                                            </SidebarMenuButton>
+                                                        </SidebarMenuItem>
+                                                    );
+                                                })}
+                                            </SidebarMenu>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="px-2 py-2 text-[11.5px] text-sidebar-foreground/35 italic">
+                                    No conversations yet
+                                </div>
+                            )}
                         </SidebarGroupContent>
-                    </SidebarGroup>
-                )}
+                    )}
+                </SidebarGroup>
+
+                {/* Icon mode: nav items for chats */}
+                <SidebarGroup className="hidden group-data-[collapsible=icon]:block">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {chats.slice(0, 5).map((chat) => {
+                                const label = chat.title || chat.message;
+                                return (
+                                    <SidebarMenuItem key={chat.id}>
+                                        <SidebarMenuButton
+                                            onClick={() =>
+                                                handleChatClick(chat.id)
+                                            }
+                                            isActive={
+                                                pathname === `/chats/${chat.id}`
+                                            }
+                                            tooltip={label.slice(0, 40)}
+                                            className="cursor-pointer"
+                                        >
+                                            <MessageSquare className="h-4 w-4" />
+                                            <span className="truncate">
+                                                {label}
+                                            </span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                );
+                            })}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarContent>
 
             {/* Footer — user profile dropdown */}

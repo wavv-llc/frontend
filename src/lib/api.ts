@@ -1352,6 +1352,20 @@ export interface DashboardStats {
 }
 
 // Chat types
+export interface ChunkDetail {
+    chunk_id: string;
+    document_id: string;
+    content: string;
+    page_number: number | null;
+    section_header: string | null;
+    doc_type: string;
+    tax_year: number;
+    parent_id: string | null;
+    sibling_index: number | null;
+    total_siblings: number | null;
+    sharepoint_site_id: string | null;
+}
+
 export interface ChatMessage {
     id: string;
     message: string;
@@ -1373,7 +1387,7 @@ export interface ChatConversation {
     createdAt: string;
     updatedAt: string;
     messages: ChatMessage[];
-    sources?: any;
+    sources?: ChunkDetail[];
 }
 
 // Normalised flat view used by the chat UI

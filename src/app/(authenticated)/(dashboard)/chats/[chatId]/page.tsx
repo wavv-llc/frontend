@@ -15,8 +15,16 @@ import {
     RefreshCw,
     Send,
     Globe,
+    X,
+    FileText,
+    ExternalLink,
 } from 'lucide-react';
-import { chatApi, type ChatConversation, type ChatMessage } from '@/lib/api';
+import {
+    chatApi,
+    type ChatConversation,
+    type ChatMessage,
+    type ChunkDetail,
+} from '@/lib/api';
 import { colors } from '@/lib/colors';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,8 +43,164 @@ function ThinkingAnimation() {
     );
 }
 
+// ─── Citation Helpers ────────────────────────────────────────
+interface CitationEntry {
+    number: number;
+    chunk: ChunkDetail;
+}
+
+function buildCitationMap(
+    text: string,
+    sources: ChunkDetail[],
+): Map<string, CitationEntry> {
+    const map = new Map<string, CitationEntry>();
+    const pattern = /\[ID:\s*([^\]]+)\]/g;
+    let num = 1;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+        const id = match[1].trim();
+        if (!map.has(id)) {
+            const chunk = sources.find((s) => s.chunk_id === id);
+            if (chunk) map.set(id, { number: num++, chunk });
+        }
+    }
+    return map;
+}
+
+function getDocLabel(chunk: ChunkDetail): string {
+    const parts: string[] = [];
+    if (chunk.doc_type) parts.push(chunk.doc_type.replace(/_/g, ' '));
+    if (chunk.tax_year) parts.push(String(chunk.tax_year));
+    return parts.join(' · ') || 'Document';
+}
+
+// ─── Citation Hover Card ─────────────────────────────────────
+function CitationHoverCard({
+    chunk,
+    anchorRect,
+}: {
+    chunk: ChunkDetail;
+    anchorRect: DOMRect;
+}) {
+    const CARD_HEIGHT = 140;
+    const CARD_WIDTH = 280;
+    const MARGIN = 8;
+    const spaceBelow = window.innerHeight - anchorRect.bottom;
+    const placeAbove = spaceBelow < CARD_HEIGHT + MARGIN * 2;
+    const top = placeAbove
+        ? anchorRect.top - CARD_HEIGHT - MARGIN
+        : anchorRect.bottom + MARGIN;
+    const left = Math.min(
+        anchorRect.left,
+        window.innerWidth - CARD_WIDTH - MARGIN,
+    );
+
+    return (
+        <div
+            className="cite-hover-card"
+            style={{ top, left, width: CARD_WIDTH }}
+        >
+            <div className="cite-hover-label">{getDocLabel(chunk)}</div>
+            {chunk.section_header && (
+                <div className="cite-hover-section">{chunk.section_header}</div>
+            )}
+            <div className="cite-hover-content">
+                {chunk.content.length > 220
+                    ? chunk.content.slice(0, 220) + '…'
+                    : chunk.content}
+            </div>
+            {chunk.page_number !== null && (
+                <div className="cite-hover-meta">Page {chunk.page_number}</div>
+            )}
+        </div>
+    );
+}
+
+// ─── Citation Sidebar ────────────────────────────────────────
+function CitationSidebar({
+    chunk,
+    onClose,
+}: {
+    chunk: ChunkDetail | null;
+    onClose: () => void;
+}) {
+    return (
+        <div className={`cite-sidebar${chunk ? ' cite-sidebar--open' : ''}`}>
+            {chunk && (
+                <>
+                    <div className="cite-sidebar-header">
+                        <div className="cite-sidebar-title">
+                            <FileText size={13} />
+                            <span>Source</span>
+                        </div>
+                        <button
+                            className="cite-sidebar-close"
+                            onClick={onClose}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                    <div className="cite-sidebar-body">
+                        <div className="cite-sidebar-doc-label">
+                            {getDocLabel(chunk)}
+                        </div>
+                        {chunk.section_header && (
+                            <div className="cite-sidebar-section">
+                                {chunk.section_header}
+                            </div>
+                        )}
+                        <div className="cite-sidebar-content">
+                            {chunk.content}
+                        </div>
+                        <div className="cite-sidebar-meta-row">
+                            {chunk.page_number !== null && (
+                                <span className="cite-sidebar-meta-chip">
+                                    Page {chunk.page_number}
+                                </span>
+                            )}
+                            {chunk.doc_type && (
+                                <span className="cite-sidebar-meta-chip">
+                                    {chunk.doc_type.replace(/_/g, ' ')}
+                                </span>
+                            )}
+                            {chunk.tax_year > 0 && (
+                                <span className="cite-sidebar-meta-chip">
+                                    {chunk.tax_year}
+                                </span>
+                            )}
+                        </div>
+                        {chunk.sharepoint_site_id && (
+                            <a
+                                className="cite-sidebar-sharepoint-link"
+                                href={`https://sharepoint.com/sites/${chunk.sharepoint_site_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <ExternalLink size={11} />
+                                View in SharePoint
+                            </a>
+                        )}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
 // ─── Simple Markdown Renderer ───────────────────────────────
-function RenderMarkdown({ text }: { text: string }) {
+function RenderMarkdown({
+    text,
+    citationMap,
+    onCitationHover,
+    onCitationLeave,
+    onCitationClick,
+}: {
+    text: string;
+    citationMap?: Map<string, CitationEntry>;
+    onCitationHover?: (chunk: ChunkDetail, rect: DOMRect) => void;
+    onCitationLeave?: () => void;
+    onCitationClick?: (chunk: ChunkDetail) => void;
+}) {
     const lines = text.split('\n');
     const elements: React.ReactElement[] = [];
     let i = 0;
@@ -57,18 +221,42 @@ function RenderMarkdown({ text }: { text: string }) {
         }
     };
 
-    const parseInline = (str: string) => {
-        const parts: (string | React.ReactElement)[] = [];
-        const regex = /\*\*(.+?)\*\*/g;
+    const parseInline = (str: string): React.ReactNode[] => {
+        const parts: React.ReactNode[] = [];
+        // Match **bold** or [ID: chunk_id]
+        const regex = /\*\*(.+?)\*\*|\[ID:\s*([^\]]+)\]/g;
         let last = 0;
         let match;
         while ((match = regex.exec(str)) !== null) {
             if (match.index > last) parts.push(str.slice(last, match.index));
-            parts.push(<strong key={match.index}>{match[1]}</strong>);
+            if (match[1] !== undefined) {
+                parts.push(<strong key={match.index}>{match[1]}</strong>);
+            } else if (match[2] !== undefined && citationMap) {
+                const id = match[2].trim();
+                const entry = citationMap.get(id);
+                if (entry) {
+                    parts.push(
+                        <button
+                            key={match.index}
+                            className="cite-badge"
+                            onMouseEnter={(e) => {
+                                const rect =
+                                    e.currentTarget.getBoundingClientRect();
+                                onCitationHover?.(entry.chunk, rect);
+                            }}
+                            onMouseLeave={onCitationLeave}
+                            onClick={() => onCitationClick?.(entry.chunk)}
+                        >
+                            {entry.number}
+                        </button>,
+                    );
+                }
+                // If the citation ID isn't in our map, omit the raw marker
+            }
             last = regex.lastIndex;
         }
         if (last < str.length) parts.push(str.slice(last));
-        return parts.length ? parts : str;
+        return parts;
     };
 
     while (i < lines.length) {
@@ -134,6 +322,37 @@ export default function ChatDetailPage() {
     const [externalSearchEnabled, setExternalSearchEnabled] = useState(false);
     const [isSubmittingFollowUp, setIsSubmittingFollowUp] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+        }
+    }, [followUpMessage]);
+
+    // Citation state
+    const [hoverCitation, setHoverCitation] = useState<{
+        chunk: ChunkDetail;
+        rect: DOMRect;
+    } | null>(null);
+    const [sidebarChunk, setSidebarChunk] = useState<ChunkDetail | null>(null);
+    const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleCitationHover = (chunk: ChunkDetail, rect: DOMRect) => {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        setHoverCitation({ chunk, rect });
+    };
+
+    const handleCitationLeave = () => {
+        hoverTimeoutRef.current = setTimeout(() => {
+            setHoverCitation(null);
+        }, 120);
+    };
+
+    const handleCitationClick = (chunk: ChunkDetail) => {
+        setHoverCitation(null);
+        setSidebarChunk(chunk);
+    };
 
     useEffect(() => {
         const fetchChat = async () => {
@@ -472,7 +691,14 @@ export default function ChatDetailPage() {
         <>
             <style>{styles}</style>
             <div className="cr-root">
-                <div className="cr-right">
+                <div
+                    className="cr-right"
+                    style={{
+                        flex: sidebarChunk ? '1 1 0%' : '1 1 100%',
+                        minWidth: 0,
+                        transition: `flex 320ms cubic-bezier(0.23,1,0.32,1)`,
+                    }}
+                >
                     <div className="main-bg" />
 
                     {/* Top Bar */}
@@ -512,6 +738,19 @@ export default function ChatDetailPage() {
                                     : (msg.response ?? '');
                                 const showAssistant =
                                     msg.response !== null || isPending;
+                                const sources = conversation.sources ?? [];
+                                const citationMap =
+                                    responseContent && sources.length > 0
+                                        ? buildCitationMap(
+                                              responseContent,
+                                              sources,
+                                          )
+                                        : undefined;
+                                const citedChunks = citationMap
+                                    ? Array.from(citationMap.values()).sort(
+                                          (a, b) => a.number - b.number,
+                                      )
+                                    : [];
 
                                 return (
                                     <React.Fragment key={msg.id}>
@@ -580,9 +819,58 @@ export default function ChatDetailPage() {
                                                             text={
                                                                 responseContent
                                                             }
+                                                            citationMap={
+                                                                citationMap
+                                                            }
+                                                            onCitationHover={
+                                                                handleCitationHover
+                                                            }
+                                                            onCitationLeave={
+                                                                handleCitationLeave
+                                                            }
+                                                            onCitationClick={
+                                                                handleCitationClick
+                                                            }
                                                         />
                                                     )}
                                                 </div>
+                                                {!isPending &&
+                                                    citedChunks.length > 0 && (
+                                                        <div className="msg-sources">
+                                                            <span className="msg-sources-label">
+                                                                Sources
+                                                            </span>
+                                                            {citedChunks.map(
+                                                                (entry) => (
+                                                                    <button
+                                                                        key={
+                                                                            entry
+                                                                                .chunk
+                                                                                .chunk_id
+                                                                        }
+                                                                        className="msg-source-chip"
+                                                                        onClick={() =>
+                                                                            handleCitationClick(
+                                                                                entry.chunk,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <span className="msg-source-chip-num">
+                                                                            {
+                                                                                entry.number
+                                                                            }
+                                                                        </span>
+                                                                        {entry
+                                                                            .chunk
+                                                                            .section_header ??
+                                                                            getDocLabel(
+                                                                                entry.chunk,
+                                                                            )}
+                                                                    </button>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 {!isPending &&
                                                     responseContent && (
                                                         <div className="msg-actions">
@@ -659,6 +947,14 @@ export default function ChatDetailPage() {
                         </div>
                     </div>
 
+                    {/* Citation hover card — rendered via fixed positioning */}
+                    {hoverCitation && (
+                        <CitationHoverCard
+                            chunk={hoverCitation.chunk}
+                            anchorRect={hoverCitation.rect}
+                        />
+                    )}
+
                     {/* Follow-up Input Bar */}
                     <div className="follow-up-bar">
                         <form
@@ -708,6 +1004,10 @@ export default function ChatDetailPage() {
                         </form>
                     </div>
                 </div>
+                <CitationSidebar
+                    chunk={sidebarChunk}
+                    onClose={() => setSidebarChunk(null)}
+                />
             </div>
         </>
     );
@@ -1196,34 +1496,36 @@ const styles = `
     max-width: 608px;
     margin: 0 auto;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
     background: white;
     border: 1px solid ${colors.steelAlt[200]};
     border-radius: 12px;
-    padding: 8px 10px 8px 14px;
+    padding: 8px 10px 8px 10px;
     box-shadow: 0 2px 12px rgba(14, 17, 23, 0.06);
     transition: border-color 200ms ${ease}, box-shadow 200ms ${ease};
   }
 
   .follow-up-form:focus-within {
-    border-color: ${colors.steelAlt[400]};
+    border-color: ${colors.accent.primary};
     box-shadow: 0 2px 16px rgba(14, 17, 23, 0.1);
   }
 
   .follow-up-input {
     flex: 1;
-    min-height: 32px;
-    max-height: 120px;
+    min-height: 36px;
+    max-height: 256px;
     resize: none;
     background: transparent;
     border: none;
     outline: none;
     font-family: 'DM Sans', -apple-system, sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.5;
     color: ${colors.steelAlt[800]};
     scrollbar-width: thin;
+    overflow-y: auto;
+    padding: 6px 4px;
   }
 
   .follow-up-input::placeholder {
@@ -1239,35 +1541,38 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: none;
-    background: ${colors.steelAlt[800]};
-    color: ${colors.steelAlt[100]};
+    background: ${colors.accent.primary};
+    color: white;
     cursor: pointer;
     transition: all 200ms ${ease};
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(90, 127, 154, 0.35);
   }
 
   .follow-up-send:hover:not(:disabled) {
-    background: ${colors.steelAlt[700]};
+    background: ${colors.accent.light};
     transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(90, 127, 154, 0.4);
   }
 
   .follow-up-send:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
   }
 
   .follow-up-globe {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     border: none;
     background: transparent;
     color: ${colors.steelAlt[400]};
@@ -1282,7 +1587,276 @@ const styles = `
   }
 
   .follow-up-globe.active {
+    background: ${colors.accent.primary};
+    color: white;
+  }
+
+  /* ── CITATION BADGE ── */
+  .cite-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: ${colors.steelAlt[100]};
+    border: 1px solid ${colors.steelAlt[200]};
+    color: ${colors.steelAlt[600]};
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: super;
+    margin: 0 1px;
+    transition: background 150ms ${ease}, color 150ms ${ease};
+    font-family: 'DM Sans', -apple-system, sans-serif;
+  }
+
+  .cite-badge:hover {
     background: ${colors.steelAlt[800]};
     color: ${colors.steelAlt[100]};
+    border-color: ${colors.steelAlt[800]};
+  }
+
+  /* ── CITATION HOVER CARD ── */
+  .cite-hover-card {
+    position: fixed;
+    z-index: 9999;
+    background: white;
+    border: 1px solid ${colors.steelAlt[200]};
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(14,17,23,0.12), 0 2px 6px rgba(14,17,23,0.07);
+    pointer-events: none;
+    animation: citeCardIn 160ms ${ease} forwards;
+  }
+
+  @keyframes citeCardIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .cite-hover-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: ${colors.steelAlt[400]};
+    margin-bottom: 4px;
+  }
+
+  .cite-hover-section {
+    font-size: 11px;
+    font-weight: 600;
+    color: ${colors.steelAlt[800]};
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .cite-hover-content {
+    font-size: 10px;
+    line-height: 1.6;
+    color: ${colors.steelAlt[600]};
+    margin-bottom: 6px;
+  }
+
+  .cite-hover-meta {
+    font-size: 9px;
+    color: ${colors.steelAlt[400]};
+    font-weight: 500;
+  }
+
+  /* ── SOURCES ROW ── */
+  .msg-sources {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid ${colors.steelAlt[100]};
+  }
+
+  .msg-sources-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: ${colors.steelAlt[400]};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 2px;
+  }
+
+  .msg-source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px 3px 5px;
+    border-radius: 100px;
+    background: ${colors.steelAlt[50]};
+    border: 1px solid ${colors.steelAlt[200]};
+    font-size: 10px;
+    font-weight: 500;
+    color: ${colors.steelAlt[600]};
+    cursor: pointer;
+    transition: all 150ms ${ease};
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+  }
+
+  .msg-source-chip:hover {
+    background: ${colors.steelAlt[100]};
+    color: ${colors.steelAlt[800]};
+    border-color: ${colors.steelAlt[300]};
+  }
+
+  .msg-source-chip-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: ${colors.steelAlt[200]};
+    color: ${colors.steelAlt[700]};
+    font-size: 8px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── CITATION SIDEBAR ── */
+  .cite-sidebar {
+    width: 0;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: white;
+    border-left: 1px solid ${colors.steelAlt[200]};
+    display: flex;
+    flex-direction: column;
+    transition: width 320ms cubic-bezier(0.23,1,0.32,1);
+  }
+
+  .cite-sidebar--open {
+    width: 300px;
+  }
+
+  .cite-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid ${colors.steelAlt[100]};
+    flex-shrink: 0;
+  }
+
+  .cite-sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: ${colors.steelAlt[700]};
+  }
+
+  .cite-sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: ${colors.steelAlt[400]};
+    cursor: pointer;
+    transition: all 150ms ${ease};
+  }
+
+  .cite-sidebar-close:hover {
+    background: ${colors.steelAlt[100]};
+    color: ${colors.steelAlt[700]};
+  }
+
+  .cite-sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 300px;
+  }
+
+  .cite-sidebar-body::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .cite-sidebar-body::-webkit-scrollbar-thumb {
+    background: ${colors.steelAlt[200]};
+    border-radius: 4px;
+  }
+
+  .cite-sidebar-doc-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: ${colors.steelAlt[400]};
+  }
+
+  .cite-sidebar-section {
+    font-size: 13px;
+    font-weight: 600;
+    color: ${colors.steelAlt[800]};
+    line-height: 1.35;
+  }
+
+  .cite-sidebar-content {
+    font-size: 11px;
+    line-height: 1.75;
+    color: ${colors.steelAlt[600]};
+    white-space: pre-wrap;
+    background: ${colors.steelAlt[50]};
+    border-radius: 8px;
+    padding: 12px 13px;
+    border: 1px solid ${colors.steelAlt[100]};
+  }
+
+  .cite-sidebar-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .cite-sidebar-meta-chip {
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: ${colors.steelAlt[100]};
+    border: 1px solid ${colors.steelAlt[200]};
+    font-size: 9px;
+    font-weight: 600;
+    color: ${colors.steelAlt[500]};
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .cite-sidebar-sharepoint-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: ${colors.steelAlt[500]};
+    text-decoration: none;
+    padding: 5px 0;
+    transition: color 150ms ${ease};
+  }
+
+  .cite-sidebar-sharepoint-link:hover {
+    color: ${colors.steelAlt[800]};
   }
 `;
