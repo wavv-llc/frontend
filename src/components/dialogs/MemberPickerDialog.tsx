@@ -95,6 +95,7 @@ export function MemberPickerDialog({
         const token = await getToken();
         if (!token) return;
         setAddingIds((prev) => new Set(prev).add(member.id));
+        setAddedIds((prev) => new Set(prev).add(member.id));
         try {
             if (type === 'workspace') {
                 await workspaceApi.addMember(
@@ -111,13 +112,17 @@ export function MemberPickerDialog({
                     'MEMBER',
                 );
             }
-            setAddedIds((prev) => new Set(prev).add(member.id));
             const name = member.firstName
                 ? `${member.firstName} ${member.lastName ?? ''}`.trim()
                 : member.email;
             toast.success(`Added ${name} to ${targetName}`);
             onSuccess?.();
         } catch {
+            setAddedIds((prev) => {
+                const next = new Set(prev);
+                next.delete(member.id);
+                return next;
+            });
             toast.error('Failed to add member');
         } finally {
             setAddingIds((prev) => {

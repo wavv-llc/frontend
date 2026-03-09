@@ -54,6 +54,7 @@ export function EditTaskDialog({
             return null;
         },
         onSubmit: async (values) => {
+            onOpenChange(false);
             await mutate({
                 name: values.name,
                 description: values.description || undefined,
@@ -61,7 +62,6 @@ export function EditTaskDialog({
                     ? values.dueDate.toISOString()
                     : undefined,
             });
-            onOpenChange(false);
         },
         resetOnSuccess: false, // Don't reset on success for edit dialogs
     });

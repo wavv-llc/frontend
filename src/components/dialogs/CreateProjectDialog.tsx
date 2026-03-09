@@ -14,6 +14,8 @@ interface CreateProjectDialogProps {
     onOpenChange: (open: boolean) => void;
     workspaceId: string;
     onSuccess?: () => void;
+    /** When provided, called immediately on submit (before API). Dialog closes instantly; caller owns the API call. */
+    onOptimisticSubmit?: (name: string, description?: string) => void;
 }
 
 interface ProjectFormData {
@@ -26,6 +28,7 @@ export function CreateProjectDialog({
     onOpenChange,
     workspaceId,
     onSuccess,
+    onOptimisticSubmit,
 }: CreateProjectDialogProps) {
     const { mutate, isLoading } = useAuthenticatedMutation({
         mutationFn: (token, name: string, description?: string) =>
@@ -33,7 +36,6 @@ export function CreateProjectDialog({
         successMessage: 'Project created successfully',
         requiresSidebarRefresh: true,
         onSuccess: () => {
-            // Delay to ensure dialog closes first
             setTimeout(() => {
                 onSuccess?.();
             }, 100);
@@ -49,8 +51,17 @@ export function CreateProjectDialog({
             return null;
         },
         onSubmit: async (values) => {
-            await mutate(values.name, values.description || undefined);
-            onOpenChange(false);
+            if (onOptimisticSubmit) {
+                // Optimistic path: close immediately, caller handles API
+                onOptimisticSubmit(
+                    values.name,
+                    values.description || undefined,
+                );
+                onOpenChange(false);
+            } else {
+                await mutate(values.name, values.description || undefined);
+                onOpenChange(false);
+            }
         },
         resetOnSuccess: true,
     });

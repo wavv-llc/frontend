@@ -682,6 +682,10 @@ export function TaskDetailView({
     const [isCreatingThread, setIsCreatingThread] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isApprovalLoading, setIsApprovalLoading] = useState(false);
+    const [localApprovalStatus, setLocalApprovalStatus] = useState<
+        Task['approvalStatus'] | null
+    >(null);
+    const effectiveApprovalStatus = localApprovalStatus ?? task.approvalStatus;
     const newThreadInputRef = useRef<RichEditorHandle>(null);
     const threadStateBeforeUpload = useRef(false);
 
@@ -795,8 +799,8 @@ export function TaskDetailView({
         .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0));
     // Task is locked for editing when it's under review or completed
     const isLocked =
-        task.approvalStatus === 'IN_REVIEW' ||
-        task.approvalStatus === 'COMPLETED';
+        effectiveApprovalStatus === 'IN_REVIEW' ||
+        effectiveApprovalStatus === 'COMPLETED';
 
     // Name inline edit state
     const [nameValue, setNameValue] = useState(task.name);
@@ -903,7 +907,6 @@ export function TaskDetailView({
                 description: trimmed,
             });
             toast.success('Description updated');
-            if (onUpdate) onUpdate();
         } catch {
             toast.error('Failed to update description');
             setDescValue(task.description || '');
@@ -930,7 +933,6 @@ export function TaskDetailView({
                 name: trimmed,
             });
             toast.success('Task renamed');
-            if (onUpdate) onUpdate();
         } catch {
             toast.error('Failed to rename task');
             setNameValue(task.name);
@@ -1024,6 +1026,11 @@ export function TaskDetailView({
         loadComments(true);
     }, [loadComments]);
 
+    // Reset local approval status when server data arrives
+    useEffect(() => {
+        setLocalApprovalStatus(null);
+    }, [task.approvalStatus]);
+
     useEffect(() => {
         let cancelled = false;
         const load = async () => {
@@ -1084,10 +1091,15 @@ export function TaskDetailView({
     };
 
     const handleSubmitTask = async () => {
+        const prevStatus = task.approvalStatus;
+        setLocalApprovalStatus('IN_REVIEW');
         try {
             setIsApprovalLoading(true);
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                setLocalApprovalStatus(prevStatus);
+                return;
+            }
             await approvalApi.submitTask(token, task.projectId, task.id);
             const nextStatus =
                 reviewerChain.length === 0 ||
@@ -1098,6 +1110,7 @@ export function TaskDetailView({
             onUpdate?.();
         } catch (error) {
             console.error('Failed to submit task:', error);
+            setLocalApprovalStatus(prevStatus);
             toast.error(
                 error instanceof Error
                     ? error.message
@@ -1109,15 +1122,21 @@ export function TaskDetailView({
     };
 
     const handleRejectTask = async () => {
+        const prevStatus = task.approvalStatus;
+        setLocalApprovalStatus('IN_PREPARATION');
         try {
             setIsApprovalLoading(true);
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                setLocalApprovalStatus(prevStatus);
+                return;
+            }
             await approvalApi.rejectTask(token, task.projectId, task.id);
             toast.success('Task returned to previous level');
             onUpdate?.();
         } catch (error) {
             console.error('Failed to reject task:', error);
+            setLocalApprovalStatus(prevStatus);
             toast.error(
                 error instanceof Error
                     ? error.message
@@ -1129,15 +1148,21 @@ export function TaskDetailView({
     };
 
     const handleReopenTask = async () => {
+        const prevStatus = task.approvalStatus;
+        setLocalApprovalStatus('IN_PREPARATION');
         try {
             setIsApprovalLoading(true);
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                setLocalApprovalStatus(prevStatus);
+                return;
+            }
             await approvalApi.reopenTask(token, task.projectId, task.id);
             toast.success('Task reopened');
             onUpdate?.();
         } catch (error) {
             console.error('Failed to reopen task:', error);
+            setLocalApprovalStatus(prevStatus);
             toast.error(
                 error instanceof Error
                     ? error.message
@@ -1359,7 +1384,7 @@ export function TaskDetailView({
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     disabled={
-                                        task.approvalStatus !==
+                                        effectiveApprovalStatus !==
                                             'IN_PREPARATION' ||
                                         isApprovalLoading
                                     }
@@ -1370,8 +1395,8 @@ export function TaskDetailView({
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     disabled={
-                                        task.approvalStatus !== 'IN_REVIEW' ||
-                                        isApprovalLoading
+                                        effectiveApprovalStatus !==
+                                            'IN_REVIEW' || isApprovalLoading
                                     }
                                     onClick={handleRejectTask}
                                 >
@@ -1380,8 +1405,8 @@ export function TaskDetailView({
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     disabled={
-                                        task.approvalStatus !== 'COMPLETED' ||
-                                        isApprovalLoading
+                                        effectiveApprovalStatus !==
+                                            'COMPLETED' || isApprovalLoading
                                     }
                                     onClick={handleReopenTask}
                                 >
@@ -1544,6 +1569,32 @@ export function TaskDetailView({
                                             setUploadDialogOpen(true)
                                         }
                                         mentionableUsers={mentionableUsers}
+                                        onDeleteRoot={(id) =>
+                                            setComments((prev) =>
+                                                prev.filter((c) => c.id !== id),
+                                            )
+                                        }
+                                        onUpdateRootContent={(id, content) =>
+                                            setComments((prev) =>
+                                                prev.map((c) =>
+                                                    c.id === id
+                                                        ? {
+                                                              ...c,
+                                                              comment: content,
+                                                          }
+                                                        : c,
+                                                ),
+                                            )
+                                        }
+                                        onToggleResolved={(id, resolved) =>
+                                            setComments((prev) =>
+                                                prev.map((c) =>
+                                                    c.id === id
+                                                        ? { ...c, resolved }
+                                                        : c,
+                                                ),
+                                            )
+                                        }
                                     />
                                 ))}
                             </div>
@@ -1641,25 +1692,27 @@ export function TaskDetailView({
                             <span
                                 className={cn(
                                     'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
-                                    task.approvalStatus === 'COMPLETED' &&
+                                    effectiveApprovalStatus === 'COMPLETED' &&
                                         'bg-green-50 text-green-700 border-green-200',
-                                    task.approvalStatus === 'IN_REVIEW' &&
+                                    effectiveApprovalStatus === 'IN_REVIEW' &&
                                         'bg-blue-50 text-blue-700 border-blue-200',
-                                    task.approvalStatus === 'IN_PREPARATION' &&
+                                    effectiveApprovalStatus ===
+                                        'IN_PREPARATION' &&
                                         'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
                                 )}
                             >
-                                {task.approvalStatus === 'COMPLETED' && (
+                                {effectiveApprovalStatus === 'COMPLETED' && (
                                     <CheckCircle2 className="h-3 w-3" />
                                 )}
-                                {task.approvalStatus === 'IN_REVIEW' && (
+                                {effectiveApprovalStatus === 'IN_REVIEW' && (
                                     <Lock className="h-3 w-3" />
                                 )}
-                                {task.approvalStatus === 'IN_PREPARATION' && (
+                                {effectiveApprovalStatus ===
+                                    'IN_PREPARATION' && (
                                     <CircleDot className="h-3 w-3" />
                                 )}
                                 {approvalStatusLabel(
-                                    task.approvalStatus,
+                                    effectiveApprovalStatus,
                                     task.currentStepIndex,
                                     reviewerChain.length,
                                 )}
@@ -1681,11 +1734,13 @@ export function TaskDetailView({
                                     // reviewerPos is 0-based; currentStepIndex is 1-based
                                     const isCurrentStep =
                                         !isPreparer &&
-                                        task.approvalStatus === 'IN_REVIEW' &&
+                                        effectiveApprovalStatus ===
+                                            'IN_REVIEW' &&
                                         reviewerPos ===
                                             task.currentStepIndex - 1;
                                     const isPastStep =
-                                        task.approvalStatus === 'COMPLETED' ||
+                                        effectiveApprovalStatus ===
+                                            'COMPLETED' ||
                                         (!isPreparer &&
                                             reviewerPos <
                                                 task.currentStepIndex - 1);
@@ -2199,6 +2254,8 @@ function CommentBubble({
     projectId,
     onResolve,
     mentionableUsers = [],
+    onDeleteReply,
+    onUpdateReplyContent,
 }: {
     comment: Comment;
     isResolutionTarget?: boolean;
@@ -2207,6 +2264,8 @@ function CommentBubble({
     projectId: string;
     onResolve?: () => void;
     mentionableUsers?: User[];
+    onDeleteReply?: (replyId: string) => void;
+    onUpdateReplyContent?: (replyId: string, content: string) => void;
 }) {
     const { getToken, userId } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
@@ -2223,9 +2282,14 @@ function CommentBubble({
 
     const handleSaveEdit = async () => {
         if (isEditEmpty) return;
+        onUpdateReplyContent?.(comment.id, editContent);
+        setIsEditing(false);
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                onUpdate();
+                return;
+            }
             await taskCommentApi.updateComment(
                 token,
                 projectId,
@@ -2234,16 +2298,20 @@ function CommentBubble({
                 editContent,
             );
             onUpdate();
-            setIsEditing(false);
         } catch {
+            onUpdate();
             toast.error('Failed to update comment');
         }
     };
 
     const handleDelete = async () => {
+        onDeleteReply?.(comment.id);
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                onUpdate();
+                return;
+            }
             await taskCommentApi.deleteComment(
                 token,
                 projectId,
@@ -2252,6 +2320,7 @@ function CommentBubble({
             );
             onUpdate();
         } catch {
+            onUpdate();
             toast.error('Failed to delete comment');
         }
     };
@@ -2483,6 +2552,9 @@ function CommentThread({
     projectId,
     onAttach,
     mentionableUsers = [],
+    onDeleteRoot,
+    onUpdateRootContent,
+    onToggleResolved,
 }: {
     comment: Comment;
     index: number;
@@ -2491,6 +2563,9 @@ function CommentThread({
     projectId: string;
     onAttach?: () => void;
     mentionableUsers?: User[];
+    onDeleteRoot?: (commentId: string) => void;
+    onUpdateRootContent?: (commentId: string, content: string) => void;
+    onToggleResolved?: (commentId: string, resolved: boolean) => void;
 }) {
     const { getToken, userId } = useAuth();
     const { user: currentUser } = useUser();
@@ -2507,9 +2582,14 @@ function CommentThread({
 
     const handleSaveRootEdit = async () => {
         if (isEditRootEmpty) return;
+        onUpdateRootContent?.(comment.id, editRootContent);
+        setIsEditingRoot(false);
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                onUpdate();
+                return;
+            }
             await taskCommentApi.updateComment(
                 token,
                 projectId,
@@ -2518,16 +2598,20 @@ function CommentThread({
                 editRootContent,
             );
             onUpdate();
-            setIsEditingRoot(false);
         } catch {
+            onUpdate();
             toast.error('Failed to update comment');
         }
     };
 
     const handleDeleteRoot = async () => {
+        onDeleteRoot?.(comment.id);
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                onUpdate();
+                return;
+            }
             await taskCommentApi.deleteComment(
                 token,
                 projectId,
@@ -2536,6 +2620,7 @@ function CommentThread({
             );
             onUpdate();
         } catch {
+            onUpdate();
             toast.error('Failed to delete comment');
         }
     };
@@ -2548,8 +2633,16 @@ function CommentThread({
         setLocalReplies(comment.replies ?? []);
     }, [comment.replies]);
 
+    // Optimistic reply state
+    const [deletedReplyIds, setDeletedReplyIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [replyContentOverrides, setReplyContentOverrides] = useState<
+        Record<string, string>
+    >({});
+
     const isResolved = comment.resolved;
-    const replies = localReplies;
+    const replies = localReplies.filter((r) => !deletedReplyIds.has(r.id));
 
     const [localRootReactions, setLocalRootReactions] = useState<
         TaskCommentReaction[]
@@ -2606,11 +2699,12 @@ function CommentThread({
     };
 
     const handleResolve = async () => {
+        onToggleResolved?.(comment.id, true);
         try {
             setIsSubmitting(true);
             const token = await getToken();
             if (!token) {
-                toast.error('Authentication required');
+                onToggleResolved?.(comment.id, false);
                 return;
             }
             await taskCommentApi.resolveComment(
@@ -2622,6 +2716,7 @@ function CommentThread({
             toast.success('Thread resolved');
             onUpdate();
         } catch {
+            onToggleResolved?.(comment.id, false);
             toast.error('Failed to resolve thread');
         } finally {
             setIsSubmitting(false);
@@ -2629,11 +2724,12 @@ function CommentThread({
     };
 
     const handleReopen = async () => {
+        onToggleResolved?.(comment.id, false);
         try {
             setIsSubmitting(true);
             const token = await getToken();
             if (!token) {
-                toast.error('Authentication required');
+                onToggleResolved?.(comment.id, true);
                 return;
             }
             await taskCommentApi.reopenComment(
@@ -2645,6 +2741,7 @@ function CommentThread({
             toast.success('Thread reopened');
             onUpdate();
         } catch {
+            onToggleResolved?.(comment.id, true);
             toast.error('Failed to reopen thread');
         } finally {
             setIsSubmitting(false);
@@ -2933,7 +3030,12 @@ function CommentThread({
                             className="border-t border-dashboard-border/40 px-4 py-3 animate-in fade-in slide-in-from-bottom-1 duration-150"
                         >
                             <CommentBubble
-                                comment={reply}
+                                comment={{
+                                    ...reply,
+                                    comment:
+                                        replyContentOverrides[reply.id] ??
+                                        reply.comment,
+                                }}
                                 isResolutionTarget={
                                     isResolved && i === replies.length - 1
                                 }
@@ -2944,6 +3046,17 @@ function CommentThread({
                                     !isResolved ? handleResolve : undefined
                                 }
                                 mentionableUsers={mentionableUsers}
+                                onDeleteReply={(replyId) =>
+                                    setDeletedReplyIds((prev) =>
+                                        new Set(prev).add(replyId),
+                                    )
+                                }
+                                onUpdateReplyContent={(replyId, content) =>
+                                    setReplyContentOverrides((prev) => ({
+                                        ...prev,
+                                        [replyId]: content,
+                                    }))
+                                }
                             />
                         </div>
                     ))}

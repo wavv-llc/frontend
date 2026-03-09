@@ -52,6 +52,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSidebarRefresh } from '@/contexts/SidebarContext';
 
 type WorkspacePageData = {
     workspace: Workspace;
@@ -64,6 +65,7 @@ export default function WorkspaceDetailsPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { getToken } = useAuth();
+    const { triggerRefresh } = useSidebarRefresh();
 
     const workspaceId = params.workspaceSlug as string;
     const cacheKey = `workspace:${workspaceId}`;
@@ -186,6 +188,52 @@ export default function WorkspaceDetailsPage() {
 
     const handleSuccess = () => {
         fetchData();
+    };
+
+    const handleOptimisticCreateProject = (
+        name: string,
+        description?: string,
+    ) => {
+        const realWorkspaceId = workspace?.id ?? workspaceId;
+        const tempId = `optimistic-${Date.now()}`;
+        const optimisticProject: Project = {
+            id: tempId,
+            name,
+            description,
+            workspaceId: realWorkspaceId,
+            isArchived: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            workspace: workspace ?? { id: realWorkspaceId, name: '' },
+            owners: [],
+            members: [],
+        };
+        setProjects((prev) => [...prev, optimisticProject]);
+
+        (async () => {
+            try {
+                const token = await getToken();
+                if (!token) throw new Error('Not authenticated');
+                const res = await projectApi.createProject(
+                    token,
+                    realWorkspaceId,
+                    name,
+                    description,
+                );
+                if (res.data) {
+                    setProjects((prev) =>
+                        prev.map((p) => (p.id === tempId ? res.data! : p)),
+                    );
+                    triggerRefresh();
+                    toast.success('Project created successfully');
+                } else {
+                    throw new Error('No data returned');
+                }
+            } catch {
+                setProjects((prev) => prev.filter((p) => p.id !== tempId));
+                toast.error('Failed to create project');
+            }
+        })();
     };
 
     const handleInlineSave = async (name: string, description: string) => {
@@ -429,8 +477,8 @@ export default function WorkspaceDetailsPage() {
             <CreateProjectDialog
                 open={showCreateProjectDialog}
                 onOpenChange={setShowCreateProjectDialog}
-                workspaceId={workspaceId}
-                onSuccess={handleSuccess}
+                workspaceId={workspace?.id ?? workspaceId}
+                onOptimisticSubmit={handleOptimisticCreateProject}
             />
 
             {/* Members Dialog (#2) */}

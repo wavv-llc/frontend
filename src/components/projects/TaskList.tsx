@@ -128,6 +128,7 @@ interface TaskListProps {
     onCustomFieldCreated: () => void;
     onTaskCreated: () => void;
     onTaskAdded: (task: Task) => void;
+    onTasksRemoved?: (taskIds: string[]) => void;
     projectId: string;
     workspaceId: string;
     members: ApiUser[];
@@ -682,6 +683,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             onCustomFieldCreated,
             onTaskCreated,
             onTaskAdded,
+            onTasksRemoved,
             projectId,
             workspaceId,
             members,
@@ -743,6 +745,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             Record<string, string>
         >({});
 
+        // Optimistic approval status overrides (taskId -> ApprovalStatus)
+        const [optimisticApprovalStatus, setOptimisticApprovalStatus] =
+            useState<Record<string, Task['approvalStatus']>>({});
+
+        // Local field name overrides (fieldId -> name), cleared when customFields prop refreshes
+        const [localFieldNameOverrides, setLocalFieldNameOverrides] = useState<
+            Record<string, string>
+        >({});
+
         // Deduplicate members to avoid key collision errors
         const uniqueMembers = useMemo(() => {
             return Array.from(new Map(members.map((m) => [m.id, m])).values());
@@ -781,6 +792,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 const added = incoming.filter((id) => !prevSet.has(id));
                 return [...kept, ...added];
             });
+            setLocalFieldNameOverrides({});
         }, [customFields]);
 
         // Column widths (fieldId -> px width), seeded from backend
@@ -1321,7 +1333,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             new Set(),
         );
         const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-        const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
         const toggleTaskSelection = (taskId: string, selected: boolean) => {
             setSelectedTaskIds((prev) => {
@@ -1346,28 +1357,28 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         };
 
         const confirmBulkDelete = async () => {
+            const idsToDelete = Array.from(selectedTaskIds);
+            setBulkDeleteDialogOpen(false);
+            setSelectedTaskIds(new Set());
+            onTasksRemoved?.(idsToDelete);
             try {
-                setIsBulkDeleting(true);
                 const token = await getToken();
-                if (!token) return;
-
-                const promises = Array.from(selectedTaskIds).map((id) =>
-                    taskApi.deleteTask(token, projectId, id),
+                if (!token) {
+                    onTaskCreated();
+                    return;
+                }
+                await Promise.all(
+                    idsToDelete.map((id) =>
+                        taskApi.deleteTask(token, projectId, id),
+                    ),
                 );
-
-                await Promise.all(promises);
-
                 toast.success(
-                    `Deleted ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''}`,
+                    `Deleted ${idsToDelete.length} task${idsToDelete.length !== 1 ? 's' : ''}`,
                 );
-                setSelectedTaskIds(new Set());
-                setBulkDeleteDialogOpen(false);
-                onTaskCreated();
             } catch (error) {
                 console.error('Failed to bulk delete:', error);
+                onTaskCreated();
                 toast.error('Failed to delete some tasks');
-            } finally {
-                setIsBulkDeleting(false);
             }
         };
 
@@ -1398,37 +1409,85 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
         // Task action handlers for the row menu
         const handleSubmitTask = async (task: Task) => {
+            const prevStatus = task.approvalStatus;
+            setOptimisticApprovalStatus((prev) => ({
+                ...prev,
+                [task.id]: 'IN_REVIEW',
+            }));
             try {
                 const token = await getToken();
-                if (!token) return;
+                if (!token) {
+                    setOptimisticApprovalStatus((prev) => {
+                        const next = { ...prev };
+                        delete next[task.id];
+                        return next;
+                    });
+                    return;
+                }
                 await approvalApi.submitTask(token, projectId, task.id);
                 toast.success('Task submitted for review');
                 onTaskCreated();
             } catch {
+                setOptimisticApprovalStatus((prev) => ({
+                    ...prev,
+                    [task.id]: prevStatus,
+                }));
                 toast.error('Failed to submit task');
             }
         };
 
         const handleRejectTask = async (task: Task) => {
+            const prevStatus = task.approvalStatus;
+            setOptimisticApprovalStatus((prev) => ({
+                ...prev,
+                [task.id]: 'IN_PREPARATION',
+            }));
             try {
                 const token = await getToken();
-                if (!token) return;
+                if (!token) {
+                    setOptimisticApprovalStatus((prev) => {
+                        const next = { ...prev };
+                        delete next[task.id];
+                        return next;
+                    });
+                    return;
+                }
                 await approvalApi.rejectTask(token, projectId, task.id);
                 toast.success('Task rejected');
                 onTaskCreated();
             } catch {
+                setOptimisticApprovalStatus((prev) => ({
+                    ...prev,
+                    [task.id]: prevStatus,
+                }));
                 toast.error('Failed to reject task');
             }
         };
 
         const handleReopenTask = async (task: Task) => {
+            const prevStatus = task.approvalStatus;
+            setOptimisticApprovalStatus((prev) => ({
+                ...prev,
+                [task.id]: 'IN_PREPARATION',
+            }));
             try {
                 const token = await getToken();
-                if (!token) return;
+                if (!token) {
+                    setOptimisticApprovalStatus((prev) => {
+                        const next = { ...prev };
+                        delete next[task.id];
+                        return next;
+                    });
+                    return;
+                }
                 await approvalApi.reopenTask(token, projectId, task.id);
                 toast.success('Task reopened');
                 onTaskCreated();
             } catch {
+                setOptimisticApprovalStatus((prev) => ({
+                    ...prev,
+                    [task.id]: prevStatus,
+                }));
                 toast.error('Failed to reopen task');
             }
         };
@@ -1592,20 +1651,25 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
         const handleDeleteField = async () => {
             if (!fieldToDelete) return;
+            const { id: fieldId, name: fieldName } = fieldToDelete;
+            setFieldOrder((prev) => prev.filter((id) => id !== fieldId));
+            setFieldToDelete(null);
             try {
-                setIsDeletingField(true);
                 const token = await getToken();
-                if (!token) return;
+                if (!token) {
+                    onCustomFieldCreated();
+                    return;
+                }
                 await customFieldApi.deleteCustomField(
                     token,
                     projectId,
-                    fieldToDelete.id,
+                    fieldId,
                 );
-                toast.success(`"${fieldToDelete.name}" field deleted`);
-                setFieldToDelete(null);
+                toast.success(`"${fieldName}" field deleted`);
                 onCustomFieldCreated();
             } catch (error) {
                 console.error('Failed to delete custom field:', error);
+                onCustomFieldCreated();
                 toast.error('Failed to delete field');
             } finally {
                 setIsDeletingField(false);
@@ -1627,10 +1691,19 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 return;
             }
 
+            setLocalFieldNameOverrides((prev) => ({
+                ...prev,
+                [fieldId]: trimmedName,
+            }));
+
             try {
                 const token = await getToken();
                 if (!token) {
-                    toast.error('Authentication required');
+                    setLocalFieldNameOverrides((prev) => {
+                        const next = { ...prev };
+                        delete next[fieldId];
+                        return next;
+                    });
                     return;
                 }
 
@@ -1638,15 +1711,18 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     token,
                     projectId,
                     fieldId,
-                    {
-                        name: trimmedName,
-                    },
+                    { name: trimmedName },
                 );
 
                 toast.success('Field name updated');
-                onCustomFieldCreated(); // Refresh fields
+                onCustomFieldCreated(); // Refresh fields (will clear overrides via useLayoutEffect)
             } catch (error) {
                 console.error('Failed to update field name:', error);
+                setLocalFieldNameOverrides((prev) => {
+                    const next = { ...prev };
+                    delete next[fieldId];
+                    return next;
+                });
                 toast.error('Failed to update field name');
             }
         };
@@ -1996,17 +2072,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isBulkDeleting}>
-                                Cancel
-                            </AlertDialogCancel>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                                 onClick={confirmBulkDelete}
-                                disabled={isBulkDeleting}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                                {isBulkDeleting
-                                    ? 'Deleting...'
-                                    : `Delete ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''}`}
+                                {`Delete ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? 's' : ''}`}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
@@ -2322,6 +2393,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                             <div className="min-w-0 overflow-visible">
                                                                 <EditableHeader
                                                                     initialValue={
+                                                                        localFieldNameOverrides[
+                                                                            field
+                                                                                .id
+                                                                        ] ??
                                                                         field.name
                                                                     }
                                                                     icon={getFieldIcon()}
@@ -3094,7 +3169,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           <DropdownMenuSeparator />
                                                                                           <DropdownMenuItem
                                                                                               disabled={
-                                                                                                  task.approvalStatus !==
+                                                                                                  (optimisticApprovalStatus[
+                                                                                                      task
+                                                                                                          .id
+                                                                                                  ] ??
+                                                                                                      task.approvalStatus) !==
                                                                                                   'IN_PREPARATION'
                                                                                               }
                                                                                               onClick={(
@@ -3111,7 +3190,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           </DropdownMenuItem>
                                                                                           <DropdownMenuItem
                                                                                               disabled={
-                                                                                                  task.approvalStatus !==
+                                                                                                  (optimisticApprovalStatus[
+                                                                                                      task
+                                                                                                          .id
+                                                                                                  ] ??
+                                                                                                      task.approvalStatus) !==
                                                                                                   'IN_REVIEW'
                                                                                               }
                                                                                               onClick={(
@@ -3128,7 +3211,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           </DropdownMenuItem>
                                                                                           <DropdownMenuItem
                                                                                               disabled={
-                                                                                                  task.approvalStatus ===
+                                                                                                  (optimisticApprovalStatus[
+                                                                                                      task
+                                                                                                          .id
+                                                                                                  ] ??
+                                                                                                      task.approvalStatus) ===
                                                                                                   'IN_PREPARATION'
                                                                                               }
                                                                                               onClick={(
@@ -3415,7 +3502,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           <DropdownMenuSeparator />
                                                                           <DropdownMenuItem
                                                                               disabled={
-                                                                                  task.approvalStatus !==
+                                                                                  (optimisticApprovalStatus[
+                                                                                      task
+                                                                                          .id
+                                                                                  ] ??
+                                                                                      task.approvalStatus) !==
                                                                                   'IN_PREPARATION'
                                                                               }
                                                                               onClick={(
@@ -3432,7 +3523,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           </DropdownMenuItem>
                                                                           <DropdownMenuItem
                                                                               disabled={
-                                                                                  task.approvalStatus !==
+                                                                                  (optimisticApprovalStatus[
+                                                                                      task
+                                                                                          .id
+                                                                                  ] ??
+                                                                                      task.approvalStatus) !==
                                                                                   'IN_REVIEW'
                                                                               }
                                                                               onClick={(
@@ -3449,7 +3544,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           </DropdownMenuItem>
                                                                           <DropdownMenuItem
                                                                               disabled={
-                                                                                  task.approvalStatus ===
+                                                                                  (optimisticApprovalStatus[
+                                                                                      task
+                                                                                          .id
+                                                                                  ] ??
+                                                                                      task.approvalStatus) ===
                                                                                   'IN_PREPARATION'
                                                                               }
                                                                               onClick={(

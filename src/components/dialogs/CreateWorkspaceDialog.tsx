@@ -44,8 +44,8 @@ export function CreateWorkspaceDialog({
             return null;
         },
         onSubmit: async (values) => {
-            await mutate(values.name, values.description || undefined);
             onOpenChange(false);
+            await mutate(values.name, values.description || undefined);
         },
         resetOnSuccess: true,
     });

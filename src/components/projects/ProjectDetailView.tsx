@@ -51,7 +51,10 @@ import {
     customFieldApi,
     sectionApi,
     workspaceApi,
+    workspaceUrlSegment,
 } from '@/lib/api';
+import { useSidebarRefresh } from '@/contexts/SidebarContext';
+import { invalidateCached } from '@/lib/pageCache';
 import { Button } from '@/components/ui/button';
 import {
     CalendarSection,
@@ -96,6 +99,8 @@ interface ProjectDetailViewProps {
     onRefresh: () => void;
     onCreateTask: () => void;
     onTaskAdded: (task: Task) => void;
+    onTaskRemoved?: (taskId: string) => void;
+    onTasksRemoved?: (taskIds: string[]) => void;
 }
 
 type ViewMode = 'list' | 'calendar';
@@ -564,8 +569,11 @@ export function ProjectDetailView({
     tasks,
     onRefresh,
     onTaskAdded,
+    onTaskRemoved,
+    onTasksRemoved,
 }: ProjectDetailViewProps) {
     const { getToken } = useAuth();
+    const { triggerRefresh } = useSidebarRefresh();
     const [view, setView] = useState<ViewMode>('list');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -604,7 +612,6 @@ export function ProjectDetailView({
 
     // Local project state for optimistic updates
     const [localProject, setLocalProject] = useState(project);
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setLocalProject(project);
@@ -681,15 +688,15 @@ export function ProjectDetailView({
     };
 
     const handleArchiveProject = async () => {
+        const workspaceUrl = `/workspaces/${workspaceUrlSegment(project.workspace)}`;
+        invalidateCached(`workspace:${project.workspaceId}`);
+        triggerRefresh();
+        router.push(workspaceUrl);
         try {
             const token = await getToken();
-            if (!token) {
-                toast.error('Authentication required');
-                return;
-            }
+            if (!token) return;
             await projectApi.archiveProject(token, project.id);
             toast.success('Project archived successfully');
-            router.back();
         } catch (error) {
             console.error('Failed to archive project:', error);
             toast.error('Failed to archive project');
@@ -697,22 +704,23 @@ export function ProjectDetailView({
     };
 
     const handleDeleteProject = async () => {
-        try {
-            setIsSubmitting(true);
-            const token = await getToken();
-            if (!token) {
-                toast.error('Authentication required');
-                return;
-            }
+        const workspaceUrl = `/workspaces/${workspaceUrlSegment(project.workspace)}`;
+        const workspaceCacheKey = `workspace:${project.workspaceId}`;
 
+        // Optimistic: close dialog, navigate away, refresh sidebar immediately
+        setDeleteDialogOpen(false);
+        invalidateCached(workspaceCacheKey);
+        triggerRefresh();
+        router.push(workspaceUrl);
+
+        // Fire backend delete in background
+        try {
+            const token = await getToken();
+            if (!token) return;
             await projectApi.deleteProject(token, project.id);
             toast.success('Project deleted successfully');
-            setDeleteDialogOpen(false);
-            window.history.back();
         } catch {
-            // Error handling can be added here if needed
-        } finally {
-            setIsSubmitting(false);
+            toast.error('Failed to delete project');
         }
     };
 
@@ -924,18 +932,18 @@ export function ProjectDetailView({
     };
 
     const handleDeleteTask = async (taskId: string) => {
+        onTaskRemoved?.(taskId);
         try {
             const token = await getToken();
             if (!token) {
-                toast.error('Authentication required');
+                onRefresh();
                 return;
             }
-
             await taskApi.deleteTask(token, project.id, taskId);
             toast.success('Task deleted successfully');
-            onRefresh();
         } catch (error) {
             console.error('Failed to delete task:', error);
+            onRefresh();
             toast.error('Failed to delete task');
         }
     };
@@ -992,11 +1000,21 @@ export function ProjectDetailView({
 
     const handleAddSection = async () => {
         if (isCreatingSection) return;
+        const tempId = `temp-section-${Date.now()}`;
+        const optimisticSection: Section = {
+            id: tempId,
+            name: 'Untitled section',
+            order: sections.length,
+            projectId: project.id,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        setSections((prev) => [...prev, optimisticSection]);
+        setIsCreatingSection(true);
         try {
-            setIsCreatingSection(true);
             const token = await getToken();
             if (!token) {
-                toast.error('Authentication required');
+                setSections((prev) => prev.filter((s) => s.id !== tempId));
                 return;
             }
             const response = await sectionApi.createSection(
@@ -1004,11 +1022,14 @@ export function ProjectDetailView({
                 project.id,
                 'Untitled section',
             );
-            if (response.data) {
-                setSections((prev) => [...prev, response.data!]);
-            }
+            setSections((prev) =>
+                response.data
+                    ? prev.map((s) => (s.id === tempId ? response.data! : s))
+                    : prev.filter((s) => s.id !== tempId),
+            );
         } catch (error) {
             console.error('Failed to create section:', error);
+            setSections((prev) => prev.filter((s) => s.id !== tempId));
             toast.error('Failed to create section');
         } finally {
             setIsCreatingSection(false);
@@ -1037,14 +1058,19 @@ export function ProjectDetailView({
     };
 
     const handleDeleteSection = async (sectionId: string) => {
+        const snapshot = sections;
+        setSections((prev) => prev.filter((s) => s.id !== sectionId));
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                setSections(snapshot);
+                return;
+            }
             await sectionApi.deleteSection(token, project.id, sectionId);
-            setSections((prev) => prev.filter((s) => s.id !== sectionId));
             onRefresh(); // reload tasks — deleted section's tasks are removed on the server
         } catch (error) {
             console.error('Failed to delete section:', error);
+            setSections(snapshot);
             toast.error('Failed to delete section');
         }
     };
@@ -1578,6 +1604,7 @@ export function ProjectDetailView({
                                     onAddSection={handleAddSection}
                                     onRenameSection={handleRenameSection}
                                     onDeleteSection={handleDeleteSection}
+                                    onTasksRemoved={onTasksRemoved}
                                     readOnly={isArchived}
                                 />
                             </div>
@@ -1601,16 +1628,14 @@ export function ProjectDetailView({
                         <Button
                             variant="outline"
                             onClick={() => setDeleteDialogOpen(false)}
-                            disabled={isSubmitting}
                         >
                             Cancel
                         </Button>
                         <Button
                             variant="destructive"
                             onClick={handleDeleteProject}
-                            disabled={isSubmitting}
                         >
-                            {isSubmitting ? 'Deleting...' : 'Delete Project'}
+                            Delete Project
                         </Button>
                     </DialogFooter>
                 </DialogContent>

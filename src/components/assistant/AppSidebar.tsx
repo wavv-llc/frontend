@@ -300,37 +300,59 @@ export function AppSidebar() {
             }
         }
     };
-    const handleWorkspaceDragEnd = useCallback((event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
+    const handleWorkspaceDragEnd = useCallback(
+        async (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+            let newOrder: typeof workspaces = [];
             setWorkspaces((prev) => {
                 const oldIndex = prev.findIndex((w) => w.id === active.id);
                 const newIndex = prev.findIndex((w) => w.id === over.id);
-                return arrayMove(prev, oldIndex, newIndex);
+                newOrder = arrayMove(prev, oldIndex, newIndex);
+                return newOrder;
             });
-        }
-    }, []);
-
-    const handleProjectDragEnd = useCallback(
-        (workspaceId: string, event: DragEndEvent) => {
-            const { active, over } = event;
-            if (over && active.id !== over.id) {
-                setWorkspaceProjects((prev) => {
-                    const projects = prev[workspaceId] ?? [];
-                    const oldIndex = projects.findIndex(
-                        (p) => p.id === active.id,
-                    );
-                    const newIndex = projects.findIndex(
-                        (p) => p.id === over.id,
-                    );
-                    return {
-                        ...prev,
-                        [workspaceId]: arrayMove(projects, oldIndex, newIndex),
-                    };
-                });
+            try {
+                const token = await getTokenRef.current();
+                if (!token) return;
+                await Promise.all(
+                    newOrder.map((w, idx) =>
+                        workspaceApi.updateWorkspace(token, w.id, {
+                            order: idx,
+                        }),
+                    ),
+                );
+            } catch {
+                // silent — order reverts on next page load
             }
         },
-        [],
+        [getTokenRef],
+    );
+
+    const handleProjectDragEnd = useCallback(
+        async (workspaceId: string, event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+            let newOrder: Project[] = [];
+            setWorkspaceProjects((prev) => {
+                const projects = prev[workspaceId] ?? [];
+                const oldIndex = projects.findIndex((p) => p.id === active.id);
+                const newIndex = projects.findIndex((p) => p.id === over.id);
+                newOrder = arrayMove(projects, oldIndex, newIndex);
+                return { ...prev, [workspaceId]: newOrder };
+            });
+            try {
+                const token = await getTokenRef.current();
+                if (!token) return;
+                await Promise.all(
+                    newOrder.map((p, idx) =>
+                        projectApi.updateProject(token, p.id, { order: idx }),
+                    ),
+                );
+            } catch {
+                // silent — order reverts on next page load
+            }
+        },
+        [getTokenRef],
     );
 
     const handleHomeClick = () => router.push('/home');

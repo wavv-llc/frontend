@@ -158,6 +158,23 @@ export default function ProjectPage() {
         });
     };
 
+    const handleTaskRemoved = (taskId: string) => {
+        setTasks((prev) => {
+            const updated = prev.filter((t) => t.id !== taskId);
+            if (project) setCached(cacheKey, { project, tasks: updated });
+            return updated;
+        });
+    };
+
+    const handleTasksRemoved = (taskIds: string[]) => {
+        const idSet = new Set(taskIds);
+        setTasks((prev) => {
+            const updated = prev.filter((t) => !idSet.has(t.id));
+            if (project) setCached(cacheKey, { project, tasks: updated });
+            return updated;
+        });
+    };
+
     return (
         <ProjectDetailView
             project={project}
@@ -165,6 +182,8 @@ export default function ProjectPage() {
             onRefresh={fetchData}
             onCreateTask={() => {}} // No longer used, but keeping for interface compatibility
             onTaskAdded={handleTaskAdded}
+            onTaskRemoved={handleTaskRemoved}
+            onTasksRemoved={handleTasksRemoved}
         />
     );
 }
