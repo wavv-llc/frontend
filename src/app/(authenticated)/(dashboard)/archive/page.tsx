@@ -50,7 +50,7 @@ export default function ArchivePage() {
 
     const handleProjectClick = (project: Project) => {
         router.push(
-            `/workspaces/${project.workspaceId}/projects/${project.id}`,
+            `/workspaces/${project.workspace?.isPersonal ? 'my-workspace' : (project.workspace?.slug ?? project.workspaceId)}/projects/${project.slug ?? project.id}`,
         );
     };
 

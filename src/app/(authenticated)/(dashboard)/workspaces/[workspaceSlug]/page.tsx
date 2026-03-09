@@ -65,7 +65,7 @@ export default function WorkspaceDetailsPage() {
     const searchParams = useSearchParams();
     const { getToken } = useAuth();
 
-    const workspaceId = params.id as string;
+    const workspaceId = params.workspaceSlug as string;
     const cacheKey = `workspace:${workspaceId}`;
 
     const [workspace, setWorkspace] = useState<Workspace | null>(
@@ -106,10 +106,34 @@ export default function WorkspaceDetailsPage() {
                 return;
             }
 
+            // Resolve slug/my-workspace to a real workspace ID.
+            // The backend /workspaces/:id endpoint expects a real ID; slug resolution
+            // may not be available on all backend versions.
+            const isCuid = /^c[a-z0-9]{20,}$/.test(workspaceId);
+            let resolvedId = workspaceId;
+
+            if (!isCuid) {
+                // Fetch all workspaces and find the matching one by slug or personal flag
+                const allWorkspacesRes =
+                    await workspaceApi.getWorkspaces(token);
+                const allWorkspaces = allWorkspacesRes.data || [];
+                const matched = allWorkspaces.find(
+                    (ws) =>
+                        ws.id === workspaceId ||
+                        ws.slug === workspaceId ||
+                        (workspaceId === 'my-workspace' && ws.isPersonal),
+                );
+                if (!matched) {
+                    notFound();
+                    return;
+                }
+                resolvedId = matched.id;
+            }
+
             // Fetch workspace details
             const workspaceResponse = await workspaceApi.getWorkspace(
                 token,
-                workspaceId,
+                resolvedId,
             );
             if (!workspaceResponse.data) {
                 notFound();
@@ -123,7 +147,7 @@ export default function WorkspaceDetailsPage() {
             // Fetch projects for this workspace
             const projectsResponse = await projectApi.getProjectsByWorkspace(
                 token,
-                workspaceId,
+                resolvedId,
             );
             const fetchedProjects = projectsResponse.data || [];
             setProjects(fetchedProjects);
@@ -178,7 +202,7 @@ export default function WorkspaceDetailsPage() {
         try {
             const token = await getToken();
             if (!token) return;
-            await workspaceApi.updateWorkspace(token, workspaceId, {
+            await workspaceApi.updateWorkspace(token, workspace.id, {
                 name: name.trim(),
                 description,
             });
@@ -212,7 +236,7 @@ export default function WorkspaceDetailsPage() {
                 return;
             }
 
-            await workspaceApi.deleteWorkspace(token, workspaceId);
+            await workspaceApi.deleteWorkspace(token, workspace.id);
             toast.success('Workspace deleted successfully');
             invalidateCached(cacheKey, 'workspaces');
             setDeleteDialogOpen(false);

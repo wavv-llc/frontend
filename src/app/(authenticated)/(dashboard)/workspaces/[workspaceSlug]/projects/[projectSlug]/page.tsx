@@ -4,17 +4,26 @@ import { useState, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { ProjectDetailView } from '@/components/projects/ProjectDetailView';
-import { projectApi, taskApi, type Project, type Task } from '@/lib/api';
+import {
+    workspaceApi,
+    projectApi,
+    taskApi,
+    type Project,
+    type Task,
+} from '@/lib/api';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCached, setCached } from '@/lib/pageCache';
 
 type ProjectPageData = { project: Project; tasks: Task[] };
 
+const CUID_REGEX = /^c[a-z0-9]{20,}$/;
+
 export default function ProjectPage() {
     const params = useParams();
     const { getToken } = useAuth();
-    const projectId = params.projectId as string;
+    const projectId = params.projectSlug as string;
+    const workspaceSlug = params.workspaceSlug as string;
     const cacheKey = `project:${projectId}`;
 
     const [project, setProject] = useState<Project | null>(
@@ -33,10 +42,46 @@ export default function ProjectPage() {
                 return;
             }
 
+            // Resolve project slug → real ID (for backends without slug resolution)
+            let resolvedProjectId = projectId;
+            if (!CUID_REGEX.test(projectId)) {
+                // Resolve the workspace slug first
+                let resolvedWorkspaceId = workspaceSlug;
+                if (!CUID_REGEX.test(workspaceSlug)) {
+                    const allWorkspacesRes =
+                        await workspaceApi.getWorkspaces(token);
+                    const allWorkspaces = allWorkspacesRes.data || [];
+                    const matchedWs = allWorkspaces.find(
+                        (ws) =>
+                            ws.id === workspaceSlug ||
+                            ws.slug === workspaceSlug ||
+                            (workspaceSlug === 'my-workspace' && ws.isPersonal),
+                    );
+                    if (!matchedWs) {
+                        notFound();
+                        return;
+                    }
+                    resolvedWorkspaceId = matchedWs.id;
+                }
+                // Get projects for the workspace and find the matching one
+                const projectsRes = await projectApi.getProjectsByWorkspace(
+                    token,
+                    resolvedWorkspaceId,
+                );
+                const matchedProject = (projectsRes.data || []).find(
+                    (p) => p.id === projectId || p.slug === projectId,
+                );
+                if (!matchedProject) {
+                    notFound();
+                    return;
+                }
+                resolvedProjectId = matchedProject.id;
+            }
+
             // Fetch project details
             const projectResponse = await projectApi.getProject(
                 token,
-                projectId,
+                resolvedProjectId,
             );
             if (!projectResponse.data) {
                 notFound();
@@ -48,7 +93,7 @@ export default function ProjectPage() {
             // Fetch tasks for this project
             const tasksResponse = await taskApi.getTasksByProject(
                 token,
-                projectId,
+                resolvedProjectId,
             );
             const fetchedTasks = tasksResponse.data || [];
             setTasks(fetchedTasks);

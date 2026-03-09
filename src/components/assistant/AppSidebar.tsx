@@ -69,6 +69,7 @@ import {
     workspaceApi,
     chatApi,
     projectApi,
+    workspaceUrlSegment,
     type Workspace,
     type Chat,
     type Project,
@@ -206,7 +207,9 @@ export function AppSidebar() {
 
                 // Auto-expand the workspace that's currently active in the URL
                 const activeWorkspaceId = fetched.find((ws) =>
-                    pathname?.includes(`/workspaces/${ws.id}`),
+                    pathname?.includes(
+                        `/workspaces/${workspaceUrlSegment(ws)}`,
+                    ),
                 )?.id;
                 if (activeWorkspaceId) {
                     setExpandedWorkspaces(new Set([activeWorkspaceId]));
@@ -489,7 +492,7 @@ export function AppSidebar() {
                                                         );
                                                     const isWorkspaceActive =
                                                         pathname?.includes(
-                                                            `/workspaces/${workspace.id}`,
+                                                            `/workspaces/${workspaceUrlSegment(workspace)}`,
                                                         );
                                                     const projects =
                                                         workspaceProjects[
@@ -520,7 +523,9 @@ export function AppSidebar() {
                                                                             <SidebarMenuButton
                                                                                 onClick={() =>
                                                                                     handleWorkspaceClick(
-                                                                                        workspace.id,
+                                                                                        workspaceUrlSegment(
+                                                                                            workspace,
+                                                                                        ),
                                                                                     )
                                                                                 }
                                                                                 isActive={
@@ -647,7 +652,7 @@ export function AppSidebar() {
                                                                                                                 <SidebarMenuButton
                                                                                                                     onClick={() =>
                                                                                                                         router.push(
-                                                                                                                            `/workspaces/${workspace.id}/projects/${project.id}`,
+                                                                                                                            `/workspaces/${workspaceUrlSegment(workspace)}/projects/${project.slug ?? project.id}`,
                                                                                                                         )
                                                                                                                     }
                                                                                                                     className="text-[12px] font-normal cursor-pointer rounded-sm pl-5 flex-1"

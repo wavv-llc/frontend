@@ -71,7 +71,7 @@ export default function HomePage() {
         const originalTask = data.tasks.find((t) => t.id === task.id);
         if (originalTask) {
             router.push(
-                `/workspaces/${originalTask.project.workspace.id}/projects/${originalTask.project.id}?task=${originalTask.id}`,
+                `/workspaces/${originalTask.project.workspace.isPersonal ? 'my-workspace' : (originalTask.project.workspace.slug ?? originalTask.project.workspace.id)}/projects/${originalTask.project.slug ?? originalTask.project.id}?task=${originalTask.slug ?? originalTask.id}`,
             );
         }
     };
@@ -81,7 +81,7 @@ export default function HomePage() {
         const originalTask = data.calendar.find((t) => t.id === event.id);
         if (originalTask) {
             router.push(
-                `/workspaces/${originalTask.project.workspace.id}/projects/${originalTask.project.id}?task=${originalTask.id}`,
+                `/workspaces/${originalTask.project.workspace.isPersonal ? 'my-workspace' : (originalTask.project.workspace.slug ?? originalTask.project.workspace.id)}/projects/${originalTask.project.slug ?? originalTask.project.id}?task=${originalTask.slug ?? originalTask.id}`,
             );
         }
     };

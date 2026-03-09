@@ -1434,7 +1434,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         };
 
         const handleShareTaskLink = (task: Task) => {
-            const url = `${window.location.origin}${window.location.pathname}?taskId=${task.id}`;
+            const url = `${window.location.origin}${window.location.pathname}?task=${task.slug ?? task.id}`;
             navigator.clipboard.writeText(url).then(() => {
                 toast.success('Link copied to clipboard');
             });

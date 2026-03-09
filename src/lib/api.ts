@@ -52,8 +52,10 @@ export interface MeResponse {
 
 export interface Workspace {
     id: string;
+    slug?: string;
     name: string;
     description?: string;
+    isPersonal?: boolean;
     createdAt: string;
     updatedAt: string;
     owners: User[];
@@ -63,6 +65,7 @@ export interface Workspace {
 
 export interface Project {
     id: string;
+    slug?: string;
     name: string;
     description?: string;
     workspaceId: string;
@@ -71,11 +74,21 @@ export interface Project {
     updatedAt: string;
     workspace: {
         id: string;
+        slug?: string;
         name: string;
         description?: string;
+        isPersonal?: boolean;
     };
     owners: User[];
     members: User[];
+}
+
+/** Returns the URL segment for a workspace — 'my-workspace' for personal, slug or id otherwise */
+export function workspaceUrlSegment(
+    workspace: Pick<Workspace, 'id' | 'slug' | 'isPersonal'>,
+): string {
+    if (workspace.isPersonal) return 'my-workspace';
+    return workspace.slug ?? workspace.id;
 }
 
 export interface Document {
@@ -126,6 +139,7 @@ export interface Section {
 
 export interface Task {
     id: string;
+    slug?: string;
     name: string;
     description?: string;
     projectId: string;
@@ -1316,11 +1330,14 @@ export interface RecentItem {
 export interface DashboardTask extends Task {
     project: {
         id: string;
+        slug?: string;
         name: string;
         description?: string;
         workspace: {
             id: string;
+            slug?: string;
             name: string;
+            isPersonal?: boolean;
         };
     };
 }

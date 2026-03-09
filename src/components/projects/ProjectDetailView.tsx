@@ -904,8 +904,9 @@ export function ProjectDetailView({
                 <div className="flex items-center justify-between gap-3 w-full">
                     <span>Project copied to your workspace.</span>
                     <button
-                        onClick={() =>
-                            (window.location.href = `/workspaces/${newWorkspaceId}/projects/${newProjectId}`)
+                        onClick={
+                            () =>
+                                (window.location.href = `/workspaces/${newWorkspaceId}/projects/${newProjectId}`) // IDs used here since new copy has no slug yet until page reloads
                         }
                         className="flex items-center gap-1.5 text-xs font-medium text-accent-blue hover:underline shrink-0"
                     >
@@ -1108,30 +1109,29 @@ export function ProjectDetailView({
 
     // Sync URL with selected task
     useEffect(() => {
-        const taskId = searchParams.get('taskId');
-        if (taskId && tasks.length > 0) {
-            const task = tasks.find((t) => t.id === taskId);
+        const taskParam = searchParams.get('task');
+        if (taskParam && tasks.length > 0) {
+            // Match by slug first, fall back to id for backward compatibility
+            const task = tasks.find(
+                (t) => t.slug === taskParam || t.id === taskParam,
+            );
             if (task) {
                 setSelectedTask(task);
-            } else {
-                // Task in URL not found in current list (maybe separate fetch needed if pagination, but likely just wait for tasks)
-                // If tasks are loaded and task not found, maybe clear param?
-                // For now, let's trust tasks list is complete for the project
             }
-        } else if (!taskId) {
+        } else if (!taskParam) {
             setSelectedTask(null);
         }
     }, [searchParams, tasks]);
 
     const handleTaskSelect = (task: Task) => {
         const params = new URLSearchParams(searchParams.toString());
-        params.set('taskId', task.id);
+        params.set('task', task.slug ?? task.id);
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
     const handleTaskClose = () => {
         const params = new URLSearchParams(searchParams.toString());
-        params.delete('taskId');
+        params.delete('task');
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
@@ -1154,8 +1154,14 @@ export function ProjectDetailView({
                 }}
                 workspaceName={project.workspace?.name}
                 workspaceId={project.workspaceId}
+                workspaceSlug={
+                    project.workspace?.isPersonal
+                        ? 'my-workspace'
+                        : project.workspace?.slug
+                }
                 projectName={project.name}
                 projectId={project.id}
+                projectSlug={project.slug}
                 customFields={customFields}
                 projectMembers={Array.from(
                     new Map(
@@ -1184,7 +1190,9 @@ export function ProjectDetailView({
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex items-start justify-between shrink-0">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <Link href={`/workspaces/${project.workspaceId}`}>
+                        <Link
+                            href={`/workspaces/${project.workspace.isPersonal ? 'my-workspace' : (project.workspace.slug ?? project.workspaceId)}`}
+                        >
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -1196,7 +1204,7 @@ export function ProjectDetailView({
                         </Link>
                         <div className="flex items-center gap-2 text-sm text-dashboard-text-muted">
                             <Link
-                                href={`/workspaces/${project.workspaceId}`}
+                                href={`/workspaces/${project.workspace.isPersonal ? 'my-workspace' : (project.workspace.slug ?? project.workspaceId)}`}
                                 className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                             >
                                 {project.workspace.name}

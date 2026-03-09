@@ -636,8 +636,10 @@ interface TaskDetailViewProps {
     onDelete?: () => void;
     workspaceName?: string;
     workspaceId?: string;
+    workspaceSlug?: string;
     projectName?: string;
     projectId?: string;
+    projectSlug?: string;
     customFields?: CustomField[];
     projectMembers?: User[];
     workspaceMembers?: User[];
@@ -651,8 +653,10 @@ export function TaskDetailView({
     onDelete,
     workspaceName,
     workspaceId,
+    workspaceSlug,
     projectName,
     projectId,
+    projectSlug,
     customFields = [],
     projectMembers = [],
     workspaceMembers = [],
@@ -1209,7 +1213,7 @@ export function TaskDetailView({
                     <div className="text-sm text-dashboard-text-muted flex items-center gap-2">
                         {workspaceId ? (
                             <Link
-                                href={`/workspaces/${workspaceId}`}
+                                href={`/workspaces/${workspaceSlug ?? workspaceId}`}
                                 className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                             >
                                 {workspaceName || 'Workspace'}
@@ -1222,7 +1226,7 @@ export function TaskDetailView({
                         </span>
                         {workspaceId && (projectId || task.projectId) ? (
                             <Link
-                                href={`/workspaces/${workspaceId}/projects/${projectId || task.projectId}`}
+                                href={`/workspaces/${workspaceSlug ?? workspaceId}/projects/${projectSlug ?? projectId ?? task.projectId}`}
                                 className="hover:text-dashboard-text-primary hover:underline transition-colors cursor-pointer"
                             >
                                 {projectName ||

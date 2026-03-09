@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { workspaceApi, type Workspace } from '@/lib/api';
+import { workspaceApi, workspaceUrlSegment, type Workspace } from '@/lib/api';
 import { getCached, setCached, invalidateCached } from '@/lib/pageCache';
 import { CreateWorkspaceDialog } from '@/components/dialogs/CreateWorkspaceDialog';
 import {
@@ -236,7 +236,7 @@ export default function WorkspacesPage() {
                             {filteredWorkspaces.map((workspace) => (
                                 <Link
                                     key={workspace.id}
-                                    href={`/workspaces/${workspace.id}`}
+                                    href={`/workspaces/${workspaceUrlSegment(workspace)}`}
                                     className="block"
                                 >
                                     <div className="flex items-center gap-4 px-8 py-3.5 border-b border-dashboard-border hover:bg-accent-subtle/30 transition-colors group cursor-pointer">

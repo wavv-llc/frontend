@@ -150,7 +150,7 @@ export function ProjectListView({
                                     className="col-span-3 flex items-center gap-3 cursor-pointer"
                                     onClick={() =>
                                         router.push(
-                                            `/workspaces/${project.workspaceId}/projects/${project.id}`,
+                                            `/workspaces/${project.workspace?.isPersonal ? 'my-workspace' : (project.workspace?.slug ?? project.workspaceId)}/projects/${project.slug ?? project.id}`,
                                         )
                                     }
                                 >
