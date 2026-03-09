@@ -12,13 +12,6 @@ import {
 } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 
 interface ProjectCalendarViewProps {
     tasks: Task[];
@@ -278,8 +271,7 @@ export function ProjectCalendarView({
     return (
         <div className="w-full h-full border-none rounded-none bg-transparent shadow-none overflow-hidden flex flex-col">
             {/* Header Controls */}
-            {/* Header Controls */}
-            <div className="px-0 py-4 flex items-center justify-between bg-transparent shrink-0">
+            <div className="px-0 py-2 flex items-center justify-between bg-transparent shrink-0">
                 <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
@@ -298,26 +290,17 @@ export function ProjectCalendarView({
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
 
-                    <div className="flex items-center gap-2 px-2">
-                        <span className="font-semibold text-lg text-dashboard-text-primary min-w-35 text-center font-serif">
-                            {viewMode === 'week'
-                                ? weekDates[0].toLocaleDateString('en-US', {
-                                      month: 'long',
-                                      year: 'numeric',
-                                  })
-                                : currentDate.toLocaleDateString('en-US', {
-                                      month: 'long',
-                                      year: 'numeric',
-                                  })}
-                        </span>
-                        {(viewMode === 'week'
-                            ? weekDates.some((date) => isToday(date))
-                            : isToday(currentDate)) && (
-                            <span className="text-xs font-medium text-accent-blue bg-accent-subtle px-2 py-0.5 rounded-full border border-accent-blue/20">
-                                Today
-                            </span>
-                        )}
-                    </div>
+                    <span className="font-semibold text-lg text-dashboard-text-primary min-w-35 text-center font-serif">
+                        {viewMode === 'week'
+                            ? weekDates[0].toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  year: 'numeric',
+                              })
+                            : currentDate.toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  year: 'numeric',
+                              })}
+                    </span>
 
                     <Button
                         variant="ghost"
@@ -337,30 +320,39 @@ export function ProjectCalendarView({
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-dashboard-surface p-1 rounded-lg border border-dashboard-border">
-                        <Select
-                            value={viewMode}
-                            onValueChange={(v) => setViewMode(v as ViewMode)}
-                        >
-                            <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 focus:ring-0 text-sm font-medium focus:outline-none text-dashboard-text-body">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="month">Monthly</SelectItem>
-                                <SelectItem value="week">Weekly</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
+                <div className="flex items-center gap-1.5">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentDate(new Date())}
-                        className="ml-2 h-9 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
+                        className="h-8 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle"
                     >
                         Today
                     </Button>
+                    <div className="flex items-center bg-dashboard-surface rounded-lg border border-dashboard-border overflow-hidden">
+                        <button
+                            onClick={() => setViewMode('week')}
+                            className={cn(
+                                'px-3 h-8 text-sm font-medium transition-colors',
+                                viewMode === 'week'
+                                    ? 'bg-accent-blue text-white'
+                                    : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+                            )}
+                        >
+                            Week
+                        </button>
+                        <button
+                            onClick={() => setViewMode('month')}
+                            className={cn(
+                                'px-3 h-8 text-sm font-medium transition-colors',
+                                viewMode === 'month'
+                                    ? 'bg-accent-blue text-white'
+                                    : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+                            )}
+                        >
+                            Month
+                        </button>
+                    </div>
                 </div>
             </div>
 

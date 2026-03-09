@@ -118,6 +118,7 @@ export interface Section {
     id: string;
     name: string;
     order: number;
+    color?: string | null;
     projectId: string;
     createdAt: string;
     updatedAt: string;
@@ -181,6 +182,7 @@ export interface CustomField {
     required: boolean;
     multiple: boolean;
     order: number;
+    width: number;
     customOptions?: string[];
     projectId: string;
     createdAt: string;
@@ -757,6 +759,14 @@ export const projectApi = {
             body: JSON.stringify({ order }),
         });
     },
+
+    getArchivedProjects: async (token: string, search?: string) => {
+        const params = search ? `?search=${encodeURIComponent(search)}` : '';
+        return apiRequest<Project[]>(`/api/v1/projects/archived${params}`, {
+            method: 'GET',
+            token,
+        });
+    },
 };
 
 // Custom Field API functions
@@ -809,6 +819,7 @@ export const customFieldApi = {
             required?: boolean;
             multiple?: boolean;
             order?: number;
+            width?: number;
             customOptions?: string[];
         },
     ) => {
@@ -879,6 +890,7 @@ export const taskApi = {
             name?: string;
             description?: string;
             dueAt?: string | null;
+            sectionId?: string | null;
         },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {
@@ -992,7 +1004,7 @@ export const sectionApi = {
         token: string,
         projectId: string,
         sectionId: string,
-        data: { name?: string; order?: number },
+        data: { name?: string; order?: number; color?: string | null },
     ) => {
         return apiRequest<Section>(
             `/api/v1/projects/${projectId}/sections/${sectionId}`,

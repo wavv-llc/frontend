@@ -105,6 +105,7 @@ interface EditableContentProps {
     inputClassName?: string;
     isTextarea?: boolean;
     textStyle?: string;
+    readOnly?: boolean;
 }
 
 /** Notion-style inline editable: single contentEditable div, no visible box. */
@@ -116,6 +117,7 @@ const EditableContent = ({
     inputClassName = '',
     isTextarea = false,
     textStyle = '',
+    readOnly = false,
 }: EditableContentProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [displayValue, setDisplayValue] = useState(value);
@@ -181,7 +183,7 @@ const EditableContent = ({
     };
 
     const handleClick = () => {
-        if (!isEditing) {
+        if (!isEditing && !readOnly) {
             setIsEditing(true);
             setEditEmpty(!displayValue.trim());
         }
@@ -237,12 +239,13 @@ const EditableContent = ({
                 }
             }}
             className={cn(
-                'group cursor-pointer rounded -ml-1 pl-1 pr-1 border border-transparent',
-                'hover:bg-muted/30 active:bg-muted/40 transition-colors duration-150',
+                'group rounded -ml-1 pl-1 pr-1 border border-transparent',
+                !readOnly &&
+                    'cursor-pointer hover:bg-muted/30 active:bg-muted/40 transition-colors duration-150',
                 'flex items-start gap-2',
                 className,
             )}
-            title="Click to edit"
+            title={readOnly ? undefined : 'Click to edit'}
         >
             <div
                 className={cn(
@@ -256,7 +259,9 @@ const EditableContent = ({
                     </span>
                 )}
             </div>
-            <Pencil className="h-3.5 w-3.5 mt-1.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            {!readOnly && (
+                <Pencil className="h-3.5 w-3.5 mt-1.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            )}
         </div>
     );
 };
@@ -590,6 +595,8 @@ export function ProjectDetailView({
     const [projectVisibility, setProjectVisibility] = useState<
         'private' | 'team' | 'public'
     >('team');
+
+    const isArchived = project.isArchived ?? false;
 
     // Local project state for optimistic updates
     const [localProject, setLocalProject] = useState(project);
@@ -1024,6 +1031,7 @@ export function ProjectDetailView({
             if (!token) return;
             await sectionApi.deleteSection(token, project.id, sectionId);
             setSections((prev) => prev.filter((s) => s.id !== sectionId));
+            onRefresh(); // reload tasks — deleted section's tasks are removed on the server
         } catch (error) {
             console.error('Failed to delete section:', error);
             toast.error('Failed to delete section');
@@ -1138,12 +1146,29 @@ export function ProjectDetailView({
                 workspaceId={project.workspaceId}
                 projectName={project.name}
                 projectId={project.id}
+                customFields={customFields}
+                projectMembers={Array.from(
+                    new Map(
+                        [...project.owners, ...project.members].map((m) => [
+                            m.id,
+                            m,
+                        ]),
+                    ).values(),
+                )}
             />
         );
     }
 
     return (
         <div className="flex flex-col h-full bg-dashboard-bg animate-in fade-in duration-500">
+            {/* Archived banner */}
+            {isArchived && (
+                <div className="flex items-center gap-2 px-8 py-2 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs font-medium shrink-0">
+                    <Archive className="h-3.5 w-3.5 shrink-0" />
+                    This project is archived and is read-only. It will be
+                    retained for 7 years per data retention policy.
+                </div>
+            )}
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xl border-b border-dashboard-border px-8 py-4 flex items-start justify-between shrink-0">
                 <div>
@@ -1183,6 +1208,7 @@ export function ProjectDetailView({
                             textStyle="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary"
                             inputClassName="text-2xl font-serif font-semibold h-auto py-1 px-2"
                             placeholder="Project Name"
+                            readOnly={isArchived}
                         />
                         <EditableContent
                             value={localProject.description || ''}
@@ -1196,6 +1222,7 @@ export function ProjectDetailView({
                             inputClassName="text-sm min-h-[80px]"
                             isTextarea
                             placeholder="Add a description..."
+                            readOnly={isArchived}
                         />
                     </div>
                 </div>
@@ -1239,26 +1266,34 @@ export function ProjectDetailView({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem
-                                onClick={() => setInviteModalOpen(true)}
-                            >
-                                <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Invite with email</span>
-                            </DropdownMenuItem>
+                            {!isArchived && (
+                                <DropdownMenuItem
+                                    onClick={() => setInviteModalOpen(true)}
+                                >
+                                    <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Invite with email</span>
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={handleExportProject}>
                                 <Download className="mr-2 h-4 w-4 text-muted-foreground" />
                                 <span>Export board to Excel</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => setImportModalOpen(true)}
-                            >
-                                <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Import tasks</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleCopyProject}>
-                                <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Copy Project</span>
-                            </DropdownMenuItem>
+                            {!isArchived && (
+                                <>
+                                    <DropdownMenuItem
+                                        onClick={() => setImportModalOpen(true)}
+                                    >
+                                        <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span>Import tasks</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={handleCopyProject}
+                                    >
+                                        <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span>Copy Project</span>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                             <DropdownMenuItem
                                 onClick={() => setActivityLogOpen(true)}
                             >
@@ -1266,34 +1301,41 @@ export function ProjectDetailView({
                                 <span>Activity log</span>
                             </DropdownMenuItem>
 
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                                onClick={() => setNotificationsOpen(true)}
-                            >
-                                <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Notifications</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => setPermissionsOpen(true)}
-                            >
-                                <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Permissions</span>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-
-                            <DropdownMenuItem
-                                onClick={() => setDeleteDialogOpen(true)}
-                                className="text-destructive focus:text-destructive"
-                            >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Delete</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleArchiveProject}>
-                                <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Archive</span>
-                            </DropdownMenuItem>
+                            {!isArchived && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setNotificationsOpen(true)
+                                        }
+                                    >
+                                        <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span>Notifications</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => setPermissionsOpen(true)}
+                                    >
+                                        <Lock className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span>Permissions</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setDeleteDialogOpen(true)
+                                        }
+                                        className="text-destructive focus:text-destructive"
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Delete</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={handleArchiveProject}
+                                    >
+                                        <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span>Archive</span>
+                                    </DropdownMenuItem>
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -1303,13 +1345,15 @@ export function ProjectDetailView({
             {view === 'list' && (
                 <div className="flex items-center justify-between px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50">
                     <div className="flex items-center gap-2">
-                        <Button
-                            className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
-                            onClick={handleAddSection}
-                            disabled={isCreatingSection}
-                        >
-                            New Section <Plus className="ml-1 h-4 w-4" />
-                        </Button>
+                        {!isArchived && (
+                            <Button
+                                className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
+                                onClick={handleAddSection}
+                                disabled={isCreatingSection}
+                            >
+                                New Section <Plus className="ml-1 h-4 w-4" />
+                            </Button>
+                        )}
                         <div className="relative w-72">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />
                             <Input
@@ -1444,25 +1488,31 @@ export function ProjectDetailView({
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
-                            onClick={() => setTemplatesOpen(true)}
-                        >
-                            <LayoutTemplate className="h-3.5 w-3.5" />
-                            Templates
-                        </Button>
+                        {!isArchived && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                                    onClick={() => setTemplatesOpen(true)}
+                                >
+                                    <LayoutTemplate className="h-3.5 w-3.5" />
+                                    Templates
+                                </Button>
 
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
-                            onClick={() => setApprovalWorkflowOpen(true)}
-                        >
-                            <GitBranch className="h-3.5 w-3.5" />
-                            Approval
-                        </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                                    onClick={() =>
+                                        setApprovalWorkflowOpen(true)
+                                    }
+                                >
+                                    <GitBranch className="h-3.5 w-3.5" />
+                                    Approval
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
@@ -1508,6 +1558,7 @@ export function ProjectDetailView({
                                     onAddSection={handleAddSection}
                                     onRenameSection={handleRenameSection}
                                     onDeleteSection={handleDeleteSection}
+                                    readOnly={isArchived}
                                 />
                             </div>
                         )}

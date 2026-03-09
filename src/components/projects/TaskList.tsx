@@ -10,12 +10,15 @@ import {
 } from 'react';
 import {
     DndContext,
+    DragOverlay,
     closestCenter,
     PointerSensor,
     KeyboardSensor,
     useSensor,
     useSensors,
+    useDroppable,
     type DragEndEvent,
+    type DragStartEvent,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -79,6 +82,7 @@ import {
     customFieldApi,
     taskApi,
     approvalApi,
+    sectionApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,6 +147,7 @@ interface TaskListProps {
     onAddSection?: () => void;
     onRenameSection?: (sectionId: string, name: string) => void;
     onDeleteSection?: (sectionId: string) => void;
+    readOnly?: boolean;
 }
 
 // Concise field types per CPA feedback
@@ -566,21 +571,42 @@ function SortableRow({
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={isDragging ? 'opacity-50 relative z-50' : undefined}
         >
-            {children({ ...attributes, ...listeners })}
+            {isDragging ? (
+                <div className="h-9 border border-dashed border-blue-300/60 rounded-sm bg-blue-50/20 mx-0.5 my-px" />
+            ) : (
+                children({ ...attributes, ...listeners })
+            )}
         </div>
     );
+}
+
+/** Droppable wrapper for section headers — receives tasks dragged onto the header */
+function DroppableSectionHeader({
+    sectionId,
+    isOver: _isOver,
+    children,
+}: {
+    sectionId: string | null;
+    isOver?: boolean;
+    children: (isOver: boolean) => React.ReactNode;
+}) {
+    const { isOver, setNodeRef } = useDroppable({
+        id: sectionId ? `section:${sectionId}` : 'section:none',
+    });
+    return <div ref={setNodeRef}>{children(isOver)}</div>;
 }
 
 /** Thin sortable wrapper for column headers */
 function SortableColumn({
     id,
     className,
+    style,
     children,
 }: {
     id: string;
     className?: string;
+    style?: React.CSSProperties;
     children: (
         dragHandleProps: React.HTMLAttributes<HTMLElement>,
     ) => React.ReactNode;
@@ -597,7 +623,11 @@ function SortableColumn({
     return (
         <div
             ref={setNodeRef}
-            style={{ transform: CSS.Transform.toString(transform), transition }}
+            style={{
+                transform: CSS.Transform.toString(transform),
+                transition,
+                ...style,
+            }}
             className={cn(
                 className,
                 isDragging ? 'opacity-50 z-50' : undefined,
@@ -605,6 +635,54 @@ function SortableColumn({
         >
             {children({ ...attributes, ...listeners })}
         </div>
+    );
+}
+
+/** Drag-to-resize handle anchored to the right edge of a column header */
+function ColumnResizeHandle({
+    fieldId,
+    currentWidth,
+    onResize,
+    onResizeEnd,
+}: {
+    fieldId: string;
+    currentWidth: number;
+    onResize: (fieldId: string, newWidth: number) => void;
+    onResizeEnd: (fieldId: string, finalWidth: number) => void;
+}) {
+    const handlePointerDown = (e: React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startWidth = currentWidth;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+        const onPointerMove = (moveEvent: PointerEvent) => {
+            const newWidth = Math.max(
+                80,
+                startWidth + (moveEvent.clientX - startX),
+            );
+            onResize(fieldId, newWidth);
+        };
+        const onPointerUp = (upEvent: PointerEvent) => {
+            const finalWidth = Math.max(
+                80,
+                startWidth + (upEvent.clientX - startX),
+            );
+            onResizeEnd(fieldId, finalWidth);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+        };
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+    };
+
+    return (
+        <div
+            onPointerDown={handlePointerDown}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:opacity-100 hover:bg-accent-blue/40 transition-opacity z-10 select-none"
+        />
     );
 }
 
@@ -630,6 +708,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             onAddSection: _onAddSection,
             onRenameSection,
             onDeleteSection,
+            readOnly = false,
         },
         ref,
     ) => {
@@ -674,6 +753,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             Record<string, string>
         >({});
 
+        // Optimistic task name overrides (taskId -> name), cleared after server refresh
+        const [optimisticTaskNames, setOptimisticTaskNames] = useState<
+            Record<string, string>
+        >({});
+
         // Deduplicate members to avoid key collision errors
         const uniqueMembers = useMemo(() => {
             return Array.from(new Map(members.map((m) => [m.id, m])).values());
@@ -714,6 +798,53 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             });
         }, [customFields]);
 
+        // Column widths (fieldId -> px width), seeded from backend
+        const [columnWidths, setColumnWidths] = useState<
+            Record<string, number>
+        >(() =>
+            Object.fromEntries(customFields.map((f) => [f.id, f.width ?? 150])),
+        );
+
+        useLayoutEffect(() => {
+            setColumnWidths((prev) => {
+                const next = { ...prev };
+                let changed = false;
+                for (const f of customFields) {
+                    if (!(f.id in next)) {
+                        next[f.id] = f.width ?? 150;
+                        changed = true;
+                    }
+                }
+                return changed ? next : prev;
+            });
+        }, [customFields]);
+
+        const handleColumnResize = (fieldId: string, newWidth: number) => {
+            setColumnWidths((prev) => ({ ...prev, [fieldId]: newWidth }));
+        };
+
+        const handleColumnResizeEnd = async (
+            fieldId: string,
+            finalWidth: number,
+        ) => {
+            const clamped = Math.max(80, Math.min(600, finalWidth));
+            setColumnWidths((prev) => ({ ...prev, [fieldId]: clamped }));
+            try {
+                const token = await getToken();
+                if (!token) return;
+                await customFieldApi.updateCustomField(
+                    token,
+                    projectId,
+                    fieldId,
+                    {
+                        width: clamped,
+                    },
+                );
+            } catch {
+                toast.error('Failed to save column width');
+            }
+        };
+
         const dndSensors = useSensors(
             useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
             useSensor(KeyboardSensor, {
@@ -721,26 +852,111 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }),
         );
 
-        const handleRowDragEnd = async (event: DragEndEvent) => {
-            const { active, over } = event;
-            if (!over || active.id === over.id) return;
+        const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+        const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
 
-            const oldIndex = taskOrder.indexOf(active.id as string);
-            const newIndex = taskOrder.indexOf(over.id as string);
+        const handleRowDragStart = (event: DragStartEvent) => {
+            setActiveTaskId(event.active.id as string);
+        };
+
+        const handleRowDragEnd = async (event: DragEndEvent) => {
+            setActiveTaskId(null);
+            const { active, over } = event;
+            if (!over) return;
+
+            const activeId = active.id as string;
+            const overId = over.id as string;
+
+            // ── Dropped onto a section header drop zone ──────────────────────
+            if (overId.startsWith('section:')) {
+                const targetSectionId =
+                    overId === 'section:none'
+                        ? null
+                        : overId.slice('section:'.length);
+                const activeTask = tasks.find((t) => t.id === activeId);
+                if (!activeTask) return;
+                const currentSectionId = getEffectiveSectionId(activeTask);
+                if (currentSectionId === targetSectionId) return;
+
+                // Optimistic update
+                setLocalTaskSectionOverrides((prev) => ({
+                    ...prev,
+                    [activeId]: targetSectionId,
+                }));
+                try {
+                    const token = await getToken();
+                    if (!token) return;
+                    await taskApi.updateTask(token, projectId, activeId, {
+                        sectionId: targetSectionId,
+                    });
+                    onTaskCreated();
+                } catch {
+                    setLocalTaskSectionOverrides((prev) => {
+                        const next = { ...prev };
+                        delete next[activeId];
+                        return next;
+                    });
+                    toast.error('Failed to move task');
+                }
+                return;
+            }
+
+            // ── Dropped onto another task ─────────────────────────────────────
+            if (activeId === overId) return;
+
+            const activeTask = tasks.find((t) => t.id === activeId);
+            const overTask = tasks.find((t) => t.id === overId);
+            const activeSectionId = activeTask
+                ? getEffectiveSectionId(activeTask)
+                : null;
+            const overSectionId = overTask
+                ? getEffectiveSectionId(overTask)
+                : null;
+
+            const oldIndex = taskOrder.indexOf(activeId);
+            const newIndex = taskOrder.indexOf(overId);
             const newOrder = arrayMove(taskOrder, oldIndex, newIndex);
             setTaskOrder(newOrder);
+
+            // Optimistically update sectionId if dropping into a different section
+            if (activeSectionId !== overSectionId) {
+                setLocalTaskSectionOverrides((prev) => ({
+                    ...prev,
+                    [activeId]: overSectionId,
+                }));
+            }
 
             try {
                 const token = await getToken();
                 if (!token) return;
-                await taskApi.reorderTasks(
-                    token,
-                    projectId,
-                    newOrder.map((id, idx) => ({ id, order: idx })),
-                );
+
+                const calls: Promise<unknown>[] = [
+                    taskApi.reorderTasks(
+                        token,
+                        projectId,
+                        newOrder.map((id, idx) => ({ id, order: idx })),
+                    ),
+                ];
+                if (activeSectionId !== overSectionId) {
+                    calls.push(
+                        taskApi.updateTask(token, projectId, activeId, {
+                            sectionId: overSectionId,
+                        }),
+                    );
+                }
+                await Promise.all(calls);
+                if (activeSectionId !== overSectionId) {
+                    onTaskCreated();
+                }
             } catch {
-                // revert on failure
                 setTaskOrder(taskOrder);
+                if (activeSectionId !== overSectionId) {
+                    setLocalTaskSectionOverrides((prev) => {
+                        const next = { ...prev };
+                        delete next[activeId];
+                        return next;
+                    });
+                }
                 toast.error('Failed to save new task order');
             }
         };
@@ -811,6 +1027,23 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         }, [tasks, optimisticUpdates]);
 
+        // Clear optimistic task names once the server data reflects the updated name
+        useLayoutEffect(() => {
+            if (Object.keys(optimisticTaskNames).length === 0) return;
+            setOptimisticTaskNames((prev) => {
+                const next = { ...prev };
+                let hasChanges = false;
+                Object.keys(next).forEach((taskId) => {
+                    const task = tasks.find((t) => t.id === taskId);
+                    if (!task || task.name === next[taskId]) {
+                        delete next[taskId];
+                        hasChanges = true;
+                    }
+                });
+                return hasChanges ? next : prev;
+            });
+        }, [tasks, optimisticTaskNames]);
+
         // Scroll preservation on task create
         const scrollContainerRef = useRef<HTMLDivElement>(null);
         const pendingScrollRestore = useRef<number | null>(null);
@@ -848,11 +1081,69 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             null,
         );
         const [editingSectionName, setEditingSectionName] = useState('');
+        const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+        const [editingTaskName, setEditingTaskName] = useState('');
+        const [sectionColors, setSectionColors] = useState<
+            Record<string, string>
+        >(() => {
+            const init: Record<string, string> = {};
+            for (const s of sections ?? []) {
+                if (s.color) init[s.id] = s.color;
+            }
+            return init;
+        });
+
+        // Sync section colors when sections prop changes (e.g. after refresh)
+        useLayoutEffect(() => {
+            setSectionColors((prev) => {
+                const next = { ...prev };
+                for (const s of sections ?? []) {
+                    if (!(s.id in prev) && s.color) next[s.id] = s.color;
+                }
+                return next;
+            });
+        }, [sections]);
+
+        // Optimistic overrides for task sectionId during/after cross-section DnD
+        const [localTaskSectionOverrides, setLocalTaskSectionOverrides] =
+            useState<Record<string, string | null>>({});
+
+        // Clear overrides when the tasks prop is refreshed with updated data
+        useLayoutEffect(() => {
+            if (Object.keys(localTaskSectionOverrides).length === 0) return;
+            setLocalTaskSectionOverrides((prev) => {
+                const next = { ...prev };
+                let changed = false;
+                for (const taskId of Object.keys(next)) {
+                    const task = tasks.find((t) => t.id === taskId);
+                    if (!task) {
+                        delete next[taskId];
+                        changed = true;
+                        continue;
+                    }
+                    const overrideVal = next[taskId];
+                    const actualVal = task.sectionId ?? null;
+                    if (overrideVal === actualVal) {
+                        delete next[taskId];
+                        changed = true;
+                    }
+                }
+                return changed ? next : prev;
+            });
+        }, [tasks]);
+
+        const getEffectiveSectionId = (task: Task): string | null => {
+            if (task.id in localTaskSectionOverrides) {
+                return localTaskSectionOverrides[task.id];
+            }
+            return task.sectionId ?? null;
+        };
         // Per-section inline task creation
         const [creatingSectionTask, setCreatingSectionTask] = useState<
             string | null
         >(null);
         const [newSectionTaskName, setNewSectionTaskName] = useState('');
+        const [newTaskName, setNewTaskName] = useState('');
 
         const toggleSection = (sectionId: string) => {
             setCollapsedSections((prev) => ({
@@ -872,6 +1163,39 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             onRenameSection(editingSectionId, name);
             setEditingSectionId(null);
             setEditingSectionName('');
+        };
+
+        const commitRenameTask = async (task: Task) => {
+            const name = editingTaskName.trim();
+            setEditingTaskId(null);
+            setEditingTaskName('');
+            const previousName = task.name;
+            if (!name || name === previousName) return;
+
+            // Apply optimistic update immediately so UI reflects the change at once
+            setOptimisticTaskNames((prev) => ({ ...prev, [task.id]: name }));
+
+            try {
+                const token = await getToken();
+                if (!token) {
+                    setOptimisticTaskNames((prev) => {
+                        const next = { ...prev };
+                        delete next[task.id];
+                        return next;
+                    });
+                    return;
+                }
+                await taskApi.updateTask(token, projectId, task.id, { name });
+                onTaskCreated(); // triggers parent refresh; optimistic entry cleared below
+            } catch {
+                toast.error('Failed to rename task');
+                // Revert optimistic update on error
+                setOptimisticTaskNames((prev) => {
+                    const next = { ...prev };
+                    delete next[task.id];
+                    return next;
+                });
+            }
         };
 
         const handleCreateSectionTask = async (
@@ -896,6 +1220,35 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 });
                 setNewSectionTaskName('');
                 setCreatingSectionTask(null);
+                if (scrollContainerRef.current) {
+                    pendingScrollRestore.current =
+                        scrollContainerRef.current.scrollTop;
+                }
+                onTaskCreated();
+            } catch (error) {
+                console.error('Failed to create task:', error);
+                toast.error('Failed to create task');
+            }
+        };
+
+        const handleCreateTask = async (name: string) => {
+            if (!name.trim()) {
+                setIsCreatingTask(false);
+                setNewTaskName('');
+                return;
+            }
+            try {
+                const token = await getToken();
+                if (!token) {
+                    toast.error('Authentication required');
+                    return;
+                }
+                await taskApi.createTask(token, projectId, {
+                    name: name.trim(),
+                    customFields: {},
+                });
+                setNewTaskName('');
+                setIsCreatingTask(false);
                 if (scrollContainerRef.current) {
                     pendingScrollRestore.current =
                         scrollContainerRef.current.scrollTop;
@@ -1113,13 +1466,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         };
 
         const handleCreateField = async () => {
-            if (!fieldName.trim()) {
+            if (fieldType === 'USER') {
+                if (!roleName.trim()) {
+                    toast.error('Please enter a label for the Person field');
+                    return;
+                }
+            } else if (!fieldName.trim()) {
                 toast.error('Field name is required');
-                return;
-            }
-
-            if (fieldType === 'USER' && !roleName.trim()) {
-                toast.error('Please enter a role name for the Person field');
                 return;
             }
 
@@ -1141,7 +1494,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         : undefined;
 
                 await customFieldApi.createCustomField(token, projectId, {
-                    name: fieldName.trim(),
+                    name:
+                        fieldType === 'USER'
+                            ? roleName.trim()
+                            : fieldName.trim(),
                     dataType: fieldType,
                     customOptions: customOptions || statusOptions,
                     multiple:
@@ -1459,7 +1815,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     <SelectItem key={t.id} value={t.id}>
                                         <div className="flex items-center gap-2">
                                             <CheckSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="truncate max-w-[200px]">
+                                            <span className="truncate max-w-50">
                                                 {t.name}
                                             </span>
                                         </div>
@@ -1533,7 +1889,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                     <SelectItem key={doc.id} value={doc.id}>
                                         <div className="flex items-center gap-2">
                                             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                            <span className="truncate max-w-[200px]">
+                                            <span className="truncate max-w-50">
                                                 {doc.originalName ||
                                                     doc.filename}
                                             </span>
@@ -1894,7 +2250,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             <SortableColumn
                                                 key={field.id}
                                                 id={field.id}
-                                                className="w-[150px] shrink-0"
+                                                className="shrink-0"
+                                                style={{
+                                                    width:
+                                                        columnWidths[
+                                                            field.id
+                                                        ] ?? 150,
+                                                }}
                                             >
                                                 {(dragHandleProps) => (
                                                     <div className="px-2 py-1.5 border-r border-dashboard-border flex items-center gap-1.5 bg-[#f8f9fb] group relative h-full">
@@ -2089,6 +2451,20 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 </PopoverContent>
                                                             </Popover>
                                                         )}
+                                                        <ColumnResizeHandle
+                                                            fieldId={field.id}
+                                                            currentWidth={
+                                                                columnWidths[
+                                                                    field.id
+                                                                ] ?? 150
+                                                            }
+                                                            onResize={
+                                                                handleColumnResize
+                                                            }
+                                                            onResizeEnd={
+                                                                handleColumnResizeEnd
+                                                            }
+                                                        />
                                                     </div>
                                                 )}
                                             </SortableColumn>
@@ -2123,48 +2499,39 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         }
                                     >
                                         <div className="space-y-4">
-                                            <div>
-                                                <div className="mt-2">
-                                                    <input
-                                                        type="text"
-                                                        value={fieldName}
-                                                        onChange={(e) =>
-                                                            setFieldName(
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                        placeholder="Field name..."
-                                                        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
-                                                        autoFocus
-                                                        onKeyDown={(e) => {
-                                                            if (
-                                                                e.key ===
-                                                                    'Enter' &&
-                                                                fieldName.trim() &&
-                                                                !showRoleSelection
-                                                            ) {
+                                            {fieldType !== 'USER' && (
+                                                <div>
+                                                    <div className="mt-2">
+                                                        <input
+                                                            type="text"
+                                                            value={fieldName}
+                                                            onChange={(e) =>
+                                                                setFieldName(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="Field name..."
+                                                            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
+                                                            autoFocus
+                                                            onKeyDown={(e) => {
                                                                 if (
-                                                                    fieldType ===
-                                                                    'USER'
+                                                                    e.key ===
+                                                                        'Enter' &&
+                                                                    fieldName.trim() &&
+                                                                    !showRoleSelection
                                                                 ) {
-                                                                    setShowRoleSelection(
-                                                                        true,
-                                                                    );
-                                                                } else {
                                                                     handleCreateField();
                                                                 }
-                                                            }
-                                                        }}
-                                                    />
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             {!showRoleSelection ? (
                                                 <>
                                                     <div>
-                                                        <Label>
-                                                            Select type
-                                                        </Label>
                                                         <div className="relative">
                                                             <div className="max-h-[180px] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-dashboard-border scrollbar-track-transparent">
                                                                 {FIELD_TYPES.map(
@@ -2360,7 +2727,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 handleCreateField
                                                             }
                                                             disabled={
-                                                                !fieldName.trim() ||
                                                                 !roleName.trim() ||
                                                                 isSubmitting
                                                             }
@@ -2369,20 +2735,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                             {isSubmitting
                                                                 ? 'Creating...'
                                                                 : 'Create'}
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            onClick={() => {
-                                                                setShowRoleSelection(
-                                                                    false,
-                                                                );
-                                                                setRoleName('');
-                                                            }}
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                        >
-                                                            Back
                                                         </Button>
                                                         <Button
                                                             variant="outline"
@@ -2459,29 +2811,36 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               return (
                                                   <div key={groupName}>
                                                       {/* Group Header */}
-                                                      <div className="sticky left-0 min-w-full bg-[#f0f2f5] border-y border-dashboard-border px-4 py-2 flex items-center gap-2 font-medium text-sm text-dashboard-text-body">
-                                                          <button
-                                                              onClick={() =>
-                                                                  toggleGroup(
-                                                                      groupName,
-                                                                  )
-                                                              }
-                                                              className="p-0.5 hover:bg-muted rounded cursor-pointer"
-                                                          >
-                                                              {isCollapsed ? (
-                                                                  <ChevronRight className="h-4 w-4" />
-                                                              ) : (
-                                                                  <ChevronDown className="h-4 w-4" />
-                                                              )}
-                                                          </button>
-                                                          <span className="truncate">
-                                                              {groupName}
-                                                          </span>
-                                                          <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full">
-                                                              {
-                                                                  groupTasks.length
-                                                              }
-                                                          </span>
+                                                      <div
+                                                          className="border-y border-dashboard-border bg-[#f0f2f5]"
+                                                          style={{
+                                                              minWidth: '100%',
+                                                          }}
+                                                      >
+                                                          <div className="sticky left-0 flex items-center gap-2 px-4 py-2 w-max bg-[#f0f2f5] font-medium text-sm text-dashboard-text-body">
+                                                              <button
+                                                                  onClick={() =>
+                                                                      toggleGroup(
+                                                                          groupName,
+                                                                      )
+                                                                  }
+                                                                  className="p-0.5 hover:bg-muted rounded cursor-pointer"
+                                                              >
+                                                                  {isCollapsed ? (
+                                                                      <ChevronRight className="h-4 w-4" />
+                                                                  ) : (
+                                                                      <ChevronDown className="h-4 w-4" />
+                                                                  )}
+                                                              </button>
+                                                              <span className="truncate">
+                                                                  {groupName}
+                                                              </span>
+                                                              <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full">
+                                                                  {
+                                                                      groupTasks.length
+                                                                  }
+                                                              </span>
+                                                          </div>
                                                       </div>
 
                                                       {/* Tasks in Group */}
@@ -2521,24 +2880,91 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   }
                                                                               />
                                                                           </div>
+                                                                          {editingTaskId ===
+                                                                          task.id ? (
+                                                                              <input
+                                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none focus:ring-1 focus:ring-accent-blue/50 rounded px-1 -mx-1"
+                                                                                  value={
+                                                                                      editingTaskName
+                                                                                  }
+                                                                                  onChange={(
+                                                                                      e,
+                                                                                  ) =>
+                                                                                      setEditingTaskName(
+                                                                                          e
+                                                                                              .target
+                                                                                              .value,
+                                                                                      )
+                                                                                  }
+                                                                                  onBlur={() =>
+                                                                                      commitRenameTask(
+                                                                                          task,
+                                                                                      )
+                                                                                  }
+                                                                                  onKeyDown={(
+                                                                                      e,
+                                                                                  ) => {
+                                                                                      if (
+                                                                                          e.key ===
+                                                                                          'Enter'
+                                                                                      )
+                                                                                          commitRenameTask(
+                                                                                              task,
+                                                                                          );
+                                                                                      if (
+                                                                                          e.key ===
+                                                                                          'Escape'
+                                                                                      ) {
+                                                                                          setEditingTaskId(
+                                                                                              null,
+                                                                                          );
+                                                                                          setEditingTaskName(
+                                                                                              '',
+                                                                                          );
+                                                                                      }
+                                                                                  }}
+                                                                                  onClick={(
+                                                                                      e,
+                                                                                  ) =>
+                                                                                      e.stopPropagation()
+                                                                                  }
+                                                                                  autoFocus
+                                                                              />
+                                                                          ) : (
+                                                                              <button
+                                                                                  className="flex-1 min-w-0 text-left cursor-text group/name"
+                                                                                  onClick={(
+                                                                                      e,
+                                                                                  ) => {
+                                                                                      e.stopPropagation();
+                                                                                      if (
+                                                                                          !readOnly
+                                                                                      ) {
+                                                                                          setEditingTaskId(
+                                                                                              task.id,
+                                                                                          );
+                                                                                          setEditingTaskName(
+                                                                                              task.name ||
+                                                                                                  '',
+                                                                                          );
+                                                                                      }
+                                                                                  }}
+                                                                              >
+                                                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate block hover:text-accent-blue transition-colors">
+                                                                                      {(optimisticTaskNames[
+                                                                                          task
+                                                                                              .id
+                                                                                      ] ??
+                                                                                          task.name) || (
+                                                                                          <span className="text-muted-foreground/50 italic font-normal">
+                                                                                              Untitled
+                                                                                          </span>
+                                                                                      )}
+                                                                                  </span>
+                                                                              </button>
+                                                                          )}
                                                                           <button
-                                                                              className="flex-1 min-w-0 text-left cursor-pointer group/name"
-                                                                              onClick={() =>
-                                                                                  onTaskClick(
-                                                                                      task,
-                                                                                  )
-                                                                              }
-                                                                          >
-                                                                              <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
-                                                                                  {task.name || (
-                                                                                      <span className="text-muted-foreground/50 italic font-normal">
-                                                                                          Untitled
-                                                                                      </span>
-                                                                                  )}
-                                                                              </span>
-                                                                          </button>
-                                                                          <button
-                                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
+                                                                              className="opacity-0 group-hover:opacity-60 hover:opacity-100! transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
                                                                               onClick={(
                                                                                   e,
                                                                               ) => {
@@ -2547,7 +2973,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                       task,
                                                                                   );
                                                                               }}
-                                                                              title="Open task"
+                                                                              title="Open task detail"
                                                                           >
                                                                               <ExternalLink className="h-3 w-3" />
                                                                           </button>
@@ -2572,7 +2998,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   key={
                                                                                       field.id
                                                                                   }
-                                                                                  className="w-[150px] shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
+                                                                                  style={{
+                                                                                      width:
+                                                                                          columnWidths[
+                                                                                              field
+                                                                                                  .id
+                                                                                          ] ??
+                                                                                          150,
+                                                                                  }}
+                                                                                  className="shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
                                                                               >
                                                                                   <div className="w-full">
                                                                                       {renderCustomFieldCell(
@@ -2617,60 +3051,64 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                       <Bell className="h-4 w-4 mr-2" />
                                                                                       Notify
                                                                                   </DropdownMenuItem>
-                                                                                  <DropdownMenuSeparator />
-                                                                                  <DropdownMenuItem
-                                                                                      disabled={
-                                                                                          task.approvalStatus !==
-                                                                                          'IN_PREPARATION'
-                                                                                      }
-                                                                                      onClick={(
-                                                                                          e,
-                                                                                      ) => {
-                                                                                          e.stopPropagation();
-                                                                                          handleSubmitTask(
-                                                                                              task,
-                                                                                          );
-                                                                                      }}
-                                                                                  >
-                                                                                      <Send className="h-4 w-4 mr-2" />
-                                                                                      Submit
-                                                                                  </DropdownMenuItem>
-                                                                                  <DropdownMenuItem
-                                                                                      disabled={
-                                                                                          task.approvalStatus !==
-                                                                                          'IN_REVIEW'
-                                                                                      }
-                                                                                      onClick={(
-                                                                                          e,
-                                                                                      ) => {
-                                                                                          e.stopPropagation();
-                                                                                          handleRejectTask(
-                                                                                              task,
-                                                                                          );
-                                                                                      }}
-                                                                                  >
-                                                                                      <XCircle className="h-4 w-4 mr-2" />
-                                                                                      Reject
-                                                                                  </DropdownMenuItem>
-                                                                                  <DropdownMenuItem
-                                                                                      disabled={
-                                                                                          task.approvalStatus ===
-                                                                                          'IN_PREPARATION'
-                                                                                      }
-                                                                                      onClick={(
-                                                                                          e,
-                                                                                      ) => {
-                                                                                          e.stopPropagation();
-                                                                                          handleReopenTask(
-                                                                                              task,
-                                                                                          );
-                                                                                      }}
-                                                                                  >
-                                                                                      <RefreshCw className="h-4 w-4 mr-2" />
-                                                                                      Reopen
-                                                                                      Task
-                                                                                  </DropdownMenuItem>
-                                                                                  <DropdownMenuSeparator />
+                                                                                  {!readOnly && (
+                                                                                      <>
+                                                                                          <DropdownMenuSeparator />
+                                                                                          <DropdownMenuItem
+                                                                                              disabled={
+                                                                                                  task.approvalStatus !==
+                                                                                                  'IN_PREPARATION'
+                                                                                              }
+                                                                                              onClick={(
+                                                                                                  e,
+                                                                                              ) => {
+                                                                                                  e.stopPropagation();
+                                                                                                  handleSubmitTask(
+                                                                                                      task,
+                                                                                                  );
+                                                                                              }}
+                                                                                          >
+                                                                                              <Send className="h-4 w-4 mr-2" />
+                                                                                              Submit
+                                                                                          </DropdownMenuItem>
+                                                                                          <DropdownMenuItem
+                                                                                              disabled={
+                                                                                                  task.approvalStatus !==
+                                                                                                  'IN_REVIEW'
+                                                                                              }
+                                                                                              onClick={(
+                                                                                                  e,
+                                                                                              ) => {
+                                                                                                  e.stopPropagation();
+                                                                                                  handleRejectTask(
+                                                                                                      task,
+                                                                                                  );
+                                                                                              }}
+                                                                                          >
+                                                                                              <XCircle className="h-4 w-4 mr-2" />
+                                                                                              Reject
+                                                                                          </DropdownMenuItem>
+                                                                                          <DropdownMenuItem
+                                                                                              disabled={
+                                                                                                  task.approvalStatus ===
+                                                                                                  'IN_PREPARATION'
+                                                                                              }
+                                                                                              onClick={(
+                                                                                                  e,
+                                                                                              ) => {
+                                                                                                  e.stopPropagation();
+                                                                                                  handleReopenTask(
+                                                                                                      task,
+                                                                                                  );
+                                                                                              }}
+                                                                                          >
+                                                                                              <RefreshCw className="h-4 w-4 mr-2" />
+                                                                                              Reopen
+                                                                                              Task
+                                                                                          </DropdownMenuItem>
+                                                                                          <DropdownMenuSeparator />
+                                                                                      </>
+                                                                                  )}
                                                                                   <DropdownMenuItem
                                                                                       onClick={(
                                                                                           e,
@@ -2719,6 +3157,18 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               (t): t is Task => t !== undefined,
                                           );
 
+                                      const SECTION_COLORS = [
+                                          { label: 'Default', value: '' },
+                                          { label: 'Gray', value: '#f0f2f5' },
+                                          { label: 'Blue', value: '#e8f0fe' },
+                                          { label: 'Green', value: '#e6f4ea' },
+                                          { label: 'Yellow', value: '#fef9e7' },
+                                          { label: 'Orange', value: '#fef3e2' },
+                                          { label: 'Red', value: '#fce8e6' },
+                                          { label: 'Purple', value: '#f3e8fd' },
+                                          { label: 'Pink', value: '#fde8f3' },
+                                      ];
+
                                       const renderTaskRow = (task: Task) => (
                                           <SortableRow
                                               key={task.id}
@@ -2758,32 +3208,99 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                   }
                                                               />
                                                           </div>
-                                                          {/* Task name — Notion-style link */}
+                                                          {/* Task name — inline editable */}
+                                                          {editingTaskId ===
+                                                          task.id ? (
+                                                              <input
+                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none focus:ring-1 focus:ring-accent-blue/50 rounded px-1 -mx-1"
+                                                                  value={
+                                                                      editingTaskName
+                                                                  }
+                                                                  onChange={(
+                                                                      e,
+                                                                  ) =>
+                                                                      setEditingTaskName(
+                                                                          e
+                                                                              .target
+                                                                              .value,
+                                                                      )
+                                                                  }
+                                                                  onBlur={() =>
+                                                                      commitRenameTask(
+                                                                          task,
+                                                                      )
+                                                                  }
+                                                                  onKeyDown={(
+                                                                      e,
+                                                                  ) => {
+                                                                      if (
+                                                                          e.key ===
+                                                                          'Enter'
+                                                                      )
+                                                                          commitRenameTask(
+                                                                              task,
+                                                                          );
+                                                                      if (
+                                                                          e.key ===
+                                                                          'Escape'
+                                                                      ) {
+                                                                          setEditingTaskId(
+                                                                              null,
+                                                                          );
+                                                                          setEditingTaskName(
+                                                                              '',
+                                                                          );
+                                                                      }
+                                                                  }}
+                                                                  onClick={(
+                                                                      e,
+                                                                  ) =>
+                                                                      e.stopPropagation()
+                                                                  }
+                                                                  autoFocus
+                                                              />
+                                                          ) : (
+                                                              <button
+                                                                  className="flex-1 min-w-0 text-left cursor-text group/name"
+                                                                  onClick={(
+                                                                      e,
+                                                                  ) => {
+                                                                      e.stopPropagation();
+                                                                      if (
+                                                                          !readOnly
+                                                                      ) {
+                                                                          setEditingTaskId(
+                                                                              task.id,
+                                                                          );
+                                                                          setEditingTaskName(
+                                                                              task.name ||
+                                                                                  '',
+                                                                          );
+                                                                      }
+                                                                  }}
+                                                              >
+                                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate block hover:text-accent-blue transition-colors">
+                                                                      {(optimisticTaskNames[
+                                                                          task
+                                                                              .id
+                                                                      ] ??
+                                                                          task.name) || (
+                                                                          <span className="text-muted-foreground/50 italic font-normal">
+                                                                              Untitled
+                                                                          </span>
+                                                                      )}
+                                                                  </span>
+                                                              </button>
+                                                          )}
                                                           <button
-                                                              className="flex-1 min-w-0 text-left cursor-pointer group/name"
-                                                              onClick={() =>
-                                                                  onTaskClick(
-                                                                      task,
-                                                                  )
-                                                              }
-                                                          >
-                                                              <span className="text-sm font-medium text-dashboard-text-primary truncate block group-hover/name:underline decoration-dashboard-text-muted/40 underline-offset-2">
-                                                                  {task.name || (
-                                                                      <span className="text-muted-foreground/50 italic font-normal">
-                                                                          Untitled
-                                                                      </span>
-                                                                  )}
-                                                              </span>
-                                                          </button>
-                                                          <button
-                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue"
+                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
                                                               onClick={(e) => {
                                                                   e.stopPropagation();
                                                                   onTaskClick(
                                                                       task,
                                                                   );
                                                               }}
-                                                              title="Open task"
+                                                              title="Open task detail"
                                                           >
                                                               <ExternalLink className="h-3 w-3" />
                                                           </button>
@@ -2804,7 +3321,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                           (field) => (
                                                               <div
                                                                   key={field.id}
-                                                                  className="w-[150px] shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
+                                                                  style={{
+                                                                      width:
+                                                                          columnWidths[
+                                                                              field
+                                                                                  .id
+                                                                          ] ??
+                                                                          150,
+                                                                  }}
+                                                                  className="shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
                                                               >
                                                                   <div className="w-full">
                                                                       {renderCustomFieldCell(
@@ -2849,60 +3374,64 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       <Bell className="h-4 w-4 mr-2" />
                                                                       Notify
                                                                   </DropdownMenuItem>
-                                                                  <DropdownMenuSeparator />
-                                                                  <DropdownMenuItem
-                                                                      disabled={
-                                                                          task.approvalStatus !==
-                                                                          'IN_PREPARATION'
-                                                                      }
-                                                                      onClick={(
-                                                                          e,
-                                                                      ) => {
-                                                                          e.stopPropagation();
-                                                                          handleSubmitTask(
-                                                                              task,
-                                                                          );
-                                                                      }}
-                                                                  >
-                                                                      <Send className="h-4 w-4 mr-2" />
-                                                                      Submit
-                                                                  </DropdownMenuItem>
-                                                                  <DropdownMenuItem
-                                                                      disabled={
-                                                                          task.approvalStatus !==
-                                                                          'IN_REVIEW'
-                                                                      }
-                                                                      onClick={(
-                                                                          e,
-                                                                      ) => {
-                                                                          e.stopPropagation();
-                                                                          handleRejectTask(
-                                                                              task,
-                                                                          );
-                                                                      }}
-                                                                  >
-                                                                      <XCircle className="h-4 w-4 mr-2" />
-                                                                      Reject
-                                                                  </DropdownMenuItem>
-                                                                  <DropdownMenuItem
-                                                                      disabled={
-                                                                          task.approvalStatus ===
-                                                                          'IN_PREPARATION'
-                                                                      }
-                                                                      onClick={(
-                                                                          e,
-                                                                      ) => {
-                                                                          e.stopPropagation();
-                                                                          handleReopenTask(
-                                                                              task,
-                                                                          );
-                                                                      }}
-                                                                  >
-                                                                      <RefreshCw className="h-4 w-4 mr-2" />
-                                                                      Reopen
-                                                                      Task
-                                                                  </DropdownMenuItem>
-                                                                  <DropdownMenuSeparator />
+                                                                  {!readOnly && (
+                                                                      <>
+                                                                          <DropdownMenuSeparator />
+                                                                          <DropdownMenuItem
+                                                                              disabled={
+                                                                                  task.approvalStatus !==
+                                                                                  'IN_PREPARATION'
+                                                                              }
+                                                                              onClick={(
+                                                                                  e,
+                                                                              ) => {
+                                                                                  e.stopPropagation();
+                                                                                  handleSubmitTask(
+                                                                                      task,
+                                                                                  );
+                                                                              }}
+                                                                          >
+                                                                              <Send className="h-4 w-4 mr-2" />
+                                                                              Submit
+                                                                          </DropdownMenuItem>
+                                                                          <DropdownMenuItem
+                                                                              disabled={
+                                                                                  task.approvalStatus !==
+                                                                                  'IN_REVIEW'
+                                                                              }
+                                                                              onClick={(
+                                                                                  e,
+                                                                              ) => {
+                                                                                  e.stopPropagation();
+                                                                                  handleRejectTask(
+                                                                                      task,
+                                                                                  );
+                                                                              }}
+                                                                          >
+                                                                              <XCircle className="h-4 w-4 mr-2" />
+                                                                              Reject
+                                                                          </DropdownMenuItem>
+                                                                          <DropdownMenuItem
+                                                                              disabled={
+                                                                                  task.approvalStatus ===
+                                                                                  'IN_PREPARATION'
+                                                                              }
+                                                                              onClick={(
+                                                                                  e,
+                                                                              ) => {
+                                                                                  e.stopPropagation();
+                                                                                  handleReopenTask(
+                                                                                      task,
+                                                                                  );
+                                                                              }}
+                                                                          >
+                                                                              <RefreshCw className="h-4 w-4 mr-2" />
+                                                                              Reopen
+                                                                              Task
+                                                                          </DropdownMenuItem>
+                                                                          <DropdownMenuSeparator />
+                                                                      </>
+                                                                  )}
                                                                   <DropdownMenuItem
                                                                       onClick={(
                                                                           e,
@@ -2962,7 +3491,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
-                                                      className="w-[150px] shrink-0 border-r border-dashboard-border"
+                                                      style={{
+                                                          width:
+                                                              columnWidths[
+                                                                  field.id
+                                                              ] ?? 150,
+                                                      }}
+                                                      className="shrink-0 border-r border-dashboard-border"
                                                   />
                                               ))}
                                               <div className="w-[150px] shrink-0" />
@@ -2994,7 +3529,13 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
-                                                      className="w-[150px] shrink-0 border-r border-dashboard-border"
+                                                      style={{
+                                                          width:
+                                                              columnWidths[
+                                                                  field.id
+                                                              ] ?? 150,
+                                                      }}
+                                                      className="shrink-0 border-r border-dashboard-border"
                                                   />
                                               ))}
                                               <div className="w-[150px] shrink-0" />
@@ -3003,10 +3544,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
                                       const sectionedIds = new Set(
                                           sections.flatMap((s) =>
-                                              tasks
+                                              orderedTasks
                                                   .filter(
                                                       (t) =>
-                                                          t.sectionId === s.id,
+                                                          getEffectiveSectionId(
+                                                              t,
+                                                          ) === s.id,
                                                   )
                                                   .map((t) => t.id),
                                           ),
@@ -3023,6 +3566,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                   collisionDetection={
                                                       closestCenter
                                                   }
+                                                  onDragStart={
+                                                      handleRowDragStart
+                                                  }
                                                   onDragEnd={handleRowDragEnd}
                                               >
                                                   <SortableContext
@@ -3034,7 +3580,70 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       {orderedTasks.map(
                                                           renderTaskRow,
                                                       )}
+                                                      {isCreatingTask ? (
+                                                          <div
+                                                              key="creating-root"
+                                                              className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150"
+                                                          >
+                                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                                                  <EditableContent
+                                                                      value={
+                                                                          newTaskName
+                                                                      }
+                                                                      onSave={(
+                                                                          name,
+                                                                      ) =>
+                                                                          handleCreateTask(
+                                                                              name,
+                                                                          )
+                                                                      }
+                                                                      placeholder="Task name..."
+                                                                      textStyle="text-sm font-medium"
+                                                                      autoFocus
+                                                                  />
+                                                              </div>
+                                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
+                                                              {displayedFields.map(
+                                                                  (field) => (
+                                                                      <div
+                                                                          key={
+                                                                              field.id
+                                                                          }
+                                                                          style={{
+                                                                              width:
+                                                                                  columnWidths[
+                                                                                      field
+                                                                                          .id
+                                                                                  ] ??
+                                                                                  150,
+                                                                          }}
+                                                                          className="shrink-0 border-r border-dashboard-border"
+                                                                      />
+                                                                  ),
+                                                              )}
+                                                              <div className="w-[150px] shrink-0" />
+                                                          </div>
+                                                      ) : (
+                                                          !readOnly &&
+                                                          renderAddTaskRow()
+                                                      )}
                                                   </SortableContext>
+                                                  <DragOverlay
+                                                      dropAnimation={{
+                                                          duration: 150,
+                                                          easing: 'ease',
+                                                      }}
+                                                  >
+                                                      {activeTask ? (
+                                                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-blue-400/50 rounded-lg shadow-lg shadow-blue-500/20 ring-2 ring-blue-300/30 w-fit max-w-50 cursor-grabbing">
+                                                              <GripVertical className="h-3 w-3 text-blue-400/60 shrink-0" />
+                                                              <span className="text-xs font-medium text-foreground truncate">
+                                                                  {activeTask.name ||
+                                                                      'Untitled'}
+                                                              </span>
+                                                          </div>
+                                                      ) : null}
+                                                  </DragOverlay>
                                               </DndContext>
                                           );
                                       }
@@ -3043,6 +3652,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                           <DndContext
                                               sensors={dndSensors}
                                               collisionDetection={closestCenter}
+                                              onDragStart={handleRowDragStart}
                                               onDragEnd={handleRowDragEnd}
                                           >
                                               <SortableContext
@@ -3052,10 +3662,41 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                   }
                                               >
                                                   <>
-                                                      {/* Unsectioned tasks */}
-                                                      {unsectionedOrdered.map(
-                                                          renderTaskRow,
-                                                      )}
+                                                      {/* Unsectioned tasks — droppable zone to move tasks out of sections */}
+                                                      <DroppableSectionHeader
+                                                          sectionId={null}
+                                                      >
+                                                          {(isDropOver) => (
+                                                              <div
+                                                                  className={cn(
+                                                                      'transition-colors',
+                                                                      isDropOver &&
+                                                                          'outline-2 outline-blue-300/60 -outline-offset-2 rounded-sm bg-blue-50/40',
+                                                                  )}
+                                                              >
+                                                                  {unsectionedOrdered.map(
+                                                                      renderTaskRow,
+                                                                  )}
+                                                                  {/* Always show a drop zone when dragging + unsectioned area is empty */}
+                                                                  {activeTaskId &&
+                                                                      unsectionedOrdered.length ===
+                                                                          0 && (
+                                                                          <div
+                                                                              className={cn(
+                                                                                  'h-10 flex items-center justify-center text-xs rounded-sm mx-2 my-1 border border-dashed transition-colors',
+                                                                                  isDropOver
+                                                                                      ? 'text-blue-500/80 border-blue-400/70 bg-blue-50/60'
+                                                                                      : 'text-muted-foreground/40 border-muted-foreground/20',
+                                                                              )}
+                                                                          >
+                                                                              {isDropOver
+                                                                                  ? 'Drop to remove from section'
+                                                                                  : 'No section'}
+                                                                          </div>
+                                                                      )}
+                                                              </div>
+                                                          )}
+                                                      </DroppableSectionHeader>
 
                                                       {/* Sections */}
                                                       {sections.map(
@@ -3063,7 +3704,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                               const sectionTasks =
                                                                   orderedTasks.filter(
                                                                       (t) =>
-                                                                          t.sectionId ===
+                                                                          getEffectiveSectionId(
+                                                                              t,
+                                                                          ) ===
                                                                           section.id,
                                                                   );
                                                               const isCollapsed =
@@ -3081,130 +3724,237 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       }
                                                                   >
                                                                       {/* Section Header */}
-                                                                      <div className="sticky left-0 min-w-full bg-[#f0f2f5] border-y border-dashboard-border px-4 py-2 flex items-center gap-2 group/section">
-                                                                          <button
-                                                                              onClick={() =>
-                                                                                  toggleSection(
-                                                                                      section.id,
-                                                                                  )
-                                                                              }
-                                                                              className="p-0.5 hover:bg-muted rounded cursor-pointer shrink-0"
-                                                                          >
-                                                                              {isCollapsed ? (
-                                                                                  <ChevronRight className="h-4 w-4 text-dashboard-text-muted" />
-                                                                              ) : (
-                                                                                  <ChevronDown className="h-4 w-4 text-dashboard-text-muted" />
-                                                                              )}
-                                                                          </button>
-
-                                                                          {isEditing ? (
-                                                                              <Input
-                                                                                  className="h-6 py-0 px-1 text-sm font-medium border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-accent-blue w-48"
-                                                                                  value={
-                                                                                      editingSectionName
-                                                                                  }
-                                                                                  onChange={(
-                                                                                      e,
-                                                                                  ) =>
-                                                                                      setEditingSectionName(
-                                                                                          e
-                                                                                              .target
-                                                                                              .value,
-                                                                                      )
-                                                                                  }
-                                                                                  onBlur={
-                                                                                      commitRenameSection
-                                                                                  }
-                                                                                  onKeyDown={(
-                                                                                      e,
-                                                                                  ) => {
-                                                                                      if (
-                                                                                          e.key ===
-                                                                                          'Enter'
-                                                                                      )
-                                                                                          commitRenameSection();
-                                                                                      if (
-                                                                                          e.key ===
-                                                                                          'Escape'
-                                                                                      ) {
-                                                                                          setEditingSectionId(
-                                                                                              null,
-                                                                                          );
-                                                                                          setEditingSectionName(
-                                                                                              '',
-                                                                                          );
-                                                                                      }
+                                                                      <DroppableSectionHeader
+                                                                          sectionId={
+                                                                              section.id
+                                                                          }
+                                                                      >
+                                                                          {(
+                                                                              isDropOver,
+                                                                          ) => (
+                                                                              <div
+                                                                                  className="border-y border-dashboard-border group/section"
+                                                                                  style={{
+                                                                                      minWidth:
+                                                                                          '100%',
+                                                                                      backgroundColor:
+                                                                                          isDropOver
+                                                                                              ? 'color-mix(in srgb, var(--accent-blue) 12%, transparent)'
+                                                                                              : sectionColors[
+                                                                                                    section
+                                                                                                        .id
+                                                                                                ] ||
+                                                                                                '#f0f2f5',
                                                                                   }}
-                                                                                  autoFocus
-                                                                              />
-                                                                          ) : (
-                                                                              <span
-                                                                                  className="font-medium text-sm text-dashboard-text-body truncate cursor-pointer hover:text-accent-blue"
-                                                                                  onClick={() =>
-                                                                                      startRenamingSection(
-                                                                                          section,
-                                                                                      )
-                                                                                  }
                                                                               >
-                                                                                  {
-                                                                                      section.name
-                                                                                  }
-                                                                              </span>
-                                                                          )}
-
-                                                                          <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full shrink-0">
-                                                                              {
-                                                                                  sectionTasks.length
-                                                                              }
-                                                                          </span>
-
-                                                                          {/* Section actions */}
-                                                                          {onDeleteSection && (
-                                                                              <DropdownMenu>
-                                                                                  <DropdownMenuTrigger
-                                                                                      asChild
+                                                                                  <div
+                                                                                      className="sticky left-0 flex items-center gap-2 px-4 py-2 w-max transition-colors"
+                                                                                      style={{
+                                                                                          backgroundColor:
+                                                                                              isDropOver
+                                                                                                  ? 'color-mix(in srgb, var(--accent-blue) 12%, transparent)'
+                                                                                                  : sectionColors[
+                                                                                                        section
+                                                                                                            .id
+                                                                                                    ] ||
+                                                                                                    '#f0f2f5',
+                                                                                      }}
                                                                                   >
-                                                                                      <Button
-                                                                                          variant="ghost"
-                                                                                          size="icon"
-                                                                                          className="h-6 w-6 opacity-0 group-hover/section:opacity-100 transition-opacity ml-auto shrink-0"
-                                                                                          onClick={(
-                                                                                              e,
-                                                                                          ) =>
-                                                                                              e.stopPropagation()
-                                                                                          }
-                                                                                      >
-                                                                                          <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                                      </Button>
-                                                                                  </DropdownMenuTrigger>
-                                                                                  <DropdownMenuContent align="end">
-                                                                                      <DropdownMenuItem
+                                                                                      <button
                                                                                           onClick={() =>
-                                                                                              startRenamingSection(
-                                                                                                  section,
-                                                                                              )
-                                                                                          }
-                                                                                      >
-                                                                                          <Pencil className="h-4 w-4 mr-2" />
-                                                                                          Rename
-                                                                                      </DropdownMenuItem>
-                                                                                      <DropdownMenuSeparator />
-                                                                                      <DropdownMenuItem
-                                                                                          onClick={() =>
-                                                                                              onDeleteSection(
+                                                                                              toggleSection(
                                                                                                   section.id,
                                                                                               )
                                                                                           }
-                                                                                          className="text-destructive focus:text-destructive"
+                                                                                          className="p-0.5 hover:bg-muted rounded cursor-pointer shrink-0"
                                                                                       >
-                                                                                          <Trash2 className="h-4 w-4 mr-2" />
-                                                                                          Delete
-                                                                                          Section
-                                                                                      </DropdownMenuItem>
-                                                                                  </DropdownMenuContent>
-                                                                              </DropdownMenu>
+                                                                                          {isCollapsed ? (
+                                                                                              <ChevronRight className="h-4 w-4 text-dashboard-text-muted" />
+                                                                                          ) : (
+                                                                                              <ChevronDown className="h-4 w-4 text-dashboard-text-muted" />
+                                                                                          )}
+                                                                                      </button>
+
+                                                                                      {isEditing ? (
+                                                                                          <Input
+                                                                                              className="h-6 py-0 px-1 text-sm font-medium border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-accent-blue w-48"
+                                                                                              value={
+                                                                                                  editingSectionName
+                                                                                              }
+                                                                                              onChange={(
+                                                                                                  e,
+                                                                                              ) =>
+                                                                                                  setEditingSectionName(
+                                                                                                      e
+                                                                                                          .target
+                                                                                                          .value,
+                                                                                                  )
+                                                                                              }
+                                                                                              onBlur={
+                                                                                                  commitRenameSection
+                                                                                              }
+                                                                                              onKeyDown={(
+                                                                                                  e,
+                                                                                              ) => {
+                                                                                                  if (
+                                                                                                      e.key ===
+                                                                                                      'Enter'
+                                                                                                  )
+                                                                                                      commitRenameSection();
+                                                                                                  if (
+                                                                                                      e.key ===
+                                                                                                      'Escape'
+                                                                                                  ) {
+                                                                                                      setEditingSectionId(
+                                                                                                          null,
+                                                                                                      );
+                                                                                                      setEditingSectionName(
+                                                                                                          '',
+                                                                                                      );
+                                                                                                  }
+                                                                                              }}
+                                                                                              autoFocus
+                                                                                          />
+                                                                                      ) : (
+                                                                                          <span
+                                                                                              className="font-medium text-sm text-dashboard-text-body truncate cursor-pointer hover:text-accent-blue"
+                                                                                              onClick={() =>
+                                                                                                  startRenamingSection(
+                                                                                                      section,
+                                                                                                  )
+                                                                                              }
+                                                                                          >
+                                                                                              {
+                                                                                                  section.name
+                                                                                              }
+                                                                                          </span>
+                                                                                      )}
+
+                                                                                      <span className="text-muted-foreground text-xs ml-1 bg-muted px-1.5 py-0.5 rounded-full shrink-0">
+                                                                                          {
+                                                                                              sectionTasks.length
+                                                                                          }
+                                                                                      </span>
+
+                                                                                      {/* Section actions */}
+                                                                                      {onDeleteSection && (
+                                                                                          <DropdownMenu>
+                                                                                              <DropdownMenuTrigger
+                                                                                                  asChild
+                                                                                              >
+                                                                                                  <Button
+                                                                                                      variant="ghost"
+                                                                                                      size="icon"
+                                                                                                      className="h-6 w-6 opacity-0 group-hover/section:opacity-100 transition-opacity shrink-0"
+                                                                                                      onClick={(
+                                                                                                          e,
+                                                                                                      ) =>
+                                                                                                          e.stopPropagation()
+                                                                                                      }
+                                                                                                  >
+                                                                                                      <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                                                  </Button>
+                                                                                              </DropdownMenuTrigger>
+                                                                                              <DropdownMenuContent align="end">
+                                                                                                  <DropdownMenuItem
+                                                                                                      onClick={() =>
+                                                                                                          startRenamingSection(
+                                                                                                              section,
+                                                                                                          )
+                                                                                                      }
+                                                                                                  >
+                                                                                                      <Pencil className="h-4 w-4 mr-2" />
+                                                                                                      Rename
+                                                                                                  </DropdownMenuItem>
+                                                                                                  <DropdownMenuSeparator />
+                                                                                                  <div className="px-2 py-1.5">
+                                                                                                      <p className="text-xs text-muted-foreground mb-2 font-medium">
+                                                                                                          Section
+                                                                                                          color
+                                                                                                      </p>
+                                                                                                      <div className="grid grid-cols-5 gap-1">
+                                                                                                          {SECTION_COLORS.map(
+                                                                                                              (
+                                                                                                                  color,
+                                                                                                              ) => (
+                                                                                                                  <button
+                                                                                                                      key={
+                                                                                                                          color.value
+                                                                                                                      }
+                                                                                                                      title={
+                                                                                                                          color.label
+                                                                                                                      }
+                                                                                                                      onClick={async () => {
+                                                                                                                          setSectionColors(
+                                                                                                                              (
+                                                                                                                                  prev,
+                                                                                                                              ) => ({
+                                                                                                                                  ...prev,
+                                                                                                                                  [section.id]:
+                                                                                                                                      color.value,
+                                                                                                                              }),
+                                                                                                                          );
+                                                                                                                          try {
+                                                                                                                              const token =
+                                                                                                                                  await getToken();
+                                                                                                                              if (
+                                                                                                                                  token
+                                                                                                                              ) {
+                                                                                                                                  await sectionApi.updateSection(
+                                                                                                                                      token,
+                                                                                                                                      projectId,
+                                                                                                                                      section.id,
+                                                                                                                                      {
+                                                                                                                                          color:
+                                                                                                                                              color.value ||
+                                                                                                                                              null,
+                                                                                                                                      },
+                                                                                                                                  );
+                                                                                                                              }
+                                                                                                                          } catch {
+                                                                                                                              // non-critical: color just won't persist
+                                                                                                                          }
+                                                                                                                      }}
+                                                                                                                      className={`w-5 h-5 rounded-sm border transition-all cursor-pointer ${
+                                                                                                                          (sectionColors[
+                                                                                                                              section
+                                                                                                                                  .id
+                                                                                                                          ] ??
+                                                                                                                              '') ===
+                                                                                                                          color.value
+                                                                                                                              ? 'border-primary ring-1 ring-primary'
+                                                                                                                              : 'border-border hover:border-ring'
+                                                                                                                      }`}
+                                                                                                                      style={{
+                                                                                                                          backgroundColor:
+                                                                                                                              color.value ||
+                                                                                                                              '#f0f2f5',
+                                                                                                                      }}
+                                                                                                                  />
+                                                                                                              ),
+                                                                                                          )}
+                                                                                                      </div>
+                                                                                                  </div>
+                                                                                                  <DropdownMenuSeparator />
+                                                                                                  <DropdownMenuItem
+                                                                                                      onClick={() =>
+                                                                                                          onDeleteSection(
+                                                                                                              section.id,
+                                                                                                          )
+                                                                                                      }
+                                                                                                      className="text-destructive focus:text-destructive"
+                                                                                                  >
+                                                                                                      <Trash2 className="h-4 w-4 mr-2" />
+                                                                                                      Delete
+                                                                                                      Section
+                                                                                                  </DropdownMenuItem>
+                                                                                              </DropdownMenuContent>
+                                                                                          </DropdownMenu>
+                                                                                      )}
+                                                                                  </div>
+                                                                              </div>
                                                                           )}
-                                                                      </div>
+                                                                      </DroppableSectionHeader>
 
                                                                       {/* Tasks in section */}
                                                                       {!isCollapsed && (
@@ -3217,7 +3967,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                   ? renderInlineTaskCreate(
                                                                                         section.id,
                                                                                     )
-                                                                                  : renderAddTaskRow(
+                                                                                  : !readOnly &&
+                                                                                    renderAddTaskRow(
                                                                                         section.id,
                                                                                     )}
                                                                           </>
@@ -3228,6 +3979,22 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       )}
                                                   </>
                                               </SortableContext>
+                                              <DragOverlay
+                                                  dropAnimation={{
+                                                      duration: 150,
+                                                      easing: 'ease',
+                                                  }}
+                                              >
+                                                  {activeTask ? (
+                                                      <div className="flex items-center h-9 px-3 gap-3 bg-dashboard-surface border border-blue-300/50 rounded shadow-lg shadow-black/10 min-w-75 opacity-95 cursor-grabbing">
+                                                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                                                          <span className="text-sm font-medium text-dashboard-text-primary truncate">
+                                                              {activeTask.name ||
+                                                                  'Untitled'}
+                                                          </span>
+                                                      </div>
+                                                  ) : null}
+                                              </DragOverlay>
                                           </DndContext>
                                       );
                                   })()}

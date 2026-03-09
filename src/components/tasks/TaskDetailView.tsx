@@ -37,6 +37,10 @@ import {
     Italic,
     Underline,
     Strikethrough,
+    ChevronDown,
+    Bell,
+    XCircle,
+    Link2,
 } from 'lucide-react';
 import {
     Popover,
@@ -52,6 +56,7 @@ import {
     type Task,
     type Comment,
     type User,
+    type CustomField,
     taskApi,
     taskCommentApi,
     approvalApi,
@@ -126,8 +131,22 @@ function sanitizeCommentHtml(html: string): string {
         Array.from(el.attributes).forEach((attr) => {
             if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
             if (
-                (attr.name === 'href' || attr.name === 'src') &&
+                attr.name === 'href' &&
                 /^(javascript|data):/i.test(attr.value.replace(/\s/g, ''))
+            ) {
+                el.removeAttribute(attr.name);
+            }
+            // Allow data:image/ in src (safe image data), block other data: schemes
+            if (
+                attr.name === 'src' &&
+                /^data:/i.test(attr.value.replace(/\s/g, '')) &&
+                !/^data:image\//i.test(attr.value.replace(/\s/g, ''))
+            ) {
+                el.removeAttribute(attr.name);
+            }
+            if (
+                attr.name === 'src' &&
+                /^javascript:/i.test(attr.value.replace(/\s/g, ''))
             ) {
                 el.removeAttribute(attr.name);
             }
@@ -191,31 +210,75 @@ const RichCommentEditor = forwardRef<
         setActiveFormats(fmts);
     }, []);
 
+    const isEditorEmpty = useCallback((el: HTMLDivElement) => {
+        return !el.textContent?.trim() && !el.querySelector('img');
+    }, []);
+
     const execFormat = useCallback(
         (cmd: string, val?: string) => {
             divRef.current?.focus();
             document.execCommand(cmd, false, val);
             syncFormats();
             const html = divRef.current?.innerHTML ?? '';
-            const empty = !divRef.current?.textContent?.trim();
+            const empty = divRef.current ? isEditorEmpty(divRef.current) : true;
             onContentChange(html, empty);
         },
-        [syncFormats, onContentChange],
+        [syncFormats, onContentChange, isEditorEmpty],
     );
 
     const handleInput = useCallback(() => {
         const el = divRef.current;
         if (!el) return;
         const html = el.innerHTML;
-        const empty = !el.textContent?.trim();
+        const empty = isEditorEmpty(el);
         setIsEmpty(empty);
         syncFormats();
         onContentChange(html, empty);
-    }, [syncFormats, onContentChange]);
+    }, [syncFormats, onContentChange, isEditorEmpty]);
 
     const handlePaste = useCallback(
         (e: React.ClipboardEvent) => {
             e.preventDefault();
+
+            // Check for image in clipboard first
+            const items = Array.from(e.clipboardData.items);
+            const imageItem = items.find((item) =>
+                item.type.startsWith('image/'),
+            );
+
+            if (imageItem) {
+                const file = imageItem.getAsFile();
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        const img = document.createElement('img');
+                        img.src = dataUrl;
+                        img.style.maxWidth = '100%';
+                        img.style.borderRadius = '6px';
+                        img.style.marginTop = '4px';
+                        img.style.display = 'block';
+                        divRef.current?.focus();
+                        const sel = window.getSelection();
+                        if (sel && sel.rangeCount > 0) {
+                            const range = sel.getRangeAt(0);
+                            range.deleteContents();
+                            range.insertNode(img);
+                            range.setStartAfter(img);
+                            range.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        } else {
+                            divRef.current?.appendChild(img);
+                        }
+                        handleInput();
+                    };
+                    reader.readAsDataURL(file);
+                    return;
+                }
+            }
+
+            // Fall back to plain text
             const text = e.clipboardData.getData('text/plain');
             document.execCommand('insertText', false, text);
             handleInput();
@@ -349,6 +412,8 @@ interface TaskDetailViewProps {
     workspaceId?: string;
     projectName?: string;
     projectId?: string;
+    customFields?: CustomField[];
+    projectMembers?: User[];
 }
 
 // ─── TaskDetailView ────────────────────────────────────────────────────────────
@@ -361,8 +426,10 @@ export function TaskDetailView({
     workspaceId,
     projectName,
     projectId,
+    customFields = [],
+    projectMembers = [],
 }: TaskDetailViewProps) {
-    const { getToken, userId: clerkUserId } = useAuth();
+    const { getToken } = useAuth();
     const [comments, setComments] = useState<Comment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -383,23 +450,15 @@ export function TaskDetailView({
     const reviewerChain = approvalChain
         .filter((e) => e.role === 'REVIEWER')
         .sort((a, b) => (a.stepOrder ?? 0) - (b.stepOrder ?? 0));
-    // The active reviewer entry for the current index (index 1 = reviewer[0], index 2 = reviewer[1])
-    const currentChainEntry =
-        task.currentStepIndex > 0 && task.approvalStatus === 'IN_REVIEW'
-            ? (reviewerChain[task.currentStepIndex - 1] ?? null)
-            : null;
-    const isActiveReviewer = currentChainEntry?.user?.clerkId === clerkUserId;
-    // At IN_PREPARATION any member can submit; at IN_REVIEW only the active reviewer
-    const canSubmit =
-        task.approvalStatus !== 'COMPLETED' &&
-        (task.approvalStatus === 'IN_PREPARATION' ||
-            (task.approvalStatus === 'IN_REVIEW' && isActiveReviewer));
-    const canReject = task.approvalStatus === 'IN_REVIEW' && isActiveReviewer;
-    const canReopen = task.approvalStatus === 'COMPLETED';
     // Task is locked for editing when it's under review or completed
     const isLocked =
         task.approvalStatus === 'IN_REVIEW' ||
         task.approvalStatus === 'COMPLETED';
+
+    // Name inline edit state
+    const [nameValue, setNameValue] = useState(task.name);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const nameRef = useRef<HTMLInputElement>(null);
 
     // Description inline edit state
     const [descValue, setDescValue] = useState(task.description || '');
@@ -504,6 +563,33 @@ export function TaskDetailView({
             setDescValue(task.description || '');
         } finally {
             setIsEditingDesc(false);
+        }
+    };
+
+    const handleSaveName = async (value: string) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            setNameValue(task.name);
+            setIsEditingName(false);
+            return;
+        }
+        if (trimmed === task.name) {
+            setIsEditingName(false);
+            return;
+        }
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskApi.updateTask(token, task.projectId, task.id, {
+                name: trimmed,
+            });
+            toast.success('Task renamed');
+            if (onUpdate) onUpdate();
+        } catch {
+            toast.error('Failed to rename task');
+            setNameValue(task.name);
+        } finally {
+            setIsEditingName(false);
         }
     };
 
@@ -774,9 +860,56 @@ export function TaskDetailView({
                 {/* Title & Actions */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                        <h1 className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight truncate">
-                            {task.name}
-                        </h1>
+                        {isEditingName ? (
+                            <input
+                                ref={nameRef}
+                                value={nameValue}
+                                autoFocus
+                                onChange={(e) => setNameValue(e.target.value)}
+                                onBlur={() => handleSaveName(nameValue)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        nameRef.current?.blur();
+                                    }
+                                    if (e.key === 'Escape') {
+                                        setNameValue(task.name);
+                                        setIsEditingName(false);
+                                    }
+                                }}
+                                className="text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight bg-transparent border-none outline-none w-full min-w-0 p-0"
+                            />
+                        ) : (
+                            <h1
+                                role={isLocked ? undefined : 'button'}
+                                tabIndex={isLocked ? undefined : 0}
+                                onClick={
+                                    isLocked
+                                        ? undefined
+                                        : () => setIsEditingName(true)
+                                }
+                                onKeyDown={
+                                    isLocked
+                                        ? undefined
+                                        : (e) => {
+                                              if (
+                                                  e.key === 'Enter' ||
+                                                  e.key === ' '
+                                              ) {
+                                                  e.preventDefault();
+                                                  setIsEditingName(true);
+                                              }
+                                          }
+                                }
+                                title={isLocked ? undefined : 'Click to rename'}
+                                className={cn(
+                                    'text-2xl font-serif font-semibold tracking-tight text-dashboard-text-primary leading-tight truncate',
+                                    !isLocked && 'cursor-text',
+                                )}
+                            >
+                                {nameValue}
+                            </h1>
+                        )}
                         {isLocked && (
                             <span
                                 title="Task is locked for review"
@@ -799,37 +932,49 @@ export function TaskDetailView({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                {/* Approval actions */}
-                                {canSubmit && (
-                                    <DropdownMenuItem
-                                        onClick={handleSubmitTask}
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <Send className="h-4 w-4 mr-2 text-green-600" />
-                                        Submit for Review
-                                    </DropdownMenuItem>
-                                )}
-                                {canReject && (
-                                    <DropdownMenuItem
-                                        onClick={handleRejectTask}
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <RotateCcw className="h-4 w-4 mr-2 text-amber-600" />
-                                        Reject (Send Back)
-                                    </DropdownMenuItem>
-                                )}
-                                {canReopen && (
-                                    <DropdownMenuItem
-                                        onClick={handleReopenTask}
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <RefreshCw className="h-4 w-4 mr-2 text-blue-600" />
-                                        Reopen Task
-                                    </DropdownMenuItem>
-                                )}
-                                {(canSubmit || canReject || canReopen) && (
-                                    <DropdownMenuSeparator />
-                                )}
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        toast.info(
+                                            'Task notifications coming soon',
+                                        )
+                                    }
+                                >
+                                    <Bell className="h-4 w-4 mr-2" />
+                                    Notify
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    disabled={
+                                        task.approvalStatus !==
+                                            'IN_PREPARATION' ||
+                                        isApprovalLoading
+                                    }
+                                    onClick={handleSubmitTask}
+                                >
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Submit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    disabled={
+                                        task.approvalStatus !== 'IN_REVIEW' ||
+                                        isApprovalLoading
+                                    }
+                                    onClick={handleRejectTask}
+                                >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    disabled={
+                                        task.approvalStatus !== 'COMPLETED' ||
+                                        isApprovalLoading
+                                    }
+                                    onClick={handleReopenTask}
+                                >
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Reopen Task
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setEditDialogOpen(true)}
                                     disabled={isLocked}
@@ -843,6 +988,21 @@ export function TaskDetailView({
                                 <DropdownMenuItem onClick={handleCopyTask}>
                                     <Copy className="h-4 w-4 mr-2" />
                                     Copy Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                        const url = `${window.location.origin}${window.location.pathname}?taskId=${task.id}`;
+                                        navigator.clipboard
+                                            .writeText(url)
+                                            .then(() =>
+                                                toast.success(
+                                                    'Link copied to clipboard',
+                                                ),
+                                            );
+                                    }}
+                                >
+                                    <Link2 className="h-4 w-4 mr-2" />
+                                    Share Link
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -957,17 +1117,19 @@ export function TaskDetailView({
                                 ))}
                             </div>
                         ) : comments.length > 0 ? (
-                            <div className="divide-y divide-dashboard-border/50 mb-4">
+                            <div className="space-y-4 mb-4">
                                 {comments.map((comment, index) => (
-                                    <div key={comment.id} className="py-1">
-                                        <CommentThread
-                                            index={index + 1}
-                                            comment={comment}
-                                            onUpdate={loadComments}
-                                            taskId={task.id}
-                                            projectId={task.projectId}
-                                        />
-                                    </div>
+                                    <CommentThread
+                                        key={comment.id}
+                                        index={index + 1}
+                                        comment={comment}
+                                        onUpdate={loadComments}
+                                        taskId={task.id}
+                                        projectId={task.projectId}
+                                        onAttach={() =>
+                                            setUploadDialogOpen(true)
+                                        }
+                                    />
                                 ))}
                             </div>
                         ) : null}
@@ -1251,66 +1413,81 @@ export function TaskDetailView({
                             <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
                                 Properties
                             </h4>
-                            {task.customFieldValues &&
-                                task.customFieldValues.length > 0 && (
-                                    <span className="ml-auto text-xs text-dashboard-text-muted/50">
-                                        {task.customFieldValues.length}
-                                    </span>
-                                )}
+                            {customFields.length > 0 && (
+                                <span className="ml-auto text-xs text-dashboard-text-muted/50">
+                                    {customFields.length}
+                                </span>
+                            )}
                         </div>
 
-                        {task.customFieldValues &&
-                        task.customFieldValues.length > 0 ? (
+                        {customFields.length > 0 ? (
                             <div className="flex flex-col">
-                                {task.customFieldValues.map((cfv) => {
-                                    const raw = cfv.value;
-                                    const isRefType = [
-                                        'TASK',
-                                        'USER',
-                                        'DOCUMENT',
-                                    ].includes(cfv.customField.dataType);
-                                    let displayValue: string;
-                                    if (!raw) {
-                                        displayValue = '—';
-                                    } else if (
-                                        cfv.customField.dataType === 'DATE'
-                                    ) {
-                                        try {
-                                            displayValue = format(
-                                                new Date(raw),
-                                                'MMM d, yyyy',
+                                {customFields
+                                    .slice()
+                                    .sort((a, b) => a.order - b.order)
+                                    .map((field) => {
+                                        const cfv =
+                                            task.customFieldValues?.find(
+                                                (v) =>
+                                                    v.customFieldId ===
+                                                    field.id,
                                             );
-                                        } catch {
+                                        const raw = cfv?.value ?? null;
+
+                                        let displayValue: string;
+                                        if (!raw) {
+                                            displayValue = '—';
+                                        } else if (field.dataType === 'DATE') {
+                                            try {
+                                                displayValue = format(
+                                                    new Date(raw),
+                                                    'MMM d, yyyy',
+                                                );
+                                            } catch {
+                                                displayValue = raw;
+                                            }
+                                        } else if (field.dataType === 'USER') {
+                                            const member = projectMembers.find(
+                                                (m) => m.id === raw,
+                                            );
+                                            displayValue = member
+                                                ? [
+                                                      member.firstName,
+                                                      member.lastName,
+                                                  ]
+                                                      .filter(Boolean)
+                                                      .join(' ') || member.email
+                                                : raw;
+                                        } else {
                                             displayValue = raw;
                                         }
-                                    } else {
-                                        displayValue = raw;
-                                    }
-                                    return (
-                                        <div
-                                            key={cfv.id}
-                                            className="flex items-start justify-between gap-3 py-3 border-b border-dashboard-border/50 last:border-0"
-                                        >
-                                            <div className="flex flex-col gap-0.5 min-w-0 shrink-0 max-w-[45%]">
-                                                <span className="text-[11px] font-medium text-dashboard-text-muted truncate">
-                                                    {cfv.customField.name}
-                                                </span>
-                                                <span className="text-[10px] text-dashboard-text-muted/50 capitalize">
-                                                    {cfv.customField.dataType.toLowerCase()}
-                                                </span>
-                                            </div>
-                                            {isRefType && raw ? (
-                                                <span className="text-xs font-mono text-dashboard-text-muted bg-accent-subtle border border-dashboard-border px-1.5 py-0.5 rounded shrink max-w-[50%] truncate">
-                                                    {raw}
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-dashboard-text-body font-medium text-right max-w-[50%] break-words">
+
+                                        return (
+                                            <div
+                                                key={field.id}
+                                                className="flex items-start justify-between gap-3 py-3 border-b border-dashboard-border/50 last:border-0"
+                                            >
+                                                <div className="flex flex-col gap-0.5 min-w-0 shrink-0 max-w-[45%]">
+                                                    <span className="text-[11px] font-medium text-dashboard-text-muted truncate">
+                                                        {field.name}
+                                                    </span>
+                                                    <span className="text-[10px] text-dashboard-text-muted/50 capitalize">
+                                                        {field.dataType.toLowerCase()}
+                                                    </span>
+                                                </div>
+                                                <span
+                                                    className={cn(
+                                                        'text-xs font-medium text-right max-w-[50%] break-words',
+                                                        raw
+                                                            ? 'text-dashboard-text-body'
+                                                            : 'text-dashboard-text-muted/40 italic',
+                                                    )}
+                                                >
                                                     {displayValue}
                                                 </span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                            </div>
+                                        );
+                                    })}
                             </div>
                         ) : (
                             <p className="text-xs text-dashboard-text-muted/50 italic">
@@ -1448,27 +1625,22 @@ export function TaskDetailView({
 }
 
 // ─── CommentBubble ─────────────────────────────────────────────────────────────
-// Renders a single comment (root or reply). Threading / layout is handled by
-// CommentThread. Uses Tailwind named-group (group/bubble) so hover on a nested
-// bubble does NOT trigger the parent bubble's hover pill.
+// Renders a single comment (reply) inside a CommentThread card row.
+// Uses named-group (group/bubble) to scope hover actions.
 function CommentBubble({
     comment,
-    showThreadLine = false,
     isResolutionTarget = false,
     onUpdate,
     taskId,
     projectId,
     onResolve,
-    avatarSizeClass = 'h-8 w-8',
 }: {
     comment: Comment;
-    showThreadLine?: boolean;
     isResolutionTarget?: boolean;
     onUpdate: () => void;
     taskId: string;
     projectId: string;
     onResolve?: () => void;
-    avatarSizeClass?: string;
 }) {
     const { getToken, userId } = useAuth();
 
@@ -1503,28 +1675,15 @@ function CommentBubble({
     const relativeTime = formatRelativeTime(new Date(comment.createdAt));
 
     return (
-        <div className="group/bubble relative flex gap-3 min-w-0">
-            {/* Avatar column with optional thread line */}
-            <div className="flex flex-col items-center shrink-0">
-                <Avatar
-                    className={cn(
-                        avatarSizeClass,
-                        'border border-dashboard-border shrink-0',
-                    )}
-                >
-                    <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
-                        {comment.user.firstName?.[0]}
-                        {comment.user.lastName?.[0]}
-                    </AvatarFallback>
-                </Avatar>
-                {showThreadLine && (
-                    <div className="w-px flex-1 min-h-5 mt-1 bg-border" />
-                )}
-            </div>
+        <div className="group/bubble relative flex items-start gap-3 min-w-0">
+            <Avatar className="h-7 w-7 border border-dashboard-border shrink-0 mt-0.5">
+                <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
+                    {comment.user.firstName?.[0]}
+                    {comment.user.lastName?.[0]}
+                </AvatarFallback>
+            </Avatar>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0 pb-3">
-                {/* Header */}
+            <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     <span className="font-medium text-sm text-dashboard-text-primary">
                         {comment.user.firstName} {comment.user.lastName}
@@ -1534,10 +1693,7 @@ function CommentBubble({
                     </span>
                     {isResolutionTarget && (
                         <Badge
-                            className={cn(
-                                'h-4 px-1.5 text-[10px] font-medium rounded-sm',
-                                'bg-green-50 text-green-700 border-green-200',
-                            )}
+                            className="h-4 px-1.5 text-[10px] font-medium rounded-sm bg-green-50 text-green-700 border-green-200"
                             variant="outline"
                         >
                             Resolved this
@@ -1545,15 +1701,13 @@ function CommentBubble({
                     )}
                 </div>
 
-                {/* Body */}
                 <div
-                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through"
+                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through [&_img]:max-w-full [&_img]:rounded-md [&_img]:mt-1 [&_img]:block [&_img]:cursor-zoom-in"
                     dangerouslySetInnerHTML={{
                         __html: sanitizeCommentHtml(commentContent),
                     }}
                 />
 
-                {/* Reaction pills */}
                 {Object.keys(reactionGroups).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                         {Object.entries(reactionGroups).map(
@@ -1584,7 +1738,7 @@ function CommentBubble({
                 )}
             </div>
 
-            {/* Hover action pill – absolute, right-aligned, named-group-scoped */}
+            {/* Hover action pill */}
             <div
                 className={cn(
                     'absolute right-0 top-0 z-10',
@@ -1593,7 +1747,6 @@ function CommentBubble({
                     'opacity-0 group-hover/bubble:opacity-100 transition-opacity duration-100',
                 )}
             >
-                {/* Emoji react */}
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
@@ -1633,7 +1786,6 @@ function CommentBubble({
                     </PopoverContent>
                 </Popover>
 
-                {/* Resolve thread (only on unresolved threads) */}
                 {onResolve && (
                     <Button
                         variant="ghost"
@@ -1646,7 +1798,6 @@ function CommentBubble({
                     </Button>
                 )}
 
-                {/* More options */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
@@ -1675,21 +1826,23 @@ function CommentBubble({
 }
 
 // ─── CommentThread ─────────────────────────────────────────────────────────────
-// Renders a full thread: root comment → replies → resolution log → reply input.
-// No card wrapper; thread lines connect avatars visually.
+// Linear-style card: root comment → replies → reply input. Collapsible.
 function CommentThread({
     comment,
     onUpdate,
     taskId,
     projectId,
+    onAttach,
 }: {
     comment: Comment;
     index: number;
     onUpdate: () => void;
     taskId: string;
     projectId: string;
+    onAttach?: () => void;
 }) {
-    const { getToken } = useAuth();
+    const { getToken, userId } = useAuth();
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const [replyContent, setReplyContent] = useState('');
     const [isReplyEmpty, setIsReplyEmpty] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1698,7 +1851,33 @@ function CommentThread({
 
     const isResolved = comment.resolved;
     const replies = comment.replies ?? [];
-    const hasContent = replies.length > 0 || isResolved;
+
+    const rootReactionGroups =
+        comment.reactions?.reduce(
+            (acc, reaction) => {
+                if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
+                acc[reaction.emoji]!.push(reaction);
+                return acc;
+            },
+            {} as Record<string, typeof comment.reactions>,
+        ) ?? {};
+
+    const handleRootReaction = async (emoji: string) => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskCommentApi.toggleReaction(
+                token,
+                projectId,
+                taskId,
+                comment.id,
+                emoji,
+            );
+            onUpdate();
+        } catch {
+            toast.error('Failed to update reaction');
+        }
+    };
 
     const handleResolve = async () => {
         try {
@@ -1771,140 +1950,341 @@ function CommentThread({
         }
     };
 
+    const rootRelativeTime = formatRelativeTime(new Date(comment.createdAt));
+
     return (
-        <div className="relative py-3 border-b border-dashboard-border/40 last:border-0">
-            {/* Root comment */}
-            <CommentBubble
-                comment={comment}
-                showThreadLine={hasContent || isReplyFocused}
-                onUpdate={onUpdate}
-                taskId={taskId}
-                projectId={projectId}
-                onResolve={!isResolved ? handleResolve : undefined}
-                avatarSizeClass="h-8 w-8"
-            />
+        <div
+            className={cn(
+                'rounded-lg border overflow-hidden shadow-sm',
+                isResolved
+                    ? 'border-dashboard-border/50 bg-dashboard-surface/60'
+                    : 'border-dashboard-border bg-dashboard-surface',
+            )}
+        >
+            {/* ── Root comment ─────────────────────────────────────── */}
+            <div className="group/root relative px-4 pt-3 pb-3">
+                <div className="flex items-start gap-3">
+                    <Avatar className="h-7 w-7 border border-dashboard-border shrink-0 mt-0.5">
+                        <AvatarFallback className="bg-accent-subtle text-accent-blue text-xs font-medium">
+                            {comment.user.firstName?.[0]}
+                            {comment.user.lastName?.[0]}
+                        </AvatarFallback>
+                    </Avatar>
 
-            {/* Replies */}
-            {replies.map((reply, i) => (
-                <CommentBubble
-                    key={reply.id}
-                    comment={reply}
-                    showThreadLine={
-                        i < replies.length - 1 ||
-                        (!isResolved && isReplyFocused)
-                    }
-                    isResolutionTarget={isResolved && i === replies.length - 1}
-                    onUpdate={onUpdate}
-                    taskId={taskId}
-                    projectId={projectId}
-                    onResolve={!isResolved ? handleResolve : undefined}
-                    avatarSizeClass="h-7 w-7"
-                />
-            ))}
-
-            {/* Resolution log */}
-            {isResolved && (
-                <div className="flex items-center gap-2 ml-11 py-1.5">
-                    <div className="h-4 w-4 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <Check className="h-2.5 w-2.5 text-green-600" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        {comment.resolvedBy?.firstName ? (
-                            <>
-                                <span className="font-medium text-dashboard-text-body">
-                                    {comment.resolvedBy.firstName}
-                                    {comment.resolvedBy.lastName
-                                        ? ` ${comment.resolvedBy.lastName}`
-                                        : ''}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="font-medium text-sm text-dashboard-text-primary">
+                                {comment.user.firstName} {comment.user.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {rootRelativeTime}
+                            </span>
+                            {isCollapsed && !isResolved && (
+                                <span className="text-xs text-muted-foreground/60">
+                                    {replies.length > 0
+                                        ? `· ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`
+                                        : '· no replies'}
                                 </span>
-                                {' resolved this thread'}
-                                {replies.length > 0 && (
-                                    <>
-                                        {' with '}
-                                        <span className="font-medium text-dashboard-text-body">
-                                            {
-                                                replies[replies.length - 1].user
-                                                    .firstName
-                                            }
-                                            &apos;s
-                                        </span>
-                                        {' comment'}
-                                    </>
+                            )}
+                        </div>
+
+                        {isCollapsed && (
+                            <p className="text-sm text-dashboard-text-muted truncate">
+                                {(comment.comment || '')
+                                    .replace(/<[^>]*>/g, '')
+                                    .trim()
+                                    .slice(0, 120) || ''}
+                            </p>
+                        )}
+
+                        {!isCollapsed && (
+                            <>
+                                <div
+                                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through"
+                                    dangerouslySetInnerHTML={{
+                                        __html: sanitizeCommentHtml(
+                                            comment.comment || '',
+                                        ),
+                                    }}
+                                />
+                                {Object.keys(rootReactionGroups).length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {Object.entries(rootReactionGroups).map(
+                                            ([emoji, reactions]) => {
+                                                const hasReacted =
+                                                    reactions?.some(
+                                                        (r) =>
+                                                            r.userId === userId,
+                                                    );
+                                                return (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() =>
+                                                            handleRootReaction(
+                                                                emoji,
+                                                            )
+                                                        }
+                                                        className={cn(
+                                                            'inline-flex items-center gap-0.5 h-5 px-1.5 rounded-full text-[11px] border transition-colors cursor-pointer',
+                                                            hasReacted
+                                                                ? 'bg-accent-subtle border-accent-blue/30 text-accent-blue'
+                                                                : 'bg-transparent border-dashboard-border text-dashboard-text-muted hover:bg-accent-hover',
+                                                        )}
+                                                    >
+                                                        <span>{emoji}</span>
+                                                        <span className="font-medium">
+                                                            {reactions?.length}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            },
+                                        )}
+                                    </div>
                                 )}
                             </>
-                        ) : (
-                            'Thread resolved'
                         )}
-                    </p>
+                    </div>
+
+                    {/* Collapse toggle – always visible */}
                     <button
-                        onClick={handleReopen}
-                        disabled={isSubmitting}
-                        className="ml-auto text-xs text-muted-foreground hover:text-dashboard-text-primary transition-colors flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                        onClick={() => setIsCollapsed((c) => !c)}
+                        className="shrink-0 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-dashboard-text-primary hover:bg-accent-hover transition-colors cursor-pointer"
+                        title={
+                            isCollapsed ? 'Expand thread' : 'Collapse thread'
+                        }
                     >
-                        <RotateCcw className="h-3 w-3" />
-                        Reopen
+                        <ChevronDown
+                            className={cn(
+                                'h-3.5 w-3.5 transition-transform duration-200',
+                                isCollapsed ? '' : 'rotate-180',
+                            )}
+                        />
                     </button>
                 </div>
-            )}
 
-            {/* Inline reply input – always present on open threads, subtle until focused */}
-            {!isResolved && (
-                <div className="flex items-center gap-3 ml-11 mt-1">
+                {/* Hover actions for root comment – offset left of collapse button */}
+                {!isCollapsed && (
                     <div
                         className={cn(
-                            'flex-1 rounded-lg border px-3 py-2 transition-all duration-150 cursor-text',
-                            isReplyFocused
-                                ? 'border-accent-blue/40 ring-1 ring-accent-blue/15 bg-dashboard-surface'
-                                : 'border-transparent bg-muted/40 hover:border-dashboard-border',
+                            'absolute right-12 top-2 z-10',
+                            'flex items-center gap-0.5 px-0.5 py-0.5',
+                            'bg-background border border-dashboard-border rounded-md shadow-sm',
+                            'opacity-0 group-hover/root:opacity-100 transition-opacity duration-100',
                         )}
-                        onClick={() => {
-                            if (!isReplyFocused) replyInputRef.current?.focus();
-                        }}
                     >
-                        <div className="flex items-start gap-2">
-                            <RichCommentEditor
-                                ref={replyInputRef}
-                                onContentChange={(html, empty) => {
-                                    setReplyContent(html);
-                                    setIsReplyEmpty(empty);
-                                }}
-                                onFocus={() => setIsReplyFocused(true)}
-                                onBlur={(empty) => {
-                                    if (empty) setIsReplyFocused(false);
-                                }}
-                                onSubmit={handleReply}
-                                onCancel={() => {
-                                    replyInputRef.current?.clear();
-                                    setIsReplyFocused(false);
-                                }}
-                                placeholder="Leave a reply…"
-                                showToolbar={isReplyFocused}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                                    title="Add reaction"
+                                >
+                                    <SmilePlus className="h-3.5 w-3.5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                className="w-auto p-1"
+                                side="top"
+                                align="end"
+                            >
+                                <div className="flex gap-0.5">
+                                    {[
+                                        '👍',
+                                        '👎',
+                                        '😄',
+                                        '🎉',
+                                        '😕',
+                                        '❤️',
+                                        '🚀',
+                                        '👀',
+                                    ].map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() =>
+                                                handleRootReaction(emoji)
+                                            }
+                                            className="p-1.5 hover:bg-accent-hover rounded text-base leading-none transition-colors cursor-pointer"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+
+                        {!isResolved && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-dashboard-text-muted hover:text-green-600"
+                                onClick={handleResolve}
+                                disabled={isSubmitting}
+                                title="Resolve thread"
+                            >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                        )}
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-dashboard-text-muted hover:text-dashboard-text-primary"
+                                >
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem>
+                                    <Edit2 className="h-3.5 w-3.5 mr-2" />
+                                    Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Replies, resolution, reply input (hidden when collapsed) ── */}
+            {!isCollapsed && (
+                <>
+                    {replies.map((reply, i) => (
+                        <div
+                            key={reply.id}
+                            className="border-t border-dashboard-border/40 px-4 py-3"
+                        >
+                            <CommentBubble
+                                comment={reply}
+                                isResolutionTarget={
+                                    isResolved && i === replies.length - 1
+                                }
+                                onUpdate={onUpdate}
+                                taskId={taskId}
+                                projectId={projectId}
+                                onResolve={
+                                    !isResolved ? handleResolve : undefined
+                                }
                             />
-                            {isReplyFocused && (
-                                <div className="flex items-center gap-1 shrink-0 self-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-dashboard-text-primary"
-                                        tabIndex={-1}
+                        </div>
+                    ))}
+
+                    {/* Resolution log */}
+                    {isResolved && (
+                        <div className="border-t border-dashboard-border/40 px-4 py-2.5 flex items-center gap-2">
+                            <div className="h-4 w-4 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                <Check className="h-2.5 w-2.5 text-green-600" />
+                            </div>
+                            <p className="text-xs text-muted-foreground flex-1">
+                                {comment.resolvedBy?.firstName ? (
+                                    <>
+                                        <span className="font-medium text-dashboard-text-body">
+                                            {comment.resolvedBy.firstName}
+                                            {comment.resolvedBy.lastName
+                                                ? ` ${comment.resolvedBy.lastName}`
+                                                : ''}
+                                        </span>
+                                        {' resolved this thread'}
+                                        {replies.length > 0 && (
+                                            <>
+                                                {' with '}
+                                                <span className="font-medium text-dashboard-text-body">
+                                                    {
+                                                        replies[
+                                                            replies.length - 1
+                                                        ].user.firstName
+                                                    }
+                                                    &apos;s
+                                                </span>
+                                                {' comment'}
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    'Thread resolved'
+                                )}
+                            </p>
+                            <button
+                                onClick={handleReopen}
+                                disabled={isSubmitting}
+                                className="text-xs text-muted-foreground hover:text-dashboard-text-primary transition-colors flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                            >
+                                <RotateCcw className="h-3 w-3" />
+                                Reopen
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Reply input */}
+                    {!isResolved && (
+                        <div
+                            className="border-t border-dashboard-border/40 px-4 py-2.5 cursor-text"
+                            onClick={() => {
+                                if (!isReplyFocused)
+                                    replyInputRef.current?.focus();
+                            }}
+                        >
+                            <div className="flex items-end gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <RichCommentEditor
+                                        ref={replyInputRef}
+                                        onContentChange={(html, empty) => {
+                                            setReplyContent(html);
+                                            setIsReplyEmpty(empty);
+                                        }}
+                                        onFocus={() => setIsReplyFocused(true)}
+                                        onBlur={(empty) => {
+                                            if (empty) setIsReplyFocused(false);
+                                        }}
+                                        onSubmit={handleReply}
+                                        onCancel={() => {
+                                            replyInputRef.current?.clear();
+                                            setIsReplyFocused(false);
+                                        }}
+                                        placeholder="Leave a reply…"
+                                        showToolbar={isReplyFocused}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 pb-0.5">
+                                    <button
+                                        className="text-muted-foreground hover:text-dashboard-text-primary transition-colors cursor-pointer"
                                         title="Attach file"
+                                        tabIndex={-1}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAttach?.();
+                                        }}
                                     >
-                                        <Paperclip className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                        size="icon"
-                                        className="h-6 w-6 bg-accent-blue text-white hover:bg-accent-light disabled:opacity-40"
-                                        onClick={handleReply}
+                                        <Paperclip className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReply();
+                                        }}
                                         disabled={isReplyEmpty || isSubmitting}
+                                        className={cn(
+                                            'h-6 w-6 rounded-full flex items-center justify-center transition-colors',
+                                            isReplyEmpty || isSubmitting
+                                                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                                : 'bg-accent-blue text-white hover:bg-accent-light cursor-pointer',
+                                        )}
                                         title="Send reply (⌘↵)"
                                     >
                                         <ArrowUp className="h-3 w-3" />
-                                    </Button>
+                                    </button>
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    )}
+                </>
             )}
         </div>
     );
