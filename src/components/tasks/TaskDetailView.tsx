@@ -57,10 +57,13 @@ import {
     type Comment,
     type User,
     type CustomField,
+    type Document,
     taskApi,
     taskCommentApi,
     approvalApi,
+    documentApi,
 } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
 import { format } from 'date-fns';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
@@ -430,9 +433,15 @@ export function TaskDetailView({
     projectMembers = [],
 }: TaskDetailViewProps) {
     const { getToken } = useAuth();
+    const { user } = useUser();
     const [comments, setComments] = useState<Comment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [linkedFiles, setLinkedFiles] = useState<Document[]>(
+        task.linkedFiles ?? [],
+    );
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [newCommentContent, setNewCommentContent] = useState('');
@@ -442,6 +451,62 @@ export function TaskDetailView({
     const [isApprovalLoading, setIsApprovalLoading] = useState(false);
     const newThreadInputRef = useRef<RichEditorHandle>(null);
     const threadStateBeforeUpload = useRef(false);
+
+    // ── Attachment handlers ───────────────────────────────────────────────────
+    const handleUploadFile = async (file: File) => {
+        if (!user?.organizationId || !projectId) return;
+        setIsUploading(true);
+        try {
+            const token = await getToken();
+            if (!token) return;
+            const documentId = await documentApi.uploadForTask(
+                token,
+                user.organizationId,
+                file,
+            );
+            const result = await taskApi.attachFile(
+                token,
+                projectId,
+                task.id,
+                documentId,
+            );
+            if (result.data) setLinkedFiles(result.data.linkedFiles ?? []);
+            setUploadDialogOpen(false);
+        } catch {
+            toast.error('Failed to upload file');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleRemoveFile = async (documentId: string) => {
+        if (!projectId) return;
+        const prev = linkedFiles;
+        setLinkedFiles((f) => f.filter((d) => d.id !== documentId));
+        try {
+            const token = await getToken();
+            if (!token) {
+                setLinkedFiles(prev);
+                return;
+            }
+            await taskApi.removeFile(token, projectId, task.id, documentId);
+        } catch {
+            setLinkedFiles(prev);
+            toast.error('Failed to remove file');
+        }
+    };
+
+    const handleDownloadFile = async (documentId: string) => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            const result = await documentApi.getDownloadUrl(token, documentId);
+            if (result.data?.signedS3Url)
+                window.open(result.data.signedS3Url, '_blank');
+        } catch {
+            toast.error('Failed to get download link');
+        }
+    };
 
     // ── Approval workflow derived values ──────────────────────────────────────
     // Per-task chain: derived from approvalChain returned by the backend
@@ -1512,27 +1577,42 @@ export function TaskDetailView({
                                 <Upload className="h-3 w-3" />
                             </Button>
                         </div>
-                        {task.linkedFiles && task.linkedFiles.length > 0 ? (
+                        {linkedFiles.length > 0 ? (
                             <div className="flex flex-col gap-1.5">
-                                {task.linkedFiles.map((file) => (
+                                {linkedFiles.map((file) => (
                                     <div
                                         key={file.id}
-                                        className="group flex items-center gap-2 p-2 rounded-lg border border-dashboard-border hover:border-accent-blue/30 hover:bg-accent-hover transition-all cursor-pointer"
+                                        className="group flex items-center gap-2 p-2 rounded-lg border border-dashboard-border hover:border-accent-blue/30 hover:bg-accent-hover transition-all"
                                     >
-                                        <div className="h-7 w-7 bg-accent-subtle rounded-md flex items-center justify-center text-accent-blue shrink-0">
-                                            <FileText className="h-3.5 w-3.5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-xs text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
-                                                {file.originalName}
-                                            </p>
-                                            <p className="text-[10px] text-dashboard-text-muted">
-                                                {(file.filesize / 1024).toFixed(
-                                                    0,
-                                                )}{' '}
-                                                KB
-                                            </p>
-                                        </div>
+                                        <button
+                                            className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                                            onClick={() =>
+                                                handleDownloadFile(file.id)
+                                            }
+                                        >
+                                            <div className="h-7 w-7 bg-accent-subtle rounded-md flex items-center justify-center text-accent-blue shrink-0">
+                                                <FileText className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="min-w-0 text-left">
+                                                <p className="font-medium text-xs text-dashboard-text-body group-hover:text-accent-blue transition-colors truncate">
+                                                    {file.originalName}
+                                                </p>
+                                                <p className="text-[10px] text-dashboard-text-muted">
+                                                    {(
+                                                        file.filesize / 1024
+                                                    ).toFixed(0)}{' '}
+                                                    KB
+                                                </p>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                handleRemoveFile(file.id)
+                                            }
+                                            className="opacity-0 group-hover:opacity-100 shrink-0 text-dashboard-text-muted hover:text-destructive transition-all cursor-pointer"
+                                        >
+                                            <XCircle className="h-3.5 w-3.5" />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -1566,21 +1646,57 @@ export function TaskDetailView({
                     <DialogHeader>
                         <DialogTitle>Upload File</DialogTitle>
                         <DialogDescription>
-                            File upload functionality coming soon.
+                            Attach a file to this task.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-8 text-center text-muted-foreground">
-                        <Upload className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm">
-                            File upload will be implemented in a future update
-                        </p>
+                    <div
+                        className="py-10 flex flex-col items-center justify-center border-2 border-dashed border-dashboard-border rounded-lg cursor-pointer hover:border-accent-blue/40 hover:bg-accent-subtle/20 transition-colors"
+                        onClick={() =>
+                            !isUploading && fileInputRef.current?.click()
+                        }
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files[0];
+                            if (file) handleUploadFile(file);
+                        }}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadFile(file);
+                                e.target.value = '';
+                            }}
+                        />
+                        {isUploading ? (
+                            <>
+                                <div className="h-8 w-8 rounded-full border-2 border-accent-blue border-t-transparent animate-spin mb-3" />
+                                <p className="text-sm text-dashboard-text-muted">
+                                    Uploading…
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="h-8 w-8 text-dashboard-text-muted mb-3" />
+                                <p className="text-sm font-medium text-dashboard-text-body">
+                                    Click or drag a file here
+                                </p>
+                                <p className="text-xs text-dashboard-text-muted mt-1">
+                                    Any file type supported
+                                </p>
+                            </>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button
                             variant="outline"
                             onClick={() => setUploadDialogOpen(false)}
+                            disabled={isUploading}
                         >
-                            Close
+                            Cancel
                         </Button>
                     </DialogFooter>
                 </DialogContent>

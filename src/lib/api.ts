@@ -1858,6 +1858,54 @@ export const taxLibraryApi = {
     },
 };
 
+export const documentApi = {
+    /** Upload a file for a task: gets a presigned S3 URL, puts the file, returns the documentId. */
+    uploadForTask: async (
+        token: string,
+        organizationId: string,
+        file: File,
+    ): Promise<string> => {
+        const res = await fetch(`${API_BASE_URL}/api/v1/documents/upload`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                files: [file.name],
+                organizationId,
+                source: 'task',
+            }),
+        });
+        if (!res.ok) throw new Error('Failed to get upload URL');
+        const json = await res.json();
+        const uploadInfo = json.data.uploadUrls?.[0];
+        if (!uploadInfo?.url) throw new Error('No signed URL returned');
+
+        const s3Res = await fetch(uploadInfo.url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type || 'application/octet-stream',
+            },
+            body: file,
+        });
+        if (!s3Res.ok) throw new Error('Failed to upload file to S3');
+
+        return uploadInfo.documentId as string;
+    },
+
+    getDownloadUrl: async (token: string, documentId: string) => {
+        return apiRequest<{
+            signedS3Url: string;
+            filename: string;
+            originalName: string;
+        }>(`/api/v1/documents/${documentId}/download-url`, {
+            method: 'GET',
+            token,
+        });
+    },
+};
+
 // ─── Agent Task Types ────────────────────────────────────────────────────────
 
 export type AgentTaskStatus =

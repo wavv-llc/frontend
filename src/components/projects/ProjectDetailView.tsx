@@ -1010,16 +1010,21 @@ export function ProjectDetailView({
     };
 
     const handleRenameSection = async (sectionId: string, name: string) => {
+        const previousSections = sections;
+        setSections((prev) =>
+            prev.map((s) => (s.id === sectionId ? { ...s, name } : s)),
+        );
         try {
             const token = await getToken();
-            if (!token) return;
+            if (!token) {
+                setSections(previousSections);
+                return;
+            }
             await sectionApi.updateSection(token, project.id, sectionId, {
                 name,
             });
-            setSections((prev) =>
-                prev.map((s) => (s.id === sectionId ? { ...s, name } : s)),
-            );
         } catch (error) {
+            setSections(previousSections);
             console.error('Failed to rename section:', error);
             toast.error('Failed to rename section');
         }

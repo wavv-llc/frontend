@@ -85,7 +85,6 @@ import {
     sectionApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     DropdownMenu,
@@ -114,10 +113,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    StatusBadge,
-    type Status as StatusBadgeStatus,
-} from '@/components/dashboard/pure-steel/StatusBadge';
 
 export interface TaskListRef {
     startCreatingTask: () => void;
@@ -195,18 +190,6 @@ const FIELD_TYPES = [
         description: 'Task status',
     },
 ] as const;
-
-function taskStatusToBadge(status: string): StatusBadgeStatus {
-    switch (status) {
-        case 'IN_REVIEW':
-            return 'review';
-        case 'COMPLETED':
-            return 'complete';
-        case 'IN_PREPARATION':
-        default:
-            return 'pending';
-    }
-}
 
 interface EditableContentProps {
     value: string;
@@ -2201,14 +2184,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </Popover>
                             </div>
 
-                            {/* Status Column Header */}
-                            <div className="w-35 shrink-0 px-2 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center gap-1.5">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-dashboard-text-muted" />
-                                <span className="text-[11px] font-medium tracking-wide text-dashboard-text-muted uppercase">
-                                    Status
-                                </span>
-                            </div>
-
                             {/* Custom Field Columns Headers */}
                             <DndContext
                                 sensors={dndSensors}
@@ -2883,7 +2858,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           {editingTaskId ===
                                                                           task.id ? (
                                                                               <input
-                                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none focus:ring-1 focus:ring-accent-blue/50 rounded px-1 -mx-1"
+                                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none rounded px-1 -mx-1"
                                                                                   value={
                                                                                       editingTaskName
                                                                                   }
@@ -2977,16 +2952,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           >
                                                                               <ExternalLink className="h-3 w-3" />
                                                                           </button>
-                                                                      </div>
-
-                                                                      {/* Status Cell */}
-                                                                      <div className="w-35 shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center">
-                                                                          <StatusBadge
-                                                                              status={taskStatusToBadge(
-                                                                                  task.approvalStatus,
-                                                                              )}
-                                                                              size="sm"
-                                                                          />
                                                                       </div>
 
                                                                       {/* Custom Field Values */}
@@ -3212,7 +3177,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                           {editingTaskId ===
                                                           task.id ? (
                                                               <input
-                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none focus:ring-1 focus:ring-accent-blue/50 rounded px-1 -mx-1"
+                                                                  className="flex-1 min-w-0 text-sm font-medium text-dashboard-text-primary bg-transparent border-none outline-none focus:outline-none rounded px-1 -mx-1"
                                                                   value={
                                                                       editingTaskName
                                                                   }
@@ -3304,16 +3269,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                           >
                                                               <ExternalLink className="h-3 w-3" />
                                                           </button>
-                                                      </div>
-
-                                                      {/* Status Cell */}
-                                                      <div className="w-35 shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center">
-                                                          <StatusBadge
-                                                              status={taskStatusToBadge(
-                                                                  task.approvalStatus,
-                                                              )}
-                                                              size="sm"
-                                                          />
                                                       </div>
 
                                                       {/* Custom Field Values */}
@@ -3487,7 +3442,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                   <Plus className="h-3.5 w-3.5" />
                                                   Add task
                                               </div>
-                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
@@ -3525,7 +3479,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       autoFocus
                                                   />
                                               </div>
-                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
@@ -3602,7 +3555,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       autoFocus
                                                                   />
                                                               </div>
-                                                              <div className="w-35 shrink-0 border-r border-dashboard-border" />
                                                               {displayedFields.map(
                                                                   (field) => (
                                                                       <div
@@ -3776,8 +3728,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                       </button>
 
                                                                                       {isEditing ? (
-                                                                                          <Input
-                                                                                              className="h-6 py-0 px-1 text-sm font-medium border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-accent-blue w-48"
+                                                                                          <input
+                                                                                              className="text-sm font-medium text-dashboard-text-body bg-transparent border-none outline-none focus:outline-none px-0 w-48"
                                                                                               value={
                                                                                                   editingSectionName
                                                                                               }
