@@ -905,6 +905,7 @@ export const taskApi = {
             description?: string;
             dueAt?: string | null;
             sectionId?: string | null;
+            customFields?: Record<string, string | number | null>;
         },
     ) => {
         return apiRequest<Task>(`/api/v1/projects/${projectId}/tasks/${id}`, {

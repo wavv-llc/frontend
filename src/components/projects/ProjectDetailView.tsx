@@ -37,6 +37,10 @@ import {
     Loader2,
     LayoutTemplate,
     GitBranch,
+    Eye,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -62,8 +66,10 @@ import {
 } from '@/components/dashboard/pure-steel/CalendarSection';
 import { TaskDetailView } from '@/components/tasks/TaskDetailView';
 import { TaskList, type TaskListRef } from './TaskList';
+import { KanbanView } from './KanbanView';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { ManageTemplatesDialog } from '@/components/dialogs/ManageTemplatesDialog';
+import { useProjectViewPrefs } from '@/hooks/useProjectViewPrefs';
 import { ApprovalWorkflowDialog } from './ApprovalWorkflowDialog';
 import { MemberPickerDialog } from '@/components/dialogs/MemberPickerDialog';
 import { Input } from '@/components/ui/input';
@@ -103,7 +109,7 @@ interface ProjectDetailViewProps {
     onTasksRemoved?: (taskIds: string[]) => void;
 }
 
-type ViewMode = 'list' | 'calendar';
+type ViewMode = 'list' | 'calendar' | 'board';
 type StatusFilter = 'ALL' | 'IN_PREPARATION' | 'IN_REVIEW' | 'COMPLETED';
 
 interface EditableContentProps {
@@ -1120,6 +1126,44 @@ export function ProjectDetailView({
         return matchesSearch && matchesStatus && matchesColumnFilters;
     });
 
+    // Column visibility + sort prefs (persisted per-project in localStorage)
+    const { hiddenColumns, toggleColumn, sortState, setSort, clearSort } =
+        useProjectViewPrefs(project.id);
+
+    const sortedTasks = useMemo(() => {
+        if (!sortState.field) return filteredTasks;
+        return [...filteredTasks].sort((a, b) => {
+            let aVal: string | number | null = null;
+            let bVal: string | number | null = null;
+            if (sortState.field === 'name') {
+                aVal = a.name.toLowerCase();
+                bVal = b.name.toLowerCase();
+            } else if (sortState.field === 'dueAt') {
+                aVal = a.dueAt ?? '';
+                bVal = b.dueAt ?? '';
+            } else {
+                const aCV = a.customFieldValues?.find(
+                    (v) => v.customFieldId === sortState.field,
+                );
+                const bCV = b.customFieldValues?.find(
+                    (v) => v.customFieldId === sortState.field,
+                );
+                aVal = aCV?.value ?? '';
+                bVal = bCV?.value ?? '';
+                // Numeric sort if both look like numbers
+                const aN = parseFloat(aVal as string);
+                const bN = parseFloat(bVal as string);
+                if (!isNaN(aN) && !isNaN(bN)) {
+                    aVal = aN;
+                    bVal = bN;
+                }
+            }
+            if (aVal === bVal) return 0;
+            const cmp = aVal! < bVal! ? -1 : 1;
+            return sortState.dir === 'asc' ? cmp : -cmp;
+        });
+    }, [filteredTasks, sortState]);
+
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -1296,6 +1340,18 @@ export function ProjectDetailView({
                         >
                             <CalendarIcon className="h-4 w-4" />
                             Calendar
+                        </button>
+                        <button
+                            onClick={() => setView('board')}
+                            className={cn(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer',
+                                view === 'board'
+                                    ? 'bg-accent-subtle text-dashboard-text-primary'
+                                    : 'text-dashboard-text-muted hover:text-dashboard-text-primary hover:bg-accent-hover',
+                            )}
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                            Board
                         </button>
                     </div>
 
@@ -1533,6 +1589,120 @@ export function ProjectDetailView({
                             </DropdownMenuContent>
                         </DropdownMenu>
 
+                        {/* Column Visibility */}
+                        {customFields.length > 0 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(
+                                            'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
+                                            hiddenColumns.size > 0 &&
+                                                'text-accent-blue border-accent-blue/50 bg-accent-subtle',
+                                        )}
+                                    >
+                                        <Eye className="h-3.5 w-3.5" />
+                                        Columns
+                                        {hiddenColumns.size > 0 && (
+                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
+                                                {hiddenColumns.size}
+                                            </span>
+                                        )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-52"
+                                >
+                                    <DropdownMenuLabel>
+                                        Toggle Columns
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {customFields.map((field) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={field.id}
+                                            checked={
+                                                !hiddenColumns.has(field.id)
+                                            }
+                                            onCheckedChange={() =>
+                                                toggleColumn(field.id)
+                                            }
+                                        >
+                                            {field.name}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
+                        {/* Sort */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={cn(
+                                        'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
+                                        sortState.field &&
+                                            'text-accent-blue border-accent-blue/50 bg-accent-subtle',
+                                    )}
+                                >
+                                    <ArrowUpDown className="h-3.5 w-3.5" />
+                                    Sort
+                                    {sortState.field && (
+                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
+                                            1
+                                        </span>
+                                    )}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuCheckboxItem
+                                    checked={sortState.field === null}
+                                    onCheckedChange={() => clearSort()}
+                                >
+                                    Default order
+                                </DropdownMenuCheckboxItem>
+                                {[
+                                    { id: 'name', name: 'Name' },
+                                    { id: 'dueAt', name: 'Due Date' },
+                                    ...customFields,
+                                ].map((f) => (
+                                    <div
+                                        key={f.id}
+                                        className="flex items-center"
+                                    >
+                                        <DropdownMenuCheckboxItem
+                                            className="flex-1"
+                                            checked={sortState.field === f.id}
+                                            onCheckedChange={() =>
+                                                setSort(
+                                                    f.id,
+                                                    sortState.field === f.id &&
+                                                        sortState.dir === 'asc'
+                                                        ? 'desc'
+                                                        : 'asc',
+                                                )
+                                            }
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                {f.name}
+                                                {sortState.field === f.id &&
+                                                    (sortState.dir === 'asc' ? (
+                                                        <ArrowUp className="h-3 w-3 text-accent-blue" />
+                                                    ) : (
+                                                        <ArrowDown className="h-3 w-3 text-accent-blue" />
+                                                    ))}
+                                            </span>
+                                        </DropdownMenuCheckboxItem>
+                                    </div>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
                         {!isArchived && (
                             <>
                                 <Button
@@ -1566,13 +1736,37 @@ export function ProjectDetailView({
             <div className="flex-1 min-h-0 min-w-0 bg-dashboard-surface rounded-none border-0 overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
                     <CalendarViewWrapper tasks={tasks} />
+                ) : view === 'board' ? (
+                    <KanbanView
+                        tasks={sortedTasks}
+                        sections={sections}
+                        customFields={customFields}
+                        projectId={project.id}
+                        members={Array.from(
+                            new Map(
+                                [...project.owners, ...project.members].map(
+                                    (m) => [m.id, m],
+                                ),
+                            ).values(),
+                        )}
+                        onTaskClick={handleTaskSelect}
+                        onTaskCreated={onRefresh}
+                        onTaskAdded={onTaskAdded}
+                        onAddSection={
+                            !isArchived ? handleAddSection : undefined
+                        }
+                        onRenameSection={handleRenameSection}
+                        onDeleteSection={handleDeleteSection}
+                        readOnly={isArchived}
+                    />
                 ) : (
                     <div className="flex flex-col h-full w-full max-w-full">
                         {!isLoadingCustomFields && (
                             <div className="flex-1 overflow-hidden">
                                 <TaskList
                                     ref={taskListRef}
-                                    tasks={filteredTasks}
+                                    tasks={sortedTasks}
+                                    hiddenColumns={hiddenColumns}
                                     customFields={customFields}
                                     onTaskClick={handleTaskSelect}
                                     onTaskEdit={(task) => {

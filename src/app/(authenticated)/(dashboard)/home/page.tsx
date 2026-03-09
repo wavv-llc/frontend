@@ -35,7 +35,6 @@ export default function HomePage() {
                 calendar: [],
             },
     );
-    const [loading, setLoading] = useState(() => !getCached(CACHE_KEY));
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -58,8 +57,6 @@ export default function HomePage() {
                 setData(newData);
             } catch (error) {
                 console.error('Dashboard error:', error);
-            } finally {
-                setLoading(false);
             }
         };
         fetchAll();
@@ -153,7 +150,7 @@ export default function HomePage() {
             stats={stats}
             onTaskClick={handleTaskClick}
             onEventClick={handleEventClick}
-            isLoading={loading}
+            isLoading={false}
         />
     );
 }

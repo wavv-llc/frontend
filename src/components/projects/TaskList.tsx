@@ -53,6 +53,7 @@ import {
     RefreshCw,
     Link2,
     Activity,
+    Layers,
 } from 'lucide-react';
 import {
     Dialog,
@@ -60,6 +61,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogTrigger,
 } from '@/components/ui/dialog';
 import { useCustomFieldTemplates } from '@/hooks/useCustomFieldTemplates';
 import {
@@ -90,6 +92,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -113,6 +116,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import { StatusPill } from './StatusPill';
 
 export interface TaskListRef {
     startCreatingTask: () => void;
@@ -144,6 +148,7 @@ interface TaskListProps {
     onAddSection?: () => void;
     onRenameSection?: (sectionId: string, name: string) => void;
     onDeleteSection?: (sectionId: string) => void;
+    hiddenColumns?: Set<string>;
     readOnly?: boolean;
 }
 
@@ -695,6 +700,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             onAddSection: _onAddSection,
             onRenameSection,
             onDeleteSection,
+            hiddenColumns,
             readOnly = false,
         },
         ref,
@@ -1382,6 +1388,79 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         };
 
+        // Bulk move to section
+        const [bulkMoveSectionOpen, setBulkMoveSectionOpen] = useState(false);
+
+        const handleBulkMoveSection = async (sectionId: string | null) => {
+            const ids = Array.from(selectedTaskIds);
+            setBulkMoveSectionOpen(false);
+            setSelectedTaskIds(new Set());
+            try {
+                const token = await getToken();
+                if (!token) return;
+                const results = await Promise.allSettled(
+                    ids.map((id) =>
+                        taskApi.updateTask(token, projectId, id, { sectionId }),
+                    ),
+                );
+                const failed = results.filter(
+                    (r) => r.status === 'rejected',
+                ).length;
+                if (failed > 0) {
+                    toast.warning(
+                        `${ids.length - failed} of ${ids.length} tasks moved`,
+                    );
+                } else {
+                    toast.success(
+                        `Moved ${ids.length} task${ids.length !== 1 ? 's' : ''}`,
+                    );
+                }
+                onTaskCreated();
+            } catch {
+                toast.error('Failed to move tasks');
+            }
+        };
+
+        // Bulk set field value
+        const [bulkFieldOpen, setBulkFieldOpen] = useState(false);
+        const [bulkFieldId, setBulkFieldId] = useState<string | null>(null);
+        const [bulkFieldValue, setBulkFieldValue] = useState('');
+
+        const handleBulkSetField = async () => {
+            if (!bulkFieldId || !bulkFieldValue) return;
+            const ids = Array.from(selectedTaskIds);
+            setBulkFieldOpen(false);
+            setBulkFieldId(null);
+            setBulkFieldValue('');
+            setSelectedTaskIds(new Set());
+            try {
+                const token = await getToken();
+                if (!token) return;
+                const results = await Promise.allSettled(
+                    ids.map((id) =>
+                        taskApi.updateTask(token, projectId, id, {
+                            customFields: { [bulkFieldId]: bulkFieldValue },
+                        }),
+                    ),
+                );
+                const failed = results.filter(
+                    (r) => r.status === 'rejected',
+                ).length;
+                if (failed > 0) {
+                    toast.warning(
+                        `${ids.length - failed} of ${ids.length} tasks updated`,
+                    );
+                } else {
+                    toast.success(
+                        `Updated ${ids.length} task${ids.length !== 1 ? 's' : ''}`,
+                    );
+                }
+                onTaskCreated();
+            } catch {
+                toast.error('Failed to update tasks');
+            }
+        };
+
         // Expose method to start creating task from parent
         useImperativeHandle(ref, () => ({
             startCreatingTask: () => {
@@ -1404,8 +1483,11 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         new Date(a.createdAt).getTime() -
                         new Date(b.createdAt).getTime(),
                 );
-            return [...ordered, ...extras];
-        }, [customFields, fieldOrder]);
+            const all = [...ordered, ...extras];
+            return hiddenColumns && hiddenColumns.size > 0
+                ? all.filter((f) => !hiddenColumns.has(f.id))
+                : all;
+        }, [customFields, fieldOrder, hiddenColumns]);
 
         // Task action handlers for the row menu
         const handleSubmitTask = async (task: Task) => {
@@ -1531,10 +1613,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                     return;
                 }
 
-                // NOTE: The backend updateTask endpoint does not currently accept customFields.
-                // Custom field value updates require a dedicated backend endpoint.
-                // This call is a placeholder until that endpoint is available.
-                await taskApi.updateTask(token, projectId, task.id, {});
+                await taskApi.updateTask(token, projectId, task.id, {
+                    customFields: { [fieldId]: value },
+                });
 
                 // DON'T clear the optimistic update here - let it persist until the refresh completes
                 // The cleanup effect will clear it once the new data arrives
@@ -1762,31 +1843,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         />
                     );
                 }
-                // Status dropdown (single)
+                // Status pill (single CUSTOM field)
                 return (
-                    <Select
-                        value={value || ''}
-                        onValueChange={(val) =>
+                    <StatusPill
+                        value={value as string | null}
+                        options={field.customOptions || []}
+                        onChange={(val) =>
                             handleUpdateCustomField(task, field.id, val)
                         }
-                    >
-                        <SelectTrigger className="h-7 w-full border-none shadow-none bg-transparent hover:bg-muted/50 p-0 px-2 focus:ring-0 cursor-pointer">
-                            <SelectValue placeholder="-" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {(field.customOptions || []).length > 0 ? (
-                                (field.customOptions || []).map((opt) => (
-                                    <SelectItem key={opt} value={opt}>
-                                        {opt}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                                    No options available
-                                </div>
-                            )}
-                        </SelectContent>
-                    </Select>
+                    />
                 );
             }
 
@@ -2223,6 +2288,286 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        {/* Move to Section */}
+                                        {sections.length > 0 && (
+                                            <DropdownMenu
+                                                open={bulkMoveSectionOpen}
+                                                onOpenChange={
+                                                    setBulkMoveSectionOpen
+                                                }
+                                            >
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-[12px] gap-1.5 cursor-pointer"
+                                                    >
+                                                        <Layers className="h-3.5 w-3.5" />
+                                                        Move to
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
+                                                    className="w-48"
+                                                >
+                                                    <DropdownMenuLabel>
+                                                        Move to Section
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() =>
+                                                            handleBulkMoveSection(
+                                                                null,
+                                                            )
+                                                        }
+                                                    >
+                                                        No Section
+                                                    </DropdownMenuItem>
+                                                    {sections.map((s) => (
+                                                        <DropdownMenuItem
+                                                            key={s.id}
+                                                            onClick={() =>
+                                                                handleBulkMoveSection(
+                                                                    s.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            {s.name}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+
+                                        {/* Set Field Value */}
+                                        {displayedFields.length > 0 && (
+                                            <Dialog
+                                                open={bulkFieldOpen}
+                                                onOpenChange={(open) => {
+                                                    setBulkFieldOpen(open);
+                                                    if (!open) {
+                                                        setBulkFieldId(null);
+                                                        setBulkFieldValue('');
+                                                    }
+                                                }}
+                                            >
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-[12px] gap-1.5 cursor-pointer"
+                                                        onClick={() =>
+                                                            setBulkFieldOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Set field
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="sm:max-w-sm">
+                                                    <DialogHeader>
+                                                        <DialogTitle>
+                                                            Set field for{' '}
+                                                            {
+                                                                selectedTaskIds.size
+                                                            }{' '}
+                                                            task
+                                                            {selectedTaskIds.size !==
+                                                            1
+                                                                ? 's'
+                                                                : ''}
+                                                        </DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="flex flex-col gap-3 py-2">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <label className="text-sm font-medium">
+                                                                Field
+                                                            </label>
+                                                            <select
+                                                                className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                                                                value={
+                                                                    bulkFieldId ??
+                                                                    ''
+                                                                }
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    setBulkFieldId(
+                                                                        e.target
+                                                                            .value ||
+                                                                            null,
+                                                                    );
+                                                                    setBulkFieldValue(
+                                                                        '',
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <option value="">
+                                                                    Select a
+                                                                    field…
+                                                                </option>
+                                                                {displayedFields
+                                                                    .filter(
+                                                                        (f) =>
+                                                                            f.dataType ===
+                                                                                'STRING' ||
+                                                                            f.dataType ===
+                                                                                'NUMBER' ||
+                                                                            f.dataType ===
+                                                                                'CUSTOM',
+                                                                    )
+                                                                    .map(
+                                                                        (f) => (
+                                                                            <option
+                                                                                key={
+                                                                                    f.id
+                                                                                }
+                                                                                value={
+                                                                                    f.id
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    f.name
+                                                                                }
+                                                                            </option>
+                                                                        ),
+                                                                    )}
+                                                            </select>
+                                                        </div>
+                                                        {bulkFieldId &&
+                                                            (() => {
+                                                                const field =
+                                                                    displayedFields.find(
+                                                                        (f) =>
+                                                                            f.id ===
+                                                                            bulkFieldId,
+                                                                    );
+                                                                if (!field)
+                                                                    return null;
+                                                                if (
+                                                                    field.dataType ===
+                                                                        'CUSTOM' &&
+                                                                    (
+                                                                        field.customOptions ||
+                                                                        []
+                                                                    ).length > 0
+                                                                ) {
+                                                                    return (
+                                                                        <div className="flex flex-col gap-1.5">
+                                                                            <label className="text-sm font-medium">
+                                                                                Value
+                                                                            </label>
+                                                                            <select
+                                                                                className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                                                                                value={
+                                                                                    bulkFieldValue
+                                                                                }
+                                                                                onChange={(
+                                                                                    e,
+                                                                                ) =>
+                                                                                    setBulkFieldValue(
+                                                                                        e
+                                                                                            .target
+                                                                                            .value,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <option value="">
+                                                                                    Select…
+                                                                                </option>
+                                                                                {(
+                                                                                    field.customOptions ||
+                                                                                    []
+                                                                                ).map(
+                                                                                    (
+                                                                                        opt,
+                                                                                    ) => (
+                                                                                        <option
+                                                                                            key={
+                                                                                                opt
+                                                                                            }
+                                                                                            value={
+                                                                                                opt
+                                                                                            }
+                                                                                        >
+                                                                                            {
+                                                                                                opt
+                                                                                            }
+                                                                                        </option>
+                                                                                    ),
+                                                                                )}
+                                                                            </select>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        <label className="text-sm font-medium">
+                                                                            Value
+                                                                        </label>
+                                                                        <input
+                                                                            type={
+                                                                                field.dataType ===
+                                                                                'NUMBER'
+                                                                                    ? 'number'
+                                                                                    : 'text'
+                                                                            }
+                                                                            className="border border-input rounded-md px-3 py-2 text-sm bg-background"
+                                                                            value={
+                                                                                bulkFieldValue
+                                                                            }
+                                                                            onChange={(
+                                                                                e,
+                                                                            ) =>
+                                                                                setBulkFieldValue(
+                                                                                    e
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            placeholder="Enter value…"
+                                                                        />
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setBulkFieldOpen(
+                                                                    false,
+                                                                )
+                                                            }
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                        <Button
+                                                            onClick={
+                                                                handleBulkSetField
+                                                            }
+                                                            disabled={
+                                                                !bulkFieldId ||
+                                                                !bulkFieldValue
+                                                            }
+                                                        >
+                                                            Apply to{' '}
+                                                            {
+                                                                selectedTaskIds.size
+                                                            }{' '}
+                                                            task
+                                                            {selectedTaskIds.size !==
+                                                            1
+                                                                ? 's'
+                                                                : ''}
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+
                                         <Button
                                             variant="ghost"
                                             size="sm"
