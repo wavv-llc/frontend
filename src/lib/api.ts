@@ -981,6 +981,24 @@ export const taskApi = {
             },
         );
     },
+
+    toggleWatch: async (token: string, projectId: string, taskId: string) => {
+        return apiRequest<{ watching: boolean }>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/watch`,
+            { method: 'POST', token },
+        );
+    },
+
+    getWatchStatus: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+    ) => {
+        return apiRequest<{ watching: boolean }>(
+            `/api/v1/projects/${projectId}/tasks/${taskId}/watch`,
+            { method: 'GET', token },
+        );
+    },
 };
 
 // Section API functions
@@ -1903,6 +1921,13 @@ export const documentApi = {
             method: 'GET',
             token,
         });
+    },
+
+    listForOrganization: async (token: string, organizationId: string) => {
+        return apiRequest<{ documents: Document[] }>(
+            `/api/v1/documents/organization/${organizationId}`,
+            { method: 'GET', token },
+        );
     },
 };
 

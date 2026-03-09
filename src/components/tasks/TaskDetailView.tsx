@@ -10,6 +10,7 @@ import {
     useImperativeHandle,
     type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
     ArrowLeft,
     MoreVertical,
@@ -41,6 +42,8 @@ import {
     Bell,
     XCircle,
     Link2,
+    Library,
+    Search,
 } from 'lucide-react';
 import {
     Popover,
@@ -58,6 +61,7 @@ import {
     type User,
     type CustomField,
     type Document,
+    type TaskCommentReaction,
     taskApi,
     taskCommentApi,
     approvalApi,
@@ -83,6 +87,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
 
 // ─── Helper: compact relative timestamps ──────────────────────────────────────
 function formatRelativeTime(date: Date): string {
@@ -174,6 +179,8 @@ const RichCommentEditor = forwardRef<
         placeholder?: string;
         showToolbar?: boolean;
         toolbarActions?: ReactNode;
+        mentionableUsers?: User[];
+        initialContent?: string;
     }
 >(function RichCommentEditor(
     {
@@ -185,18 +192,59 @@ const RichCommentEditor = forwardRef<
         placeholder,
         showToolbar,
         toolbarActions,
+        mentionableUsers = [],
+        initialContent,
     },
     ref,
 ) {
     const divRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (initialContent && divRef.current) {
+            divRef.current.innerHTML = initialContent;
+            const empty =
+                !divRef.current.textContent?.trim() &&
+                !divRef.current.querySelector('img');
+            onContentChange(initialContent, empty);
+            // Move cursor to end
+            const range = document.createRange();
+            range.selectNodeContents(divRef.current);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+        }
+    }, []);
     const [isEmpty, setIsEmpty] = useState(true);
     const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+
+    // ── Mention state ──────────────────────────────────────────────────────────
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState('');
+    const [mentionIndex, setMentionIndex] = useState(0);
+    const [mentionPos, setMentionPos] = useState({ top: 0, left: 0 });
+
+    const filteredMentions = useMemo(() => {
+        if (!mentionableUsers.length) return [];
+        const q = mentionQuery.toLowerCase();
+        return mentionableUsers
+            .filter((u) => {
+                const name = `${u.firstName ?? ''} ${u.lastName ?? ''}`
+                    .toLowerCase()
+                    .trim();
+                return (
+                    !q || name.includes(q) || u.email.toLowerCase().includes(q)
+                );
+            })
+            .slice(0, 6);
+    }, [mentionableUsers, mentionQuery]);
 
     useImperativeHandle(ref, () => ({
         clear: () => {
             if (divRef.current) {
                 divRef.current.innerHTML = '';
                 setIsEmpty(true);
+                setMentionOpen(false);
                 onContentChange('', true);
             }
         },
@@ -229,6 +277,81 @@ const RichCommentEditor = forwardRef<
         [syncFormats, onContentChange, isEditorEmpty],
     );
 
+    // Check if cursor is right after an @query pattern and open/close mention dropdown
+    const checkForMention = useCallback(() => {
+        if (!mentionableUsers.length) return;
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || !divRef.current) {
+            setMentionOpen(false);
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        const preRange = document.createRange();
+        preRange.selectNodeContents(divRef.current);
+        preRange.setEnd(range.endContainer, range.endOffset);
+        const textBefore = preRange.toString();
+
+        // Match a bare @ or @ followed by word chars (no spaces) at the very end
+        const match = textBefore.match(/@([\w.]*)$/);
+        if (!match) {
+            setMentionOpen(false);
+            return;
+        }
+
+        setMentionQuery(match[1]);
+        setMentionIndex(0);
+        setMentionOpen(true);
+
+        // Position the dropdown just below the cursor
+        const rect = range.getBoundingClientRect();
+        setMentionPos({ top: rect.bottom + 6, left: rect.left });
+    }, [mentionableUsers.length]);
+
+    // Insert a mention chip and close the dropdown
+    const insertMention = useCallback(
+        (user: User) => {
+            const el = divRef.current;
+            const sel = window.getSelection();
+            if (!el || !sel || sel.rangeCount === 0) return;
+
+            const range = sel.getRangeAt(0);
+            const node = range.startContainer;
+            if (node.nodeType !== Node.TEXT_NODE) return;
+
+            const text = node.textContent ?? '';
+            const cursorPos = range.startOffset;
+            const textBefore = text.slice(0, cursorPos);
+            const atIdx = textBefore.lastIndexOf('@');
+            if (atIdx === -1) return;
+
+            // Select from @ to cursor so we can replace it
+            const replaceRange = document.createRange();
+            replaceRange.setStart(node, atIdx);
+            replaceRange.setEnd(node, cursorPos);
+            sel.removeAllRanges();
+            sel.addRange(replaceRange);
+
+            const displayName = user.firstName
+                ? `${user.firstName} ${user.lastName ?? ''}`.trim()
+                : user.email;
+
+            document.execCommand(
+                'insertHTML',
+                false,
+                `<span class="mention" data-user-id="${user.id}" contenteditable="false">@${displayName}</span>&nbsp;`,
+            );
+
+            setMentionOpen(false);
+            setMentionQuery('');
+
+            const html = el.innerHTML;
+            const empty = isEditorEmpty(el);
+            setIsEmpty(empty);
+            onContentChange(html, empty);
+        },
+        [isEditorEmpty, onContentChange],
+    );
+
     const handleInput = useCallback(() => {
         const el = divRef.current;
         if (!el) return;
@@ -237,7 +360,8 @@ const RichCommentEditor = forwardRef<
         setIsEmpty(empty);
         syncFormats();
         onContentChange(html, empty);
-    }, [syncFormats, onContentChange, isEditorEmpty]);
+        checkForMention();
+    }, [syncFormats, onContentChange, isEditorEmpty, checkForMention]);
 
     const handlePaste = useCallback(
         (e: React.ClipboardEvent) => {
@@ -291,6 +415,33 @@ const RichCommentEditor = forwardRef<
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
+            // Mention dropdown navigation takes priority
+            if (mentionOpen && filteredMentions.length > 0) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setMentionIndex((i) =>
+                        Math.min(i + 1, filteredMentions.length - 1),
+                    );
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setMentionIndex((i) => Math.max(i - 1, 0));
+                    return;
+                }
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const selected = filteredMentions[mentionIndex];
+                    if (selected) insertMention(selected);
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setMentionOpen(false);
+                    return;
+                }
+            }
+
             const mod = e.metaKey || e.ctrlKey;
             if (mod && e.key === 'Enter') {
                 e.preventDefault();
@@ -314,7 +465,15 @@ const RichCommentEditor = forwardRef<
                 execFormat('underline');
             }
         },
-        [execFormat, onSubmit, onCancel],
+        [
+            execFormat,
+            onSubmit,
+            onCancel,
+            mentionOpen,
+            filteredMentions,
+            mentionIndex,
+            insertMention,
+        ],
     );
 
     const fmtBtnCls = (active: boolean) =>
@@ -344,10 +503,74 @@ const RichCommentEditor = forwardRef<
                     onKeyUp={syncFormats}
                     onMouseUp={syncFormats}
                     onFocus={onFocus}
-                    onBlur={() => onBlur?.(isEmpty)}
-                    className="text-sm outline-none text-dashboard-text-body leading-relaxed min-h-5"
+                    onBlur={() => {
+                        // Delay closing so clicks on the mention list are registered first
+                        setTimeout(() => setMentionOpen(false), 150);
+                        onBlur?.(isEmpty);
+                    }}
+                    className="text-sm outline-none text-dashboard-text-body leading-relaxed min-h-5 [&_.mention]:text-accent-blue [&_.mention]:font-medium [&_.mention]:bg-accent-subtle [&_.mention]:px-1 [&_.mention]:rounded [&_.mention]:text-xs"
                 />
             </div>
+
+            {/* Mention dropdown — rendered in a portal so it escapes overflow:hidden containers */}
+            {mentionOpen &&
+                filteredMentions.length > 0 &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        style={{
+                            position: 'fixed',
+                            top: mentionPos.top,
+                            left: mentionPos.left,
+                            zIndex: 9999,
+                        }}
+                        className="w-56 rounded-lg border border-dashboard-border bg-white shadow-lg overflow-hidden"
+                        onMouseDown={(e) => e.preventDefault()}
+                    >
+                        <div className="px-2 py-1 border-b border-dashboard-border/50">
+                            <p className="text-[10px] font-medium text-dashboard-text-muted uppercase tracking-wide">
+                                Mention someone
+                            </p>
+                        </div>
+                        {filteredMentions.map((user, idx) => {
+                            const initials = user.firstName
+                                ? `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase()
+                                : user.email[0].toUpperCase();
+                            const name = user.firstName
+                                ? `${user.firstName} ${user.lastName ?? ''}`.trim()
+                                : user.email;
+                            return (
+                                <button
+                                    key={user.id}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        insertMention(user);
+                                    }}
+                                    className={cn(
+                                        'w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors cursor-pointer',
+                                        idx === mentionIndex
+                                            ? 'bg-accent-subtle'
+                                            : 'hover:bg-dashboard-surface',
+                                    )}
+                                >
+                                    <div className="h-6 w-6 rounded-full bg-accent-subtle border border-dashboard-border flex items-center justify-center text-[10px] font-semibold text-accent-blue shrink-0">
+                                        {initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-dashboard-text-primary truncate">
+                                            {name}
+                                        </p>
+                                        <p className="text-[10px] text-dashboard-text-muted truncate">
+                                            {user.email}
+                                        </p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>,
+                    document.body,
+                )}
 
             {/* Formatting toolbar */}
             {showToolbar && (
@@ -417,6 +640,7 @@ interface TaskDetailViewProps {
     projectId?: string;
     customFields?: CustomField[];
     projectMembers?: User[];
+    workspaceMembers?: User[];
 }
 
 // ─── TaskDetailView ────────────────────────────────────────────────────────────
@@ -431,6 +655,7 @@ export function TaskDetailView({
     projectId,
     customFields = [],
     projectMembers = [],
+    workspaceMembers = [],
 }: TaskDetailViewProps) {
     const { getToken } = useAuth();
     const { user } = useUser();
@@ -441,6 +666,10 @@ export function TaskDetailView({
     const [linkedFiles, setLinkedFiles] = useState<Document[]>(
         task.linkedFiles ?? [],
     );
+    const [linkDocOpen, setLinkDocOpen] = useState(false);
+    const [orgDocuments, setOrgDocuments] = useState<Document[]>([]);
+    const [isLoadingOrgDocs, setIsLoadingOrgDocs] = useState(false);
+    const [docSearch, setDocSearch] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -451,6 +680,16 @@ export function TaskDetailView({
     const [isApprovalLoading, setIsApprovalLoading] = useState(false);
     const newThreadInputRef = useRef<RichEditorHandle>(null);
     const threadStateBeforeUpload = useRef(false);
+
+    // Merged, deduped list of users that can be @mentioned in comments
+    const mentionableUsers = useMemo(() => {
+        const seen = new Set<string>();
+        return [...workspaceMembers, ...projectMembers].filter((u) => {
+            if (seen.has(u.id)) return false;
+            seen.add(u.id);
+            return true;
+        });
+    }, [workspaceMembers, projectMembers]);
 
     // ── Attachment handlers ───────────────────────────────────────────────────
     const handleUploadFile = async (file: File) => {
@@ -508,6 +747,41 @@ export function TaskDetailView({
         }
     };
 
+    const handleOpenLinkDoc = async () => {
+        setDocSearch('');
+        setLinkDocOpen(true);
+        if (orgDocuments.length > 0) return;
+        if (!user?.organizationId) return;
+        setIsLoadingOrgDocs(true);
+        try {
+            const token = await getToken();
+            if (!token) return;
+            const result = await documentApi.listForOrganization(
+                token,
+                user.organizationId,
+            );
+            setOrgDocuments(result.data?.documents ?? []);
+        } catch {
+            toast.error('Failed to load documents');
+        } finally {
+            setIsLoadingOrgDocs(false);
+        }
+    };
+
+    const handleLinkDocument = async (doc: Document) => {
+        if (!projectId) return;
+        if (linkedFiles.some((f) => f.id === doc.id)) return;
+        setLinkedFiles((prev) => [...prev, doc]);
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskApi.attachFile(token, projectId, task.id, doc.id);
+        } catch {
+            setLinkedFiles((prev) => prev.filter((f) => f.id !== doc.id));
+            toast.error('Failed to link document');
+        }
+    };
+
     // ── Approval workflow derived values ──────────────────────────────────────
     // Per-task chain: derived from approvalChain returned by the backend
     const approvalChain = task.approvalChain ?? [];
@@ -529,6 +803,9 @@ export function TaskDetailView({
     const [descValue, setDescValue] = useState(task.description || '');
     const [isEditingDesc, setIsEditingDesc] = useState(false);
     const descRef = useRef<HTMLTextAreaElement>(null);
+
+    // Watch/notify state
+    const [isWatching, setIsWatching] = useState(false);
 
     // ── Activity items derived from task data ──────────────────────────────────
     const activityItems = useMemo(() => {
@@ -683,6 +960,7 @@ export function TaskDetailView({
                     postedAt?: string;
                     createdAt: string;
                     updatedAt?: string;
+                    createdBy?: User;
                     postedByUser?: User;
                     user?: User;
                     resolved?: boolean;
@@ -704,7 +982,9 @@ export function TaskDetailView({
                     comment: c.comment || c.content || '',
                     createdAt: c.postedAt || c.createdAt,
                     updatedAt: c.updatedAt || c.createdAt,
-                    user: c.postedByUser || c.user || { id: '', email: '' },
+                    user: c.createdBy ||
+                        c.postedByUser ||
+                        c.user || { id: '', email: '' },
                     resolved: c.resolved ?? false,
                     resolvedBy: c.resolvedBy,
                     reactions:
@@ -739,6 +1019,28 @@ export function TaskDetailView({
     useEffect(() => {
         loadComments(true);
     }, [loadComments]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const token = await getToken();
+                if (!token || cancelled) return;
+                const res = await taskApi.getWatchStatus(
+                    token,
+                    task.projectId,
+                    task.id,
+                );
+                if (!cancelled && res.data) setIsWatching(res.data.watching);
+            } catch {
+                // endpoint may not be available yet
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [task.id, task.projectId]);
 
     const handleDeleteTask = async () => {
         try {
@@ -845,27 +1147,48 @@ export function TaskDetailView({
     const handleCreateComment = async () => {
         if (isNewCommentEmpty) return;
 
+        const content = newCommentContent;
+        const optimisticId = `optimistic-${Date.now()}`;
+        const optimisticComment: Comment = {
+            id: optimisticId,
+            comment: content,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            user: {
+                id: user?.id ?? '',
+                email: user?.email ?? '',
+                firstName: user?.firstName,
+                lastName: user?.lastName,
+            },
+            resolved: false,
+            replies: [],
+            reactions: [],
+        };
+
+        // Update UI immediately
+        setComments((prev) => [...prev, optimisticComment]);
+        newThreadInputRef.current?.clear();
+        setIsNewCommentEmpty(true);
+        setNewCommentContent('');
+        setIsCreatingThread(false);
+
         try {
-            setIsSubmitting(true);
             const token = await getToken();
             if (!token) {
+                setComments((prev) =>
+                    prev.filter((c) => c.id !== optimisticId),
+                );
                 toast.error('Authentication required');
                 return;
             }
             await taskCommentApi.createComment(token, task.projectId, task.id, {
-                comment: newCommentContent,
+                comment: content,
             });
-            toast.success('Thread started');
-            newThreadInputRef.current?.clear();
-            setIsNewCommentEmpty(true);
-            setNewCommentContent('');
-            setIsCreatingThread(false);
             loadComments();
         } catch (error) {
+            setComments((prev) => prev.filter((c) => c.id !== optimisticId));
             console.error('Failed to create comment:', error);
             toast.error('Failed to start thread');
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
@@ -998,14 +1321,36 @@ export function TaskDetailView({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem
-                                    onClick={() =>
-                                        toast.info(
-                                            'Task notifications coming soon',
-                                        )
-                                    }
+                                    onClick={async () => {
+                                        const token = await getToken();
+                                        if (!token) return;
+                                        setIsWatching((w) => !w);
+                                        try {
+                                            const res =
+                                                await taskApi.toggleWatch(
+                                                    token,
+                                                    task.projectId,
+                                                    task.id,
+                                                );
+                                            if (res.data)
+                                                setIsWatching(
+                                                    res.data.watching,
+                                                );
+                                        } catch {
+                                            setIsWatching((w) => !w);
+                                            toast.error(
+                                                'Failed to update notifications',
+                                            );
+                                        }
+                                    }}
                                 >
-                                    <Bell className="h-4 w-4 mr-2" />
-                                    Notify
+                                    <Bell
+                                        className={cn(
+                                            'h-4 w-4 mr-2',
+                                            isWatching && 'fill-current',
+                                        )}
+                                    />
+                                    {isWatching ? 'Watching' : 'Notify'}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -1194,6 +1539,7 @@ export function TaskDetailView({
                                         onAttach={() =>
                                             setUploadDialogOpen(true)
                                         }
+                                        mentionableUsers={mentionableUsers}
                                     />
                                 ))}
                             </div>
@@ -1234,6 +1580,7 @@ export function TaskDetailView({
                                     }}
                                     placeholder="Leave a comment…"
                                     showToolbar={isCreatingThread}
+                                    mentionableUsers={mentionableUsers}
                                     toolbarActions={
                                         isCreatingThread ? (
                                             <div className="ml-auto flex items-center gap-1">
@@ -1568,14 +1915,26 @@ export function TaskDetailView({
                             <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
                                 Attachments
                             </h4>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setUploadDialogOpen(true)}
-                                className="h-5 w-5 ml-auto text-dashboard-text-muted hover:text-accent-blue"
-                            >
-                                <Upload className="h-3 w-3" />
-                            </Button>
+                            <div className="ml-auto flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleOpenLinkDoc}
+                                    title="Link from library"
+                                    className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
+                                >
+                                    <Library className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setUploadDialogOpen(true)}
+                                    title="Upload file"
+                                    className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
+                                >
+                                    <Upload className="h-3 w-3" />
+                                </Button>
+                            </div>
                         </div>
                         {linkedFiles.length > 0 ? (
                             <div className="flex flex-col gap-1.5">
@@ -1702,6 +2061,91 @@ export function TaskDetailView({
                 </DialogContent>
             </Dialog>
 
+            {/* ── Link from Library Dialog ──────────────────────────────── */}
+            <Dialog open={linkDocOpen} onOpenChange={setLinkDocOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Link from Library</DialogTitle>
+                        <DialogDescription>
+                            Select documents from your organization to attach to
+                            this task.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-dashboard-text-muted pointer-events-none" />
+                        <Input
+                            placeholder="Search documents…"
+                            value={docSearch}
+                            onChange={(e) => setDocSearch(e.target.value)}
+                            className="pl-8 h-8 text-sm"
+                        />
+                    </div>
+                    <div className="max-h-72 overflow-y-auto space-y-1">
+                        {isLoadingOrgDocs ? (
+                            <div className="py-8 flex items-center justify-center">
+                                <div className="h-5 w-5 rounded-full border-2 border-accent-blue border-t-transparent animate-spin" />
+                            </div>
+                        ) : (
+                            (() => {
+                                const filtered = orgDocuments.filter((d) =>
+                                    d.originalName
+                                        .toLowerCase()
+                                        .includes(docSearch.toLowerCase()),
+                                );
+                                if (filtered.length === 0) {
+                                    return (
+                                        <p className="py-8 text-center text-sm text-dashboard-text-muted">
+                                            No documents found.
+                                        </p>
+                                    );
+                                }
+                                return filtered.map((doc) => {
+                                    const already = linkedFiles.some(
+                                        (f) => f.id === doc.id,
+                                    );
+                                    return (
+                                        <button
+                                            key={doc.id}
+                                            onClick={() =>
+                                                handleLinkDocument(doc)
+                                            }
+                                            disabled={already}
+                                            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-accent-subtle/40 disabled:opacity-50 disabled:cursor-default transition-colors text-left"
+                                        >
+                                            <div className="h-7 w-7 bg-accent-subtle rounded-md flex items-center justify-center text-accent-blue shrink-0">
+                                                <FileText className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs font-medium text-dashboard-text-body truncate">
+                                                    {doc.originalName}
+                                                </p>
+                                                <p className="text-[10px] text-dashboard-text-muted">
+                                                    {(
+                                                        doc.filesize / 1024
+                                                    ).toFixed(0)}{' '}
+                                                    KB
+                                                </p>
+                                            </div>
+                                            {already && (
+                                                <Check className="h-3.5 w-3.5 text-accent-blue shrink-0" />
+                                            )}
+                                        </button>
+                                    );
+                                });
+                            })()
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setLinkDocOpen(false)}
+                        >
+                            Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <EditTaskDialog
                 open={editDialogOpen}
                 onOpenChange={setEditDialogOpen}
@@ -1750,6 +2194,7 @@ function CommentBubble({
     taskId,
     projectId,
     onResolve,
+    mentionableUsers = [],
 }: {
     comment: Comment;
     isResolutionTarget?: boolean;
@@ -1757,20 +2202,85 @@ function CommentBubble({
     taskId: string;
     projectId: string;
     onResolve?: () => void;
+    mentionableUsers?: User[];
 }) {
     const { getToken, userId } = useAuth();
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState('');
+    const [isEditEmpty, setIsEditEmpty] = useState(false);
+    const editRef = useRef<RichEditorHandle>(null);
+    const [localReactions, setLocalReactions] = useState<TaskCommentReaction[]>(
+        comment.reactions ?? [],
+    );
 
-    const reactionGroups =
-        comment.reactions?.reduce(
-            (acc, reaction) => {
-                if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
-                acc[reaction.emoji]!.push(reaction);
-                return acc;
-            },
-            {} as Record<string, typeof comment.reactions>,
-        ) ?? {};
+    useEffect(() => {
+        setLocalReactions(comment.reactions ?? []);
+    }, [comment.reactions]);
+
+    const handleSaveEdit = async () => {
+        if (isEditEmpty) return;
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskCommentApi.updateComment(
+                token,
+                projectId,
+                taskId,
+                comment.id,
+                editContent,
+            );
+            onUpdate();
+            setIsEditing(false);
+        } catch {
+            toast.error('Failed to update comment');
+        }
+    };
+
+    const handleDelete = async () => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskCommentApi.deleteComment(
+                token,
+                projectId,
+                taskId,
+                comment.id,
+            );
+            onUpdate();
+        } catch {
+            toast.error('Failed to delete comment');
+        }
+    };
+
+    const reactionGroups = localReactions.reduce(
+        (acc, reaction) => {
+            if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
+            acc[reaction.emoji]!.push(reaction);
+            return acc;
+        },
+        {} as Record<string, TaskCommentReaction[]>,
+    );
 
     const handleReaction = async (emoji: string) => {
+        const alreadyReacted = localReactions.some(
+            (r) => r.emoji === emoji && r.userId === userId,
+        );
+        const prev = localReactions;
+        if (alreadyReacted) {
+            setLocalReactions((rs) =>
+                rs.filter((r) => !(r.emoji === emoji && r.userId === userId)),
+            );
+        } else {
+            const optimistic: TaskCommentReaction = {
+                id: `optimistic-${Date.now()}`,
+                emoji,
+                userId: userId ?? '',
+                user: { id: userId ?? '', email: '' },
+                commentId: comment.id,
+                createdAt: new Date().toISOString(),
+            };
+            setLocalReactions((rs) => [...rs, optimistic]);
+        }
         try {
             const token = await getToken();
             if (!token) return;
@@ -1783,6 +2293,7 @@ function CommentBubble({
             );
             onUpdate();
         } catch {
+            setLocalReactions(prev);
             toast.error('Failed to update reaction');
         }
     };
@@ -1817,12 +2328,27 @@ function CommentBubble({
                     )}
                 </div>
 
-                <div
-                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through [&_img]:max-w-full [&_img]:rounded-md [&_img]:mt-1 [&_img]:block [&_img]:cursor-zoom-in"
-                    dangerouslySetInnerHTML={{
-                        __html: sanitizeCommentHtml(commentContent),
-                    }}
-                />
+                {isEditing ? (
+                    <RichCommentEditor
+                        ref={editRef}
+                        initialContent={comment.comment || ''}
+                        onContentChange={(html, empty) => {
+                            setEditContent(html);
+                            setIsEditEmpty(empty);
+                        }}
+                        onSubmit={handleSaveEdit}
+                        onCancel={() => setIsEditing(false)}
+                        showToolbar
+                        mentionableUsers={mentionableUsers}
+                    />
+                ) : (
+                    <div
+                        className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through [&_img]:max-w-full [&_img]:rounded-md [&_img]:mt-1 [&_img]:block [&_img]:cursor-zoom-in [&_.mention]:text-accent-blue [&_.mention]:font-medium [&_.mention]:bg-accent-subtle [&_.mention]:px-1 [&_.mention]:rounded [&_.mention]:text-xs"
+                        dangerouslySetInnerHTML={{
+                            __html: sanitizeCommentHtml(commentContent),
+                        }}
+                    />
+                )}
 
                 {Object.keys(reactionGroups).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
@@ -1925,12 +2451,15 @@ function CommentBubble({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsEditing(true)}>
                             <Edit2 className="h-3.5 w-3.5 mr-2" />
                             Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                        <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={handleDelete}
+                        >
                             <Trash2 className="h-3.5 w-3.5 mr-2" />
                             Delete
                         </DropdownMenuItem>
@@ -1949,6 +2478,7 @@ function CommentThread({
     taskId,
     projectId,
     onAttach,
+    mentionableUsers = [],
 }: {
     comment: Comment;
     index: number;
@@ -1956,29 +2486,104 @@ function CommentThread({
     taskId: string;
     projectId: string;
     onAttach?: () => void;
+    mentionableUsers?: User[];
 }) {
     const { getToken, userId } = useAuth();
+    const { user: currentUser } = useUser();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [replyContent, setReplyContent] = useState('');
     const [isReplyEmpty, setIsReplyEmpty] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReplyFocused, setIsReplyFocused] = useState(false);
     const replyInputRef = useRef<RichEditorHandle>(null);
+    const [isEditingRoot, setIsEditingRoot] = useState(false);
+    const [editRootContent, setEditRootContent] = useState('');
+    const [isEditRootEmpty, setIsEditRootEmpty] = useState(false);
+    const editRootRef = useRef<RichEditorHandle>(null);
+
+    const handleSaveRootEdit = async () => {
+        if (isEditRootEmpty) return;
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskCommentApi.updateComment(
+                token,
+                projectId,
+                taskId,
+                comment.id,
+                editRootContent,
+            );
+            onUpdate();
+            setIsEditingRoot(false);
+        } catch {
+            toast.error('Failed to update comment');
+        }
+    };
+
+    const handleDeleteRoot = async () => {
+        try {
+            const token = await getToken();
+            if (!token) return;
+            await taskCommentApi.deleteComment(
+                token,
+                projectId,
+                taskId,
+                comment.id,
+            );
+            onUpdate();
+        } catch {
+            toast.error('Failed to delete comment');
+        }
+    };
+    const [localReplies, setLocalReplies] = useState<Comment[]>(
+        comment.replies ?? [],
+    );
+
+    // Sync local replies when parent refreshes with real server data
+    useEffect(() => {
+        setLocalReplies(comment.replies ?? []);
+    }, [comment.replies]);
 
     const isResolved = comment.resolved;
-    const replies = comment.replies ?? [];
+    const replies = localReplies;
 
-    const rootReactionGroups =
-        comment.reactions?.reduce(
-            (acc, reaction) => {
-                if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
-                acc[reaction.emoji]!.push(reaction);
-                return acc;
-            },
-            {} as Record<string, typeof comment.reactions>,
-        ) ?? {};
+    const [localRootReactions, setLocalRootReactions] = useState<
+        TaskCommentReaction[]
+    >(comment.reactions ?? []);
+
+    useEffect(() => {
+        setLocalRootReactions(comment.reactions ?? []);
+    }, [comment.reactions]);
+
+    const rootReactionGroups = localRootReactions.reduce(
+        (acc, reaction) => {
+            if (!acc[reaction.emoji]) acc[reaction.emoji] = [];
+            acc[reaction.emoji]!.push(reaction);
+            return acc;
+        },
+        {} as Record<string, TaskCommentReaction[]>,
+    );
 
     const handleRootReaction = async (emoji: string) => {
+        const alreadyReacted = localRootReactions.some(
+            (r) => r.emoji === emoji && r.userId === userId,
+        );
+        const prev = localRootReactions;
+        if (alreadyReacted) {
+            setLocalRootReactions((rs) =>
+                rs.filter((r) => !(r.emoji === emoji && r.userId === userId)),
+            );
+        } else {
+            const optimistic: TaskCommentReaction = {
+                id: `optimistic-${Date.now()}`,
+                emoji,
+                userId: userId ?? '',
+                user: { id: userId ?? '', email: '' },
+                commentId: comment.id,
+                createdAt: new Date().toISOString(),
+            };
+            setLocalRootReactions((rs) => [...rs, optimistic]);
+        }
         try {
             const token = await getToken();
             if (!token) return;
@@ -1991,6 +2596,7 @@ function CommentThread({
             );
             onUpdate();
         } catch {
+            setLocalRootReactions(prev);
             toast.error('Failed to update reaction');
         }
     };
@@ -2043,26 +2649,51 @@ function CommentThread({
 
     const handleReply = async () => {
         if (isReplyEmpty) return;
+
+        const content = replyContent;
+        const optimisticId = `optimistic-${Date.now()}`;
+        const optimisticReply: Comment = {
+            id: optimisticId,
+            comment: content,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            user: {
+                id: currentUser?.id ?? '',
+                email: currentUser?.email ?? '',
+                firstName: currentUser?.firstName,
+                lastName: currentUser?.lastName,
+            },
+            resolved: false,
+            replies: [],
+            reactions: [],
+            parentId: comment.id,
+        };
+
+        // Update UI immediately
+        setLocalReplies((prev) => [...prev, optimisticReply]);
+        replyInputRef.current?.clear();
+        setReplyContent('');
+        setIsReplyFocused(false);
+
         try {
-            setIsSubmitting(true);
             const token = await getToken();
             if (!token) {
+                setLocalReplies((prev) =>
+                    prev.filter((r) => r.id !== optimisticId),
+                );
                 toast.error('Authentication required');
                 return;
             }
             await taskCommentApi.createComment(token, projectId, taskId, {
-                comment: replyContent,
+                comment: content,
                 parentId: comment.id,
             });
-            toast.success('Reply added');
-            replyInputRef.current?.clear();
-            setReplyContent('');
-            setIsReplyFocused(false);
             onUpdate();
         } catch {
+            setLocalReplies((prev) =>
+                prev.filter((r) => r.id !== optimisticId),
+            );
             toast.error('Failed to add reply');
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
@@ -2072,6 +2703,7 @@ function CommentThread({
         <div
             className={cn(
                 'rounded-lg border overflow-hidden shadow-sm',
+                'animate-in fade-in slide-in-from-bottom-2 duration-200',
                 isResolved
                     ? 'border-dashboard-border/50 bg-dashboard-surface/60'
                     : 'border-dashboard-border bg-dashboard-surface',
@@ -2115,14 +2747,29 @@ function CommentThread({
 
                         {!isCollapsed && (
                             <>
-                                <div
-                                    className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through"
-                                    dangerouslySetInnerHTML={{
-                                        __html: sanitizeCommentHtml(
-                                            comment.comment || '',
-                                        ),
-                                    }}
-                                />
+                                {isEditingRoot ? (
+                                    <RichCommentEditor
+                                        ref={editRootRef}
+                                        initialContent={comment.comment || ''}
+                                        onContentChange={(html, empty) => {
+                                            setEditRootContent(html);
+                                            setIsEditRootEmpty(empty);
+                                        }}
+                                        onSubmit={handleSaveRootEdit}
+                                        onCancel={() => setIsEditingRoot(false)}
+                                        showToolbar
+                                        mentionableUsers={mentionableUsers}
+                                    />
+                                ) : (
+                                    <div
+                                        className="text-sm text-dashboard-text-body leading-relaxed wrap-break-word [&_b]:font-bold [&_strong]:font-bold [&_u]:underline [&_s]:line-through [&_strike]:line-through"
+                                        dangerouslySetInnerHTML={{
+                                            __html: sanitizeCommentHtml(
+                                                comment.comment || '',
+                                            ),
+                                        }}
+                                    />
+                                )}
                                 {Object.keys(rootReactionGroups).length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-2">
                                         {Object.entries(rootReactionGroups).map(
@@ -2253,12 +2900,17 @@ function CommentThread({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-36">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => setIsEditingRoot(true)}
+                                >
                                     <Edit2 className="h-3.5 w-3.5 mr-2" />
                                     Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={handleDeleteRoot}
+                                >
                                     <Trash2 className="h-3.5 w-3.5 mr-2" />
                                     Delete
                                 </DropdownMenuItem>
@@ -2274,7 +2926,7 @@ function CommentThread({
                     {replies.map((reply, i) => (
                         <div
                             key={reply.id}
-                            className="border-t border-dashboard-border/40 px-4 py-3"
+                            className="border-t border-dashboard-border/40 px-4 py-3 animate-in fade-in slide-in-from-bottom-1 duration-150"
                         >
                             <CommentBubble
                                 comment={reply}
@@ -2287,6 +2939,7 @@ function CommentThread({
                                 onResolve={
                                     !isResolved ? handleResolve : undefined
                                 }
+                                mentionableUsers={mentionableUsers}
                             />
                         </div>
                     ))}
@@ -2365,6 +3018,7 @@ function CommentThread({
                                         }}
                                         placeholder="Leave a reply…"
                                         showToolbar={isReplyFocused}
+                                        mentionableUsers={mentionableUsers}
                                     />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 pb-0.5">

@@ -105,12 +105,21 @@ export default function ProjectPage() {
         return null;
     }
 
+    const handleTaskAdded = (task: Task) => {
+        setTasks((prev) => {
+            const newTasks = [...prev, task];
+            if (project) setCached(cacheKey, { project, tasks: newTasks });
+            return newTasks;
+        });
+    };
+
     return (
         <ProjectDetailView
             project={project}
             tasks={tasks}
             onRefresh={fetchData}
             onCreateTask={() => {}} // No longer used, but keeping for interface compatibility
+            onTaskAdded={handleTaskAdded}
         />
     );
 }

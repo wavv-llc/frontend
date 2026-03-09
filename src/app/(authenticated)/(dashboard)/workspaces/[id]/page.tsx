@@ -29,6 +29,7 @@ import {
     type Task,
     type User,
 } from '@/lib/api';
+import { MemberPickerDialog } from '@/components/dialogs/MemberPickerDialog';
 import { getCached, setCached, invalidateCached } from '@/lib/pageCache';
 import { Badge } from '@/components/ui/badge';
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
@@ -85,6 +86,7 @@ export default function WorkspaceDetailsPage() {
     );
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
+    const [memberPickerOpen, setMemberPickerOpen] = useState(false);
     const [editWorkspaceName, setEditWorkspaceName] = useState(
         () => getCached<WorkspacePageData>(cacheKey)?.workspace.name ?? '',
     );
@@ -482,14 +484,10 @@ export default function WorkspaceDetailsPage() {
                         <Button
                             variant="outline"
                             className="flex-1 gap-2 border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue/40"
-                            onClick={() => {
-                                toast.info(
-                                    'Member invites are managed in project settings',
-                                );
-                            }}
+                            onClick={() => setMemberPickerOpen(true)}
                         >
                             <Users className="h-3.5 w-3.5" />
-                            Invite Member
+                            Add Member
                         </Button>
                         <Button
                             variant="outline"
@@ -500,6 +498,22 @@ export default function WorkspaceDetailsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Member Picker Dialog */}
+            {workspace && (
+                <MemberPickerDialog
+                    open={memberPickerOpen}
+                    onOpenChange={setMemberPickerOpen}
+                    type="workspace"
+                    targetId={workspace.id}
+                    targetName={workspace.name}
+                    existingMembers={[
+                        ...workspace.owners,
+                        ...workspace.members,
+                    ]}
+                    onSuccess={fetchData}
+                />
+            )}
 
             {/* Delete Workspace Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

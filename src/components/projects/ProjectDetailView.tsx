@@ -25,7 +25,7 @@ import {
     Layers,
     Download,
     Upload,
-    Mail,
+    UserPlus,
     Activity,
     Bell,
     Lock,
@@ -45,10 +45,12 @@ import {
     type Task,
     type CustomField,
     type Section,
+    type User,
     projectApi,
     taskApi,
     customFieldApi,
     sectionApi,
+    workspaceApi,
 } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,6 +62,7 @@ import { TaskList, type TaskListRef } from './TaskList';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
 import { ManageTemplatesDialog } from '@/components/dialogs/ManageTemplatesDialog';
 import { ApprovalWorkflowDialog } from './ApprovalWorkflowDialog';
+import { MemberPickerDialog } from '@/components/dialogs/MemberPickerDialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -92,6 +95,7 @@ interface ProjectDetailViewProps {
     tasks: Task[];
     onRefresh: () => void;
     onCreateTask: () => void;
+    onTaskAdded: (task: Task) => void;
 }
 
 type ViewMode = 'list' | 'calendar';
@@ -559,6 +563,7 @@ export function ProjectDetailView({
     project,
     tasks,
     onRefresh,
+    onTaskAdded,
 }: ProjectDetailViewProps) {
     const { getToken } = useAuth();
     const [view, setView] = useState<ViewMode>('list');
@@ -576,11 +581,10 @@ export function ProjectDetailView({
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
     const [isImporting, setIsImporting] = useState(false);
-    // Email invite modal
-    const [inviteModalOpen, setInviteModalOpen] = useState(false);
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteEmailError, setInviteEmailError] = useState('');
-    const [isSendingInvite, setIsSendingInvite] = useState(false);
+    // Member picker
+    const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+    // Workspace members for mentions
+    const [workspaceMembers, setWorkspaceMembers] = useState<User[]>([]);
     // Activity log modal
     const [activityLogOpen, setActivityLogOpen] = useState(false);
     // Notifications modal
@@ -605,6 +609,26 @@ export function ProjectDetailView({
     useEffect(() => {
         setLocalProject(project);
     }, [project]);
+
+    // Fetch workspace members for @mention support
+    useEffect(() => {
+        let cancelled = false;
+        const fetch = async () => {
+            const token = await getToken();
+            if (!token || cancelled) return;
+            const res = await workspaceApi.getWorkspace(
+                token,
+                project.workspaceId,
+            );
+            if (!cancelled && res.data) {
+                setWorkspaceMembers([...res.data.owners, ...res.data.members]);
+            }
+        };
+        fetch().catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [project.workspaceId, getToken]);
 
     // Settings modal state
     const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -793,25 +817,6 @@ export function ProjectDetailView({
         } finally {
             setIsImporting(false);
         }
-    };
-
-    const handleSendInvite = async () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!inviteEmail.trim()) {
-            setInviteEmailError('Email is required');
-            return;
-        }
-        if (!emailRegex.test(inviteEmail)) {
-            setInviteEmailError('Please enter a valid email address');
-            return;
-        }
-        setInviteEmailError('');
-        setIsSendingInvite(true);
-        await new Promise((resolve) => setTimeout(resolve, 700));
-        setIsSendingInvite(false);
-        toast.success(`Invite sent to ${inviteEmail}`);
-        setInviteEmail('');
-        setInviteModalOpen(false);
     };
 
     const handleCopyProject = async () => {
@@ -1160,6 +1165,7 @@ export function ProjectDetailView({
                         ]),
                     ).values(),
                 )}
+                workspaceMembers={workspaceMembers}
             />
         );
     }
@@ -1273,10 +1279,10 @@ export function ProjectDetailView({
                         <DropdownMenuContent align="end" className="w-56">
                             {!isArchived && (
                                 <DropdownMenuItem
-                                    onClick={() => setInviteModalOpen(true)}
+                                    onClick={() => setMemberPickerOpen(true)}
                                 >
-                                    <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span>Invite with email</span>
+                                    <UserPlus className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Add Members</span>
                                 </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={handleExportProject}>
@@ -1543,6 +1549,7 @@ export function ProjectDetailView({
                                     onTaskCopy={handleCopyTask}
                                     onCustomFieldCreated={fetchCustomFields}
                                     onTaskCreated={onRefresh}
+                                    onTaskAdded={onTaskAdded}
                                     projectId={project.id}
                                     workspaceId={project.workspaceId}
                                     members={Array.from(
@@ -1731,82 +1738,16 @@ export function ProjectDetailView({
                 </DialogContent>
             </Dialog>
 
-            {/* Email Invite Dialog (#8) */}
-            <Dialog
-                open={inviteModalOpen}
-                onOpenChange={(open) => {
-                    setInviteModalOpen(open);
-                    if (!open) {
-                        setInviteEmail('');
-                        setInviteEmailError('');
-                    }
-                }}
-            >
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Invite with Email</DialogTitle>
-                        <DialogDescription>
-                            Send an invitation to collaborate on{' '}
-                            <strong>{project.name}</strong>.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <div className="space-y-1.5">
-                            <Label
-                                htmlFor="invite-email"
-                                className="text-sm font-medium text-dashboard-text-body"
-                            >
-                                Email address
-                            </Label>
-                            <Input
-                                id="invite-email"
-                                type="email"
-                                placeholder="colleague@example.com"
-                                value={inviteEmail}
-                                onChange={(e) => {
-                                    setInviteEmail(e.target.value);
-                                    if (inviteEmailError)
-                                        setInviteEmailError('');
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSendInvite();
-                                }}
-                                className={cn(
-                                    'bg-dashboard-surface border-dashboard-border',
-                                    inviteEmailError &&
-                                        'border-destructive focus-visible:ring-destructive',
-                                )}
-                                autoFocus
-                            />
-                            {inviteEmailError && (
-                                <p className="text-xs text-destructive">
-                                    {inviteEmailError}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setInviteModalOpen(false);
-                                setInviteEmail('');
-                                setInviteEmailError('');
-                            }}
-                            disabled={isSendingInvite}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSendInvite}
-                            disabled={isSendingInvite || !inviteEmail.trim()}
-                            className="bg-accent-blue hover:bg-accent-light text-white"
-                        >
-                            {isSendingInvite ? 'Sending...' : 'Send Invite'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Member Picker Dialog */}
+            <MemberPickerDialog
+                open={memberPickerOpen}
+                onOpenChange={setMemberPickerOpen}
+                type="project"
+                targetId={project.id}
+                targetName={project.name}
+                existingMembers={[...project.owners, ...project.members]}
+                onSuccess={onRefresh}
+            />
 
             {/* Activity Log Dialog (#12) */}
             <Dialog open={activityLogOpen} onOpenChange={setActivityLogOpen}>
@@ -2066,10 +2007,17 @@ export function ProjectDetailView({
                                             ...u,
                                             role: 'Owner',
                                         })),
-                                        ...project.members.map((u) => ({
-                                            ...u,
-                                            role: 'Member',
-                                        })),
+                                        ...project.members
+                                            .filter(
+                                                (u) =>
+                                                    !project.owners.some(
+                                                        (o) => o.id === u.id,
+                                                    ),
+                                            )
+                                            .map((u) => ({
+                                                ...u,
+                                                role: 'Member',
+                                            })),
                                     ].map((member) => {
                                         const initials = member.firstName
                                             ? `${member.firstName[0]}${member.lastName?.[0] ?? ''}`.toUpperCase()

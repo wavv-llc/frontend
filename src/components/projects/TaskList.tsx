@@ -127,6 +127,7 @@ interface TaskListProps {
     onTaskCopy: (task: Task) => void;
     onCustomFieldCreated: () => void;
     onTaskCreated: () => void;
+    onTaskAdded: (task: Task) => void;
     projectId: string;
     workspaceId: string;
     members: ApiUser[];
@@ -680,6 +681,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             onTaskCopy: _onTaskCopy,
             onCustomFieldCreated,
             onTaskCreated,
+            onTaskAdded,
             projectId,
             workspaceId,
             members,
@@ -1066,6 +1068,18 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const [editingSectionName, setEditingSectionName] = useState('');
         const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
         const [editingTaskName, setEditingTaskName] = useState('');
+        const [optimisticTasks, setOptimisticTasks] = useState<Task[]>([]);
+
+        // Merge real + optimistic tasks for rendering
+        const allTasks = useMemo(
+            () => [...tasks, ...optimisticTasks],
+            [tasks, optimisticTasks],
+        );
+
+        // Clear optimistic tasks once the parent refreshes with real server data
+        useLayoutEffect(() => {
+            setOptimisticTasks([]);
+        }, [tasks]);
         const [sectionColors, setSectionColors] = useState<
             Record<string, string>
         >(() => {
@@ -1181,63 +1195,122 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             }
         };
 
+        const makeOptimisticTask = (
+            name: string,
+            sectionId?: string,
+        ): Task => ({
+            id: `optimistic-${Date.now()}-${Math.random()}`,
+            name,
+            projectId,
+            sectionId,
+            order: 0,
+            approvalStatus: 'IN_PREPARATION',
+            currentStepIndex: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            project: { id: projectId },
+            approvalChain: [],
+            linkedFiles: [],
+            customFieldValues: [],
+        });
+
         const handleCreateSectionTask = async (
             sectionId: string,
             name: string,
         ) => {
-            if (!name.trim()) {
-                setCreatingSectionTask(null);
-                setNewSectionTaskName('');
-                return;
-            }
+            const trimmed = name.trim();
+            setCreatingSectionTask(null);
+            setNewSectionTaskName('');
+            if (!trimmed) return;
+
+            const optimistic = makeOptimisticTask(trimmed, sectionId);
+            setOptimisticTasks((prev) => [...prev, optimistic]);
+            setTaskOrder((prev) => [...prev, optimistic.id]);
+
             try {
                 const token = await getToken();
                 if (!token) {
+                    setOptimisticTasks((prev) =>
+                        prev.filter((t) => t.id !== optimistic.id),
+                    );
+                    setTaskOrder((prev) =>
+                        prev.filter((id) => id !== optimistic.id),
+                    );
                     toast.error('Authentication required');
                     return;
                 }
-                await taskApi.createTask(token, projectId, {
-                    name: name.trim(),
+                const response = await taskApi.createTask(token, projectId, {
+                    name: trimmed,
                     customFields: {},
                     sectionId,
                 });
-                setNewSectionTaskName('');
-                setCreatingSectionTask(null);
-                if (scrollContainerRef.current) {
-                    pendingScrollRestore.current =
-                        scrollContainerRef.current.scrollTop;
+                setOptimisticTasks((prev) =>
+                    prev.filter((t) => t.id !== optimistic.id),
+                );
+                setTaskOrder((prev) =>
+                    prev.filter((id) => id !== optimistic.id),
+                );
+                if (response.data) {
+                    onTaskAdded(response.data);
+                } else {
+                    onTaskCreated();
                 }
-                onTaskCreated();
             } catch (error) {
+                setOptimisticTasks((prev) =>
+                    prev.filter((t) => t.id !== optimistic.id),
+                );
+                setTaskOrder((prev) =>
+                    prev.filter((id) => id !== optimistic.id),
+                );
                 console.error('Failed to create task:', error);
                 toast.error('Failed to create task');
             }
         };
 
         const handleCreateTask = async (name: string) => {
-            if (!name.trim()) {
-                setIsCreatingTask(false);
-                setNewTaskName('');
-                return;
-            }
+            const trimmed = name.trim();
+            setIsCreatingTask(false);
+            setNewTaskName('');
+            if (!trimmed) return;
+
+            const optimistic = makeOptimisticTask(trimmed);
+            setOptimisticTasks((prev) => [...prev, optimistic]);
+            setTaskOrder((prev) => [...prev, optimistic.id]);
+
             try {
                 const token = await getToken();
                 if (!token) {
+                    setOptimisticTasks((prev) =>
+                        prev.filter((t) => t.id !== optimistic.id),
+                    );
+                    setTaskOrder((prev) =>
+                        prev.filter((id) => id !== optimistic.id),
+                    );
                     toast.error('Authentication required');
                     return;
                 }
-                await taskApi.createTask(token, projectId, {
-                    name: name.trim(),
+                const response = await taskApi.createTask(token, projectId, {
+                    name: trimmed,
                     customFields: {},
                 });
-                setNewTaskName('');
-                setIsCreatingTask(false);
-                if (scrollContainerRef.current) {
-                    pendingScrollRestore.current =
-                        scrollContainerRef.current.scrollTop;
+                setOptimisticTasks((prev) =>
+                    prev.filter((t) => t.id !== optimistic.id),
+                );
+                setTaskOrder((prev) =>
+                    prev.filter((id) => id !== optimistic.id),
+                );
+                if (response.data) {
+                    onTaskAdded(response.data);
+                } else {
+                    onTaskCreated();
                 }
-                onTaskCreated();
             } catch (error) {
+                setOptimisticTasks((prev) =>
+                    prev.filter((t) => t.id !== optimistic.id),
+                );
+                setTaskOrder((prev) =>
+                    prev.filter((id) => id !== optimistic.id),
+                );
                 console.error('Failed to create task:', error);
                 toast.error('Failed to create task');
             }
@@ -2738,7 +2811,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                   (() => {
                                       // Group tasks
                                       const groups: Record<string, Task[]> = {};
-                                      tasks.forEach((task) => {
+                                      allTasks.forEach((task) => {
                                           let key = 'Unassigned';
                                           if (groupByField === 'status') {
                                               key =
@@ -3116,7 +3189,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                   (() => {
                                       const orderedTasks = taskOrder
                                           .map((id) =>
-                                              tasks.find((t) => t.id === id),
+                                              allTasks.find((t) => t.id === id),
                                           )
                                           .filter(
                                               (t): t is Task => t !== undefined,
@@ -3140,7 +3213,15 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               id={task.id}
                                           >
                                               {(dragHandleProps) => (
-                                                  <div className="flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max">
+                                                  <div
+                                                      className={cn(
+                                                          'flex border-b border-dashboard-border hover:bg-accent-row-hover transition-colors group min-w-max',
+                                                          task.id.startsWith(
+                                                              'optimistic-',
+                                                          ) &&
+                                                              'opacity-50 pointer-events-none',
+                                                      )}
+                                                  >
                                                       {/* Task Name - Sticky */}
                                                       <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
                                                           {/* Drag handle */}
