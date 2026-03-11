@@ -685,6 +685,8 @@ export function TaskDetailView({
     const [localApprovalStatus, setLocalApprovalStatus] = useState<
         Task['approvalStatus'] | null
     >(null);
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+    const [rejectNote, setRejectNote] = useState('');
     const effectiveApprovalStatus = localApprovalStatus ?? task.approvalStatus;
     const newThreadInputRef = useRef<RichEditorHandle>(null);
     const threadStateBeforeUpload = useRef(false);
@@ -801,6 +803,28 @@ export function TaskDetailView({
     const isLocked =
         effectiveApprovalStatus === 'IN_REVIEW' ||
         effectiveApprovalStatus === 'COMPLETED';
+
+    // ── Role-aware approval action logic ──────────────────────────────────────
+    const preparerEntry = approvalChain.find((e) => e.role === 'PREPARER');
+    // The reviewer whose turn it currently is (1-based currentStepIndex → 0-based reviewerChain)
+    const activeReviewerEntry =
+        effectiveApprovalStatus === 'IN_REVIEW' && task.currentStepIndex > 0
+            ? reviewerChain[task.currentStepIndex - 1]
+            : null;
+    const isCurrentUserPreparer =
+        !!preparerEntry?.user && preparerEntry.user.id === user?.id;
+    const isCurrentUserActiveReviewer =
+        !!activeReviewerEntry?.user && activeReviewerEntry.user.id === user?.id;
+    // "Last step" means the active reviewer is the final one — submitting completes the task
+    const isLastReviewStep =
+        reviewerChain.length > 0 &&
+        task.currentStepIndex === reviewerChain.length;
+    // Anyone can submit from IN_PREPARATION (backend enforces this); highlight for preparer
+    const canSubmit =
+        effectiveApprovalStatus === 'IN_PREPARATION' &&
+        (!preparerEntry?.user || isCurrentUserPreparer);
+    const canApproveOrComplete = isCurrentUserActiveReviewer;
+    const canReject = isCurrentUserActiveReviewer;
 
     // Name inline edit state
     const [nameValue, setNameValue] = useState(task.name);
@@ -1121,9 +1145,11 @@ export function TaskDetailView({
         }
     };
 
-    const handleRejectTask = async () => {
+    const handleRejectTask = async (note?: string) => {
         const prevStatus = task.approvalStatus;
         setLocalApprovalStatus('IN_PREPARATION');
+        setRejectDialogOpen(false);
+        setRejectNote('');
         try {
             setIsApprovalLoading(true);
             const token = await getToken();
@@ -1131,8 +1157,8 @@ export function TaskDetailView({
                 setLocalApprovalStatus(prevStatus);
                 return;
             }
-            await approvalApi.rejectTask(token, task.projectId, task.id);
-            toast.success('Task returned to previous level');
+            await approvalApi.rejectTask(token, task.projectId, task.id, note);
+            toast.success('Task returned for revision');
             onUpdate?.();
         } catch (error) {
             console.error('Failed to reject task:', error);
@@ -1398,7 +1424,7 @@ export function TaskDetailView({
                                         effectiveApprovalStatus !==
                                             'IN_REVIEW' || isApprovalLoading
                                     }
-                                    onClick={handleRejectTask}
+                                    onClick={() => setRejectDialogOpen(true)}
                                 >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Reject
@@ -1798,6 +1824,53 @@ export function TaskDetailView({
                             <p className="mt-1 text-[11px] text-dashboard-text-muted/60 italic">
                                 No approval roles configured for this task
                             </p>
+                        )}
+
+                        {/* ── Role-aware action buttons ─────────────────── */}
+                        {(canSubmit || canApproveOrComplete || canReject) && (
+                            <div className="mt-4 flex flex-col gap-2">
+                                {/* Preparer: Submit for review */}
+                                {canSubmit && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full cursor-pointer"
+                                        onClick={handleSubmitTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <Send className="h-3.5 w-3.5 mr-1.5" />
+                                        Submit for Review
+                                    </Button>
+                                )}
+                                {/* Reviewer: Approve / Complete */}
+                                {canApproveOrComplete && (
+                                    <Button
+                                        size="sm"
+                                        className="w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white"
+                                        onClick={handleSubmitTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                        {isLastReviewStep
+                                            ? 'Complete'
+                                            : 'Approve'}
+                                    </Button>
+                                )}
+                                {/* Reviewer: Reject / Return */}
+                                {canReject && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full cursor-pointer border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                        onClick={() =>
+                                            setRejectDialogOpen(true)
+                                        }
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                        Return for Revision
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -2235,6 +2308,54 @@ export function TaskDetailView({
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? 'Deleting...' : 'Delete Task'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Reject / Return Dialog ─────────────────────────────────── */}
+            <Dialog
+                open={rejectDialogOpen}
+                onOpenChange={(open) => {
+                    setRejectDialogOpen(open);
+                    if (!open) setRejectNote('');
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Return for Revision</DialogTitle>
+                        <DialogDescription>
+                            The task will be returned to the preparer. Add an
+                            optional note explaining what needs to be corrected
+                            — it will be posted as a comment.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <textarea
+                        value={rejectNote}
+                        onChange={(e) => setRejectNote(e.target.value)}
+                        placeholder="Rejection note (optional)…"
+                        rows={4}
+                        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setRejectDialogOpen(false);
+                                setRejectNote('');
+                            }}
+                            disabled={isApprovalLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() =>
+                                handleRejectTask(rejectNote || undefined)
+                            }
+                            disabled={isApprovalLoading}
+                        >
+                            Return for Revision
                         </Button>
                     </DialogFooter>
                 </DialogContent>

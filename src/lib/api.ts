@@ -1076,12 +1076,18 @@ export const approvalApi = {
         );
     },
 
-    rejectTask: async (token: string, projectId: string, taskId: string) => {
+    rejectTask: async (
+        token: string,
+        projectId: string,
+        taskId: string,
+        note?: string,
+    ) => {
         return apiRequest<Task>(
             `/api/v1/projects/${projectId}/tasks/${taskId}/reject`,
             {
                 method: 'POST',
                 token,
+                body: note ? JSON.stringify({ note }) : undefined,
             },
         );
     },
