@@ -687,7 +687,8 @@ export function TaskDetailView({
     >(null);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
-    const effectiveApprovalStatus = localApprovalStatus ?? task.approvalStatus;
+    const effectiveApprovalStatus =
+        localApprovalStatus ?? task.approvalStatus ?? 'IN_PREPARATION';
     const newThreadInputRef = useRef<RichEditorHandle>(null);
     const threadStateBeforeUpload = useRef(false);
 
@@ -906,6 +907,15 @@ export function TaskDetailView({
                     } catch {
                         /* keep as-is */
                     }
+                } else if (cfv.customField.dataType === 'USER') {
+                    const allMembers = [...projectMembers, ...workspaceMembers];
+                    const member = allMembers.find((m) => m.id === cfv.value);
+                    if (member) {
+                        displayValue =
+                            [member.firstName, member.lastName]
+                                .filter(Boolean)
+                                .join(' ') || member.email;
+                    }
                 }
                 items.push({
                     id: `cfv-${cfv.id}`,
@@ -916,7 +926,7 @@ export function TaskDetailView({
             });
 
         return items;
-    }, [task]);
+    }, [task, projectMembers, workspaceMembers]);
 
     const handleSaveDescription = async (value: string) => {
         const trimmed = value.trim();
