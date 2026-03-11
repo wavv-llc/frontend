@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export interface ActivityItem {
     id: string;
@@ -109,7 +108,7 @@ export function ActivityFeed({
 
             {/* Activity List */}
             <CardContent className="px-0 pb-0">
-                <ScrollArea className="px-4.5" style={{ maxHeight: 320 }}>
+                <div className="px-4.5 overflow-y-auto max-h-80">
                     {isLoading ? (
                         <div className="space-y-0">
                             {Array.from({ length: 5 }).map((_, i) => (
@@ -197,7 +196,7 @@ export function ActivityFeed({
                             })}
                         </div>
                     )}
-                </ScrollArea>
+                </div>
 
                 {/* Footer Stats */}
                 {(isLoading || stats.length > 0) && (

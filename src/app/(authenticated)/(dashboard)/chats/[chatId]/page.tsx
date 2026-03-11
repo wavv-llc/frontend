@@ -54,14 +54,19 @@ function buildCitationMap(
     sources: ChunkDetail[],
 ): Map<string, CitationEntry> {
     const map = new Map<string, CitationEntry>();
-    const pattern = /\[ID:\s*([^\]]+)\]/g;
     let num = 1;
-    let match;
-    while ((match = pattern.exec(text)) !== null) {
-        const id = match[1].trim();
-        if (!map.has(id)) {
-            const chunk = sources.find((s) => s.chunk_id === id);
-            if (chunk) map.set(id, { number: num++, chunk });
+    // Match any bracket containing one or more "ID:" tokens
+    const bracketPattern = /\[([^\]]*ID:[^\]]*)\]/gi;
+    let bracketMatch;
+    while ((bracketMatch = bracketPattern.exec(text)) !== null) {
+        const idPattern = /ID:\s*([0-9a-f]{8,})/gi;
+        let idMatch;
+        while ((idMatch = idPattern.exec(bracketMatch[1])) !== null) {
+            const id = idMatch[1];
+            if (!map.has(id)) {
+                const chunk = sources.find((s) => s.chunk_id === id);
+                if (chunk) map.set(id, { number: num++, chunk });
+            }
         }
     }
     return map;
@@ -223,8 +228,8 @@ function RenderMarkdown({
 
     const parseInline = (str: string): React.ReactNode[] => {
         const parts: React.ReactNode[] = [];
-        // Match **bold** or [ID: chunk_id]
-        const regex = /\*\*(.+?)\*\*|\[ID:\s*([^\]]+)\]/g;
+        // Match **bold** or any bracket containing ID citations
+        const regex = /\*\*(.+?)\*\*|\[([^\]]*ID:[^\]]*)\]/gi;
         let last = 0;
         let match;
         while ((match = regex.exec(str)) !== null) {
@@ -232,26 +237,30 @@ function RenderMarkdown({
             if (match[1] !== undefined) {
                 parts.push(<strong key={match.index}>{match[1]}</strong>);
             } else if (match[2] !== undefined && citationMap) {
-                const id = match[2].trim();
-                const entry = citationMap.get(id);
-                if (entry) {
-                    parts.push(
-                        <button
-                            key={match.index}
-                            className="cite-badge"
-                            onMouseEnter={(e) => {
-                                const rect =
-                                    e.currentTarget.getBoundingClientRect();
-                                onCitationHover?.(entry.chunk, rect);
-                            }}
-                            onMouseLeave={onCitationLeave}
-                            onClick={() => onCitationClick?.(entry.chunk)}
-                        >
-                            {entry.number}
-                        </button>,
-                    );
+                // Extract each ID from the bracket (handles single and grouped)
+                const idPattern = /ID:\s*([0-9a-f]{8,})/gi;
+                let idMatch;
+                while ((idMatch = idPattern.exec(match[2])) !== null) {
+                    const id = idMatch[1];
+                    const entry = citationMap.get(id);
+                    if (entry) {
+                        parts.push(
+                            <button
+                                key={`${match.index}-${id}`}
+                                className="cite-badge"
+                                onMouseEnter={(e) => {
+                                    const rect =
+                                        e.currentTarget.getBoundingClientRect();
+                                    onCitationHover?.(entry.chunk, rect);
+                                }}
+                                onMouseLeave={onCitationLeave}
+                                onClick={() => onCitationClick?.(entry.chunk)}
+                            >
+                                {entry.number}
+                            </button>,
+                        );
+                    }
                 }
-                // If the citation ID isn't in our map, omit the raw marker
             }
             last = regex.lastIndex;
         }
