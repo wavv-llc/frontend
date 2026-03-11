@@ -2057,26 +2057,33 @@ export function TaskDetailView({
                             <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
                                 Attachments
                             </h4>
-                            <div className="ml-auto flex items-center gap-1">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleOpenLinkDoc}
-                                    title="Link from library"
-                                    className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
-                                >
-                                    <Library className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setUploadDialogOpen(true)}
-                                    title="Upload file"
-                                    className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
-                                >
-                                    <Upload className="h-3 w-3" />
-                                </Button>
-                            </div>
+                            {isLocked && (
+                                <Lock className="h-3 w-3 text-dashboard-text-muted ml-1" />
+                            )}
+                            {!isLocked && (
+                                <div className="ml-auto flex items-center gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleOpenLinkDoc}
+                                        title="Link from library"
+                                        className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
+                                    >
+                                        <Library className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                            setUploadDialogOpen(true)
+                                        }
+                                        title="Upload file"
+                                        className="h-5 w-5 text-dashboard-text-muted hover:text-accent-blue"
+                                    >
+                                        <Upload className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                         {linkedFiles.length > 0 ? (
                             <div className="flex flex-col gap-1.5">
@@ -2106,17 +2113,23 @@ export function TaskDetailView({
                                                 </p>
                                             </div>
                                         </button>
-                                        <button
-                                            onClick={() =>
-                                                handleRemoveFile(file.id)
-                                            }
-                                            className="opacity-0 group-hover:opacity-100 shrink-0 text-dashboard-text-muted hover:text-destructive transition-all cursor-pointer"
-                                        >
-                                            <XCircle className="h-3.5 w-3.5" />
-                                        </button>
+                                        {!isLocked && (
+                                            <button
+                                                onClick={() =>
+                                                    handleRemoveFile(file.id)
+                                                }
+                                                className="opacity-0 group-hover:opacity-100 shrink-0 text-dashboard-text-muted hover:text-destructive transition-all cursor-pointer"
+                                            >
+                                                <XCircle className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
+                        ) : isLocked ? (
+                            <p className="text-xs text-dashboard-text-muted text-center py-3">
+                                No attachments
+                            </p>
                         ) : (
                             <button
                                 onClick={() => setUploadDialogOpen(true)}
