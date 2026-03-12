@@ -7,6 +7,7 @@ import React, {
     useEffect,
     useCallback,
     useRef,
+    useMemo,
 } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
@@ -106,15 +107,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             ? true
             : isLoading;
 
+    const contextValue = useMemo(
+        () => ({
+            user,
+            isLoading: effectiveIsLoading,
+            error,
+            refreshUser: fetchUser,
+        }),
+        [user, effectiveIsLoading, error, fetchUser],
+    );
+
     return (
-        <UserContext.Provider
-            value={{
-                user,
-                isLoading: effectiveIsLoading,
-                error,
-                refreshUser: fetchUser,
-            }}
-        >
+        <UserContext.Provider value={contextValue}>
             {children}
         </UserContext.Provider>
     );

@@ -79,35 +79,32 @@ export function UniversalSearch() {
                 const allWorkspaces = workspacesRes.data || [];
                 const allChats = chatsRes.data || [];
 
-                // Collect all projects from workspaces
+                // Fetch all projects in parallel across workspaces
+                const projectResults = await Promise.allSettled(
+                    allWorkspaces.map((ws) =>
+                        projectApi.getProjectsByWorkspace(token, ws.id),
+                    ),
+                );
+
                 const allProjects: Project[] = [];
+                for (const result of projectResults) {
+                    if (result.status === 'fulfilled' && result.value.data) {
+                        allProjects.push(...result.value.data);
+                    }
+                }
+
+                // Fetch tasks in parallel across projects (limit to first 5 per workspace worth)
+                const projectsToFetch = allProjects.slice(0, 15);
+                const taskResults = await Promise.allSettled(
+                    projectsToFetch.map((proj) =>
+                        taskApi.getTasksByProject(token, proj.id),
+                    ),
+                );
+
                 const allTasks: Task[] = [];
-
-                for (const ws of allWorkspaces) {
-                    try {
-                        const projRes = await projectApi.getProjectsByWorkspace(
-                            token,
-                            ws.id,
-                        );
-                        const projects = projRes.data || [];
-                        allProjects.push(...projects);
-
-                        // Collect tasks from each project (limit for perf)
-                        for (const proj of projects.slice(0, 5)) {
-                            try {
-                                const taskRes = await taskApi.getTasksByProject(
-                                    token,
-                                    proj.id,
-                                );
-                                allTasks.push(
-                                    ...(taskRes.data || []).slice(0, 20),
-                                );
-                            } catch {
-                                // skip project
-                            }
-                        }
-                    } catch {
-                        // skip workspace
+                for (const result of taskResults) {
+                    if (result.status === 'fulfilled' && result.value.data) {
+                        allTasks.push(...result.value.data.slice(0, 20));
                     }
                 }
 

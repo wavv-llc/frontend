@@ -11,6 +11,7 @@ import {
     type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import DOMPurify from 'isomorphic-dompurify';
 import {
     ArrowLeft,
     MoreVertical,
@@ -129,38 +130,41 @@ function approvalStatusLabel(
 
 // ─── Comment formatting helpers ────────────────────────────────────────────────
 function sanitizeCommentHtml(html: string): string {
-    if (typeof window === 'undefined') return html;
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    div.querySelectorAll('script, iframe, object, embed, form').forEach((el) =>
-        el.remove(),
-    );
-    div.querySelectorAll('*').forEach((el) => {
-        Array.from(el.attributes).forEach((attr) => {
-            if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
-            if (
-                attr.name === 'href' &&
-                /^(javascript|data):/i.test(attr.value.replace(/\s/g, ''))
-            ) {
-                el.removeAttribute(attr.name);
-            }
-            // Allow data:image/ in src (safe image data), block other data: schemes
-            if (
-                attr.name === 'src' &&
-                /^data:/i.test(attr.value.replace(/\s/g, '')) &&
-                !/^data:image\//i.test(attr.value.replace(/\s/g, ''))
-            ) {
-                el.removeAttribute(attr.name);
-            }
-            if (
-                attr.name === 'src' &&
-                /^javascript:/i.test(attr.value.replace(/\s/g, ''))
-            ) {
-                el.removeAttribute(attr.name);
-            }
-        });
+    return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: [
+            'p',
+            'br',
+            'b',
+            'i',
+            'u',
+            'strong',
+            'em',
+            'a',
+            'ul',
+            'ol',
+            'li',
+            'span',
+            'div',
+            'img',
+            'h1',
+            'h2',
+            'h3',
+            'blockquote',
+            'code',
+            'pre',
+        ],
+        ALLOWED_ATTR: [
+            'href',
+            'src',
+            'alt',
+            'class',
+            'style',
+            'target',
+            'rel',
+            'data-mention-id',
+        ],
+        ALLOW_DATA_ATTR: false,
     });
-    return div.innerHTML;
 }
 
 interface RichEditorHandle {
@@ -201,7 +205,7 @@ const RichCommentEditor = forwardRef<
 
     useEffect(() => {
         if (initialContent && divRef.current) {
-            divRef.current.innerHTML = initialContent;
+            divRef.current.innerHTML = sanitizeCommentHtml(initialContent);
             const empty =
                 !divRef.current.textContent?.trim() &&
                 !divRef.current.querySelector('img');

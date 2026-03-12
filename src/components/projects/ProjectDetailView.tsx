@@ -42,7 +42,6 @@ import {
     ArrowUp,
     ArrowDown,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import {
     type Project,
@@ -730,7 +729,7 @@ export function ProjectDetailView({
         }
     };
 
-    const handleExportProject = () => {
+    const handleExportProject = async () => {
         try {
             // Prepare data
             const dataToExport = tasks.map((task) => {
@@ -761,6 +760,7 @@ export function ProjectDetailView({
                 return row;
             });
 
+            const XLSX = await import('xlsx');
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, 'Tasks');
@@ -779,6 +779,7 @@ export function ProjectDetailView({
         if (!importFile) return;
         setIsImporting(true);
         try {
+            const XLSX = await import('xlsx');
             const data = await importFile.arrayBuffer();
             const workbook = XLSX.read(data);
             const worksheetName = workbook.SheetNames[0];

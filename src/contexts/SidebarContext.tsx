@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useCallback,
+    useMemo,
+} from 'react';
 
 interface SidebarRefreshContextType {
     refreshTrigger: number;
@@ -17,12 +23,18 @@ export function SidebarRefreshProvider({
     children: React.ReactNode;
 }) {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
+    const triggerRefresh = useCallback(
+        () => setRefreshTrigger((prev) => prev + 1),
+        [],
+    );
+
+    const contextValue = useMemo(
+        () => ({ refreshTrigger, triggerRefresh }),
+        [refreshTrigger, triggerRefresh],
+    );
 
     return (
-        <SidebarRefreshContext.Provider
-            value={{ refreshTrigger, triggerRefresh }}
-        >
+        <SidebarRefreshContext.Provider value={contextValue}>
             {children}
         </SidebarRefreshContext.Provider>
     );
