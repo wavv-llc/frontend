@@ -27,8 +27,13 @@ export interface OrganizationDetails {
     slug?: string;
     createdAt: string;
     updatedAt: string;
+    userLimit?: number | null;
+    documentLimit?: number | null;
+    chatLimit?: number | null;
     _count: {
         documents: number;
+        users: number;
+        chatConversations: number;
     };
     users: Array<{
         id: string;
@@ -36,6 +41,7 @@ export interface OrganizationDetails {
         firstName?: string;
         lastName?: string;
         organizationRole: OrganizationRole;
+        createdAt: string;
     }>;
 }
 
@@ -341,7 +347,11 @@ export async function apiRequest<T = any>(
             errorMessage = `API error (${response.status}): ${response.statusText || 'Unknown error'}`;
         }
 
-        throw new Error(errorMessage);
+        const err = new Error(errorMessage) as Error & { code?: string };
+        if (data?.error && typeof data.error === 'object' && data.error.code) {
+            err.code = data.error.code;
+        }
+        throw err;
     }
 
     return data;
@@ -425,13 +435,15 @@ export const organizationApi = {
         token: string,
         organizationId: string,
         email: string,
+        firstName?: string,
+        lastName?: string,
     ) => {
         return apiRequest<AccessLink>(
             `/api/v1/organizations/${organizationId}/access-links/member`,
             {
                 method: 'POST',
                 token,
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ email, firstName, lastName }),
             },
         );
     },
@@ -508,6 +520,25 @@ export const organizationApi = {
     ) => {
         return apiRequest<OrganizationDetails>(
             `/api/v1/organizations/${organizationId}/details`,
+            {
+                method: 'PATCH',
+                token,
+                body: JSON.stringify(data),
+            },
+        );
+    },
+
+    updateLimits: async (
+        token: string,
+        organizationId: string,
+        data: {
+            userLimit?: number | null;
+            documentLimit?: number | null;
+            chatLimit?: number | null;
+        },
+    ) => {
+        return apiRequest<OrganizationDetails>(
+            `/api/v1/organizations/${organizationId}/limits`,
             {
                 method: 'PATCH',
                 token,

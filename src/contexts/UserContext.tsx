@@ -77,9 +77,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             const error =
                 err instanceof Error ? err : new Error('Failed to fetch user');
             setError(error);
-            // 401 "user not found" is expected for users who haven't completed
+            // USER_NOT_FOUND is expected for users who haven't completed
             // onboarding yet — the guard will redirect them; don't show a toast
-            if (!error.message.includes('complete onboarding')) {
+            if ((error as any).code !== 'USER_NOT_FOUND') {
                 toast.error('Failed to load user information');
             }
         } finally {

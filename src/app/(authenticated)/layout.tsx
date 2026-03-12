@@ -40,9 +40,7 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
         if (error || !user) {
             // If DB record is missing (pre-onboarding), skip the extra
             // auth/callback hop and go directly to onboarding
-            const isUserNotFound = error?.message.includes(
-                'complete onboarding',
-            );
+            const isUserNotFound = (error as any)?.code === 'USER_NOT_FOUND';
             router.replace(isUserNotFound ? '/onboarding' : '/auth/callback');
             return;
         }

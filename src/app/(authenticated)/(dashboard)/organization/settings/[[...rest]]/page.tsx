@@ -111,6 +111,8 @@ export default function SettingsPage() {
 
     // Invite member state
     const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteFirstName, setInviteFirstName] = useState('');
+    const [inviteLastName, setInviteLastName] = useState('');
     const [isInviting, setIsInviting] = useState(false);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
@@ -318,10 +320,14 @@ export default function SettingsPage() {
                 token,
                 organizationId,
                 inviteEmail.trim(),
+                inviteFirstName.trim() || undefined,
+                inviteLastName.trim() || undefined,
             );
             toast.success(`Invitation sent to ${inviteEmail}`);
             setInviteSuccess(`Invitation sent to ${inviteEmail}`);
             setInviteEmail('');
+            setInviteFirstName('');
+            setInviteLastName('');
         } catch (err) {
             console.error('Error inviting member:', err);
             const errorMessage =
@@ -711,6 +717,10 @@ export default function SettingsPage() {
                                     loadMembers={loadMembers}
                                     inviteEmail={inviteEmail}
                                     setInviteEmail={setInviteEmail}
+                                    inviteFirstName={inviteFirstName}
+                                    setInviteFirstName={setInviteFirstName}
+                                    inviteLastName={inviteLastName}
+                                    setInviteLastName={setInviteLastName}
                                     isInviting={isInviting}
                                     inviteSuccess={inviteSuccess}
                                     handleInviteMember={handleInviteMember}
@@ -1782,6 +1792,10 @@ interface UsersTabProps {
     loadMembers: () => void;
     inviteEmail: string;
     setInviteEmail: (value: string) => void;
+    inviteFirstName: string;
+    setInviteFirstName: (value: string) => void;
+    inviteLastName: string;
+    setInviteLastName: (value: string) => void;
     isInviting: boolean;
     inviteSuccess: string | null;
     handleInviteMember: (e: React.FormEvent) => void;
@@ -1798,6 +1812,10 @@ function UsersTab({
     setMemberToRemove,
     inviteEmail,
     setInviteEmail,
+    inviteFirstName,
+    setInviteFirstName,
+    inviteLastName,
+    setInviteLastName,
     isInviting,
     inviteSuccess,
     handleInviteMember,
@@ -2016,8 +2034,32 @@ function UsersTab({
                                     organization
                                 </p>
 
-                                {/* Single Row Form */}
+                                {/* Invite Form */}
                                 <form onSubmit={handleInviteMember}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Input
+                                            type="text"
+                                            placeholder="First name"
+                                            value={inviteFirstName}
+                                            onChange={(e) =>
+                                                setInviteFirstName(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="flex-1 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]"
+                                        />
+                                        <Input
+                                            type="text"
+                                            placeholder="Last name"
+                                            value={inviteLastName}
+                                            onChange={(e) =>
+                                                setInviteLastName(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="flex-1 h-9 rounded-xl border-[1.5px] border-[#dce1e8] dark:border-gray-700 text-[11px]"
+                                        />
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <Input
                                             type="email"
@@ -2074,6 +2116,13 @@ function OrganizationTab({ organizationId }: OrganizationTabProps) {
     const [nameInput, setNameInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    // Shell limits state
+    const [isEditingLimits, setIsEditingLimits] = useState(false);
+    const [userLimitInput, setUserLimitInput] = useState('');
+    const [documentLimitInput, setDocumentLimitInput] = useState('');
+    const [chatLimitInput, setChatLimitInput] = useState('');
+    const [isSavingLimits, setIsSavingLimits] = useState(false);
+
     useEffect(() => {
         if (organizationId) {
             loadOrgDetails();
@@ -2093,6 +2142,24 @@ function OrganizationTab({ organizationId }: OrganizationTabProps) {
             if (response.data) {
                 setOrgDetails(response.data);
                 setNameInput(response.data.name);
+                setUserLimitInput(
+                    response.data.userLimit !== null &&
+                        response.data.userLimit !== undefined
+                        ? String(response.data.userLimit)
+                        : '',
+                );
+                setDocumentLimitInput(
+                    response.data.documentLimit !== null &&
+                        response.data.documentLimit !== undefined
+                        ? String(response.data.documentLimit)
+                        : '',
+                );
+                setChatLimitInput(
+                    response.data.chatLimit !== null &&
+                        response.data.chatLimit !== undefined
+                        ? String(response.data.chatLimit)
+                        : '',
+                );
             }
         } catch {
             toast.error('Failed to load organization details');
@@ -2130,10 +2197,67 @@ function OrganizationTab({ organizationId }: OrganizationTabProps) {
         setNameInput(orgDetails?.name || user?.organization?.name || '');
     };
 
+    const handleSaveLimits = async () => {
+        if (!organizationId) return;
+        try {
+            setIsSavingLimits(true);
+            const token = await getToken();
+            if (!token) return;
+            const response = await organizationApi.updateLimits(
+                token,
+                organizationId,
+                {
+                    userLimit:
+                        userLimitInput === '' ? null : Number(userLimitInput),
+                    documentLimit:
+                        documentLimitInput === ''
+                            ? null
+                            : Number(documentLimitInput),
+                    chatLimit:
+                        chatLimitInput === '' ? null : Number(chatLimitInput),
+                },
+            );
+            if (response.data) {
+                setOrgDetails((prev) =>
+                    prev ? { ...prev, ...response.data } : prev,
+                );
+                setIsEditingLimits(false);
+                toast.success('Limits updated successfully');
+            }
+        } catch {
+            toast.error('Failed to update limits');
+        } finally {
+            setIsSavingLimits(false);
+        }
+    };
+
+    const handleCancelLimitsEdit = () => {
+        setIsEditingLimits(false);
+        setUserLimitInput(
+            orgDetails?.userLimit !== null &&
+                orgDetails?.userLimit !== undefined
+                ? String(orgDetails.userLimit)
+                : '',
+        );
+        setDocumentLimitInput(
+            orgDetails?.documentLimit !== null &&
+                orgDetails?.documentLimit !== undefined
+                ? String(orgDetails.documentLimit)
+                : '',
+        );
+        setChatLimitInput(
+            orgDetails?.chatLimit !== null &&
+                orgDetails?.chatLimit !== undefined
+                ? String(orgDetails.chatLimit)
+                : '',
+        );
+    };
+
     const displayName =
         orgDetails?.name || user?.organization?.name || '\u2014';
-    const memberCount = orgDetails?.users?.length;
+    const memberCount = orgDetails?._count?.users ?? orgDetails?.users?.length;
     const documentCount = orgDetails?._count?.documents;
+    const chatCount = orgDetails?._count?.chatConversations;
     const createdAt = orgDetails?.createdAt;
 
     return (
@@ -2276,6 +2400,151 @@ function OrganizationTab({ organizationId }: OrganizationTabProps) {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* Shell Limits Card */}
+            {!isLoading && orgDetails && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-[0_1px_3px_rgba(14,17,23,0.04),0_4px_16px_rgba(14,17,23,0.03)] overflow-hidden fade-up-3 mt-4">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-[#eef0f3] dark:border-gray-800">
+                        <div>
+                            <h3 className="text-[12px] font-semibold text-[#272f3b] dark:text-gray-100 mb-0.5">
+                                Shell Limits
+                            </h3>
+                            <p className="text-[10px] text-[#8d9ab0] dark:text-gray-400">
+                                Maximum resources allowed for this organization
+                                (leave blank for unlimited)
+                            </p>
+                        </div>
+                        {!isEditingLimits && (
+                            <button
+                                onClick={() => setIsEditingLimits(true)}
+                                className="text-[#8d9ab0] hover:text-[#272f3b] dark:hover:text-gray-100 transition-colors cursor-pointer"
+                            >
+                                <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    <div className="divide-y divide-[#eef0f3] dark:divide-gray-800">
+                        {/* Users limit row */}
+                        <div className="flex items-center justify-between px-5 py-3 gap-4">
+                            <div>
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Users
+                                </span>
+                                <span className="ml-2 text-[10px] text-[#b8c1ce] dark:text-gray-600">
+                                    {memberCount ?? 0} used
+                                </span>
+                            </div>
+                            {isEditingLimits ? (
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Unlimited"
+                                    value={userLimitInput}
+                                    onChange={(e) =>
+                                        setUserLimitInput(e.target.value)
+                                    }
+                                    className="w-28 h-7 text-[11px] rounded-lg border-[1.5px] border-[#dce1e8] dark:border-gray-700"
+                                />
+                            ) : (
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {orgDetails.userLimit !== null &&
+                                    orgDetails.userLimit !== undefined
+                                        ? orgDetails.userLimit
+                                        : '∞'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Documents limit row */}
+                        <div className="flex items-center justify-between px-5 py-3 gap-4">
+                            <div>
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Documents
+                                </span>
+                                <span className="ml-2 text-[10px] text-[#b8c1ce] dark:text-gray-600">
+                                    {documentCount ?? 0} used
+                                </span>
+                            </div>
+                            {isEditingLimits ? (
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Unlimited"
+                                    value={documentLimitInput}
+                                    onChange={(e) =>
+                                        setDocumentLimitInput(e.target.value)
+                                    }
+                                    className="w-28 h-7 text-[11px] rounded-lg border-[1.5px] border-[#dce1e8] dark:border-gray-700"
+                                />
+                            ) : (
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {orgDetails.documentLimit !== null &&
+                                    orgDetails.documentLimit !== undefined
+                                        ? orgDetails.documentLimit
+                                        : '∞'}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Chats limit row */}
+                        <div className="flex items-center justify-between px-5 py-3 gap-4">
+                            <div>
+                                <span className="text-[11px] text-[#8d9ab0] dark:text-gray-400">
+                                    Chats
+                                </span>
+                                <span className="ml-2 text-[10px] text-[#b8c1ce] dark:text-gray-600">
+                                    {chatCount ?? 0} used
+                                </span>
+                            </div>
+                            {isEditingLimits ? (
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Unlimited"
+                                    value={chatLimitInput}
+                                    onChange={(e) =>
+                                        setChatLimitInput(e.target.value)
+                                    }
+                                    className="w-28 h-7 text-[11px] rounded-lg border-[1.5px] border-[#dce1e8] dark:border-gray-700"
+                                />
+                            ) : (
+                                <span className="text-[11px] text-[#272f3b] dark:text-gray-300">
+                                    {orgDetails.chatLimit !== null &&
+                                    orgDetails.chatLimit !== undefined
+                                        ? orgDetails.chatLimit
+                                        : '∞'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {isEditingLimits && (
+                        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#eef0f3] dark:border-gray-800">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleCancelLimitsEdit}
+                                disabled={isSavingLimits}
+                                className="h-7 text-[11px]"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={handleSaveLimits}
+                                disabled={isSavingLimits}
+                                className="h-7 text-[11px]"
+                            >
+                                {isSavingLimits ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    'Save'
+                                )}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
         </>
