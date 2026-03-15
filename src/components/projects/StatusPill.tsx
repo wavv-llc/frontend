@@ -22,12 +22,22 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
             text: 'text-blue-700',
             dot: 'bg-blue-500',
         },
+        'in preparation': {
+            bg: 'bg-slate-100 hover:bg-slate-200',
+            text: 'text-slate-600',
+            dot: 'bg-slate-400',
+        },
         'in review': {
             bg: 'bg-amber-50 hover:bg-amber-100',
             text: 'text-amber-700',
             dot: 'bg-amber-500',
         },
         complete: {
+            bg: 'bg-green-50 hover:bg-green-100',
+            text: 'text-green-700',
+            dot: 'bg-green-500',
+        },
+        completed: {
             bg: 'bg-green-50 hover:bg-green-100',
             text: 'text-green-700',
             dot: 'bg-green-500',
@@ -82,7 +92,7 @@ export function StatusPill({
         <span
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full font-medium transition-colors',
-                compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs',
+                compact ? 'px-1.5 py-px text-[9px]' : 'px-2 py-0.5 text-[10px]',
                 colors
                     ? `${colors.bg} ${colors.text}`
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted',
@@ -93,7 +103,7 @@ export function StatusPill({
                 <span
                     className={cn(
                         'rounded-full shrink-0',
-                        compact ? 'w-1.5 h-1.5' : 'w-2 h-2',
+                        compact ? 'w-1 h-1' : 'w-1.5 h-1.5',
                         colors.dot,
                     )}
                 />

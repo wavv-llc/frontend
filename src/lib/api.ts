@@ -146,6 +146,7 @@ export interface Section {
 export interface Task {
     id: string;
     slug?: string;
+    taskNumber?: number | null;
     name: string;
     description?: string;
     projectId: string;

@@ -94,6 +94,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { useAuth } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { usePreferences } from '@knocklabs/react';
@@ -1300,20 +1305,6 @@ export function ProjectDetailView({
                             placeholder="Project Name"
                             readOnly={isArchived}
                         />
-                        <EditableContent
-                            value={localProject.description || ''}
-                            onSave={(val) =>
-                                handleUpdateProjectField({
-                                    description: val,
-                                })
-                            }
-                            className="w-full mt-0.5"
-                            textStyle="text-sm text-dashboard-text-muted"
-                            inputClassName="text-sm min-h-[80px]"
-                            isTextarea
-                            placeholder="Add a description..."
-                            readOnly={isArchived}
-                        />
                     </div>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
@@ -1445,95 +1436,214 @@ export function ProjectDetailView({
 
             {/* Content Controls */}
             {view === 'list' && (
-                <div className="flex items-center justify-between px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50">
-                    <div className="flex items-center gap-2">
-                        {!isArchived && (
-                            <Button
-                                className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
-                                onClick={handleAddSection}
-                                disabled={isCreatingSection}
-                            >
-                                New Section <Plus className="ml-1 h-4 w-4" />
-                            </Button>
-                        )}
-                        <div className="relative w-72">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />
-                            <Input
-                                placeholder="Search tasks..."
-                                className="pl-9 bg-dashboard-surface border-dashboard-border shadow-sm text-dashboard-text-body placeholder:text-dashboard-text-muted"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
+                <div className="flex items-center gap-2 px-8 py-3 border-b border-dashboard-border bg-dashboard-surface/50">
+                    {!isArchived && (
+                        <Button
+                            className="bg-accent-blue hover:bg-accent-light text-white gap-1 rounded-md px-3 font-medium cursor-pointer shadow-sm"
+                            onClick={handleAddSection}
+                            disabled={isCreatingSection}
+                        >
+                            New Section <Plus className="ml-1 h-4 w-4" />
+                        </Button>
+                    )}
+                    <div className="relative w-72">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-dashboard-text-muted" />
+                        <Input
+                            placeholder="Search tasks..."
+                            className="pl-9 bg-dashboard-surface border-dashboard-border shadow-sm text-dashboard-text-body placeholder:text-dashboard-text-muted"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                    <div className="flex items-center gap-2">
-                        {statusFilter !== 'ALL' && (
+                    <Popover>
+                        <PopoverTrigger asChild>
                             <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary cursor-pointer"
-                                onClick={() => setStatusFilter('ALL')}
+                                className={cn(
+                                    'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
+                                    (statusFilter !== 'ALL' ||
+                                        Object.keys(columnFilters).length >
+                                            0) &&
+                                        'text-accent-blue border-accent-blue/50 bg-accent-subtle',
+                                )}
                             >
-                                <X className="h-3.5 w-3.5" />
-                                Clear Filter
+                                <Filter className="h-3.5 w-3.5" />
+                                Filter
+                                {(statusFilter !== 'ALL' ||
+                                    Object.keys(columnFilters).length > 0) && (
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
+                                        {(statusFilter !== 'ALL' ? 1 : 0) +
+                                            Object.keys(columnFilters).length}
+                                    </span>
+                                )}
                             </Button>
-                        )}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
-                                >
-                                    <Filter className="h-3.5 w-3.5" />
-                                    Status
-                                    {statusFilter !== 'ALL' && (
-                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs">
-                                            1
-                                        </span>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-3" align="end">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-medium text-sm">
+                                        Filters
+                                    </h4>
+                                    {(statusFilter !== 'ALL' ||
+                                        Object.keys(columnFilters).length >
+                                            0) && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-2 text-xs text-muted-foreground hover:text-dashboard-text-primary cursor-pointer"
+                                            onClick={() => {
+                                                setStatusFilter('ALL');
+                                                setColumnFilters({});
+                                            }}
+                                        >
+                                            Clear all
+                                        </Button>
                                     )}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuLabel>
-                                    Filter by Status
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'ALL'}
-                                    onCheckedChange={() =>
-                                        setStatusFilter('ALL')
-                                    }
-                                >
-                                    All Tasks
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'IN_PREPARATION'}
-                                    onCheckedChange={() =>
-                                        setStatusFilter('IN_PREPARATION')
-                                    }
-                                >
-                                    In Preparation
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'IN_REVIEW'}
-                                    onCheckedChange={() =>
-                                        setStatusFilter('IN_REVIEW')
-                                    }
-                                >
-                                    In Review
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={statusFilter === 'COMPLETED'}
-                                    onCheckedChange={() =>
-                                        setStatusFilter('COMPLETED')
-                                    }
-                                >
-                                    Completed
-                                </DropdownMenuCheckboxItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                </div>
 
+                                {/* Status filter */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Status
+                                    </label>
+                                    <select
+                                        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background"
+                                        value={statusFilter}
+                                        onChange={(e) =>
+                                            setStatusFilter(
+                                                e.target.value as StatusFilter,
+                                            )
+                                        }
+                                    >
+                                        <option value="ALL">All</option>
+                                        <option value="IN_PREPARATION">
+                                            In Preparation
+                                        </option>
+                                        <option value="IN_REVIEW">
+                                            In Review
+                                        </option>
+                                        <option value="COMPLETED">
+                                            Completed
+                                        </option>
+                                    </select>
+                                </div>
+
+                                {/* Task Name filter */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Task Name
+                                    </label>
+                                    <input
+                                        className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:ring-0 focus:border-ring"
+                                        placeholder="Contains..."
+                                        value={
+                                            columnFilters['name']?.value || ''
+                                        }
+                                        onChange={(e) =>
+                                            handleColumnFilterChange(
+                                                'name',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+
+                                {/* Custom field filters */}
+                                {customFields
+                                    .filter((f) => f.dataType !== 'USER')
+                                    .map((field) => (
+                                        <div
+                                            key={field.id}
+                                            className="space-y-1.5"
+                                        >
+                                            <label className="text-xs font-medium text-muted-foreground">
+                                                {field.name}
+                                            </label>
+                                            <input
+                                                className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:ring-0 focus:border-ring"
+                                                placeholder={
+                                                    field.dataType === 'DATE'
+                                                        ? 'YYYY-MM-DD'
+                                                        : 'Contains...'
+                                                }
+                                                value={
+                                                    columnFilters[field.id]
+                                                        ?.value || ''
+                                                }
+                                                onChange={(e) =>
+                                                    handleColumnFilterChange(
+                                                        field.id,
+                                                        e.target.value,
+                                                        field.dataType ===
+                                                            'DATE'
+                                                            ? 'date'
+                                                            : 'text',
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                    'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
+                                    groupByField &&
+                                        'text-accent-blue border-accent-blue/50 bg-accent-subtle',
+                                )}
+                            >
+                                <Layers className="h-3.5 w-3.5" />
+                                Group
+                                {groupByField && (
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
+                                        1
+                                    </span>
+                                )}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>Group by</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                                checked={groupByField === null}
+                                onCheckedChange={() => setGroupByField(null)}
+                            >
+                                None
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuSeparator />
+                            {/* Internal fields */}
+                            <DropdownMenuCheckboxItem
+                                checked={groupByField === 'status'}
+                                onCheckedChange={() =>
+                                    setGroupByField('status')
+                                }
+                            >
+                                Status
+                            </DropdownMenuCheckboxItem>
+                            {/* Custom fields */}
+                            {customFields.map((field) => (
+                                <DropdownMenuCheckboxItem
+                                    key={field.id}
+                                    checked={groupByField === field.id}
+                                    onCheckedChange={() =>
+                                        setGroupByField(field.id)
+                                    }
+                                >
+                                    {field.name}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Column Visibility */}
+                    {customFields.length > 0 && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
@@ -1541,47 +1651,30 @@ export function ProjectDetailView({
                                     size="sm"
                                     className={cn(
                                         'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
-                                        groupByField &&
+                                        hiddenColumns.size > 0 &&
                                             'text-accent-blue border-accent-blue/50 bg-accent-subtle',
                                     )}
                                 >
-                                    <Layers className="h-3.5 w-3.5" />
-                                    Group
-                                    {groupByField && (
+                                    <Eye className="h-3.5 w-3.5" />
+                                    Columns
+                                    {hiddenColumns.size > 0 && (
                                         <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
-                                            1
+                                            {hiddenColumns.size}
                                         </span>
                                     )}
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Group by</DropdownMenuLabel>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel>
+                                    Toggle Columns
+                                </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    checked={groupByField === null}
-                                    onCheckedChange={() =>
-                                        setGroupByField(null)
-                                    }
-                                >
-                                    None
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuSeparator />
-                                {/* Internal fields */}
-                                <DropdownMenuCheckboxItem
-                                    checked={groupByField === 'status'}
-                                    onCheckedChange={() =>
-                                        setGroupByField('status')
-                                    }
-                                >
-                                    Status
-                                </DropdownMenuCheckboxItem>
-                                {/* Custom fields */}
                                 {customFields.map((field) => (
                                     <DropdownMenuCheckboxItem
                                         key={field.id}
-                                        checked={groupByField === field.id}
+                                        checked={!hiddenColumns.has(field.id)}
                                         onCheckedChange={() =>
-                                            setGroupByField(field.id)
+                                            toggleColumn(field.id)
                                         }
                                     >
                                         {field.name}
@@ -1589,147 +1682,95 @@ export function ProjectDetailView({
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+                    )}
 
-                        {/* Column Visibility */}
-                        {customFields.length > 0 && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className={cn(
-                                            'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
-                                            hiddenColumns.size > 0 &&
-                                                'text-accent-blue border-accent-blue/50 bg-accent-subtle',
-                                        )}
+                    {/* Sort */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                    'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
+                                    sortState.field &&
+                                        'text-accent-blue border-accent-blue/50 bg-accent-subtle',
+                                )}
+                            >
+                                <ArrowUpDown className="h-3.5 w-3.5" />
+                                Sort
+                                {sortState.field && (
+                                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
+                                        1
+                                    </span>
+                                )}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                                checked={sortState.field === null}
+                                onCheckedChange={() => clearSort()}
+                            >
+                                Default order
+                            </DropdownMenuCheckboxItem>
+                            {[
+                                { id: 'name', name: 'Name' },
+                                { id: 'dueAt', name: 'Due Date' },
+                                ...customFields,
+                            ].map((f) => (
+                                <div key={f.id} className="flex items-center">
+                                    <DropdownMenuCheckboxItem
+                                        className="flex-1"
+                                        checked={sortState.field === f.id}
+                                        onCheckedChange={() =>
+                                            setSort(
+                                                f.id,
+                                                sortState.field === f.id &&
+                                                    sortState.dir === 'asc'
+                                                    ? 'desc'
+                                                    : 'asc',
+                                            )
+                                        }
                                     >
-                                        <Eye className="h-3.5 w-3.5" />
-                                        Columns
-                                        {hiddenColumns.size > 0 && (
-                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
-                                                {hiddenColumns.size}
-                                            </span>
-                                        )}
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                    align="end"
-                                    className="w-52"
-                                >
-                                    <DropdownMenuLabel>
-                                        Toggle Columns
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {customFields.map((field) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={field.id}
-                                            checked={
-                                                !hiddenColumns.has(field.id)
-                                            }
-                                            onCheckedChange={() =>
-                                                toggleColumn(field.id)
-                                            }
-                                        >
-                                            {field.name}
-                                        </DropdownMenuCheckboxItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
-
-                        {/* Sort */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className={cn(
-                                        'gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer',
-                                        sortState.field &&
-                                            'text-accent-blue border-accent-blue/50 bg-accent-subtle',
-                                    )}
-                                >
-                                    <ArrowUpDown className="h-3.5 w-3.5" />
-                                    Sort
-                                    {sortState.field && (
-                                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent-blue text-white text-xs font-normal">
-                                            1
+                                        <span className="flex items-center gap-2">
+                                            {f.name}
+                                            {sortState.field === f.id &&
+                                                (sortState.dir === 'asc' ? (
+                                                    <ArrowUp className="h-3 w-3 text-accent-blue" />
+                                                ) : (
+                                                    <ArrowDown className="h-3 w-3 text-accent-blue" />
+                                                ))}
                                         </span>
-                                    )}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuCheckboxItem
-                                    checked={sortState.field === null}
-                                    onCheckedChange={() => clearSort()}
-                                >
-                                    Default order
-                                </DropdownMenuCheckboxItem>
-                                {[
-                                    { id: 'name', name: 'Name' },
-                                    { id: 'dueAt', name: 'Due Date' },
-                                    ...customFields,
-                                ].map((f) => (
-                                    <div
-                                        key={f.id}
-                                        className="flex items-center"
-                                    >
-                                        <DropdownMenuCheckboxItem
-                                            className="flex-1"
-                                            checked={sortState.field === f.id}
-                                            onCheckedChange={() =>
-                                                setSort(
-                                                    f.id,
-                                                    sortState.field === f.id &&
-                                                        sortState.dir === 'asc'
-                                                        ? 'desc'
-                                                        : 'asc',
-                                                )
-                                            }
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                {f.name}
-                                                {sortState.field === f.id &&
-                                                    (sortState.dir === 'asc' ? (
-                                                        <ArrowUp className="h-3 w-3 text-accent-blue" />
-                                                    ) : (
-                                                        <ArrowDown className="h-3 w-3 text-accent-blue" />
-                                                    ))}
-                                            </span>
-                                        </DropdownMenuCheckboxItem>
-                                    </div>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    </DropdownMenuCheckboxItem>
+                                </div>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
 
-                        {!isArchived && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
-                                    onClick={() => setTemplatesOpen(true)}
-                                >
-                                    <LayoutTemplate className="h-3.5 w-3.5" />
-                                    Templates
-                                </Button>
+                    {!isArchived && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                                onClick={() => setTemplatesOpen(true)}
+                            >
+                                <LayoutTemplate className="h-3.5 w-3.5" />
+                                Templates
+                            </Button>
 
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
-                                    onClick={() =>
-                                        setApprovalWorkflowOpen(true)
-                                    }
-                                >
-                                    <GitBranch className="h-3.5 w-3.5" />
-                                    Approval
-                                </Button>
-                            </>
-                        )}
-                    </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle cursor-pointer"
+                                onClick={() => setApprovalWorkflowOpen(true)}
+                            >
+                                <GitBranch className="h-3.5 w-3.5" />
+                                Approval
+                            </Button>
+                        </>
+                    )}
                 </div>
             )}
 

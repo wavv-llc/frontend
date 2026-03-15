@@ -46,15 +46,18 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
+// ── Hard-coded first three levels ─────────────────────────────────────────────
+const FIXED_LEVELS: { label: string; type: 'PREPARER' | 'REVIEWER' }[] = [
+    { label: 'Preparer', type: 'PREPARER' },
+    { label: '1st Reviewer', type: 'REVIEWER' },
+    { label: '2nd Reviewer', type: 'REVIEWER' },
+];
+
 interface StepEntry {
     localId: string;
     customFieldId: string;
     fieldName: string;
     type: 'PREPARER' | 'REVIEWER';
-}
-
-function roleLabel(type: 'PREPARER' | 'REVIEWER') {
-    return type === 'PREPARER' ? 'Preparer' : 'Reviewer';
 }
 
 function roleBadgeClass(type: 'PREPARER' | 'REVIEWER') {
@@ -63,7 +66,7 @@ function roleBadgeClass(type: 'PREPARER' | 'REVIEWER') {
         : 'bg-blue-100 text-blue-700 border-blue-200';
 }
 
-// ── Sortable row ──────────────────────────────────────────────────────────────
+// ── Sortable row (extra levels only) ──────────────────────────────────────────
 function SortableStep({
     step,
     index,
@@ -96,7 +99,6 @@ function SortableStep({
                 isDragging && 'opacity-50 shadow-lg',
             )}
         >
-            {/* Drag handle */}
             <button
                 className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground focus:outline-none"
                 {...attributes}
@@ -106,12 +108,10 @@ function SortableStep({
                 <GripVertical className="w-4 h-4" />
             </button>
 
-            {/* Step number */}
             <span className="shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
-                {index + 1}
+                {FIXED_LEVELS.length + index + 1}
             </span>
 
-            {/* Role badge */}
             <Badge
                 variant="outline"
                 className={cn(
@@ -119,13 +119,11 @@ function SortableStep({
                     roleBadgeClass(step.type),
                 )}
             >
-                {roleLabel(step.type)}
+                Reviewer
             </Badge>
 
-            {/* Field name */}
             <span className="flex-1 text-sm truncate">{step.fieldName}</span>
 
-            {/* Remove */}
             <button
                 onClick={() => onRemove(step.localId)}
                 className="shrink-0 text-muted-foreground hover:text-destructive transition-colors focus:outline-none"
@@ -133,6 +131,58 @@ function SortableStep({
             >
                 <X className="w-3.5 h-3.5" />
             </button>
+        </div>
+    );
+}
+
+// ── Fixed level row ────────────────────────────────────────────────────────────
+function FixedLevelRow({
+    index,
+    label,
+    type,
+    value,
+    options,
+    onChange,
+}: {
+    index: number;
+    label: string;
+    type: 'PREPARER' | 'REVIEWER';
+    value: string;
+    options: CustomField[];
+    onChange: (fieldId: string) => void;
+}) {
+    return (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/40 bg-muted/30">
+            {/* Placeholder for drag handle alignment */}
+            <div className="shrink-0 w-4 h-4" />
+
+            <span className="shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
+                {index + 1}
+            </span>
+
+            <Badge
+                variant="outline"
+                className={cn(
+                    'text-[10px] px-1.5 py-0 shrink-0',
+                    roleBadgeClass(type),
+                )}
+            >
+                {label}
+            </Badge>
+
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger className="flex-1 h-7 text-sm">
+                    <SelectValue placeholder="Select column…" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="__none__">— None —</SelectItem>
+                    {options.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                            {f.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
     );
 }
@@ -153,11 +203,15 @@ export function ApprovalWorkflowDialog({
     userCustomFields,
 }: ApprovalWorkflowDialogProps) {
     const { getToken } = useAuth();
-    const [steps, setSteps] = useState<StepEntry[]>([]);
+
+    // Fixed slot field IDs ('' = unassigned)
+    const [fixedFields, setFixedFields] = useState<string[]>(['', '', '']);
+    // Extra levels beyond the fixed 3
+    const [extraSteps, setExtraSteps] = useState<StepEntry[]>([]);
+
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [addFieldId, setAddFieldId] = useState<string>('');
-    const [addType, setAddType] = useState<'PREPARER' | 'REVIEWER'>('REVIEWER');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -166,10 +220,20 @@ export function ApprovalWorkflowDialog({
         }),
     );
 
-    // Fields not yet in the workflow
+    // Fields already used in fixed slots or extra steps
+    const usedFieldIds = new Set([
+        ...fixedFields.filter(Boolean),
+        ...extraSteps.map((s) => s.customFieldId),
+    ]);
     const availableToAdd = userCustomFields.filter(
-        (f) => !steps.some((s) => s.customFieldId === f.id),
+        (f) => !usedFieldIds.has(f.id),
     );
+    // Options for a given fixed slot = not used elsewhere (but include the current value)
+    function optionsForSlot(slotIndex: number) {
+        return userCustomFields.filter(
+            (f) => !usedFieldIds.has(f.id) || f.id === fixedFields[slotIndex],
+        );
+    }
 
     // Load existing workflow when dialog opens
     useEffect(() => {
@@ -185,16 +249,27 @@ export function ApprovalWorkflowDialog({
                     projectId,
                 );
                 if (cancelled) return;
-                const existing: ApprovalWorkflowStep[] = response.data ?? [];
-                const loaded: StepEntry[] = existing
-                    .sort((a, b) => a.order - b.order)
-                    .map((ws) => ({
-                        localId: ws.id,
-                        customFieldId: ws.customFieldId,
-                        fieldName: ws.customField?.name ?? ws.customFieldId,
-                        type: ws.type,
-                    }));
-                setSteps(loaded);
+                const existing: ApprovalWorkflowStep[] = (
+                    response.data ?? []
+                ).sort((a, b) => a.order - b.order);
+
+                // Map backend steps back onto the 3 fixed slots + extras
+                const newFixed = ['', '', ''];
+                const newExtra: StepEntry[] = [];
+                existing.forEach((ws, i) => {
+                    if (i < FIXED_LEVELS.length) {
+                        newFixed[i] = ws.customFieldId;
+                    } else {
+                        newExtra.push({
+                            localId: ws.id,
+                            customFieldId: ws.customFieldId,
+                            fieldName: ws.customField?.name ?? ws.customFieldId,
+                            type: ws.type,
+                        });
+                    }
+                });
+                setFixedFields(newFixed);
+                setExtraSteps(newExtra);
             } catch (err) {
                 console.error('Failed to load workflow', err);
                 toast.error('Failed to load approval workflow');
@@ -210,7 +285,7 @@ export function ApprovalWorkflowDialog({
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
         if (!over || active.id === over.id) return;
-        setSteps((prev) => {
+        setExtraSteps((prev) => {
             const oldIndex = prev.findIndex((s) => s.localId === active.id);
             const newIndex = prev.findIndex((s) => s.localId === over.id);
             return arrayMove(prev, oldIndex, newIndex);
@@ -221,20 +296,20 @@ export function ApprovalWorkflowDialog({
         if (!addFieldId) return;
         const field = userCustomFields.find((f) => f.id === addFieldId);
         if (!field) return;
-        setSteps((prev) => [
+        setExtraSteps((prev) => [
             ...prev,
             {
                 localId: `new-${addFieldId}-${Date.now()}`,
                 customFieldId: addFieldId,
                 fieldName: field.name,
-                type: addType,
+                type: 'REVIEWER',
             },
         ]);
         setAddFieldId('');
     }
 
-    function handleRemove(localId: string) {
-        setSteps((prev) => prev.filter((s) => s.localId !== localId));
+    function handleRemoveExtra(localId: string) {
+        setExtraSteps((prev) => prev.filter((s) => s.localId !== localId));
     }
 
     async function handleSave() {
@@ -242,15 +317,33 @@ export function ApprovalWorkflowDialog({
         try {
             const token = await getToken();
             if (!token) throw new Error('Not authenticated');
-            await approvalApi.setWorkflow(
-                token,
-                projectId,
-                steps.map((s, i) => ({
+
+            // Build ordered step list: fixed levels (skip unassigned), then extras
+            const stepsToSave: {
+                type: 'PREPARER' | 'REVIEWER';
+                customFieldId: string;
+                order: number;
+            }[] = [];
+            let order = 0;
+            FIXED_LEVELS.forEach((level, i) => {
+                const fieldId = fixedFields[i];
+                if (fieldId) {
+                    stepsToSave.push({
+                        type: level.type,
+                        customFieldId: fieldId,
+                        order: order++,
+                    });
+                }
+            });
+            extraSteps.forEach((s) => {
+                stepsToSave.push({
                     type: s.type,
                     customFieldId: s.customFieldId,
-                    order: i,
-                })),
-            );
+                    order: order++,
+                });
+            });
+
+            await approvalApi.setWorkflow(token, projectId, stepsToSave);
             toast.success('Approval workflow saved');
             onOpenChange(false);
         } catch (err) {
@@ -270,103 +363,106 @@ export function ApprovalWorkflowDialog({
                         Approval Workflow
                     </DialogTitle>
                     <DialogDescription>
-                        Configure which person columns define the approval
-                        chain. Drag to reorder. Tasks pass each step in sequence
-                        before being marked complete.
+                        Assign a person column to each approval level. Add
+                        additional reviewer levels below if needed.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-3 py-2">
-                    {userCustomFields.length === 0 && (
+                <div className="space-y-2 py-2">
+                    {userCustomFields.length === 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/40 rounded-lg">
                             No person columns found. Add a{' '}
                             <span className="font-medium">Person</span> column
                             to this project first.
                         </div>
-                    )}
-
-                    {/* Configured steps */}
-                    {loading ? (
+                    ) : loading ? (
                         <div className="text-sm text-muted-foreground text-center py-4">
                             Loading…
                         </div>
-                    ) : steps.length === 0 && userCustomFields.length > 0 ? (
-                        <div className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border/40 rounded-lg">
-                            No steps configured — tasks go directly to Complete
-                            on submit.
-                        </div>
                     ) : (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={steps.map((s) => s.localId)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <div className="space-y-2">
-                                    {steps.map((step, i) => (
-                                        <SortableStep
-                                            key={step.localId}
-                                            step={step}
-                                            index={i}
-                                            onRemove={handleRemove}
-                                        />
-                                    ))}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
-                    )}
-
-                    {/* Add step */}
-                    {availableToAdd.length > 0 && (
                         <>
-                            <Separator className="my-1" />
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={addType}
-                                    onValueChange={(v) =>
-                                        setAddType(v as 'PREPARER' | 'REVIEWER')
-                                    }
+                            {/* Fixed levels */}
+                            {FIXED_LEVELS.map((level, i) => (
+                                <FixedLevelRow
+                                    key={i}
+                                    index={i}
+                                    label={level.label}
+                                    type={level.type}
+                                    value={fixedFields[i]}
+                                    options={optionsForSlot(i)}
+                                    onChange={(fieldId) => {
+                                        setFixedFields((prev) => {
+                                            const next = [...prev];
+                                            next[i] =
+                                                fieldId === '__none__'
+                                                    ? ''
+                                                    : fieldId;
+                                            return next;
+                                        });
+                                    }}
+                                />
+                            ))}
+
+                            {/* Extra levels */}
+                            {extraSteps.length > 0 && (
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
                                 >
-                                    <SelectTrigger className="w-32 h-8 text-sm">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="PREPARER">
-                                            Preparer
-                                        </SelectItem>
-                                        <SelectItem value="REVIEWER">
-                                            Reviewer
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select
-                                    value={addFieldId}
-                                    onValueChange={setAddFieldId}
-                                >
-                                    <SelectTrigger className="flex-1 h-8 text-sm">
-                                        <SelectValue placeholder="Add a column…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {availableToAdd.map((f) => (
-                                            <SelectItem key={f.id} value={f.id}>
-                                                {f.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleAddStep}
-                                    disabled={!addFieldId}
-                                    className="h-8 px-2"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                </Button>
-                            </div>
+                                    <SortableContext
+                                        items={extraSteps.map((s) => s.localId)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="space-y-2">
+                                            {extraSteps.map((step, i) => (
+                                                <SortableStep
+                                                    key={step.localId}
+                                                    step={step}
+                                                    index={i}
+                                                    onRemove={handleRemoveExtra}
+                                                />
+                                            ))}
+                                        </div>
+                                    </SortableContext>
+                                </DndContext>
+                            )}
+
+                            {/* Add extra level */}
+                            {availableToAdd.length > 0 && (
+                                <>
+                                    <Separator className="my-1" />
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={addFieldId}
+                                            onValueChange={setAddFieldId}
+                                        >
+                                            <SelectTrigger className="flex-1 h-8 text-sm">
+                                                <SelectValue placeholder="Add reviewer level…" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableToAdd.map((f) => (
+                                                    <SelectItem
+                                                        key={f.id}
+                                                        value={f.id}
+                                                    >
+                                                        {f.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleAddStep}
+                                            disabled={!addFieldId}
+                                            className="h-8 px-2"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

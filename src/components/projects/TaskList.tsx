@@ -41,7 +41,6 @@ import {
     User as UserIcon,
     ChevronRight,
     ChevronDown,
-    Filter,
     X,
     FileText,
     CheckSquare,
@@ -109,13 +108,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@clerk/nextjs';
+import { useUser } from '@/contexts/UserContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { StatusPill } from './StatusPill';
 
 export interface TaskListRef {
@@ -152,49 +152,37 @@ interface TaskListProps {
     readOnly?: boolean;
 }
 
-// Concise field types per CPA feedback
+const STATUS_COL_WIDTH = 140;
+
+function formatApprovalStatus(status: string | null | undefined): string {
+    switch (status) {
+        case 'IN_PREPARATION':
+            return 'In Preparation';
+        case 'IN_REVIEW':
+            return 'In Review';
+        case 'COMPLETED':
+            return 'Completed';
+        default:
+            return status ?? '—';
+    }
+}
+
+// Field types shown in the "New field" dropdown (Text is the default, not shown)
 const FIELD_TYPES = [
-    {
-        value: 'STRING' as DataType,
-        label: 'Text',
-        icon: Type,
-        description: 'Plain text field',
-    },
-    {
-        value: 'NUMBER' as DataType,
-        label: 'Number',
-        icon: Hash,
-        description: 'Numeric value',
-    },
-    {
-        value: 'DATE' as DataType,
-        label: 'Date',
-        icon: Calendar,
-        description: 'Date picker',
-    },
     {
         value: 'USER' as DataType,
         label: 'Person',
         icon: UserIcon,
-        description: 'Assign a person',
-    },
-    {
-        value: 'TASK' as DataType,
-        label: 'Task',
-        icon: CheckSquare,
-        description: 'Link to a task',
-    },
-    {
-        value: 'DOCUMENT' as DataType,
-        label: 'Document',
-        icon: FileText,
-        description: 'Link to a document',
     },
     {
         value: 'CUSTOM' as DataType,
         label: 'Status',
         icon: CheckCircle2,
-        description: 'Task status',
+    },
+    {
+        value: 'DATE' as DataType,
+        label: 'Date',
+        icon: Calendar,
     },
 ] as const;
 
@@ -694,8 +682,8 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             members,
             documents = [],
             groupByField,
-            columnFilters,
-            onColumnFilterChange,
+            columnFilters: _columnFilters,
+            onColumnFilterChange: _onColumnFilterChange,
             sections = [],
             onAddSection: _onAddSection,
             onRenameSection,
@@ -706,6 +694,17 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         ref,
     ) => {
         const { getToken } = useAuth();
+        const { user: currentUser } = useUser();
+        const orgPrefix = currentUser?.organization?.name
+            ? currentUser.organization.name
+                  .replace(/[^a-zA-Z]/g, '')
+                  .slice(0, 3)
+                  .toUpperCase() || 'TSK'
+            : 'TSK';
+        const formatTaskId = (taskNumber: number | null | undefined) =>
+            taskNumber !== null && taskNumber !== undefined
+                ? `${orgPrefix}-${String(taskNumber).padStart(3, '0')}`
+                : null;
         const { saveTemplateFromTask } = useCustomFieldTemplates(workspaceId);
         const [isCreatingField, setIsCreatingField] = useState(false);
         const [fieldName, setFieldName] = useState('');
@@ -730,11 +729,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             null,
         );
         const [isDeletingField, setIsDeletingField] = useState(false);
-
-        // Filter popover state - tracks which field's filter is open
-        const [activeFilterFieldId, setActiveFilterFieldId] = useState<
-            string | null
-        >(null);
 
         // Save-as-template state
         const [templateTask, setTemplateTask] = useState<Task | null>(null);
@@ -821,6 +815,9 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 return changed ? next : prev;
             });
         }, [customFields]);
+
+        // Name column width (resizable, not persisted to server)
+        const [nameColWidth, setNameColWidth] = useState(300);
 
         const handleColumnResize = (fieldId: string, newWidth: number) => {
             setColumnWidths((prev) => ({ ...prev, [fieldId]: newWidth }));
@@ -1655,20 +1652,28 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
             setAllowMultiple(false);
             if (type === 'USER') {
                 setShowRoleSelection(true);
+                setRoleName('');
             } else {
                 setShowRoleSelection(false);
                 setRoleName('');
+                // Auto-create if field name is already filled
+                if (fieldName.trim()) {
+                    // Use a microtask so state updates settle before create
+                    setTimeout(() => {
+                        handleCreateFieldWithType(type);
+                    }, 0);
+                }
             }
         };
 
-        const handleCreateField = async () => {
-            if (fieldType === 'USER') {
+        const handleCreateFieldWithType = async (typeOverride?: DataType) => {
+            const type = typeOverride ?? fieldType;
+            if (type === 'USER') {
                 if (!roleName.trim()) {
                     toast.error('Please enter a label for the Person field');
                     return;
                 }
             } else if (!fieldName.trim()) {
-                toast.error('Field name is required');
                 return;
             }
 
@@ -1681,23 +1686,21 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 }
 
                 const customOptions =
-                    fieldType === 'USER' && roleName.trim()
+                    type === 'USER' && roleName.trim()
                         ? [roleName.trim()]
                         : undefined;
                 const statusOptions =
-                    fieldType === 'CUSTOM'
+                    type === 'CUSTOM'
                         ? ['ToDo', 'In Progress', 'Done']
                         : undefined;
 
                 await customFieldApi.createCustomField(token, projectId, {
-                    name:
-                        fieldType === 'USER'
-                            ? roleName.trim()
-                            : fieldName.trim(),
-                    dataType: fieldType,
+                    name: type === 'USER' ? roleName.trim() : fieldName.trim(),
+                    dataType: type,
                     customOptions: customOptions || statusOptions,
+                    order: customFields.length,
                     multiple:
-                        MULTIPLE_SUPPORTED_TYPES.includes(fieldType) &&
+                        MULTIPLE_SUPPORTED_TYPES.includes(type) &&
                         selectedApprovalRole === 'NONE'
                             ? allowMultiple
                             : false,
@@ -2103,7 +2106,61 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 );
             }
 
-            // Text/Number/Date/String fallback
+            // Date field — opens a calendar picker
+            if (field.dataType === 'DATE') {
+                const dateObj = value ? new Date(value) : undefined;
+                const formatted = dateObj
+                    ? dateObj.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                      })
+                    : null;
+                return (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button className="h-7 w-full px-2 text-left text-sm text-muted-foreground hover:bg-muted/50 rounded transition-colors flex items-center gap-1.5 focus:outline-none">
+                                {formatted ? (
+                                    <>
+                                        <Calendar className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">
+                                            {formatted}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-muted-foreground/40">
+                                        —
+                                    </span>
+                                )}
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            className="w-auto p-0"
+                            align="start"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <CalendarComponent
+                                mode="single"
+                                selected={dateObj}
+                                onSelect={(date) => {
+                                    if (date instanceof Date) {
+                                        const iso = date
+                                            .toISOString()
+                                            .split('T')[0];
+                                        handleUpdateCustomField(
+                                            task,
+                                            field.id,
+                                            iso,
+                                        );
+                                    }
+                                }}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                );
+            }
+
+            // Text/Number/String fallback
             return (
                 <EditableContent
                     value={value || ''}
@@ -2592,7 +2649,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 </div>
                             )}
                             {/* Task Name Column Header - Sticky Left & Top */}
-                            <div className="sticky left-0 z-40 w-[300px] shrink-0 px-3 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center justify-between shadow-[1px_0_0_0_theme(colors.dashboard-border)] group">
+                            <div
+                                className="sticky left-0 z-40 shrink-0 px-3 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center justify-between shadow-[1px_0_0_0_theme(colors.dashboard-border)] group relative"
+                                style={{ width: nameColWidth }}
+                            >
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="flex items-center"
@@ -2616,61 +2676,27 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         Task name
                                     </div>
                                 </div>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className={cn(
-                                                'h-5 w-5 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
-                                                columnFilters['name'] &&
-                                                    'opacity-100 text-accent-blue',
-                                            )}
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Filter className="h-3 w-3" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-56 p-2">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-xs text-muted-foreground">
-                                                    Filter Task Name
-                                                </h4>
-                                                {columnFilters['name'] && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-4 w-4"
-                                                        onClick={() =>
-                                                            onColumnFilterChange(
-                                                                'name',
-                                                                '',
-                                                            )
-                                                        }
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <input
-                                                className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                placeholder="Contains..."
-                                                value={
-                                                    columnFilters['name']
-                                                        ?.value || ''
-                                                }
-                                                onChange={(e) =>
-                                                    onColumnFilterChange(
-                                                        'name',
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
+                                <ColumnResizeHandle
+                                    fieldId="__name__"
+                                    currentWidth={nameColWidth}
+                                    onResize={(_, w) => setNameColWidth(w)}
+                                    onResizeEnd={(_, w) =>
+                                        setNameColWidth(
+                                            Math.max(150, Math.min(600, w)),
+                                        )
+                                    }
+                                />
+                            </div>
+
+                            {/* System Status Column Header */}
+                            <div
+                                className="shrink-0 px-3 py-1.5 border-r border-dashboard-border bg-[#f8f9fb] flex items-center gap-1.5"
+                                style={{ width: STATUS_COL_WIDTH }}
+                            >
+                                <Activity className="h-3.5 w-3.5 text-dashboard-text-muted" />
+                                <span className="text-[11px] font-medium tracking-wide text-dashboard-text-muted uppercase">
+                                    Status
+                                </span>
                             </div>
 
                             {/* Custom Field Columns Headers */}
@@ -2705,10 +2731,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                     return Type;
                                             }
                                         };
-
-                                        // USER fields don't get a filter — assignment is managed per-task
-                                        const showFilter =
-                                            field.dataType !== 'USER';
 
                                         return (
                                             <SortableColumn
@@ -2769,7 +2791,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                             ) : null}
                                                         </div>
 
-                                                        {/* Single actions dropdown — replaces crowded filter+delete+pencil */}
+                                                        {/* Column actions dropdown */}
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger
                                                                 asChild
@@ -2777,14 +2799,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className={cn(
-                                                                        'h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded',
-                                                                        columnFilters[
-                                                                            field
-                                                                                .id
-                                                                        ] &&
-                                                                            'opacity-100 text-accent-blue',
-                                                                    )}
+                                                                    className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity hover:bg-dashboard-bg rounded"
                                                                     onClick={(
                                                                         e,
                                                                     ) =>
@@ -2798,24 +2813,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 align="end"
                                                                 className="w-40"
                                                             >
-                                                                {showFilter && (
-                                                                    <DropdownMenuItem
-                                                                        onSelect={() =>
-                                                                            setActiveFilterFieldId(
-                                                                                field.id,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Filter className="h-3.5 w-3.5 mr-2" />
-                                                                        Filter
-                                                                        {columnFilters[
-                                                                            field
-                                                                                .id
-                                                                        ] && (
-                                                                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#5a7f9a] shrink-0" />
-                                                                        )}
-                                                                    </DropdownMenuItem>
-                                                                )}
                                                                 <DropdownMenuItem
                                                                     className="text-destructive focus:text-destructive focus:bg-destructive/10"
                                                                     onSelect={() =>
@@ -2829,96 +2826,6 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
-
-                                                        {/* Controlled filter popover anchored to this header cell */}
-                                                        {showFilter && (
-                                                            <Popover
-                                                                open={
-                                                                    activeFilterFieldId ===
-                                                                    field.id
-                                                                }
-                                                                onOpenChange={(
-                                                                    open,
-                                                                ) => {
-                                                                    if (!open)
-                                                                        setActiveFilterFieldId(
-                                                                            null,
-                                                                        );
-                                                                }}
-                                                            >
-                                                                <PopoverTrigger
-                                                                    asChild
-                                                                >
-                                                                    <span className="absolute inset-0 pointer-events-none" />
-                                                                </PopoverTrigger>
-                                                                <PopoverContent
-                                                                    className="w-56 p-2"
-                                                                    align="end"
-                                                                    side="bottom"
-                                                                >
-                                                                    <div className="space-y-2">
-                                                                        <div className="flex items-center justify-between">
-                                                                            <h4 className="font-medium text-xs text-muted-foreground">
-                                                                                Filter{' '}
-                                                                                {
-                                                                                    field.name
-                                                                                }
-                                                                            </h4>
-                                                                            {columnFilters[
-                                                                                field
-                                                                                    .id
-                                                                            ] && (
-                                                                                <Button
-                                                                                    variant="ghost"
-                                                                                    size="icon"
-                                                                                    className="h-4 w-4"
-                                                                                    onClick={() =>
-                                                                                        onColumnFilterChange(
-                                                                                            field.id,
-                                                                                            '',
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <X className="h-3 w-3" />
-                                                                                </Button>
-                                                                            )}
-                                                                        </div>
-                                                                        <input
-                                                                            className="w-full px-2 py-1 text-sm border border-border rounded-md"
-                                                                            placeholder={
-                                                                                field.dataType ===
-                                                                                'DATE'
-                                                                                    ? 'YYYY-MM-DD'
-                                                                                    : 'Contains...'
-                                                                            }
-                                                                            value={
-                                                                                columnFilters[
-                                                                                    field
-                                                                                        .id
-                                                                                ]
-                                                                                    ?.value ||
-                                                                                ''
-                                                                            }
-                                                                            onChange={(
-                                                                                e,
-                                                                            ) =>
-                                                                                onColumnFilterChange(
-                                                                                    field.id,
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                    field.dataType ===
-                                                                                        'DATE'
-                                                                                        ? 'date'
-                                                                                        : 'text',
-                                                                                )
-                                                                            }
-                                                                            autoFocus
-                                                                        />
-                                                                    </div>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        )}
                                                         <ColumnResizeHandle
                                                             fieldId={field.id}
                                                             currentWidth={
@@ -2958,7 +2865,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent
-                                        className="w-80 max-h-[400px] overflow-y-auto"
+                                        className="w-auto p-3"
                                         align="start"
                                         sideOffset={5}
                                         collisionPadding={20}
@@ -2966,155 +2873,70 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                             e.preventDefault()
                                         }
                                     >
-                                        <div className="space-y-4">
-                                            {fieldType !== 'USER' && (
-                                                <div>
-                                                    <div className="mt-2">
-                                                        <input
-                                                            type="text"
-                                                            value={fieldName}
-                                                            onChange={(e) =>
-                                                                setFieldName(
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
-                                                            placeholder="Field name..."
-                                                            className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
-                                                            autoFocus
-                                                            onKeyDown={(e) => {
-                                                                if (
-                                                                    e.key ===
-                                                                        'Enter' &&
-                                                                    fieldName.trim() &&
-                                                                    !showRoleSelection
-                                                                ) {
-                                                                    handleCreateField();
+                                        {!showRoleSelection ? (
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={fieldName}
+                                                    onChange={(e) =>
+                                                        setFieldName(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Type property name..."
+                                                    className="w-full px-2 py-1.5 text-sm border border-border rounded-md bg-background outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus:border-ring"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (
+                                                            e.key === 'Enter' &&
+                                                            fieldName.trim()
+                                                        ) {
+                                                            handleCreateFieldWithType(
+                                                                fieldType,
+                                                            );
+                                                        }
+                                                        if (
+                                                            e.key === 'Escape'
+                                                        ) {
+                                                            handleCancelFieldCreation();
+                                                        }
+                                                    }}
+                                                />
+                                                <div className="flex gap-1">
+                                                    {FIELD_TYPES.map((type) => {
+                                                        const Icon = type.icon;
+                                                        return (
+                                                            <button
+                                                                key={type.value}
+                                                                onClick={() =>
+                                                                    handleFieldTypeSelect(
+                                                                        type.value,
+                                                                    )
                                                                 }
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {!showRoleSelection ? (
-                                                <>
-                                                    <div>
-                                                        <div className="relative">
-                                                            <div className="max-h-[180px] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-dashboard-border scrollbar-track-transparent">
-                                                                {FIELD_TYPES.map(
-                                                                    (type) => {
-                                                                        const Icon =
-                                                                            type.icon;
-                                                                        return (
-                                                                            <button
-                                                                                key={
-                                                                                    type.value
-                                                                                }
-                                                                                onClick={() =>
-                                                                                    handleFieldTypeSelect(
-                                                                                        type.value,
-                                                                                    )
-                                                                                }
-                                                                                className={cn(
-                                                                                    'w-full flex items-center gap-3 px-3 py-2 rounded-md text-left hover:bg-muted transition-colors cursor-pointer',
-                                                                                    fieldType ===
-                                                                                        type.value &&
-                                                                                        'bg-muted',
-                                                                                )}
-                                                                            >
-                                                                                <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                                                <div className="flex-1">
-                                                                                    <div className="text-sm font-medium">
-                                                                                        {
-                                                                                            type.label
-                                                                                        }
-                                                                                    </div>
-                                                                                    <div className="text-xs text-muted-foreground">
-                                                                                        {
-                                                                                            type.description
-                                                                                        }
-                                                                                    </div>
-                                                                                </div>
-                                                                            </button>
-                                                                        );
-                                                                    },
-                                                                )}
-                                                            </div>
-                                                            {/* Scroll fade indicator */}
-                                                            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-popover to-transparent" />
-                                                        </div>
-                                                    </div>
-
-                                                    {MULTIPLE_SUPPORTED_TYPES.includes(
-                                                        fieldType,
-                                                    ) && (
-                                                        <div className="flex items-center justify-between py-2 border-t">
-                                                            <Label
-                                                                htmlFor="allow-multiple"
-                                                                className="text-sm font-normal cursor-pointer"
-                                                            >
-                                                                Allow multiple
-                                                                values
-                                                            </Label>
-                                                            <Switch
-                                                                id="allow-multiple"
-                                                                checked={
-                                                                    allowMultiple
-                                                                }
-                                                                onCheckedChange={
-                                                                    setAllowMultiple
-                                                                }
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex gap-2 pt-2">
-                                                        <Button
-                                                            onClick={() => {
-                                                                if (
+                                                                className={cn(
+                                                                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm hover:bg-muted transition-colors cursor-pointer whitespace-nowrap',
                                                                     fieldType ===
-                                                                    'USER'
-                                                                ) {
-                                                                    setShowRoleSelection(
-                                                                        true,
-                                                                    );
-                                                                } else {
-                                                                    handleCreateField();
-                                                                }
-                                                            }}
-                                                            disabled={
-                                                                !fieldName.trim() ||
-                                                                isSubmitting
-                                                            }
-                                                            className="flex-1"
-                                                        >
-                                                            {isSubmitting
-                                                                ? 'Creating...'
-                                                                : fieldType ===
-                                                                    'USER'
-                                                                  ? 'Next'
-                                                                  : 'Create'}
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            onClick={
-                                                                handleCancelFieldCreation
-                                                            }
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    </div>
-                                                </>
-                                            ) : (
+                                                                        type.value &&
+                                                                        'bg-muted',
+                                                                )}
+                                                            >
+                                                                <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                                {type.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3 w-56">
                                                 <div>
-                                                    <Label htmlFor="role-name">
+                                                    <Label
+                                                        htmlFor="role-name"
+                                                        className="text-xs"
+                                                    >
                                                         Display label
                                                     </Label>
-                                                    <p className="text-xs text-muted-foreground mt-1 mb-2">
+                                                    <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">
                                                         e.g.
                                                         &quot;Preparer&quot;,
                                                         &quot;Reviewer&quot;,
@@ -3138,87 +2960,95 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                     'Enter' &&
                                                                 roleName.trim()
                                                             ) {
-                                                                handleCreateField();
+                                                                handleCreateFieldWithType(
+                                                                    'USER',
+                                                                );
+                                                            }
+                                                            if (
+                                                                e.key ===
+                                                                'Escape'
+                                                            ) {
+                                                                handleCancelFieldCreation();
                                                             }
                                                         }}
                                                     />
-                                                    <div className="mt-4">
-                                                        <Label className="text-xs">
-                                                            Approval role
-                                                        </Label>
-                                                        <p className="text-xs text-muted-foreground mt-1 mb-2">
-                                                            Link to approval
-                                                            workflow (optional)
-                                                        </p>
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {(
-                                                                [
-                                                                    {
-                                                                        value: 'NONE',
-                                                                        label: 'None',
-                                                                    },
-                                                                    {
-                                                                        value: 'PREPARER',
-                                                                        label: 'Preparer',
-                                                                    },
-                                                                    {
-                                                                        value: 'REVIEWER',
-                                                                        label: 'Reviewer',
-                                                                    },
-                                                                ] as const
-                                                            ).map((opt) => (
-                                                                <button
-                                                                    key={
-                                                                        opt.value
-                                                                    }
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        setSelectedApprovalRole(
-                                                                            opt.value,
-                                                                        )
-                                                                    }
-                                                                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors cursor-pointer ${
-                                                                        selectedApprovalRole ===
-                                                                        opt.value
-                                                                            ? 'bg-primary text-primary-foreground border-primary'
-                                                                            : 'bg-background text-muted-foreground border-border hover:border-ring'
-                                                                    }`}
-                                                                >
-                                                                    {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex gap-2 pt-4">
-                                                        <Button
-                                                            onClick={
-                                                                handleCreateField
-                                                            }
-                                                            disabled={
-                                                                !roleName.trim() ||
-                                                                isSubmitting
-                                                            }
-                                                            className="flex-1"
-                                                        >
-                                                            {isSubmitting
-                                                                ? 'Creating...'
-                                                                : 'Create'}
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            onClick={
-                                                                handleCancelFieldCreation
-                                                            }
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                        >
-                                                            Cancel
-                                                        </Button>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs">
+                                                        Approval role
+                                                    </Label>
+                                                    <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">
+                                                        Link to approval
+                                                        workflow (optional)
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {(
+                                                            [
+                                                                {
+                                                                    value: 'NONE',
+                                                                    label: 'None',
+                                                                },
+                                                                {
+                                                                    value: 'PREPARER',
+                                                                    label: 'Preparer',
+                                                                },
+                                                                {
+                                                                    value: 'REVIEWER',
+                                                                    label: 'Reviewer',
+                                                                },
+                                                            ] as const
+                                                        ).map((opt) => (
+                                                            <button
+                                                                key={opt.value}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelectedApprovalRole(
+                                                                        opt.value,
+                                                                    )
+                                                                }
+                                                                className={`px-2.5 py-1 text-xs rounded-full border transition-colors cursor-pointer ${
+                                                                    selectedApprovalRole ===
+                                                                    opt.value
+                                                                        ? 'bg-primary text-primary-foreground border-primary'
+                                                                        : 'bg-background text-muted-foreground border-border hover:border-ring'
+                                                                }`}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
+                                                <div className="flex gap-2 pt-1">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleCreateFieldWithType(
+                                                                'USER',
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            !roleName.trim() ||
+                                                            isSubmitting
+                                                        }
+                                                        className="flex-1"
+                                                    >
+                                                        {isSubmitting
+                                                            ? 'Creating...'
+                                                            : 'Create'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={
+                                                            handleCancelFieldCreation
+                                                        }
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        Back
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </PopoverContent>
                                 </Popover>
                             </div>
@@ -3325,7 +3155,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                         For minimal edits, I will inline or use the existing mapping if possible but structure text differs. 
                                                         Let's just duplicate the row markup for now to access closures.
                                                     */}
-                                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
+                                                                      <div
+                                                                          className="sticky left-0 z-20 shrink-0 px-3 py-1 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3"
+                                                                          style={{
+                                                                              width: nameColWidth,
+                                                                          }}
+                                                                      >
                                                                           <div
                                                                               onClick={(
                                                                                   e,
@@ -3418,16 +3253,27 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                       }
                                                                                   }}
                                                                               >
-                                                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate block hover:text-accent-blue transition-colors">
-                                                                                      {(optimisticTaskNames[
-                                                                                          task
-                                                                                              .id
-                                                                                      ] ??
-                                                                                          task.name) || (
-                                                                                          <span className="text-muted-foreground/50 italic font-normal">
-                                                                                              Untitled
+                                                                                  <span className="text-sm font-medium text-dashboard-text-primary truncate flex items-center gap-1.5 hover:text-accent-blue transition-colors">
+                                                                                      {formatTaskId(
+                                                                                          task.taskNumber,
+                                                                                      ) && (
+                                                                                          <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+                                                                                              {formatTaskId(
+                                                                                                  task.taskNumber,
+                                                                                              )}
                                                                                           </span>
                                                                                       )}
+                                                                                      <span className="truncate">
+                                                                                          {(optimisticTaskNames[
+                                                                                              task
+                                                                                                  .id
+                                                                                          ] ??
+                                                                                              task.name) || (
+                                                                                              <span className="text-muted-foreground/50 italic font-normal">
+                                                                                                  Untitled
+                                                                                              </span>
+                                                                                          )}
+                                                                                      </span>
                                                                                   </span>
                                                                               </button>
                                                                           )}
@@ -3447,6 +3293,23 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           </button>
                                                                       </div>
 
+                                                                      {/* System Status Cell */}
+                                                                      <div
+                                                                          className="shrink-0 px-3 py-1 border-r border-dashboard-border flex items-center"
+                                                                          style={{
+                                                                              width: STATUS_COL_WIDTH,
+                                                                          }}
+                                                                      >
+                                                                          <StatusPill
+                                                                              value={formatApprovalStatus(
+                                                                                  task.approvalStatus,
+                                                                              )}
+                                                                              options={[]}
+                                                                              onChange={() => {}}
+                                                                              readOnly
+                                                                          />
+                                                                      </div>
+
                                                                       {/* Custom Field Values */}
                                                                       {displayedFields.map(
                                                                           (
@@ -3464,7 +3327,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                                           ] ??
                                                                                           150,
                                                                                   }}
-                                                                                  className="shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
+                                                                                  className="shrink-0 px-3 py-1 border-r border-dashboard-border flex items-center"
                                                                               >
                                                                                   <div className="w-full">
                                                                                       {renderCustomFieldCell(
@@ -3477,7 +3340,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       )}
 
                                                                       {/* Actions Column */}
-                                                                      <div className="w-[150px] shrink-0 px-3 py-2 flex items-center justify-end">
+                                                                      <div className="w-[150px] shrink-0 px-3 py-1 flex items-center justify-end">
                                                                           <DropdownMenu>
                                                                               <DropdownMenuTrigger
                                                                                   asChild
@@ -3655,7 +3518,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       )}
                                                   >
                                                       {/* Task Name - Sticky */}
-                                                      <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3">
+                                                      <div
+                                                          className="sticky left-0 z-20 shrink-0 px-3 py-1 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-row-hover transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-3"
+                                                          style={{
+                                                              width: nameColWidth,
+                                                          }}
+                                                      >
                                                           {/* Drag handle */}
                                                           <div
                                                               {...dragHandleProps}
@@ -3784,6 +3652,23 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                           </button>
                                                       </div>
 
+                                                      {/* System Status Cell */}
+                                                      <div
+                                                          className="shrink-0 px-3 py-1 border-r border-dashboard-border flex items-center"
+                                                          style={{
+                                                              width: STATUS_COL_WIDTH,
+                                                          }}
+                                                      >
+                                                          <StatusPill
+                                                              value={formatApprovalStatus(
+                                                                  task.approvalStatus,
+                                                              )}
+                                                              options={[]}
+                                                              onChange={() => {}}
+                                                              readOnly
+                                                          />
+                                                      </div>
+
                                                       {/* Custom Field Values */}
                                                       {displayedFields.map(
                                                           (field) => (
@@ -3797,7 +3682,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                           ] ??
                                                                           150,
                                                                   }}
-                                                                  className="shrink-0 px-3 py-2 border-r border-dashboard-border flex items-center"
+                                                                  className="shrink-0 px-3 py-1 border-r border-dashboard-border flex items-center"
                                                               >
                                                                   <div className="w-full">
                                                                       {renderCustomFieldCell(
@@ -3810,7 +3695,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       )}
 
                                                       {/* Actions Column */}
-                                                      <div className="w-[150px] shrink-0 px-3 py-2 flex items-center justify-end">
+                                                      <div className="w-[150px] shrink-0 px-3 py-1 flex items-center justify-end">
                                                           <DropdownMenu>
                                                               <DropdownMenuTrigger
                                                                   asChild
@@ -3963,10 +3848,21 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                   }
                                               }}
                                           >
-                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue">
+                                              <div
+                                                  className="sticky left-0 z-20 shrink-0 px-3 py-1 border-r border-dashboard-border bg-dashboard-surface group-hover:bg-accent-subtle/30 transition-colors shadow-[1px_0_0_0_var(--dashboard-border)] flex items-center gap-2 text-[13px] text-dashboard-text-muted group-hover:text-accent-blue"
+                                                  style={{
+                                                      width: nameColWidth,
+                                                  }}
+                                              >
                                                   <Plus className="h-3.5 w-3.5" />
                                                   Add task
                                               </div>
+                                              <div
+                                                  className="shrink-0 border-r border-dashboard-border"
+                                                  style={{
+                                                      width: STATUS_COL_WIDTH,
+                                                  }}
+                                              />
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
@@ -3990,7 +3886,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                               key={`creating-${sectionId}`}
                                               className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150"
                                           >
-                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                              <div
+                                                  className="sticky left-0 z-20 shrink-0 px-3 py-1 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]"
+                                                  style={{
+                                                      width: nameColWidth,
+                                                  }}
+                                              >
                                                   <EditableContent
                                                       value={newSectionTaskName}
                                                       onSave={(name) =>
@@ -4004,6 +3905,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                       autoFocus
                                                   />
                                               </div>
+                                              <div
+                                                  className="shrink-0 border-r border-dashboard-border"
+                                                  style={{
+                                                      width: STATUS_COL_WIDTH,
+                                                  }}
+                                              />
                                               {displayedFields.map((field) => (
                                                   <div
                                                       key={field.id}
@@ -4063,7 +3970,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                               key="creating-root"
                                                               className="flex border-b border-dashboard-border bg-accent-subtle/50 min-w-max animate-in fade-in slide-in-from-top-1 duration-150"
                                                           >
-                                                              <div className="sticky left-0 z-20 w-[300px] shrink-0 px-3 py-2 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]">
+                                                              <div
+                                                                  className="sticky left-0 z-20 shrink-0 px-3 py-1 border-r border-dashboard-border bg-accent-subtle/50 shadow-[1px_0_0_0_var(--dashboard-border)]"
+                                                                  style={{
+                                                                      width: nameColWidth,
+                                                                  }}
+                                                              >
                                                                   <EditableContent
                                                                       value={
                                                                           newTaskName
@@ -4080,6 +3992,12 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                       autoFocus
                                                                   />
                                                               </div>
+                                                              <div
+                                                                  className="shrink-0 border-r border-dashboard-border"
+                                                                  style={{
+                                                                      width: STATUS_COL_WIDTH,
+                                                                  }}
+                                                              />
                                                               {displayedFields.map(
                                                                   (field) => (
                                                                       <div
