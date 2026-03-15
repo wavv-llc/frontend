@@ -108,10 +108,9 @@ export function CalendarSection({
 
     const handleSetViewMode = (mode: ViewMode) => {
         setViewMode(mode);
-        // eslint-disable-next-line no-empty
         try {
             localStorage.setItem('wavv_calendar_view', mode);
-        } catch {}
+        } catch {} // eslint-disable-line no-empty
     };
     // Month view manages its own date; week view uses external prop
     const [monthDate, setMonthDate] = useState(() => new Date());
