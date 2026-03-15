@@ -42,6 +42,8 @@ interface ActivityFeedProps {
     stats: ActivityStat[];
     className?: string;
     isLoading?: boolean;
+    /** When true the card fills its container height and the activity list scrolls freely */
+    expandHeight?: boolean;
 }
 
 const ACTIVITY_ICONS: Record<ActivityItem['type'], LucideIcon> = {
@@ -90,6 +92,7 @@ export function ActivityFeed({
     stats,
     className,
     isLoading = false,
+    expandHeight = false,
 }: ActivityFeedProps) {
     return (
         <Card
@@ -97,18 +100,29 @@ export function ActivityFeed({
                 'bg-dashboard-surface rounded-xl border border-dashboard-border',
                 'transition-shadow duration-200 hover:shadow-[0_2px_16px_rgba(90,127,154,0.05)]',
                 'overflow-hidden gap-0 py-0',
+                expandHeight && 'h-full flex flex-col',
                 className,
             )}
         >
-            <CardHeader className="px-4.5 pt-4.5 pb-4 border-b-0 gap-0">
+            <CardHeader className="px-4.5 pt-4.5 pb-4 border-b-0 gap-0 shrink-0">
                 <CardTitle className="font-serif text-[14px] font-semibold tracking-tight text-dashboard-text-primary leading-none">
                     Recent Activity
                 </CardTitle>
             </CardHeader>
 
             {/* Activity List */}
-            <CardContent className="px-0 pb-0">
-                <div className="px-4.5 overflow-y-auto max-h-80">
+            <CardContent
+                className={cn(
+                    'px-0 pb-0',
+                    expandHeight && 'flex-1 min-h-0 flex flex-col',
+                )}
+            >
+                <div
+                    className={cn(
+                        'px-4.5 overflow-y-auto',
+                        expandHeight ? 'flex-1 min-h-0' : 'max-h-80',
+                    )}
+                >
                     {isLoading ? (
                         <div className="space-y-0">
                             {Array.from({ length: 5 }).map((_, i) => (
@@ -200,7 +214,7 @@ export function ActivityFeed({
 
                 {/* Footer Stats */}
                 {(isLoading || stats.length > 0) && (
-                    <div className="px-4.5 pt-3 pb-4.5 border-t border-dashboard-border mt-4">
+                    <div className="shrink-0 px-4.5 pt-3 pb-4.5 border-t border-dashboard-border mt-4">
                         <div className="grid grid-cols-2 gap-2">
                             {isLoading
                                 ? Array.from({ length: 2 }).map((_, i) => (

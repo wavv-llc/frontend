@@ -8,6 +8,8 @@ import { SearchTrigger } from '@/components/search/UniversalSearch';
 interface DashboardHeaderProps {
     userName: string;
     className?: string;
+    /** Extra buttons rendered between the search trigger and the notification bell */
+    actions?: React.ReactNode;
 }
 
 function getGreeting(): string {
@@ -27,7 +29,11 @@ function getFormattedDate(): string {
     });
 }
 
-export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
+export function DashboardHeader({
+    userName,
+    className,
+    actions,
+}: DashboardHeaderProps) {
     const greeting = getGreeting();
     const formattedDate = getFormattedDate();
 
@@ -54,6 +60,7 @@ export function DashboardHeader({ userName, className }: DashboardHeaderProps) {
             {/* Actions */}
             <div className="flex items-center gap-2">
                 <SearchTrigger />
+                {actions}
                 <NotificationBell />
             </div>
         </header>

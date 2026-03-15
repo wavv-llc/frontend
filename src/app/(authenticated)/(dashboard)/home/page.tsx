@@ -1,16 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { dashboardApi, type RecentItem, type DashboardTask } from '@/lib/api';
-import {
-    DashboardContent,
-    type Task,
-    type CalendarEvent,
-    type ActivityItem,
-    type ActivityStat,
-} from '@/components/dashboard/pure-steel';
+import { CustomizableDashboard } from '@/components/dashboard/CustomizableDashboard';
 import { getCached, setCached } from '@/lib/pageCache';
 
 type DashboardData = {
@@ -26,7 +20,6 @@ export default function HomePage() {
     const { getToken } = useAuth();
     const { user } = useUser();
 
-    // Data State — initialize from cache so returning users see content instantly
     const [data, setData] = useState<DashboardData>(
         () =>
             getCached<DashboardData>(CACHE_KEY) ?? {
@@ -35,6 +28,7 @@ export default function HomePage() {
                 calendar: [],
             },
     );
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -57,100 +51,43 @@ export default function HomePage() {
                 setData(newData);
             } catch (error) {
                 console.error('Dashboard error:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchAll();
     }, [getToken]);
 
-    // Routing Handlers
-    const handleTaskClick = (task: Task) => {
-        // Find the original DashboardTask to get workspace/project IDs
-        const originalTask = data.tasks.find((t) => t.id === task.id);
-        if (originalTask) {
-            router.push(
-                `/workspaces/${originalTask.project.workspace.isPersonal ? 'my-workspace' : (originalTask.project.workspace.slug ?? originalTask.project.workspace.id)}/projects/${originalTask.project.slug ?? originalTask.project.id}?task=${originalTask.slug ?? originalTask.id}`,
-            );
-        }
+    const handleTaskClick = (task: DashboardTask) => {
+        router.push(
+            `/workspaces/${task.project.workspace.isPersonal ? 'my-workspace' : (task.project.workspace.slug ?? task.project.workspace.id)}/projects/${task.project.slug ?? task.project.id}?task=${task.slug ?? task.id}`,
+        );
     };
 
-    const handleEventClick = (event: CalendarEvent) => {
-        // Find the original task for the calendar event
-        const originalTask = data.calendar.find((t) => t.id === event.id);
-        if (originalTask) {
+    const handleRecentClick = (item: RecentItem) => {
+        if (item.type === 'task' && item.workspaceId && item.parentId) {
+            // parentId is the project ID for tasks
             router.push(
-                `/workspaces/${originalTask.project.workspace.isPersonal ? 'my-workspace' : (originalTask.project.workspace.slug ?? originalTask.project.workspace.id)}/projects/${originalTask.project.slug ?? originalTask.project.id}?task=${originalTask.slug ?? originalTask.id}`,
+                `/workspaces/${item.workspaceId}/projects/${item.parentId}?task=${item.id}`,
             );
+        } else if (item.type === 'project' && item.workspaceId) {
+            router.push(`/workspaces/${item.workspaceId}/projects/${item.id}`);
+        } else if (item.type === 'workspace') {
+            router.push(`/workspaces/${item.id}`);
         }
     };
-
-    // Map API data to Pure Steel Light interfaces
-    const mappedTasks = useMemo<Task[]>(() => {
-        return data.tasks.map((task) => ({
-            id: task.id,
-            clientName: task.project.name,
-            formType: 'Task',
-            priority: 'medium' as const,
-            status: (task.approvalStatus === 'COMPLETED'
-                ? 'complete'
-                : task.approvalStatus === 'IN_REVIEW'
-                  ? 'review'
-                  : 'pending') as Task['status'],
-            dueDate: task.dueAt ? new Date(task.dueAt) : new Date(),
-        }));
-    }, [data.tasks]);
-
-    const mappedEvents = useMemo<CalendarEvent[]>(() => {
-        return data.calendar.map((task) => ({
-            id: task.id,
-            title: task.name || task.project.name,
-            date: task.dueAt ? new Date(task.dueAt) : new Date(),
-            type: 'task' as const,
-            status: (task.approvalStatus === 'COMPLETED'
-                ? 'complete'
-                : task.approvalStatus === 'IN_REVIEW'
-                  ? 'review'
-                  : 'pending') as CalendarEvent['status'],
-        }));
-    }, [data.calendar]);
-
-    const mappedActivities = useMemo<ActivityItem[]>(() => {
-        return data.recents.slice(0, 8).map((item) => ({
-            id: item.id,
-            type: item.type === 'task' ? 'assignment' : 'review',
-            title: item.name,
-            description: `${item.name}${item.parentName ? ` in ${item.parentName}` : ''}`,
-            user: {
-                name: 'Unknown',
-            },
-            timestamp: new Date(item.updatedAt),
-        }));
-    }, [data.recents]);
-
-    const stats = useMemo<ActivityStat[]>(() => {
-        return [
-            {
-                label: 'Active Tasks',
-                value: data.tasks.length,
-                subLabel: 'Total',
-            },
-            {
-                label: 'This Week',
-                value: data.calendar.length,
-                subLabel: 'Due items',
-            },
-        ];
-    }, [data.tasks.length, data.calendar.length]);
 
     return (
-        <DashboardContent
+        <CustomizableDashboard
             userName={user?.firstName || 'User'}
-            tasks={mappedTasks}
-            events={mappedEvents}
-            activities={mappedActivities}
-            stats={stats}
-            onTaskClick={handleTaskClick}
-            onEventClick={handleEventClick}
-            isLoading={false}
+            data={{
+                tasks: data.tasks,
+                recents: data.recents,
+                calendar: data.calendar,
+                isLoading,
+                onTaskClick: handleTaskClick,
+                onRecentClick: handleRecentClick,
+            }}
         />
     );
 }
