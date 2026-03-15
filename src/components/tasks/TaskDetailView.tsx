@@ -29,7 +29,6 @@ import {
     CheckCircle2,
     MoreHorizontal,
     RotateCcw,
-    UserCheck,
     CircleDot,
     Lock,
     Send,
@@ -45,6 +44,8 @@ import {
     Link2,
     Library,
     Search,
+    Activity,
+    UserCheck,
 } from 'lucide-react';
 import {
     Popover,
@@ -691,6 +692,7 @@ export function TaskDetailView({
     >(null);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
+    const [activityLogOpen, setActivityLogOpen] = useState(false);
     const effectiveApprovalStatus =
         localApprovalStatus ?? task.approvalStatus ?? 'IN_PREPARATION';
     const newThreadInputRef = useRef<RichEditorHandle>(null);
@@ -1378,6 +1380,42 @@ export function TaskDetailView({
                         )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* ── Prominent approval action buttons ─────────── */}
+                        {canSubmit && (
+                            <Button
+                                size="sm"
+                                className="cursor-pointer bg-accent-blue hover:bg-accent-light text-white"
+                                onClick={handleSubmitTask}
+                                disabled={isApprovalLoading}
+                            >
+                                <Send className="h-3.5 w-3.5 mr-1.5" />
+                                Submit
+                            </Button>
+                        )}
+                        {canReject && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="cursor-pointer border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => setRejectDialogOpen(true)}
+                                disabled={isApprovalLoading}
+                            >
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                Reject
+                            </Button>
+                        )}
+                        {effectiveApprovalStatus === 'COMPLETED' && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="cursor-pointer"
+                                onClick={handleReopenTask}
+                                disabled={isApprovalLoading}
+                            >
+                                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                                Reopen Task
+                            </Button>
+                        )}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
@@ -1423,38 +1461,6 @@ export function TaskDetailView({
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                    disabled={
-                                        effectiveApprovalStatus !==
-                                            'IN_PREPARATION' ||
-                                        isApprovalLoading
-                                    }
-                                    onClick={handleSubmitTask}
-                                >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    Submit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    disabled={
-                                        effectiveApprovalStatus !==
-                                            'IN_REVIEW' || isApprovalLoading
-                                    }
-                                    onClick={() => setRejectDialogOpen(true)}
-                                >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    disabled={
-                                        effectiveApprovalStatus !==
-                                            'COMPLETED' || isApprovalLoading
-                                    }
-                                    onClick={handleReopenTask}
-                                >
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Reopen Task
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
                                     onClick={() => setEditDialogOpen(true)}
                                     disabled={isLocked}
                                 >
@@ -1485,6 +1491,13 @@ export function TaskDetailView({
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
+                                    onClick={() => setActivityLogOpen(true)}
+                                >
+                                    <Activity className="h-4 w-4 mr-2" />
+                                    Activity Log
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
                                     onClick={() => setDeleteDialogOpen(true)}
                                     className="text-destructive focus:text-destructive"
                                 >
@@ -1501,61 +1514,6 @@ export function TaskDetailView({
             <div className="flex flex-1 min-h-0 overflow-hidden">
                 {/* Main scrollable content */}
                 <div className="flex-1 min-w-0 overflow-y-auto p-8 flex flex-col gap-6">
-                    {/* ── Activity Log ─────────────────────────────────────── */}
-                    {activityItems.length > 0 && (
-                        <div>
-                            <h3 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider mb-3 px-1">
-                                Activity
-                            </h3>
-                            <div className="relative">
-                                {/* Vertical line */}
-                                <div className="absolute left-[5px] top-2 bottom-2 w-px bg-dashboard-border" />
-                                <div className="flex flex-col gap-0">
-                                    {activityItems.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className="flex items-start gap-3 py-2 pl-1"
-                                        >
-                                            {/* Icon */}
-                                            <div
-                                                className={cn(
-                                                    'relative z-10 mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full ring-2 ring-dashboard-bg',
-                                                    item.type === 'created' &&
-                                                        'bg-accent-blue',
-                                                    item.type === 'assigned' &&
-                                                        'bg-dashboard-text-muted',
-                                                    item.type === 'field' &&
-                                                        'bg-dashboard-border border border-dashboard-border bg-dashboard-surface',
-                                                )}
-                                            >
-                                                {item.type === 'created' && (
-                                                    <CircleDot className="h-2 w-2 text-white" />
-                                                )}
-                                                {item.type === 'assigned' && (
-                                                    <UserCheck className="h-2 w-2 text-white" />
-                                                )}
-                                                {item.type === 'field' && (
-                                                    <SlidersHorizontal className="h-1.5 w-1.5 text-dashboard-text-muted" />
-                                                )}
-                                            </div>
-                                            {/* Text */}
-                                            <p className="text-sm text-dashboard-text-muted leading-relaxed flex-1">
-                                                {item.text}
-                                                <span className="ml-2 text-xs text-dashboard-text-muted/50">
-                                                    {formatRelativeTime(
-                                                        new Date(
-                                                            item.timestamp,
-                                                        ),
-                                                    )}
-                                                </span>
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* ── Comments ─────────────────────────────────────────── */}
                     <div>
                         {/* Section header */}
@@ -1847,7 +1805,7 @@ export function TaskDetailView({
                                 {canSubmit && (
                                     <Button
                                         size="sm"
-                                        className="w-full cursor-pointer"
+                                        className="w-full cursor-pointer bg-accent-blue hover:bg-accent-light text-white"
                                         onClick={handleSubmitTask}
                                         disabled={isApprovalLoading}
                                     >
@@ -2340,6 +2298,85 @@ export function TaskDetailView({
                 </DialogContent>
             </Dialog>
 
+            {/* ── Activity Log Dialog ────────────────────────────────────── */}
+            <Dialog open={activityLogOpen} onOpenChange={setActivityLogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-dashboard-text-muted" />
+                            Activity Log
+                        </DialogTitle>
+                        <DialogDescription>
+                            Recent activity for <strong>{task.name}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-[360px] overflow-y-auto -mx-1 py-2">
+                        {activityItems.length > 0 ? (
+                            <div className="relative">
+                                <div className="absolute left-[13px] top-2 bottom-2 w-px bg-dashboard-border" />
+                                <div className="flex flex-col gap-0">
+                                    {activityItems.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className="flex items-start gap-3 px-2 py-2.5 rounded-md hover:bg-dashboard-surface transition-colors"
+                                        >
+                                            <div
+                                                className={cn(
+                                                    'relative z-10 mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full ring-2 ring-dashboard-bg',
+                                                    item.type === 'created' &&
+                                                        'bg-accent-blue',
+                                                    item.type === 'assigned' &&
+                                                        'bg-dashboard-text-muted',
+                                                    item.type === 'field' &&
+                                                        'bg-dashboard-border border border-dashboard-border bg-dashboard-surface',
+                                                )}
+                                            >
+                                                {item.type === 'created' && (
+                                                    <CircleDot className="h-2 w-2 text-white" />
+                                                )}
+                                                {item.type === 'assigned' && (
+                                                    <UserCheck className="h-2 w-2 text-white" />
+                                                )}
+                                                {item.type === 'field' && (
+                                                    <SlidersHorizontal className="h-1.5 w-1.5 text-dashboard-text-muted" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-dashboard-text-body">
+                                                    {item.text}
+                                                </p>
+                                                <p className="text-xs text-dashboard-text-muted mt-0.5">
+                                                    {formatRelativeTime(
+                                                        new Date(
+                                                            item.timestamp,
+                                                        ),
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="py-10 text-center">
+                                <Activity className="h-8 w-8 mx-auto text-dashboard-text-muted/30 mb-2" />
+                                <p className="text-sm text-dashboard-text-muted">
+                                    No activity yet
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setActivityLogOpen(false)}
+                        >
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* ── Reject / Return Dialog ─────────────────────────────────── */}
             <Dialog
                 open={rejectDialogOpen}
@@ -2695,6 +2732,7 @@ function CommentBubble({
 // Linear-style card: root comment → replies → reply input. Collapsible.
 function CommentThread({
     comment,
+    index,
     onUpdate,
     taskId,
     projectId,
@@ -2970,6 +3008,9 @@ function CommentThread({
 
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-xs font-mono text-dashboard-text-muted/60 select-none">
+                                #{index}
+                            </span>
                             <span className="font-medium text-sm text-dashboard-text-primary">
                                 {comment.user.firstName} {comment.user.lastName}
                             </span>
