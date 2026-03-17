@@ -202,6 +202,7 @@ export default function WorkspaceDetailsPage() {
             description,
             workspaceId: realWorkspaceId,
             isArchived: false,
+            isLocked: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             workspace: workspace ?? { id: realWorkspaceId, name: '' },

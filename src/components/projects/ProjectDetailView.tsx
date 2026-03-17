@@ -100,6 +100,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { useAuth } from '@clerk/nextjs';
+import { useUser as useDbUser } from '@/contexts/UserContext';
 import { toast } from 'sonner';
 import { usePreferences } from '@knocklabs/react';
 
@@ -583,7 +584,14 @@ export function ProjectDetailView({
     onTasksRemoved,
 }: ProjectDetailViewProps) {
     const { getToken } = useAuth();
+    const { user: dbUser } = useDbUser();
     const { triggerRefresh } = useSidebarRefresh();
+
+    // Permission flags
+    const isProjectManager =
+        dbUser?.organizationRole === 'ADMIN' ||
+        project.owners.some((o) => o.id === dbUser?.id);
+    const isLocked = project.isLocked;
     const [view, setView] = useState<ViewMode>('list');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -1748,7 +1756,7 @@ export function ProjectDetailView({
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {!isArchived && (
+                    {!isArchived && isProjectManager && (
                         <>
                             <Button
                                 variant="outline"
@@ -1769,7 +1777,52 @@ export function ProjectDetailView({
                                 <GitBranch className="h-3.5 w-3.5" />
                                 Approval
                             </Button>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                    'gap-2 cursor-pointer',
+                                    isLocked
+                                        ? 'text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100'
+                                        : 'text-dashboard-text-muted hover:text-dashboard-text-primary bg-dashboard-surface border-dashboard-border hover:border-accent-blue hover:bg-accent-subtle',
+                                )}
+                                onClick={async () => {
+                                    const token = await getToken();
+                                    if (!token) return;
+                                    try {
+                                        if (isLocked) {
+                                            await projectApi.unlockProject(
+                                                token,
+                                                project.id,
+                                            );
+                                            toast.success('Project unlocked');
+                                        } else {
+                                            await projectApi.lockProject(
+                                                token,
+                                                project.id,
+                                            );
+                                            toast.success('Project locked');
+                                        }
+                                        onRefresh();
+                                    } catch {
+                                        toast.error(
+                                            `Failed to ${isLocked ? 'unlock' : 'lock'} project`,
+                                        );
+                                    }
+                                }}
+                            >
+                                <Lock className="h-3.5 w-3.5" />
+                                {isLocked ? 'Unlock' : 'Lock'}
+                            </Button>
                         </>
+                    )}
+
+                    {!isArchived && !isProjectManager && isLocked && (
+                        <div className="flex items-center gap-1.5 text-amber-600 text-xs px-2 py-1 bg-amber-50 rounded border border-amber-200">
+                            <Lock className="h-3 w-3" />
+                            Locked
+                        </div>
                     )}
                 </div>
             )}

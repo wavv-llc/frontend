@@ -8,6 +8,8 @@ interface PermissionGuardProps {
     children: ReactNode;
     /** When true, only ADMIN org role is allowed. Defaults to true. */
     requireAdmin?: boolean;
+    /** When true, ADMIN or MEMBER org role is allowed (blocks GUEST). Defaults to false. */
+    requireMember?: boolean;
     fallback?: ReactNode;
     redirectTo?: string;
     // Legacy props kept for backwards-compatibility at call sites
@@ -19,13 +21,21 @@ interface PermissionGuardProps {
 export function PermissionGuard({
     children,
     requireAdmin = true,
+    requireMember = false,
     fallback = null,
     redirectTo,
 }: PermissionGuardProps) {
     const { user, isLoading } = useUser();
     const router = useRouter();
 
-    const hasAccess = !requireAdmin || user?.organizationRole === 'ADMIN';
+    let hasAccess = true;
+    if (requireAdmin) {
+        hasAccess = user?.organizationRole === 'ADMIN';
+    } else if (requireMember) {
+        hasAccess =
+            user?.organizationRole === 'ADMIN' ||
+            user?.organizationRole === 'MEMBER';
+    }
 
     useEffect(() => {
         if (!isLoading && !hasAccess && redirectTo) {

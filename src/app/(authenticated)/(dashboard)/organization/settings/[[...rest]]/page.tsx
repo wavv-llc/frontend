@@ -1964,7 +1964,10 @@ function UsersTab({
                                                             {memberRole ===
                                                             'ADMIN'
                                                                 ? 'Admin'
-                                                                : 'Member'}
+                                                                : memberRole ===
+                                                                    'GUEST'
+                                                                  ? 'Guest'
+                                                                  : 'Member'}
                                                         </span>
                                                     )}
                                                 </SelectValue>
@@ -1975,6 +1978,9 @@ function UsersTab({
                                                 </SelectItem>
                                                 <SelectItem value="MEMBER">
                                                     Member
+                                                </SelectItem>
+                                                <SelectItem value="GUEST">
+                                                    Guest
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>

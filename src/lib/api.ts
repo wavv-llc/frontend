@@ -12,7 +12,7 @@ export interface User {
     lastName?: string;
 }
 
-export type OrganizationRole = 'ADMIN' | 'MEMBER';
+export type OrganizationRole = 'ADMIN' | 'MEMBER' | 'GUEST';
 export type MembershipRole = 'OWNER' | 'MEMBER' | 'GUEST';
 
 export interface Organization {
@@ -41,6 +41,7 @@ export interface OrganizationDetails {
         firstName?: string;
         lastName?: string;
         organizationRole: OrganizationRole;
+        guestExpiresAt?: string | null;
         createdAt: string;
     }>;
 }
@@ -54,6 +55,7 @@ export interface MeResponse {
     organizationRole: OrganizationRole;
     organizationId: string;
     organization: Organization | null;
+    guestExpiresAt?: string | null;
 }
 
 export interface Workspace {
@@ -76,6 +78,8 @@ export interface Project {
     description?: string;
     workspaceId: string;
     isArchived: boolean;
+    isLocked: boolean;
+    lockedAt?: string | null;
     createdAt: string;
     updatedAt: string;
     workspace: {
@@ -248,6 +252,7 @@ export interface OrganizationMember {
     firstName?: string;
     lastName?: string;
     organizationRole: OrganizationRole;
+    guestExpiresAt?: string | null;
     createdAt: string;
 }
 
@@ -810,6 +815,20 @@ export const projectApi = {
         const params = search ? `?search=${encodeURIComponent(search)}` : '';
         return apiRequest<Project[]>(`/api/v1/projects/archived${params}`, {
             method: 'GET',
+            token,
+        });
+    },
+
+    lockProject: async (token: string, id: string) => {
+        return apiRequest<Project>(`/api/v1/projects/${id}/lock`, {
+            method: 'PATCH',
+            token,
+        });
+    },
+
+    unlockProject: async (token: string, id: string) => {
+        return apiRequest<Project>(`/api/v1/projects/${id}/unlock`, {
+            method: 'PATCH',
             token,
         });
     },
@@ -2073,6 +2092,79 @@ export const agentTaskApi = {
     getAgentTaskById: async (token: string, id: string) => {
         return apiRequest<AgentTask>(`/api/v1/agent-tasks/${id}`, {
             method: 'GET',
+            token,
+        });
+    },
+};
+
+// Guest Request types and API functions
+export type GuestRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface GuestRequest {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    status: GuestRequestStatus;
+    note?: string;
+    expiresAt?: string | null;
+    projectId: string;
+    project: { id: string; name: string; slug?: string };
+    organizationId: string;
+    requestedBy: User;
+    reviewedBy?: User | null;
+    reviewedAt?: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const guestRequestApi = {
+    create: async (
+        token: string,
+        data: {
+            email: string;
+            firstName?: string;
+            lastName?: string;
+            projectId: string;
+            note?: string;
+            expiresAt?: string;
+        },
+    ) => {
+        return apiRequest<GuestRequest>('/api/v1/guest-requests', {
+            method: 'POST',
+            token,
+            body: JSON.stringify(data),
+        });
+    },
+
+    list: async (token: string, status?: GuestRequestStatus) => {
+        const params = status ? `?status=${status}` : '';
+        return apiRequest<GuestRequest[]>(`/api/v1/guest-requests${params}`, {
+            method: 'GET',
+            token,
+        });
+    },
+
+    getById: async (token: string, id: string) => {
+        return apiRequest<GuestRequest>(`/api/v1/guest-requests/${id}`, {
+            method: 'GET',
+            token,
+        });
+    },
+
+    approve: async (token: string, id: string) => {
+        return apiRequest<GuestRequest>(
+            `/api/v1/guest-requests/${id}/approve`,
+            {
+                method: 'PATCH',
+                token,
+            },
+        );
+    },
+
+    reject: async (token: string, id: string) => {
+        return apiRequest<GuestRequest>(`/api/v1/guest-requests/${id}/reject`, {
+            method: 'PATCH',
             token,
         });
     },

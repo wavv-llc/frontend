@@ -163,6 +163,7 @@ export function AppSidebar() {
     useSidebar();
 
     const isAdmin = dbUser?.organizationRole === 'ADMIN';
+    const isGuest = dbUser?.organizationRole === 'GUEST';
     const organization = dbUser?.organization ?? null;
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -596,20 +597,22 @@ export function AppSidebar() {
                                                                             }
                                                                         </span>
                                                                     </SidebarMenuButton>
-                                                                    <button
-                                                                        onClick={(
-                                                                            e,
-                                                                        ) => {
-                                                                            e.stopPropagation();
-                                                                            setCreateProjectWorkspaceId(
-                                                                                workspace.id,
-                                                                            );
-                                                                        }}
-                                                                        className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
-                                                                        title="Add project"
-                                                                    >
-                                                                        <Plus className="h-3 w-3 text-sidebar-foreground/50" />
-                                                                    </button>
+                                                                    {!isGuest && (
+                                                                        <button
+                                                                            onClick={(
+                                                                                e,
+                                                                            ) => {
+                                                                                e.stopPropagation();
+                                                                                setCreateProjectWorkspaceId(
+                                                                                    workspace.id,
+                                                                                );
+                                                                            }}
+                                                                            className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
+                                                                            title="Add project"
+                                                                        >
+                                                                            <Plus className="h-3 w-3 text-sidebar-foreground/50" />
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         onClick={() =>
                                                                             handleToggleWorkspace(
@@ -736,22 +739,24 @@ export function AppSidebar() {
                                                                             </div>
                                                                         </SidebarMenuItem>
                                                                     )}
-                                                                    <SidebarMenuItem>
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                setCreateProjectWorkspaceId(
-                                                                                    workspace.id,
-                                                                                )
-                                                                            }
-                                                                            className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30"
-                                                                        >
-                                                                            <Plus className="h-3 w-3 shrink-0" />
-                                                                            <span>
-                                                                                Add
-                                                                                project
-                                                                            </span>
-                                                                        </button>
-                                                                    </SidebarMenuItem>
+                                                                    {!isGuest && (
+                                                                        <SidebarMenuItem>
+                                                                            <button
+                                                                                onClick={() =>
+                                                                                    setCreateProjectWorkspaceId(
+                                                                                        workspace.id,
+                                                                                    )
+                                                                                }
+                                                                                className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30"
+                                                                            >
+                                                                                <Plus className="h-3 w-3 shrink-0" />
+                                                                                <span>
+                                                                                    Add
+                                                                                    project
+                                                                                </span>
+                                                                            </button>
+                                                                        </SidebarMenuItem>
+                                                                    )}
                                                                 </>
                                                             )}
                                                         </>
