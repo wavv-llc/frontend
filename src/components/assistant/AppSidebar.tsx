@@ -747,7 +747,7 @@ export function AppSidebar() {
                                                                                         workspace.id,
                                                                                     )
                                                                                 }
-                                                                                className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30"
+                                                                                className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30 cursor-pointer"
                                                                             >
                                                                                 <Plus className="h-3 w-3 shrink-0" />
                                                                                 <span>

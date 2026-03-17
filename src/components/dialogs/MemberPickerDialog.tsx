@@ -214,12 +214,18 @@ export function MemberPickerDialog({
                                             'text-xs shrink-0',
                                             member.organizationRole === 'ADMIN'
                                                 ? 'bg-accent-subtle text-accent-blue border-accent-blue/20'
-                                                : 'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
+                                                : member.organizationRole ===
+                                                    'GUEST'
+                                                  ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                                  : 'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
                                         )}
                                     >
                                         {member.organizationRole === 'ADMIN'
                                             ? 'Admin'
-                                            : 'Member'}
+                                            : member.organizationRole ===
+                                                'GUEST'
+                                              ? 'Guest'
+                                              : 'Member'}
                                     </Badge>
 
                                     {/* Add button */}

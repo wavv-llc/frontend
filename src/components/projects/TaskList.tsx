@@ -3367,7 +3367,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                               </button>
                                                                           )}
                                                                           <button
-                                                                              className="opacity-0 group-hover:opacity-60 hover:opacity-100! transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
+                                                                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity shrink-0 ml-1 text-dashboard-text-muted hover:text-accent-blue cursor-pointer"
                                                                               onClick={(
                                                                                   e,
                                                                               ) => {
