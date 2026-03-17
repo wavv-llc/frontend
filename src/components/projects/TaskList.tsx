@@ -712,7 +712,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
         const [showRoleSelection, setShowRoleSelection] = useState(false);
         const [roleName, setRoleName] = useState<string>('');
         const [selectedApprovalRole, setSelectedApprovalRole] = useState<
-            'NONE' | 'PREPARER' | 'REVIEWER'
+            'NONE' | 'PREPARER' | 'REVIEWER_1' | 'REVIEWER_2'
         >('NONE');
         const [allowMultiple, setAllowMultiple] = useState(false);
         const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1694,17 +1694,110 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                         ? ['ToDo', 'In Progress', 'Done']
                         : undefined;
 
-                await customFieldApi.createCustomField(token, projectId, {
-                    name: type === 'USER' ? roleName.trim() : fieldName.trim(),
-                    dataType: type,
-                    customOptions: customOptions || statusOptions,
-                    order: customFields.length,
-                    multiple:
-                        MULTIPLE_SUPPORTED_TYPES.includes(type) &&
-                        selectedApprovalRole === 'NONE'
-                            ? allowMultiple
-                            : false,
-                });
+                const createdField = await customFieldApi.createCustomField(
+                    token,
+                    projectId,
+                    {
+                        name:
+                            type === 'USER'
+                                ? roleName.trim()
+                                : fieldName.trim(),
+                        dataType: type,
+                        customOptions: customOptions || statusOptions,
+                        order: customFields.length,
+                        multiple:
+                            MULTIPLE_SUPPORTED_TYPES.includes(type) &&
+                            selectedApprovalRole === 'NONE'
+                                ? allowMultiple
+                                : false,
+                    },
+                );
+
+                // Auto-add to approval workflow at the correct fixed slot
+                if (
+                    type === 'USER' &&
+                    selectedApprovalRole !== 'NONE' &&
+                    createdField.data?.id
+                ) {
+                    try {
+                        const slotIndex =
+                            selectedApprovalRole === 'PREPARER'
+                                ? 0
+                                : selectedApprovalRole === 'REVIEWER_1'
+                                  ? 1
+                                  : 2;
+
+                        // Fetch existing workflow
+                        const existingRes = await approvalApi.getWorkflow(
+                            token,
+                            projectId,
+                        );
+                        const existing = (existingRes.data ?? []).sort(
+                            (a, b) => a.order - b.order,
+                        );
+
+                        // Build the 3 fixed slots from existing workflow
+                        const fixedSlots = ['', '', ''];
+                        const extras: {
+                            type: 'PREPARER' | 'REVIEWER';
+                            customFieldId: string;
+                        }[] = [];
+                        existing.forEach((ws, i) => {
+                            if (i < 3) {
+                                fixedSlots[i] = ws.customFieldId;
+                            } else {
+                                extras.push({
+                                    type: ws.type,
+                                    customFieldId: ws.customFieldId,
+                                });
+                            }
+                        });
+
+                        // Place new field in the correct slot
+                        fixedSlots[slotIndex] = createdField.data.id;
+
+                        // Rebuild and save
+                        const FIXED_LEVEL_TYPES: ('PREPARER' | 'REVIEWER')[] = [
+                            'PREPARER',
+                            'REVIEWER',
+                            'REVIEWER',
+                        ];
+                        const stepsToSave: {
+                            type: 'PREPARER' | 'REVIEWER';
+                            customFieldId: string;
+                            order: number;
+                        }[] = [];
+                        let order = 0;
+                        fixedSlots.forEach((fieldId, i) => {
+                            if (fieldId) {
+                                stepsToSave.push({
+                                    type: FIXED_LEVEL_TYPES[i],
+                                    customFieldId: fieldId,
+                                    order: order++,
+                                });
+                            }
+                        });
+                        extras.forEach((s) => {
+                            stepsToSave.push({
+                                type: s.type,
+                                customFieldId: s.customFieldId,
+                                order: order++,
+                            });
+                        });
+
+                        await approvalApi.setWorkflow(
+                            token,
+                            projectId,
+                            stepsToSave,
+                        );
+                    } catch (err) {
+                        console.error(
+                            'Failed to auto-add field to approval workflow',
+                            err,
+                        );
+                        // Non-blocking: field was created, just workflow auto-add failed
+                    }
+                }
 
                 toast.success('Custom field created successfully');
                 setFieldName('');
@@ -2975,26 +3068,22 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                 </div>
                                                 <div>
                                                     <Label className="text-xs">
-                                                        Approval role
+                                                        Select role
                                                     </Label>
-                                                    <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">
-                                                        Link to approval
-                                                        workflow (optional)
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-1.5">
+                                                    <div className="flex flex-col gap-1.5 mt-1.5">
                                                         {(
                                                             [
-                                                                {
-                                                                    value: 'NONE',
-                                                                    label: 'None',
-                                                                },
                                                                 {
                                                                     value: 'PREPARER',
                                                                     label: 'Preparer',
                                                                 },
                                                                 {
-                                                                    value: 'REVIEWER',
-                                                                    label: 'Reviewer',
+                                                                    value: 'REVIEWER_1',
+                                                                    label: '1st-level Reviewer',
+                                                                },
+                                                                {
+                                                                    value: 'REVIEWER_2',
+                                                                    label: '2nd-level Reviewer',
                                                                 },
                                                             ] as const
                                                         ).map((opt) => (
@@ -3006,7 +3095,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                                                         opt.value,
                                                                     )
                                                                 }
-                                                                className={`px-2.5 py-1 text-xs rounded-full border transition-colors cursor-pointer ${
+                                                                className={`px-2.5 py-1.5 text-xs text-left rounded-md border transition-colors cursor-pointer ${
                                                                     selectedApprovalRole ===
                                                                     opt.value
                                                                         ? 'bg-primary text-primary-foreground border-primary'

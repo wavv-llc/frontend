@@ -33,7 +33,6 @@ import {
     Lock,
     Send,
     RefreshCw,
-    GitBranch,
     Bold,
     Italic,
     Underline,
@@ -822,15 +821,10 @@ export function TaskDetailView({
         !!preparerEntry?.user && preparerEntry.user.id === user?.id;
     const isCurrentUserActiveReviewer =
         !!activeReviewerEntry?.user && activeReviewerEntry.user.id === user?.id;
-    // "Last step" means the active reviewer is the final one — submitting completes the task
-    const isLastReviewStep =
-        reviewerChain.length > 0 &&
-        task.currentStepIndex === reviewerChain.length;
     // Anyone can submit from IN_PREPARATION (backend enforces this); highlight for preparer
     const canSubmit =
         effectiveApprovalStatus === 'IN_PREPARATION' &&
         (!preparerEntry?.user || isCurrentUserPreparer);
-    const canApproveOrComplete = isCurrentUserActiveReviewer;
     const canReject = isCurrentUserActiveReviewer;
 
     // Name inline edit state
@@ -1378,6 +1372,32 @@ export function TaskDetailView({
                                 Locked
                             </span>
                         )}
+                        <span
+                            className={cn(
+                                'shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
+                                effectiveApprovalStatus === 'COMPLETED' &&
+                                    'bg-green-50 text-green-700 border-green-200',
+                                effectiveApprovalStatus === 'IN_REVIEW' &&
+                                    'bg-blue-50 text-blue-700 border-blue-200',
+                                effectiveApprovalStatus === 'IN_PREPARATION' &&
+                                    'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
+                            )}
+                        >
+                            {effectiveApprovalStatus === 'COMPLETED' && (
+                                <CheckCircle2 className="h-3 w-3" />
+                            )}
+                            {effectiveApprovalStatus === 'IN_REVIEW' && (
+                                <Lock className="h-3 w-3" />
+                            )}
+                            {effectiveApprovalStatus === 'IN_PREPARATION' && (
+                                <CircleDot className="h-3 w-3" />
+                            )}
+                            {approvalStatusLabel(
+                                effectiveApprovalStatus,
+                                task.currentStepIndex,
+                                reviewerChain.length,
+                            )}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {/* ── Prominent approval action buttons ─────────── */}
@@ -1459,6 +1479,39 @@ export function TaskDetailView({
                                     />
                                     {isWatching ? 'Watching' : 'Notify'}
                                 </DropdownMenuItem>
+                                {canSubmit && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={handleSubmitTask}
+                                            disabled={isApprovalLoading}
+                                        >
+                                            <Send className="h-4 w-4 mr-2" />
+                                            Submit
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                                {canReject && (
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setRejectDialogOpen(true)
+                                        }
+                                        disabled={isApprovalLoading}
+                                        className="text-red-600 focus:text-red-600"
+                                    >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Reject
+                                    </DropdownMenuItem>
+                                )}
+                                {effectiveApprovalStatus === 'COMPLETED' && (
+                                    <DropdownMenuItem
+                                        onClick={handleReopenTask}
+                                        disabled={isApprovalLoading}
+                                    >
+                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        Reopen Task
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setEditDialogOpen(true)}
@@ -1678,174 +1731,6 @@ export function TaskDetailView({
 
                 {/* ── Right Sidebar ──────────────────────────────────────────── */}
                 <div className="w-72 xl:w-80 shrink-0 border-l border-dashboard-border bg-dashboard-surface overflow-y-auto flex flex-col">
-                    {/* Approval Status */}
-                    <div className="px-5 py-4 border-b border-dashboard-border">
-                        <div className="flex items-center gap-2 mb-3">
-                            <GitBranch className="h-3.5 w-3.5 text-dashboard-text-muted" />
-                            <h4 className="text-xs font-semibold text-dashboard-text-muted uppercase tracking-wider">
-                                Approval Status
-                            </h4>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span
-                                className={cn(
-                                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
-                                    effectiveApprovalStatus === 'COMPLETED' &&
-                                        'bg-green-50 text-green-700 border-green-200',
-                                    effectiveApprovalStatus === 'IN_REVIEW' &&
-                                        'bg-blue-50 text-blue-700 border-blue-200',
-                                    effectiveApprovalStatus ===
-                                        'IN_PREPARATION' &&
-                                        'bg-dashboard-surface text-dashboard-text-muted border-dashboard-border',
-                                )}
-                            >
-                                {effectiveApprovalStatus === 'COMPLETED' && (
-                                    <CheckCircle2 className="h-3 w-3" />
-                                )}
-                                {effectiveApprovalStatus === 'IN_REVIEW' && (
-                                    <Lock className="h-3 w-3" />
-                                )}
-                                {effectiveApprovalStatus ===
-                                    'IN_PREPARATION' && (
-                                    <CircleDot className="h-3 w-3" />
-                                )}
-                                {approvalStatusLabel(
-                                    effectiveApprovalStatus,
-                                    task.currentStepIndex,
-                                    reviewerChain.length,
-                                )}
-                            </span>
-                        </div>
-                        {approvalChain.length > 0 && (
-                            <div className="mt-3 flex flex-col gap-1.5">
-                                {approvalChain.map((entry) => {
-                                    const isPreparer =
-                                        entry.role === 'PREPARER';
-                                    // For REVIEWER entries, find their position in the sorted reviewerChain
-                                    const reviewerPos = isPreparer
-                                        ? -1
-                                        : reviewerChain.findIndex(
-                                              (r) =>
-                                                  r.customFieldId ===
-                                                  entry.customFieldId,
-                                          );
-                                    // reviewerPos is 0-based; currentStepIndex is 1-based
-                                    const isCurrentStep =
-                                        !isPreparer &&
-                                        effectiveApprovalStatus ===
-                                            'IN_REVIEW' &&
-                                        reviewerPos ===
-                                            task.currentStepIndex - 1;
-                                    const isPastStep =
-                                        effectiveApprovalStatus ===
-                                            'COMPLETED' ||
-                                        (!isPreparer &&
-                                            reviewerPos <
-                                                task.currentStepIndex - 1);
-                                    const name = entry.user
-                                        ? [
-                                              entry.user.firstName,
-                                              entry.user.lastName,
-                                          ]
-                                              .filter(Boolean)
-                                              .join(' ') || entry.user.email
-                                        : '(not assigned)';
-                                    const roleLabel = isPreparer
-                                        ? 'Preparer'
-                                        : `Reviewer ${entry.stepOrder ?? reviewerPos + 1}`;
-                                    return (
-                                        <div
-                                            key={entry.customFieldId}
-                                            className={cn(
-                                                'flex items-center gap-2 text-xs',
-                                                isCurrentStep &&
-                                                    'text-blue-700 font-medium',
-                                                isPastStep &&
-                                                    'text-dashboard-text-muted line-through',
-                                                !isCurrentStep &&
-                                                    !isPastStep &&
-                                                    'text-dashboard-text-muted',
-                                            )}
-                                        >
-                                            <span className="shrink-0 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold border-current">
-                                                {isPreparer
-                                                    ? 'P'
-                                                    : (entry.stepOrder ??
-                                                      reviewerPos + 1)}
-                                            </span>
-                                            <span className="truncate">
-                                                {name}
-                                                <span className="ml-1 text-[10px] opacity-60">
-                                                    ({roleLabel})
-                                                </span>
-                                            </span>
-                                            {isCurrentStep && (
-                                                <span className="ml-auto shrink-0 text-[10px] text-blue-500">
-                                                    active
-                                                </span>
-                                            )}
-                                            {isPastStep && (
-                                                <CheckCircle2 className="ml-auto h-3 w-3 shrink-0 text-green-500" />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        {approvalChain.length === 0 && (
-                            <p className="mt-1 text-[11px] text-dashboard-text-muted/60 italic">
-                                No approval roles configured for this task
-                            </p>
-                        )}
-
-                        {/* ── Role-aware action buttons ─────────────────── */}
-                        {(canSubmit || canApproveOrComplete || canReject) && (
-                            <div className="mt-4 flex flex-col gap-2">
-                                {/* Preparer: Submit for review */}
-                                {canSubmit && (
-                                    <Button
-                                        size="sm"
-                                        className="w-full cursor-pointer bg-accent-blue hover:bg-accent-light text-white"
-                                        onClick={handleSubmitTask}
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <Send className="h-3.5 w-3.5 mr-1.5" />
-                                        Submit for Review
-                                    </Button>
-                                )}
-                                {/* Reviewer: Approve / Complete */}
-                                {canApproveOrComplete && (
-                                    <Button
-                                        size="sm"
-                                        className="w-full cursor-pointer bg-green-600 hover:bg-green-700 text-white"
-                                        onClick={handleSubmitTask}
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                        {isLastReviewStep
-                                            ? 'Complete'
-                                            : 'Approve'}
-                                    </Button>
-                                )}
-                                {/* Reviewer: Reject / Return */}
-                                {canReject && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full cursor-pointer border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                        onClick={() =>
-                                            setRejectDialogOpen(true)
-                                        }
-                                        disabled={isApprovalLoading}
-                                    >
-                                        <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                                        Return for Revision
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
                     {/* Description */}
                     <div className="px-5 py-5 border-b border-dashboard-border">
                         <div className="flex items-center gap-2 mb-3">
