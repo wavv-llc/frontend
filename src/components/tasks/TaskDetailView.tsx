@@ -719,27 +719,36 @@ export function TaskDetailView({
     }, [workspaceMembers, projectMembers]);
 
     // ── Attachment handlers ───────────────────────────────────────────────────
-    const handleUploadFile = async (file: File) => {
-        if (!user?.organizationId || !projectId) return;
+    const handleUploadFile = async (files: File[]) => {
+        if (!user?.organizationId || !projectId || files.length === 0) return;
         setIsUploading(true);
+        let successCount = 0;
         try {
             const token = await getToken();
             if (!token) return;
-            const documentId = await documentApi.uploadForTask(
-                token,
-                user.organizationId,
-                file,
-            );
-            const result = await taskApi.attachFile(
-                token,
-                projectId,
-                task.id,
-                documentId,
-            );
-            if (result.data) setLinkedFiles(result.data.linkedFiles ?? []);
-            setUploadDialogOpen(false);
+            for (const file of files) {
+                try {
+                    const documentId = await documentApi.uploadForTask(
+                        token,
+                        user.organizationId,
+                        file,
+                    );
+                    const result = await taskApi.attachFile(
+                        token,
+                        projectId,
+                        task.id,
+                        documentId,
+                    );
+                    if (result.data)
+                        setLinkedFiles(result.data.linkedFiles ?? []);
+                    successCount++;
+                } catch {
+                    toast.error(`Failed to upload ${file.name}`);
+                }
+            }
+            if (successCount > 0) setUploadDialogOpen(false);
         } catch {
-            toast.error('Failed to upload file');
+            toast.error('Failed to upload files');
         } finally {
             setIsUploading(false);
         }
@@ -2027,9 +2036,9 @@ export function TaskDetailView({
             >
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Upload File</DialogTitle>
+                        <DialogTitle>Upload Files</DialogTitle>
                         <DialogDescription>
-                            Attach a file to this task.
+                            Attach files to this task.
                         </DialogDescription>
                     </DialogHeader>
                     <div
@@ -2040,17 +2049,18 @@ export function TaskDetailView({
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                             e.preventDefault();
-                            const file = e.dataTransfer.files[0];
-                            if (file) handleUploadFile(file);
+                            const files = Array.from(e.dataTransfer.files);
+                            if (files.length > 0) handleUploadFile(files);
                         }}
                     >
                         <input
                             ref={fileInputRef}
                             type="file"
+                            multiple
                             className="hidden"
                             onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleUploadFile(file);
+                                const files = Array.from(e.target.files ?? []);
+                                if (files.length > 0) handleUploadFile(files);
                                 e.target.value = '';
                             }}
                         />
@@ -2065,7 +2075,7 @@ export function TaskDetailView({
                             <>
                                 <Upload className="h-8 w-8 text-dashboard-text-muted mb-3" />
                                 <p className="text-sm font-medium text-dashboard-text-body">
-                                    Click or drag a file here
+                                    Click or drag files here
                                 </p>
                                 <p className="text-xs text-dashboard-text-muted mt-1">
                                     Any file type supported
