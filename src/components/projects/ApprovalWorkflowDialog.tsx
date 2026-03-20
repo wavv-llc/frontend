@@ -49,8 +49,8 @@ import { cn } from '@/lib/utils';
 // ── Hard-coded first three levels ─────────────────────────────────────────────
 const FIXED_LEVELS: { label: string; type: 'PREPARER' | 'REVIEWER' }[] = [
     { label: 'Preparer', type: 'PREPARER' },
-    { label: '1st Reviewer', type: 'REVIEWER' },
-    { label: '2nd Reviewer', type: 'REVIEWER' },
+    { label: 'L1 Reviewer', type: 'REVIEWER' },
+    { label: 'L2 Reviewer', type: 'REVIEWER' },
 ];
 
 interface StepEntry {
