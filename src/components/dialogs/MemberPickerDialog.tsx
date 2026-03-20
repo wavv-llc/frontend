@@ -46,7 +46,8 @@ export function MemberPickerDialog({
     const { getToken } = useAuth();
     const { user } = useUser();
     const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
     const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
@@ -56,6 +57,7 @@ export function MemberPickerDialog({
     const fetchOrgMembers = useCallback(async () => {
         if (!user?.organizationId) return;
         setIsLoading(true);
+        setFetchError(false);
         try {
             const token = await getToken();
             if (!token) return;
@@ -67,6 +69,7 @@ export function MemberPickerDialog({
                 setOrgMembers(response.data);
             }
         } catch {
+            setFetchError(true);
             toast.error('Failed to load organization members');
         } finally {
             setIsLoading(false);
@@ -179,6 +182,20 @@ export function MemberPickerDialog({
                         {isLoading ? (
                             <div className="flex items-center justify-center py-10">
                                 <Loader2 className="h-5 w-5 animate-spin text-dashboard-text-muted" />
+                            </div>
+                        ) : fetchError ? (
+                            <div className="flex flex-col items-center justify-center py-10 gap-3">
+                                <p className="text-sm text-dashboard-text-muted">
+                                    Failed to load organization members
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={fetchOrgMembers}
+                                    className="text-xs cursor-pointer"
+                                >
+                                    Try again
+                                </Button>
                             </div>
                         ) : availableMembers.length === 0 ? (
                             <div className="text-center py-10 text-sm text-dashboard-text-muted">
