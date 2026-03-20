@@ -1658,10 +1658,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                 setRoleName('');
                 // Auto-create if field name is already filled
                 if (fieldName.trim()) {
-                    // Use a microtask so state updates settle before create
-                    setTimeout(() => {
-                        handleCreateFieldWithType(type);
-                    }, 0);
+                    handleCreateFieldWithType(type);
                 }
             }
         };

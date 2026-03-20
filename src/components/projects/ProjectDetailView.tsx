@@ -657,7 +657,7 @@ export function ProjectDetailView({
 
     // Settings modal state
     const [customFields, setCustomFields] = useState<CustomField[]>([]);
-    const [isLoadingCustomFields, setIsLoadingCustomFields] = useState(false);
+    const [isLoadingCustomFields, setIsLoadingCustomFields] = useState(true);
     const taskListRef = useRef<TaskListRef>(null);
 
     // Sections state
@@ -987,7 +987,6 @@ export function ProjectDetailView({
 
     const fetchCustomFields = useCallback(async () => {
         try {
-            setIsLoadingCustomFields(true);
             const token = await getToken();
             if (!token) {
                 toast.error('Authentication required');
