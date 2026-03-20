@@ -2126,6 +2126,137 @@ export const agentTaskApi = {
     },
 };
 
+// ─── Admin API ──────────────────────────────────────────────────────────────
+
+export interface AdminStats {
+    totalOrganizations: number;
+    totalUsers: number;
+    totalDocuments: number;
+    totalChats: number;
+    totalProjects: number;
+    totalTasks: number;
+    totalWorkspaces: number;
+}
+
+export interface AdminOrganization {
+    id: string;
+    name: string;
+    slug: string;
+    active: boolean;
+    industry: string | null;
+    size: string | null;
+    createdAt: string;
+    _count: {
+        users: number;
+        documents: number;
+        workspaces: number;
+        projects: number;
+        chatConversations: number;
+    };
+}
+
+export interface AdminOrganizationDetail {
+    id: string;
+    name: string;
+    slug: string;
+    active: boolean;
+    industry: string | null;
+    size: string | null;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+    users: Array<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        organizationRole: OrganizationRole;
+        createdAt: string;
+        guestExpiresAt: string | null;
+    }>;
+    workspaces: Array<{
+        id: string;
+        name: string;
+        isPersonal: boolean;
+        createdAt: string;
+        _count: { projects: number; memberships: number };
+    }>;
+    _count: {
+        documents: number;
+        chatConversations: number;
+        projects: number;
+        serviceJobs: number;
+        agentTasks: number;
+    };
+}
+
+export interface AdminUser {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    organizationRole: OrganizationRole;
+    organizationId: string;
+    createdAt: string;
+    organization: { id: string; name: string };
+}
+
+export interface AdminDocument {
+    id: string;
+    filename: string;
+    originalName: string;
+    filesize: number;
+    mimeType: string;
+    status: string;
+    source: string;
+    createdAt: string;
+    organization: { id: string; name: string };
+}
+
+export const adminApi = {
+    checkAccess: async (token: string) => {
+        return apiRequest<{ isSuperAdmin: boolean }>('/api/v1/admin/check', {
+            method: 'GET',
+            token,
+        });
+    },
+
+    getStats: async (token: string) => {
+        return apiRequest<AdminStats>('/api/v1/admin/stats', {
+            method: 'GET',
+            token,
+        });
+    },
+
+    searchOrganizations: async (token: string, search = '', limit = 20) => {
+        return apiRequest<AdminOrganization[]>(
+            `/api/v1/admin/organizations?search=${encodeURIComponent(search)}&limit=${limit}`,
+            { method: 'GET', token },
+        );
+    },
+
+    getOrganization: async (token: string, id: string) => {
+        return apiRequest<AdminOrganizationDetail>(
+            `/api/v1/admin/organizations/${id}`,
+            { method: 'GET', token },
+        );
+    },
+
+    searchUsers: async (token: string, search = '', limit = 20) => {
+        return apiRequest<AdminUser[]>(
+            `/api/v1/admin/users?search=${encodeURIComponent(search)}&limit=${limit}`,
+            { method: 'GET', token },
+        );
+    },
+
+    searchDocuments: async (token: string, search = '', limit = 20) => {
+        return apiRequest<AdminDocument[]>(
+            `/api/v1/admin/documents?search=${encodeURIComponent(search)}&limit=${limit}`,
+            { method: 'GET', token },
+        );
+    },
+};
+
 // Guest Request types and API functions
 export type GuestRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
