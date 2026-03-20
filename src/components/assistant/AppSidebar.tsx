@@ -38,7 +38,10 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    useDroppable,
+    DragOverlay,
     type DragEndEvent,
+    type DragStartEvent,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -80,10 +83,7 @@ function SortableWorkspaceItem({
     children,
 }: {
     id: string;
-    children: (
-        dragHandleProps: React.HTMLAttributes<HTMLButtonElement>,
-        isDragging: boolean,
-    ) => React.ReactNode;
+    children: (isDragging: boolean) => React.ReactNode;
 }) {
     const {
         attributes,
@@ -100,14 +100,8 @@ function SortableWorkspaceItem({
         zIndex: isDragging ? 10 : undefined,
     };
     return (
-        <div ref={setNodeRef} style={style}>
-            {children(
-                {
-                    ...(attributes as React.HTMLAttributes<HTMLButtonElement>),
-                    ...(listeners as React.HTMLAttributes<HTMLButtonElement>),
-                },
-                isDragging,
-            )}
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            {children(isDragging)}
         </div>
     );
 }
@@ -117,10 +111,7 @@ function SortableProjectItem({
     children,
 }: {
     id: string;
-    children: (
-        dragHandleProps: React.HTMLAttributes<HTMLButtonElement>,
-        isDragging: boolean,
-    ) => React.ReactNode;
+    children: (isDragging: boolean) => React.ReactNode;
 }) {
     const {
         attributes,
@@ -137,14 +128,30 @@ function SortableProjectItem({
         zIndex: isDragging ? 10 : undefined,
     };
     return (
-        <div ref={setNodeRef} style={style}>
-            {children(
-                {
-                    ...(attributes as React.HTMLAttributes<HTMLButtonElement>),
-                    ...(listeners as React.HTMLAttributes<HTMLButtonElement>),
-                },
-                isDragging,
-            )}
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            {children(isDragging)}
+        </div>
+    );
+}
+
+/** Wrapper that makes a workspace's project list a droppable target for cross-workspace moves */
+function DroppableWorkspaceProjects({
+    workspaceId,
+    children,
+}: {
+    workspaceId: string;
+    children: React.ReactNode;
+}) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: `workspace-drop-${workspaceId}`,
+        data: { workspaceId },
+    });
+    return (
+        <div
+            ref={setNodeRef}
+            className={isOver ? 'bg-sidebar-accent/20 rounded-sm' : ''}
+        >
+            {children}
         </div>
     );
 }
@@ -183,6 +190,7 @@ export function AppSidebar() {
         string | null
     >(null);
     const [chatsExpanded, setChatsExpanded] = useState(true);
+    const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -326,31 +334,135 @@ export function AppSidebar() {
         [getTokenRef],
     );
 
+    /** Build a lookup: projectId → workspaceId */
+    const projectToWorkspace = useCallback((): Record<string, string> => {
+        const map: Record<string, string> = {};
+        for (const [wsId, projects] of Object.entries(workspaceProjects)) {
+            for (const p of projects) {
+                map[p.id] = wsId;
+            }
+        }
+        return map;
+    }, [workspaceProjects]);
+
+    const handleProjectDragStart = useCallback((event: DragStartEvent) => {
+        setActiveProjectId(event.active.id as string);
+    }, []);
+
     const handleProjectDragEnd = useCallback(
-        async (workspaceId: string, event: DragEndEvent) => {
+        async (event: DragEndEvent) => {
+            setActiveProjectId(null);
             const { active, over } = event;
-            if (!over || active.id === over.id) return;
-            let newOrder: Project[] = [];
-            setWorkspaceProjects((prev) => {
-                const projects = prev[workspaceId] ?? [];
-                const oldIndex = projects.findIndex((p) => p.id === active.id);
-                const newIndex = projects.findIndex((p) => p.id === over.id);
-                newOrder = arrayMove(projects, oldIndex, newIndex);
-                return { ...prev, [workspaceId]: newOrder };
-            });
-            try {
-                const token = await getTokenRef.current();
-                if (!token) return;
-                await Promise.all(
-                    newOrder.map((p, idx) =>
-                        projectApi.updateProject(token, p.id, { order: idx }),
-                    ),
-                );
-            } catch {
-                // silent — order reverts on next page load
+            if (!over) return;
+
+            const activeId = active.id as string;
+            const overId = over.id as string;
+            const lookup = projectToWorkspace();
+            const sourceWsId = lookup[activeId];
+
+            // Determine target workspace: if dropped on a workspace droppable, use that;
+            // if dropped on another project, use that project's workspace
+            let targetWsId: string | undefined;
+            if (overId.startsWith('workspace-drop-')) {
+                targetWsId = over.data?.current?.workspaceId as
+                    | string
+                    | undefined;
+            } else {
+                targetWsId = lookup[overId];
+            }
+
+            if (!sourceWsId) return;
+            if (!targetWsId) targetWsId = sourceWsId;
+
+            if (sourceWsId === targetWsId) {
+                // Same workspace — reorder
+                if (activeId === overId) return;
+                let newOrder: Project[] = [];
+                setWorkspaceProjects((prev) => {
+                    const projects = prev[sourceWsId] ?? [];
+                    const oldIndex = projects.findIndex(
+                        (p) => p.id === activeId,
+                    );
+                    const newIndex = projects.findIndex((p) => p.id === overId);
+                    if (oldIndex === -1 || newIndex === -1) return prev;
+                    newOrder = arrayMove(projects, oldIndex, newIndex);
+                    return { ...prev, [sourceWsId]: newOrder };
+                });
+                try {
+                    const token = await getTokenRef.current();
+                    if (!token) return;
+                    await Promise.all(
+                        newOrder.map((p, idx) =>
+                            projectApi.updateProject(token, p.id, {
+                                order: idx,
+                            }),
+                        ),
+                    );
+                } catch {
+                    // silent — order reverts on next page load
+                }
+            } else {
+                // Cross-workspace move
+                let movedProject: Project | undefined;
+                let targetProjects: Project[] = [];
+                setWorkspaceProjects((prev) => {
+                    const sourceProjects = prev[sourceWsId] ?? [];
+                    movedProject = sourceProjects.find(
+                        (p) => p.id === activeId,
+                    );
+                    if (!movedProject) return prev;
+
+                    const newSource = sourceProjects.filter(
+                        (p) => p.id !== activeId,
+                    );
+                    const existingTarget = prev[targetWsId!] ?? [];
+
+                    // Determine insert index
+                    let insertIdx = existingTarget.length;
+                    if (!overId.startsWith('workspace-drop-')) {
+                        const overIdx = existingTarget.findIndex(
+                            (p) => p.id === overId,
+                        );
+                        if (overIdx !== -1) insertIdx = overIdx;
+                    }
+
+                    const updatedProject = {
+                        ...movedProject!,
+                        workspaceId: targetWsId!,
+                    };
+                    targetProjects = [
+                        ...existingTarget.slice(0, insertIdx),
+                        updatedProject,
+                        ...existingTarget.slice(insertIdx),
+                    ];
+
+                    return {
+                        ...prev,
+                        [sourceWsId]: newSource,
+                        [targetWsId!]: targetProjects,
+                    };
+                });
+
+                // Persist cross-workspace move + new order
+                try {
+                    const token = await getTokenRef.current();
+                    if (!token || !movedProject) return;
+                    await projectApi.updateProject(token, activeId, {
+                        workspaceId: targetWsId,
+                    });
+                    await Promise.all(
+                        targetProjects.map((p, idx) =>
+                            projectApi.updateProject(token, p.id, {
+                                order: idx,
+                            }),
+                        ),
+                    );
+                } catch {
+                    // silent — reverts on next page load
+                }
             }
         },
-        [getTokenRef],
+        [getTokenRef, projectToWorkspace],
     );
 
     const handleHomeClick = () => router.push('/home');
@@ -538,7 +650,19 @@ export function AppSidebar() {
                                 <DndContext
                                     sensors={sensors}
                                     collisionDetection={closestCenter}
-                                    onDragEnd={handleWorkspaceDragEnd}
+                                    onDragStart={handleProjectDragStart}
+                                    onDragEnd={(e) => {
+                                        // Determine if this is a workspace drag or project drag
+                                        const activeId = e.active.id as string;
+                                        const isWorkspaceDrag = workspaces.some(
+                                            (w) => w.id === activeId,
+                                        );
+                                        if (isWorkspaceDrag) {
+                                            handleWorkspaceDragEnd(e);
+                                        } else {
+                                            handleProjectDragEnd(e);
+                                        }
+                                    }}
                                 >
                                     <SortableContext
                                         items={workspaces.map((w) => w.id)}
@@ -566,17 +690,13 @@ export function AppSidebar() {
                                                     key={workspace.id}
                                                     id={workspace.id}
                                                 >
-                                                    {(dragHandleProps) => (
+                                                    {() => (
                                                         <>
                                                             <SidebarMenuItem>
-                                                                <div className="flex items-center gap-0 group/ws">
-                                                                    <button
-                                                                        {...dragHandleProps}
-                                                                        className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/ws:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
-                                                                        title="Drag to reorder"
-                                                                    >
+                                                                <div className="flex items-center gap-0 group/ws cursor-grab active:cursor-grabbing">
+                                                                    <div className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/ws:opacity-100 transition-opacity text-sidebar-foreground/30">
                                                                         <GripVertical className="h-3 w-3" />
-                                                                    </button>
+                                                                    </div>
                                                                     <SidebarMenuButton
                                                                         onClick={() =>
                                                                             handleWorkspaceClick(
@@ -657,20 +777,9 @@ export function AppSidebar() {
                                                                         )
                                                                     ) : projects.length >
                                                                       0 ? (
-                                                                        <DndContext
-                                                                            sensors={
-                                                                                sensors
-                                                                            }
-                                                                            collisionDetection={
-                                                                                closestCenter
-                                                                            }
-                                                                            onDragEnd={(
-                                                                                e,
-                                                                            ) =>
-                                                                                handleProjectDragEnd(
-                                                                                    workspace.id,
-                                                                                    e,
-                                                                                )
+                                                                        <DroppableWorkspaceProjects
+                                                                            workspaceId={
+                                                                                workspace.id
                                                                             }
                                                                         >
                                                                             <SortableContext
@@ -696,18 +805,12 @@ export function AppSidebar() {
                                                                                                 project.id
                                                                                             }
                                                                                         >
-                                                                                            {(
-                                                                                                projDragHandleProps,
-                                                                                            ) => (
+                                                                                            {() => (
                                                                                                 <SidebarMenuItem>
-                                                                                                    <div className="flex items-center group/proj">
-                                                                                                        <button
-                                                                                                            {...projDragHandleProps}
-                                                                                                            className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/proj:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-sidebar-foreground/30 hover:text-sidebar-foreground/60"
-                                                                                                            title="Drag to reorder"
-                                                                                                        >
+                                                                                                    <div className="flex items-center group/proj cursor-grab active:cursor-grabbing">
+                                                                                                        <div className="shrink-0 h-7 w-4 flex items-center justify-center opacity-0 group-hover/proj:opacity-100 transition-opacity text-sidebar-foreground/30">
                                                                                                             <GripVertical className="h-3 w-3" />
-                                                                                                        </button>
+                                                                                                        </div>
                                                                                                         <SidebarMenuButton
                                                                                                             onClick={() =>
                                                                                                                 router.push(
@@ -730,14 +833,20 @@ export function AppSidebar() {
                                                                                     ),
                                                                                 )}
                                                                             </SortableContext>
-                                                                        </DndContext>
+                                                                        </DroppableWorkspaceProjects>
                                                                     ) : (
-                                                                        <SidebarMenuItem>
-                                                                            <div className="pl-9 py-1 text-[11px] text-sidebar-foreground/40 italic">
-                                                                                No
-                                                                                projects
-                                                                            </div>
-                                                                        </SidebarMenuItem>
+                                                                        <DroppableWorkspaceProjects
+                                                                            workspaceId={
+                                                                                workspace.id
+                                                                            }
+                                                                        >
+                                                                            <SidebarMenuItem>
+                                                                                <div className="pl-9 py-1 text-[11px] text-sidebar-foreground/40 italic">
+                                                                                    No
+                                                                                    projects
+                                                                                </div>
+                                                                            </SidebarMenuItem>
+                                                                        </DroppableWorkspaceProjects>
                                                                     )}
                                                                     {!isGuest && (
                                                                         <SidebarMenuItem>
@@ -765,6 +874,29 @@ export function AppSidebar() {
                                             );
                                         })}
                                     </SortableContext>
+                                    <DragOverlay>
+                                        {activeProjectId
+                                            ? (() => {
+                                                  const proj = Object.values(
+                                                      workspaceProjects,
+                                                  )
+                                                      .flat()
+                                                      .find(
+                                                          (p) =>
+                                                              p.id ===
+                                                              activeProjectId,
+                                                      );
+                                                  return proj ? (
+                                                      <div className="flex items-center gap-1.5 pl-5 py-1 text-[12px] bg-sidebar rounded-sm shadow-md border border-sidebar-border px-2">
+                                                          <LayoutList className="h-3 w-3 shrink-0 text-sidebar-foreground/30" />
+                                                          <span className="truncate tracking-tight text-sidebar-foreground">
+                                                              {proj.name}
+                                                          </span>
+                                                      </div>
+                                                  ) : null;
+                                              })()
+                                            : null}
+                                    </DragOverlay>
                                 </DndContext>
                             ) : (
                                 <Empty
