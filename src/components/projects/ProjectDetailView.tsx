@@ -31,8 +31,6 @@ import {
     Lock,
     Archive,
     ExternalLink,
-    ChevronLeft,
-    ChevronRight,
     LayoutGrid,
     Loader2,
     LayoutTemplate,
@@ -42,7 +40,7 @@ import {
     ArrowUp,
     ArrowDown,
 } from 'lucide-react';
-import { cn, parseDateOnly } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
     type Project,
     type Task,
@@ -59,10 +57,7 @@ import {
 import { useSidebarRefresh } from '@/contexts/SidebarContext';
 import { invalidateCached } from '@/lib/pageCache';
 import { Button } from '@/components/ui/button';
-import {
-    CalendarSection,
-    type CalendarEvent,
-} from '@/components/dashboard/pure-steel/CalendarSection';
+import { ProjectCalendarView } from '@/components/projects/ProjectCalendarView';
 import { TaskDetailView } from '@/components/tasks/TaskDetailView';
 import { TaskList, type TaskListRef } from './TaskList';
 import { KanbanView } from './KanbanView';
@@ -294,285 +289,6 @@ function placeCaretAtEnd(el: HTMLElement) {
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
-}
-
-function getWeekStart(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-    return new Date(d.setDate(diff));
-}
-
-const MONTH_NAMES = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-];
-const DAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function isSameDay(a: Date, b: Date) {
-    return (
-        a.getFullYear() === b.getFullYear() &&
-        a.getMonth() === b.getMonth() &&
-        a.getDate() === b.getDate()
-    );
-}
-
-/** Monthly grid calendar view */
-function MonthCalendarView({ events }: { events: CalendarEvent[] }) {
-    const today = new Date();
-    const [viewDate, setViewDate] = useState(
-        () => new Date(today.getFullYear(), today.getMonth(), 1),
-    );
-
-    const navigate = (dir: 'prev' | 'next' | 'today') => {
-        if (dir === 'today') {
-            setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
-        } else if (dir === 'prev') {
-            setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-        } else {
-            setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-        }
-    };
-
-    // Build 6-week grid starting from the Monday on or before the 1st of the month
-    const gridDays = useMemo(() => {
-        const firstDay = new Date(
-            viewDate.getFullYear(),
-            viewDate.getMonth(),
-            1,
-        );
-        // getDay(): 0=Sun,1=Mon,...,6=Sat → offset to make Monday=0
-        const offset = (firstDay.getDay() + 6) % 7;
-        const gridStart = new Date(firstDay);
-        gridStart.setDate(gridStart.getDate() - offset);
-        const days: Date[] = [];
-        for (let i = 0; i < 42; i++) {
-            const d = new Date(gridStart);
-            d.setDate(d.getDate() + i);
-            days.push(d);
-        }
-        return days;
-    }, [viewDate]);
-
-    // Group events by date key
-    const eventsByDay = useMemo(() => {
-        const map = new Map<string, CalendarEvent[]>();
-        for (const ev of events) {
-            const key = `${ev.date.getFullYear()}-${ev.date.getMonth()}-${ev.date.getDate()}`;
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(ev);
-        }
-        return map;
-    }, [events]);
-
-    const getDayEvents = (d: Date) => {
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        return eventsByDay.get(key) || [];
-    };
-
-    const isCurrentMonth = (d: Date) => d.getMonth() === viewDate.getMonth();
-
-    return (
-        <div className="flex flex-col h-full">
-            {/* Month header */}
-            <div className="flex items-center gap-3 px-1 pb-3 shrink-0">
-                <h2 className="text-base font-semibold text-dashboard-text-primary font-serif">
-                    {MONTH_NAMES[viewDate.getMonth()]} {viewDate.getFullYear()}
-                </h2>
-                <div className="flex items-center gap-1 ml-auto">
-                    <button
-                        onClick={() => navigate('today')}
-                        className="px-2.5 py-1 text-xs font-medium text-dashboard-text-body border border-dashboard-border rounded-md hover:bg-accent-subtle/50 transition-colors"
-                    >
-                        Today
-                    </button>
-                    <button
-                        onClick={() => navigate('prev')}
-                        className="h-7 w-7 flex items-center justify-center rounded-md border border-dashboard-border text-dashboard-text-muted hover:bg-accent-subtle/50 hover:text-dashboard-text-primary transition-colors"
-                    >
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={() => navigate('next')}
-                        className="h-7 w-7 flex items-center justify-center rounded-md border border-dashboard-border text-dashboard-text-muted hover:bg-accent-subtle/50 hover:text-dashboard-text-primary transition-colors"
-                    >
-                        <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Day-of-week headers */}
-            <div className="grid grid-cols-7 border-t border-l border-dashboard-border shrink-0">
-                {DAY_ABBR.map((day) => (
-                    <div
-                        key={day}
-                        className="border-r border-b border-dashboard-border bg-[#f8f9fb] px-2 py-1.5 text-center text-[10px] font-medium text-dashboard-text-muted uppercase tracking-wide"
-                    >
-                        {day}
-                    </div>
-                ))}
-            </div>
-
-            {/* Grid */}
-            <div className="grid grid-cols-7 grid-rows-6 border-l border-dashboard-border flex-1 min-h-0 overflow-hidden">
-                {gridDays.map((day, idx) => {
-                    const dayEvents = getDayEvents(day);
-                    const isToday = isSameDay(day, today);
-                    const inMonth = isCurrentMonth(day);
-                    const visible = dayEvents.slice(0, 2);
-                    const overflow = dayEvents.length - visible.length;
-
-                    return (
-                        <div
-                            key={idx}
-                            className={cn(
-                                'border-r border-b border-dashboard-border p-1.5 flex flex-col gap-0.5 min-h-0 overflow-hidden',
-                                !inMonth && 'bg-[#f8f9fb]/60',
-                            )}
-                        >
-                            {/* Day number */}
-                            <div className="flex items-center justify-end mb-0.5">
-                                <span
-                                    className={cn(
-                                        'text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full',
-                                        isToday
-                                            ? 'bg-accent-blue text-white'
-                                            : inMonth
-                                              ? 'text-dashboard-text-primary'
-                                              : 'text-dashboard-text-muted',
-                                    )}
-                                >
-                                    {day.getDate()}
-                                </span>
-                            </div>
-
-                            {/* Task pills */}
-                            {visible.map((ev) => (
-                                <div
-                                    key={ev.id}
-                                    className={cn(
-                                        'truncate rounded px-1.5 py-0.5 text-[10px] leading-tight font-medium',
-                                        ev.type === 'deadline'
-                                            ? 'bg-[rgba(224,82,82,0.10)] text-[#e05252]'
-                                            : 'bg-[rgba(94,142,173,0.10)] text-[#5e8ead]',
-                                    )}
-                                    title={ev.title}
-                                >
-                                    {ev.title}
-                                </div>
-                            ))}
-
-                            {/* Overflow count */}
-                            {overflow > 0 && (
-                                <span className="text-[10px] text-dashboard-text-muted pl-1">
-                                    +{overflow} more
-                                </span>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
-
-/** Wrapper to convert Task[] to CalendarEvent[] and provide week/month navigation */
-function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
-    const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('month');
-    const [currentWeekStart, setCurrentWeekStart] = useState(() =>
-        getWeekStart(new Date()),
-    );
-
-    const handleNavigate = (direction: 'prev' | 'next' | 'today') => {
-        if (direction === 'today') {
-            setCurrentWeekStart(getWeekStart(new Date()));
-        } else if (direction === 'prev') {
-            const newDate = new Date(currentWeekStart);
-            newDate.setDate(newDate.getDate() - 7);
-            setCurrentWeekStart(newDate);
-        } else {
-            const newDate = new Date(currentWeekStart);
-            newDate.setDate(newDate.getDate() + 7);
-            setCurrentWeekStart(newDate);
-        }
-    };
-
-    const calendarEvents: CalendarEvent[] = useMemo(
-        () =>
-            tasks.map((task) => ({
-                id: task.id,
-                title: task.name,
-                date: task.dueAt
-                    ? parseDateOnly(task.dueAt)
-                    : new Date(task.createdAt),
-                type: (task.approvalStatus === 'COMPLETED'
-                    ? 'task'
-                    : task.dueAt && parseDateOnly(task.dueAt) < new Date()
-                      ? 'deadline'
-                      : 'task') as CalendarEvent['type'],
-                status: (task.approvalStatus === 'COMPLETED'
-                    ? 'complete'
-                    : task.approvalStatus === 'IN_REVIEW'
-                      ? 'review'
-                      : 'pending') as CalendarEvent['status'],
-            })),
-        [tasks],
-    );
-
-    return (
-        <div className="flex-1 min-h-0 p-4 flex flex-col gap-3">
-            {/* Mode toggle */}
-            <div className="flex items-center gap-1 self-end shrink-0">
-                <button
-                    onClick={() => setCalendarMode('week')}
-                    className={cn(
-                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer',
-                        calendarMode === 'week'
-                            ? 'bg-accent-blue text-white border-accent-blue'
-                            : 'text-dashboard-text-body border-dashboard-border hover:bg-accent-subtle/50',
-                    )}
-                >
-                    <CalendarIcon className="h-3 w-3" />
-                    Week
-                </button>
-                <button
-                    onClick={() => setCalendarMode('month')}
-                    className={cn(
-                        'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors cursor-pointer',
-                        calendarMode === 'month'
-                            ? 'bg-accent-blue text-white border-accent-blue'
-                            : 'text-dashboard-text-body border-dashboard-border hover:bg-accent-subtle/50',
-                    )}
-                >
-                    <LayoutGrid className="h-3 w-3" />
-                    Month
-                </button>
-            </div>
-
-            {calendarMode === 'week' ? (
-                <CalendarSection
-                    events={calendarEvents}
-                    currentWeekStart={currentWeekStart}
-                    onNavigate={handleNavigate}
-                    className="flex-1 min-h-0"
-                />
-            ) : (
-                <div className="flex-1 min-h-0 overflow-hidden">
-                    <MonthCalendarView events={calendarEvents} />
-                </div>
-            )}
-        </div>
-    );
 }
 
 export function ProjectDetailView({
@@ -1829,7 +1545,12 @@ export function ProjectDetailView({
             {/* Main Content */}
             <div className="flex-1 min-h-0 min-w-0 bg-dashboard-surface rounded-none border-0 overflow-hidden flex flex-col">
                 {view === 'calendar' ? (
-                    <CalendarViewWrapper tasks={tasks} />
+                    <div className="flex-1 min-h-0 p-4">
+                        <ProjectCalendarView
+                            tasks={tasks}
+                            currentUserId={dbUser?.id}
+                        />
+                    </div>
                 ) : view === 'board' ? (
                     <KanbanView
                         tasks={sortedTasks}

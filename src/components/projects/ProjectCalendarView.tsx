@@ -10,22 +10,88 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ProjectCalendarViewProps {
     tasks: Task[];
     compact?: boolean; // When true, uses a simplified layout without task name column
+    currentUserId?: string; // For "My Tasks" filter
 }
 
 type ViewMode = 'week' | 'month';
 
+/** Determine Gantt-style progress status for a task */
+function getProgressStatus(
+    task: Task,
+    now: Date,
+): 'complete' | 'in-progress' | 'behind' {
+    if (task.approvalStatus === 'COMPLETED') return 'complete';
+    if (task.dueAt) {
+        const due = parseDateOnly(task.dueAt);
+        due.setHours(23, 59, 59, 999);
+        if (now > due) return 'behind';
+    }
+    return 'in-progress';
+}
+
+const PROGRESS_COLORS = {
+    complete: {
+        bg: 'bg-emerald-500',
+        bgLight: 'bg-emerald-50',
+        border: 'border-emerald-500/30',
+        text: 'text-emerald-700',
+        hex: '#10b981',
+    },
+    'in-progress': {
+        bg: 'bg-blue-500',
+        bgLight: 'bg-blue-50',
+        border: 'border-blue-500/30',
+        text: 'text-blue-700',
+        hex: '#3b82f6',
+    },
+    behind: {
+        bg: 'bg-red-500',
+        bgLight: 'bg-red-50',
+        border: 'border-red-500/30',
+        text: 'text-red-700',
+        hex: '#ef4444',
+    },
+} as const;
+
+const PROGRESS_LABELS = {
+    complete: 'Complete',
+    'in-progress': 'In Progress',
+    behind: 'Behind Schedule',
+} as const;
+
+/** Check if a task is assigned to a specific user via approvalChain */
+function isAssignedToUser(task: Task, userId: string): boolean {
+    if (!task.approvalChain) return false;
+    return task.approvalChain.some((e) => e.user?.id === userId);
+}
+
 export function ProjectCalendarView({
     tasks,
     compact = false,
+    currentUserId,
 }: ProjectCalendarViewProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [myTasksOnly, setMyTasksOnly] = useState(false);
+
+    const now = useMemo(() => new Date(), []);
+
+    // Filter tasks: only those with due dates, optionally filtered by current user
+    const filteredTasks = useMemo(() => {
+        let result = tasks.filter((task) => task.dueAt);
+        if (myTasksOnly && currentUserId) {
+            result = result.filter((task) =>
+                isAssignedToUser(task, currentUserId),
+            );
+        }
+        return result;
+    }, [tasks, myTasksOnly, currentUserId]);
 
     // Generate current week dates
     const weekDates = useMemo(() => {
@@ -47,26 +113,17 @@ export function ProjectCalendarView({
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 
-        // First day of the month
         const firstDay = new Date(year, month, 1);
-
-        // Get the day of week for first day (0 = Sunday)
         const firstDayOfWeek = firstDay.getDay();
-
-        // Calculate start date (may be from previous month)
-        // We want Monday as start of week, so if Sunday (0), go back 6 days. Else go back day-1
         const offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
         const startDate = new Date(firstDay);
         startDate.setDate(startDate.getDate() - offset);
 
-        // Generate 42 days (6 weeks) to ensure full grid
-        const dates = Array.from({ length: 42 }, (_, i) => {
+        return Array.from({ length: 42 }, (_, i) => {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + i);
             return date;
         });
-
-        return dates;
     }, [currentDate]);
 
     const weeks = useMemo(() => {
@@ -84,12 +141,11 @@ export function ProjectCalendarView({
         weekEnd.setHours(23, 59, 59, 999);
 
         // Filter tasks visible in this week
-        const weekTasks = tasks.filter((task) => {
+        const weekTasks = filteredTasks.filter((task) => {
             if (!task.dueAt) return false;
             const taskStart = new Date(task.createdAt);
             const taskEnd = parseDateOnly(task.dueAt);
 
-            // Normalize
             taskStart.setHours(0, 0, 0, 0);
             taskEnd.setHours(23, 59, 59, 999);
             if (taskStart > taskEnd) taskStart.setTime(taskEnd.getTime());
@@ -105,7 +161,7 @@ export function ProjectCalendarView({
             return 0;
         });
 
-        const slots: string[][] = []; // slots[row][col] => taskId
+        const slots: string[][] = [];
         const layout: {
             task: Task;
             startIdx: number;
@@ -120,7 +176,6 @@ export function ProjectCalendarView({
             taskEnd.setHours(23, 59, 59, 999);
             if (taskStart > taskEnd) taskStart.setTime(taskEnd.getTime());
 
-            // Calculate start/end indices in this week (0-6)
             let startIdx = 0;
             if (taskStart >= weekStart) {
                 const diff = Math.floor(
@@ -139,7 +194,6 @@ export function ProjectCalendarView({
                 endIdx = Math.min(6, diff);
             }
 
-            // Find first row where columns [startIdx...endIdx] are free
             let rowIndex = 0;
             while (true) {
                 if (!slots[rowIndex]) slots[rowIndex] = new Array(7).fill(null);
@@ -174,41 +228,15 @@ export function ProjectCalendarView({
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const today = new Date();
 
-    const getStatusColor = (status: Task['approvalStatus']) => {
-        switch (status) {
-            case 'COMPLETED':
-                return 'bg-status-complete-bg border-status-complete/20 text-status-complete';
-            case 'IN_REVIEW':
-                return 'bg-status-review-bg border-status-review/20 text-status-review';
-            case 'IN_PREPARATION':
-            default:
-                return 'bg-status-pending-bg border-status-pending/20 text-status-pending';
-        }
-    };
-
-    const getStatusLabel = (status: Task['approvalStatus']) => {
-        switch (status) {
-            case 'COMPLETED':
-                return 'Completed';
-            case 'IN_REVIEW':
-                return 'In Review';
-            case 'IN_PREPARATION':
-            default:
-                return 'In Preparation';
-        }
-    };
-
     const getTaskPosition = (task: Task) => {
         if (!task.dueAt) return null;
 
         const startDate = new Date(task.createdAt);
         const dueDate = parseDateOnly(task.dueAt);
 
-        // Normalize times to start of day for accurate day calculation
         startDate.setHours(0, 0, 0, 0);
         dueDate.setHours(23, 59, 59, 999);
 
-        // Helper to ensure start <= due
         if (startDate > dueDate) {
             startDate.setTime(dueDate.getTime());
             startDate.setHours(0, 0, 0, 0);
@@ -220,14 +248,11 @@ export function ProjectCalendarView({
         const endOfWeek = new Date(weekDates[6]);
         endOfWeek.setHours(23, 59, 59, 999);
 
-        // Check availability in current view
         if (dueDate < startOfWeek || startDate > endOfWeek) return null;
 
-        // Clamp dates to week view
         const visualStart = startDate < startOfWeek ? startOfWeek : startDate;
         const visualEnd = dueDate > endOfWeek ? endOfWeek : dueDate;
 
-        // Normalize visual end for index calculation
         const visualEndNormalized = new Date(visualEnd);
         visualEndNormalized.setHours(0, 0, 0, 0);
 
@@ -250,8 +275,6 @@ export function ProjectCalendarView({
             width: `${(span * 100) / 7 - 1}%`,
         };
     };
-
-    const tasksWithDueDates = tasks.filter((task) => task.dueAt);
 
     const isToday = (date: Date) => {
         return (
@@ -320,7 +343,50 @@ export function ProjectCalendarView({
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
+                    {/* Legend */}
+                    <div className="hidden md:flex items-center gap-3 mr-2">
+                        {(
+                            Object.keys(PROGRESS_COLORS) as Array<
+                                keyof typeof PROGRESS_COLORS
+                            >
+                        ).map((key) => (
+                            <div
+                                key={key}
+                                className="flex items-center gap-1.5"
+                            >
+                                <div
+                                    className="w-3 h-2 rounded-sm"
+                                    style={{
+                                        backgroundColor:
+                                            PROGRESS_COLORS[key].hex,
+                                    }}
+                                />
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                    {PROGRESS_LABELS[key]}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* My Tasks toggle */}
+                    {currentUserId && (
+                        <Button
+                            variant={myTasksOnly ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setMyTasksOnly((v) => !v)}
+                            className={cn(
+                                'h-8 gap-1.5 text-xs',
+                                myTasksOnly
+                                    ? 'bg-accent-blue hover:bg-accent-blue/90 text-white border-accent-blue'
+                                    : 'border-dashboard-border text-dashboard-text-muted hover:text-dashboard-text-primary hover:border-accent-blue hover:bg-accent-subtle',
+                            )}
+                        >
+                            <User className="h-3 w-3" />
+                            My Tasks
+                        </Button>
+                    )}
+
                     <Button
                         variant="outline"
                         size="sm"
@@ -356,6 +422,27 @@ export function ProjectCalendarView({
                 </div>
             </div>
 
+            {/* Mobile Legend (shown below header on small screens) */}
+            <div className="flex md:hidden items-center gap-3 px-1 pb-2 shrink-0">
+                {(
+                    Object.keys(PROGRESS_COLORS) as Array<
+                        keyof typeof PROGRESS_COLORS
+                    >
+                ).map((key) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                        <div
+                            className="w-3 h-2 rounded-sm"
+                            style={{
+                                backgroundColor: PROGRESS_COLORS[key].hex,
+                            }}
+                        />
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {PROGRESS_LABELS[key]}
+                        </span>
+                    </div>
+                ))}
+            </div>
+
             {/* Calendar Grid */}
             <div className="relative flex-1 overflow-y-auto">
                 {viewMode === 'week' ? (
@@ -382,7 +469,7 @@ export function ProjectCalendarView({
                                 )}
                             >
                                 {weekDates.map((date, i) => {
-                                    const today = isToday(date);
+                                    const isTodayDate = isToday(date);
                                     return (
                                         <div
                                             key={i}
@@ -390,16 +477,16 @@ export function ProjectCalendarView({
                                                 'flex flex-col items-center justify-center py-4 px-2 border-r border-border/40 text-sm last:border-0 relative min-w-0',
                                                 (i === 5 || i === 6) &&
                                                     'bg-muted/5',
-                                                today && 'bg-primary/5',
+                                                isTodayDate && 'bg-primary/5',
                                             )}
                                         >
-                                            {today && (
+                                            {isTodayDate && (
                                                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary" />
                                             )}
                                             <span
                                                 className={cn(
                                                     'text-xs font-medium mb-1 whitespace-nowrap',
-                                                    today
+                                                    isTodayDate
                                                         ? 'text-primary'
                                                         : 'text-muted-foreground',
                                                 )}
@@ -409,7 +496,7 @@ export function ProjectCalendarView({
                                             <div
                                                 className={cn(
                                                     'h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors',
-                                                    today
+                                                    isTodayDate
                                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                                         : 'text-foreground',
                                                 )}
@@ -457,10 +544,12 @@ export function ProjectCalendarView({
                                 </div>
                             </div>
 
-                            {tasksWithDueDates.length === 0 ? (
+                            {filteredTasks.length === 0 ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground z-10">
                                     <p className="mb-2">
-                                        No tasks due this week
+                                        {myTasksOnly
+                                            ? 'No tasks assigned to you'
+                                            : 'No tasks with due dates'}
                                     </p>
                                     <p className="text-xs opacity-60">
                                         Tasks with due dates will appear here
@@ -468,9 +557,14 @@ export function ProjectCalendarView({
                                 </div>
                             ) : (
                                 <div className="relative z-10">
-                                    {tasksWithDueDates.map((task) => {
+                                    {filteredTasks.map((task) => {
                                         const position = getTaskPosition(task);
                                         if (!position) return null;
+                                        const status = getProgressStatus(
+                                            task,
+                                            now,
+                                        );
+                                        const colors = PROGRESS_COLORS[status];
 
                                         return (
                                             <div
@@ -533,7 +627,18 @@ export function ProjectCalendarView({
                                                                                         </Avatar>
                                                                                     ),
                                                                                 )}
-                                                                            {tasks.length ===
+                                                                            {(
+                                                                                task.approvalChain ??
+                                                                                []
+                                                                            ).filter(
+                                                                                (
+                                                                                    e,
+                                                                                ) =>
+                                                                                    e.role ===
+                                                                                        'PREPARER' &&
+                                                                                    e.user,
+                                                                            )
+                                                                                .length ===
                                                                                 0 && (
                                                                                 <div className="h-5 w-5 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] text-muted-foreground">
                                                                                     ?
@@ -573,10 +678,18 @@ export function ProjectCalendarView({
                                                                     </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
-                                                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                                                                {task.project
-                                                                    ?.description ||
-                                                                    'Project'}
+                                                            <span
+                                                                className={cn(
+                                                                    'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                                                                    colors.bgLight,
+                                                                    colors.text,
+                                                                )}
+                                                            >
+                                                                {
+                                                                    PROGRESS_LABELS[
+                                                                        status
+                                                                    ]
+                                                                }
                                                             </span>
                                                         </div>
                                                     </div>
@@ -594,18 +707,27 @@ export function ProjectCalendarView({
                                                                 asChild
                                                             >
                                                                 <div
-                                                                    className={cn(
-                                                                        'absolute top-1/2 -translate-y-1/2 h-9 rounded-md flex items-center shadow-sm cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md ring-1 ring-black/5 group-hover:z-10',
-                                                                        getStatusColor(
-                                                                            task.approvalStatus,
-                                                                        ),
-                                                                    )}
-                                                                    style={
-                                                                        position
-                                                                    }
+                                                                    className="absolute top-1/2 -translate-y-1/2 h-9 rounded-md flex items-center shadow-sm cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md ring-1 ring-black/5 group-hover:z-10"
+                                                                    style={{
+                                                                        ...position,
+                                                                        backgroundColor: `${colors.hex}20`,
+                                                                        borderLeft: `3px solid ${colors.hex}`,
+                                                                    }}
                                                                 >
-                                                                    <div className="px-3 flex items-center justify-between w-full overflow-hidden">
-                                                                        <span className="text-xs font-semibold truncate relative z-10 drop-shadow-md">
+                                                                    <div className="px-3 flex items-center gap-1.5 w-full overflow-hidden">
+                                                                        <div
+                                                                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                            style={{
+                                                                                backgroundColor:
+                                                                                    colors.hex,
+                                                                            }}
+                                                                        />
+                                                                        <span
+                                                                            className="text-xs font-semibold truncate relative z-10"
+                                                                            style={{
+                                                                                color: colors.hex,
+                                                                            }}
+                                                                        >
                                                                             {
                                                                                 task.name
                                                                             }
@@ -622,9 +744,11 @@ export function ProjectCalendarView({
                                                                     </p>
                                                                     <p className="text-muted-foreground">
                                                                         Status:{' '}
-                                                                        {getStatusLabel(
-                                                                            task.approvalStatus,
-                                                                        )}
+                                                                        {
+                                                                            PROGRESS_LABELS[
+                                                                                status
+                                                                            ]
+                                                                        }
                                                                     </p>
                                                                     <p className="text-muted-foreground">
                                                                         Due:{' '}
@@ -632,6 +756,18 @@ export function ProjectCalendarView({
                                                                             task.dueAt!,
                                                                         ).toLocaleDateString()}
                                                                     </p>
+                                                                    {task
+                                                                        .project
+                                                                        ?.description && (
+                                                                        <p className="text-muted-foreground">
+                                                                            Project:{' '}
+                                                                            {
+                                                                                task
+                                                                                    .project
+                                                                                    .description
+                                                                            }
+                                                                        </p>
+                                                                    )}
                                                                 </div>
                                                             </TooltipContent>
                                                         </Tooltip>
@@ -675,8 +811,6 @@ export function ProjectCalendarView({
                                 {weeks.map((week, weekIndex) => {
                                     const { layout, maxRows } =
                                         getWeekLayout(week);
-                                    // Calculate responsive height: Base cell height (e.g. 150px) or content based
-                                    // The image shows spacious cells. Let's enforce a minimum height.
                                     const minHeight = Math.max(
                                         160,
                                         48 + maxRows * 30 + 10,
@@ -742,7 +876,6 @@ export function ProjectCalendarView({
                                                                     {date.getDate()}
                                                                 </div>
                                                             </div>
-                                                            {/* Highlight box for active selected or special days if needed */}
                                                             {isTodayDate && (
                                                                 <div className="absolute inset-0 border-2 border-primary/20 pointer-events-none rounded-sm" />
                                                             )}
@@ -759,105 +892,94 @@ export function ProjectCalendarView({
                                                         startIdx,
                                                         span,
                                                         rowIndex,
-                                                    }) => (
-                                                        <div
-                                                            key={`${task.id}-${weekIndex}`}
-                                                            className="absolute h-[26px] transition-all hover:z-20 group"
-                                                            style={{
-                                                                left: `${(startIdx * 100) / 7}%`,
-                                                                width: `${(span * 100) / 7}%`,
-                                                                top: `${rowIndex * 30}px`,
-                                                            }}
-                                                        >
-                                                            <div className="px-1 h-full w-full">
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger
-                                                                            asChild
-                                                                        >
-                                                                            <div
-                                                                                className={cn(
-                                                                                    'h-full w-full rounded-[4px] px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border overflow-hidden hover:bg-muted/50',
-                                                                                    getStatusColor(
-                                                                                        task.approvalStatus,
-                                                                                    )
-                                                                                        .replace(
-                                                                                            'text-white',
-                                                                                            'text-foreground',
-                                                                                        )
-                                                                                        .replace(
-                                                                                            'bg-gradient-to-r',
-                                                                                            '',
-                                                                                        )
-                                                                                        .replace(
-                                                                                            'from-',
-                                                                                            '',
-                                                                                        )
-                                                                                        .replace(
-                                                                                            'to-',
-                                                                                            '',
-                                                                                        ),
-                                                                                    'bg-card/80 backdrop-blur-sm border-l-4', // Use clean card with colored border styling
-                                                                                )}
-                                                                                style={{
-                                                                                    // Override the gradient background from getStatusColor to be cleaner
-                                                                                    borderLeftColor:
-                                                                                        task.approvalStatus ===
-                                                                                        'COMPLETED'
-                                                                                            ? '#10b981'
-                                                                                            : task.approvalStatus ===
-                                                                                                'IN_REVIEW'
-                                                                                              ? '#f97316'
-                                                                                              : '#6b7280',
-                                                                                }}
+                                                    }) => {
+                                                        const status =
+                                                            getProgressStatus(
+                                                                task,
+                                                                now,
+                                                            );
+                                                        const colors =
+                                                            PROGRESS_COLORS[
+                                                                status
+                                                            ];
+                                                        return (
+                                                            <div
+                                                                key={`${task.id}-${weekIndex}`}
+                                                                className="absolute h-[26px] transition-all hover:z-20 group"
+                                                                style={{
+                                                                    left: `${(startIdx * 100) / 7}%`,
+                                                                    width: `${(span * 100) / 7}%`,
+                                                                    top: `${rowIndex * 30}px`,
+                                                                }}
+                                                            >
+                                                                <div className="px-1 h-full w-full">
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger
+                                                                                asChild
                                                                             >
-                                                                                <span className="text-[11px] font-medium truncate text-foreground/90 flex items-center gap-1.5">
-                                                                                    {/* Status Indicator Dot */}
-                                                                                    <div
-                                                                                        className="w-1.5 h-1.5 rounded-full shrank-0"
-                                                                                        style={{
-                                                                                            backgroundColor:
-                                                                                                task.approvalStatus ===
-                                                                                                'COMPLETED'
-                                                                                                    ? '#10b981'
-                                                                                                    : task.approvalStatus ===
-                                                                                                        'IN_REVIEW'
-                                                                                                      ? '#f97316'
-                                                                                                      : '#6b7280',
-                                                                                        }}
-                                                                                    />
-                                                                                    {
-                                                                                        task.name
-                                                                                    }
-                                                                                </span>
-                                                                            </div>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <div className="text-xs">
-                                                                                <p className="font-semibold mb-1">
-                                                                                    {
-                                                                                        task.name
-                                                                                    }
-                                                                                </p>
-                                                                                <p className="text-muted-foreground">
-                                                                                    Status:{' '}
-                                                                                    {getStatusLabel(
-                                                                                        task.approvalStatus,
+                                                                                <div
+                                                                                    className="h-full w-full rounded-[4px] px-2 flex items-center shadow-sm cursor-pointer hover:shadow-md transition-all border overflow-hidden bg-card/80 backdrop-blur-sm border-l-4"
+                                                                                    style={{
+                                                                                        borderLeftColor:
+                                                                                            colors.hex,
+                                                                                    }}
+                                                                                >
+                                                                                    <span className="text-[11px] font-medium truncate text-foreground/90 flex items-center gap-1.5">
+                                                                                        <div
+                                                                                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                                            style={{
+                                                                                                backgroundColor:
+                                                                                                    colors.hex,
+                                                                                            }}
+                                                                                        />
+                                                                                        {
+                                                                                            task.name
+                                                                                        }
+                                                                                    </span>
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <div className="text-xs">
+                                                                                    <p className="font-semibold mb-1">
+                                                                                        {
+                                                                                            task.name
+                                                                                        }
+                                                                                    </p>
+                                                                                    <p className="text-muted-foreground">
+                                                                                        Status:{' '}
+                                                                                        {
+                                                                                            PROGRESS_LABELS[
+                                                                                                status
+                                                                                            ]
+                                                                                        }
+                                                                                    </p>
+                                                                                    <p className="text-muted-foreground">
+                                                                                        Due:{' '}
+                                                                                        {parseDateOnly(
+                                                                                            task.dueAt!,
+                                                                                        ).toLocaleDateString()}
+                                                                                    </p>
+                                                                                    {task
+                                                                                        .project
+                                                                                        ?.description && (
+                                                                                        <p className="text-muted-foreground">
+                                                                                            Project:{' '}
+                                                                                            {
+                                                                                                task
+                                                                                                    .project
+                                                                                                    .description
+                                                                                            }
+                                                                                        </p>
                                                                                     )}
-                                                                                </p>
-                                                                                <p className="text-muted-foreground">
-                                                                                    Due:{' '}
-                                                                                    {new Date(
-                                                                                        task.dueAt!,
-                                                                                    ).toLocaleDateString()}
-                                                                                </p>
-                                                                            </div>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
+                                                                                </div>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ),
+                                                        );
+                                                    },
                                                 )}
                                             </div>
                                         </div>
