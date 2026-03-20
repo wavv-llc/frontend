@@ -59,6 +59,7 @@ import {
     LogOut,
     User,
     Home,
+    Library,
     MessageSquare,
     Folder,
     ChevronRight,
@@ -507,6 +508,12 @@ export function AppSidebar() {
             label: 'Archive',
             onClick: () => router.push('/archive'),
             isActive: pathname === '/archive',
+        },
+        {
+            icon: Library,
+            label: 'Tax Library',
+            onClick: () => router.push('/tax-library'),
+            isActive: pathname === '/tax-library',
         },
         {
             icon: Settings,
