@@ -1762,6 +1762,12 @@ export const chatApi = {
         token: string,
         message: string,
         externalSearchEnabled: boolean = false,
+        context?: {
+            taskId?: string;
+            projectId?: string;
+            workspaceId?: string;
+            linkedDocumentIds?: string[];
+        },
     ): Promise<ApiResponse<Chat>> => {
         const response = await apiRequest<{
             conversation: ChatConversation;
@@ -1769,7 +1775,11 @@ export const chatApi = {
         }>('/api/v1/chats/', {
             method: 'POST',
             token,
-            body: JSON.stringify({ message, externalSearchEnabled }),
+            body: JSON.stringify({
+                message,
+                externalSearchEnabled,
+                ...context,
+            }),
         });
         if (response.data) {
             const { conversation, message: msg } = response.data;

@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCached, setCached } from '@/lib/pageCache';
+import { usePageChatContext } from '@/hooks/usePageChatContext';
 
 type ProjectPageData = { project: Project; tasks: Task[] };
 
@@ -33,6 +34,14 @@ export default function ProjectPage() {
         () => getCached<ProjectPageData>(cacheKey)?.tasks ?? [],
     );
     const [isLoading, setIsLoading] = useState(() => !getCached(cacheKey));
+
+    // Set chat context for this project page
+    usePageChatContext({
+        type: 'project',
+        projectId: project?.id,
+        workspaceId: project?.workspaceId,
+        label: project?.name,
+    });
 
     const fetchData = async () => {
         try {

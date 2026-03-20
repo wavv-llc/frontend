@@ -53,6 +53,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSidebarRefresh } from '@/contexts/SidebarContext';
+import { usePageChatContext } from '@/hooks/usePageChatContext';
 
 type WorkspacePageData = {
     workspace: Workspace;
@@ -87,6 +88,13 @@ export default function WorkspaceDetailsPage() {
         searchParams.get('createProject') === 'true',
     );
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    // Set chat context for this workspace page
+    usePageChatContext({
+        type: 'workspace',
+        workspaceId: workspace?.id,
+        label: workspace?.name,
+    });
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [memberPickerOpen, setMemberPickerOpen] = useState(false);
     const [editWorkspaceName, setEditWorkspaceName] = useState(

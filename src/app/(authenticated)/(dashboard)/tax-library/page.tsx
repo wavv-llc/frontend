@@ -4,10 +4,13 @@ import { useAuth } from '@clerk/nextjs';
 import { useUser } from '@/contexts/UserContext';
 import { TaxLibraryTab } from '@/components/tax-library/TaxLibraryTab';
 import { Loader2 } from 'lucide-react';
+import { usePageChatContext } from '@/hooks/usePageChatContext';
 
 export default function TaxLibraryPage() {
     const { isLoaded, getToken } = useAuth();
     const { user, isLoading: isUserLoading } = useUser();
+
+    usePageChatContext({ type: 'tax-library', label: 'Tax Library' });
 
     const organizationId = user?.organization?.id;
 
