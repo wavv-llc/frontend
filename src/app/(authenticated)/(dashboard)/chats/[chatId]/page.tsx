@@ -124,9 +124,11 @@ function CitationHoverCard({
 // ─── Citation Sidebar ────────────────────────────────────────
 function CitationSidebar({
     chunk,
+    citationNumber,
     onClose,
 }: {
     chunk: ChunkDetail | null;
+    citationNumber: number | null;
     onClose: () => void;
 }) {
     return (
@@ -135,8 +137,13 @@ function CitationSidebar({
                 <>
                     <div className="cite-sidebar-header">
                         <div className="cite-sidebar-title">
+                            {citationNumber !== null && (
+                                <span className="cite-sidebar-num">
+                                    {citationNumber}
+                                </span>
+                            )}
                             <FileText size={13} />
-                            <span>Source</span>
+                            <span>Source Document</span>
                         </div>
                         <button
                             className="cite-sidebar-close"
@@ -154,6 +161,9 @@ function CitationSidebar({
                                 {chunk.section_header}
                             </div>
                         )}
+                        <div className="cite-sidebar-content-label">
+                            Referenced passage
+                        </div>
                         <div className="cite-sidebar-content">
                             {chunk.content}
                         </div>
@@ -204,7 +214,7 @@ function RenderMarkdown({
     citationMap?: Map<string, CitationEntry>;
     onCitationHover?: (chunk: ChunkDetail, rect: DOMRect) => void;
     onCitationLeave?: () => void;
-    onCitationClick?: (chunk: ChunkDetail) => void;
+    onCitationClick?: (chunk: ChunkDetail, citationNum?: number) => void;
 }) {
     const lines = text.split('\n');
     const elements: React.ReactElement[] = [];
@@ -254,7 +264,9 @@ function RenderMarkdown({
                                     onCitationHover?.(entry.chunk, rect);
                                 }}
                                 onMouseLeave={onCitationLeave}
-                                onClick={() => onCitationClick?.(entry.chunk)}
+                                onClick={() =>
+                                    onCitationClick?.(entry.chunk, entry.number)
+                                }
                             >
                                 {entry.number}
                             </button>,
@@ -345,6 +357,9 @@ export default function ChatDetailPage() {
         rect: DOMRect;
     } | null>(null);
     const [sidebarChunk, setSidebarChunk] = useState<ChunkDetail | null>(null);
+    const [sidebarCitationNumber, setSidebarCitationNumber] = useState<
+        number | null
+    >(null);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleCitationHover = (chunk: ChunkDetail, rect: DOMRect) => {
@@ -358,9 +373,10 @@ export default function ChatDetailPage() {
         }, 120);
     };
 
-    const handleCitationClick = (chunk: ChunkDetail) => {
+    const handleCitationClick = (chunk: ChunkDetail, citationNum?: number) => {
         setHoverCitation(null);
         setSidebarChunk(chunk);
+        setSidebarCitationNumber(citationNum ?? null);
     };
 
     useEffect(() => {
@@ -861,6 +877,7 @@ export default function ChatDetailPage() {
                                                                         onClick={() =>
                                                                             handleCitationClick(
                                                                                 entry.chunk,
+                                                                                entry.number,
                                                                             )
                                                                         }
                                                                     >
@@ -1015,7 +1032,11 @@ export default function ChatDetailPage() {
                 </div>
                 <CitationSidebar
                     chunk={sidebarChunk}
-                    onClose={() => setSidebarChunk(null)}
+                    citationNumber={sidebarCitationNumber}
+                    onClose={() => {
+                        setSidebarChunk(null);
+                        setSidebarCitationNumber(null);
+                    }}
                 />
             </div>
         </>
@@ -1609,23 +1630,24 @@ const styles = `
     height: 16px;
     padding: 0 4px;
     border-radius: 4px;
-    background: ${colors.steelAlt[100]};
-    border: 1px solid ${colors.steelAlt[200]};
-    color: ${colors.steelAlt[600]};
+    background: rgba(90, 127, 154, 0.1);
+    border: 1px solid rgba(90, 127, 154, 0.2);
+    color: ${colors.accent.primary};
     font-size: 9px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
     vertical-align: super;
     margin: 0 1px;
-    transition: background 150ms ${ease}, color 150ms ${ease};
+    transition: background 150ms ${ease}, color 150ms ${ease}, border-color 150ms ${ease}, transform 150ms ${ease};
     font-family: 'DM Sans', -apple-system, sans-serif;
   }
 
   .cite-badge:hover {
-    background: ${colors.steelAlt[800]};
-    color: ${colors.steelAlt[100]};
-    border-color: ${colors.steelAlt[800]};
+    background: ${colors.accent.primary};
+    color: white;
+    border-color: ${colors.accent.primary};
+    transform: scale(1.1);
   }
 
   /* ── CITATION HOVER CARD ── */
@@ -1639,6 +1661,7 @@ const styles = `
     box-shadow: 0 8px 24px rgba(14,17,23,0.12), 0 2px 6px rgba(14,17,23,0.07);
     pointer-events: none;
     animation: citeCardIn 160ms ${ease} forwards;
+    border-top: 2px solid ${colors.accent.primary};
   }
 
   @keyframes citeCardIn {
@@ -1730,8 +1753,8 @@ const styles = `
     height: 15px;
     padding: 0 3px;
     border-radius: 3px;
-    background: ${colors.steelAlt[200]};
-    color: ${colors.steelAlt[700]};
+    background: rgba(90, 127, 154, 0.15);
+    color: ${colors.accent.primary};
     font-size: 8px;
     font-weight: 700;
     flex-shrink: 0;
@@ -1788,6 +1811,29 @@ const styles = `
   .cite-sidebar-close:hover {
     background: ${colors.steelAlt[100]};
     color: ${colors.steelAlt[700]};
+  }
+
+  .cite-sidebar-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: ${colors.accent.primary};
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  .cite-sidebar-content-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: ${colors.steelAlt[400]};
+    margin-top: 2px;
   }
 
   .cite-sidebar-body {
