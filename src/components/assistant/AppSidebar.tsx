@@ -66,7 +66,11 @@ import {
     GripVertical,
     Archive,
     SquarePen,
+    FileSpreadsheet,
+    RotateCw,
+    Search,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSidebarRefresh } from '@/contexts/SidebarContext';
 import {
     workspaceApi,
@@ -718,20 +722,77 @@ export function AppSidebar() {
                                                                         </span>
                                                                     </SidebarMenuButton>
                                                                     {!isGuest && (
-                                                                        <button
-                                                                            onClick={(
-                                                                                e,
-                                                                            ) => {
-                                                                                e.stopPropagation();
-                                                                                setCreateProjectWorkspaceId(
-                                                                                    workspace.id,
-                                                                                );
-                                                                            }}
-                                                                            className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
-                                                                            title="Add project"
-                                                                        >
-                                                                            <Plus className="h-3 w-3 text-sidebar-foreground/50" />
-                                                                        </button>
+                                                                        <DropdownMenu>
+                                                                            <DropdownMenuTrigger
+                                                                                asChild
+                                                                            >
+                                                                                <button
+                                                                                    onClick={(
+                                                                                        e,
+                                                                                    ) =>
+                                                                                        e.stopPropagation()
+                                                                                    }
+                                                                                    className="shrink-0 h-7 w-6 flex items-center justify-center rounded hover:bg-sidebar-accent/50 transition-colors opacity-0 group-hover/ws:opacity-100"
+                                                                                    title="Add project"
+                                                                                >
+                                                                                    <Plus className="h-3 w-3 text-sidebar-foreground/50" />
+                                                                                </button>
+                                                                            </DropdownMenuTrigger>
+                                                                            <DropdownMenuContent
+                                                                                side="right"
+                                                                                align="start"
+                                                                                className="w-52"
+                                                                            >
+                                                                                <DropdownMenuItem
+                                                                                    onClick={() =>
+                                                                                        setCreateProjectWorkspaceId(
+                                                                                            workspace.id,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <Plus className="h-4 w-4 mr-2" />
+                                                                                    Create
+                                                                                    New
+                                                                                    Project
+                                                                                </DropdownMenuItem>
+                                                                                <DropdownMenuItem
+                                                                                    onClick={() =>
+                                                                                        router.push(
+                                                                                            '/archive',
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <Search className="h-4 w-4 mr-2" />
+                                                                                    Search
+                                                                                    Archived
+                                                                                    Project
+                                                                                </DropdownMenuItem>
+                                                                                <DropdownMenuSeparator />
+                                                                                <DropdownMenuItem
+                                                                                    onClick={() =>
+                                                                                        toast.info(
+                                                                                            'Import from Excel is coming soon',
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                                                                    Import
+                                                                                    from
+                                                                                    Excel
+                                                                                </DropdownMenuItem>
+                                                                                <DropdownMenuItem
+                                                                                    onClick={() =>
+                                                                                        toast.info(
+                                                                                            'Recurring Projects is coming soon',
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <RotateCw className="h-4 w-4 mr-2" />
+                                                                                    Recurring
+                                                                                    Projects
+                                                                                </DropdownMenuItem>
+                                                                            </DropdownMenuContent>
+                                                                        </DropdownMenu>
                                                                     )}
                                                                     <button
                                                                         onClick={() =>
@@ -850,20 +911,73 @@ export function AppSidebar() {
                                                                     )}
                                                                     {!isGuest && (
                                                                         <SidebarMenuItem>
-                                                                            <button
-                                                                                onClick={() =>
-                                                                                    setCreateProjectWorkspaceId(
-                                                                                        workspace.id,
-                                                                                    )
-                                                                                }
-                                                                                className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30 cursor-pointer"
-                                                                            >
-                                                                                <Plus className="h-3 w-3 shrink-0" />
-                                                                                <span>
-                                                                                    Add
-                                                                                    project
-                                                                                </span>
-                                                                            </button>
+                                                                            <DropdownMenu>
+                                                                                <DropdownMenuTrigger
+                                                                                    asChild
+                                                                                >
+                                                                                    <button className="flex items-center gap-1.5 pl-9 pr-2 py-1.5 w-full text-[11.5px] text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors rounded-sm hover:bg-sidebar-accent/30 cursor-pointer">
+                                                                                        <Plus className="h-3 w-3 shrink-0" />
+                                                                                        <span>
+                                                                                            Add
+                                                                                            project
+                                                                                        </span>
+                                                                                    </button>
+                                                                                </DropdownMenuTrigger>
+                                                                                <DropdownMenuContent
+                                                                                    side="right"
+                                                                                    align="start"
+                                                                                    className="w-52"
+                                                                                >
+                                                                                    <DropdownMenuItem
+                                                                                        onClick={() =>
+                                                                                            setCreateProjectWorkspaceId(
+                                                                                                workspace.id,
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <Plus className="h-4 w-4 mr-2" />
+                                                                                        Create
+                                                                                        New
+                                                                                        Project
+                                                                                    </DropdownMenuItem>
+                                                                                    <DropdownMenuItem
+                                                                                        onClick={() =>
+                                                                                            router.push(
+                                                                                                '/archive',
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <Search className="h-4 w-4 mr-2" />
+                                                                                        Search
+                                                                                        Archived
+                                                                                        Project
+                                                                                    </DropdownMenuItem>
+                                                                                    <DropdownMenuSeparator />
+                                                                                    <DropdownMenuItem
+                                                                                        onClick={() =>
+                                                                                            toast.info(
+                                                                                                'Import from Excel is coming soon',
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                                                                        Import
+                                                                                        from
+                                                                                        Excel
+                                                                                    </DropdownMenuItem>
+                                                                                    <DropdownMenuItem
+                                                                                        onClick={() =>
+                                                                                            toast.info(
+                                                                                                'Recurring Projects is coming soon',
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        <RotateCw className="h-4 w-4 mr-2" />
+                                                                                        Recurring
+                                                                                        Projects
+                                                                                    </DropdownMenuItem>
+                                                                                </DropdownMenuContent>
+                                                                            </DropdownMenu>
                                                                         </SidebarMenuItem>
                                                                     )}
                                                                 </>
