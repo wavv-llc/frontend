@@ -55,6 +55,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { EditTaskDialog } from '@/components/dialogs/EditTaskDialog';
+import { AgentTaskPanel } from '@/components/tasks/AgentTaskPanel';
 import { cn } from '@/lib/utils';
 import {
     type Task,
@@ -2017,6 +2018,15 @@ export function TaskDetailView({
                             </button>
                         )}
                     </div>
+                </div>
+
+                {/* ── Agent Workflows Section ────────────────────────── */}
+                <div className="px-8 py-5 border-t border-dashboard-borderLight">
+                    <AgentTaskPanel
+                        taskId={task.id}
+                        taskName={task.name}
+                        projectId={task.projectId}
+                    />
                 </div>
             </div>
 
