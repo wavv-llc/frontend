@@ -1448,6 +1448,21 @@ export function TaskDetailView({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem
+                                    onClick={() => setEditDialogOpen(true)}
+                                    disabled={isLocked}
+                                >
+                                    <Edit2 className="h-4 w-4 mr-2" />
+                                    Edit Task
+                                    {isLocked && (
+                                        <Lock className="h-3 w-3 ml-auto text-dashboard-text-muted" />
+                                    )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleCopyTask}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Copy Task
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
                                     onClick={async () => {
                                         const token = await getToken();
                                         if (!token) return;
@@ -1513,20 +1528,6 @@ export function TaskDetailView({
                                     </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setEditDialogOpen(true)}
-                                    disabled={isLocked}
-                                >
-                                    <Edit2 className="h-4 w-4 mr-2" />
-                                    Edit Task
-                                    {isLocked && (
-                                        <Lock className="h-3 w-3 ml-auto text-dashboard-text-muted" />
-                                    )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleCopyTask}>
-                                    <Copy className="h-4 w-4 mr-2" />
-                                    Copy Task
-                                </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => {
                                         const url = `${window.location.origin}${window.location.pathname}?taskId=${task.id}`;
