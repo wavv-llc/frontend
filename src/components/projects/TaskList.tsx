@@ -112,7 +112,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useAuth } from '@clerk/nextjs';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, formatDateOnly, parseDateOnly } from '@/lib/utils';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -2201,7 +2201,7 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
 
             // Date field — opens a calendar picker
             if (field.dataType === 'DATE') {
-                const dateObj = value ? new Date(value) : undefined;
+                const dateObj = value ? parseDateOnly(value) : undefined;
                 const formatted = dateObj
                     ? dateObj.toLocaleDateString('en-US', {
                           month: 'short',
@@ -2237,13 +2237,10 @@ export const TaskList = forwardRef<TaskListRef, TaskListProps>(
                                 selected={dateObj}
                                 onSelect={(date) => {
                                     if (date instanceof Date) {
-                                        const iso = date
-                                            .toISOString()
-                                            .split('T')[0];
                                         handleUpdateCustomField(
                                             task,
                                             field.id,
-                                            iso,
+                                            formatDateOnly(date),
                                         );
                                     }
                                 }}

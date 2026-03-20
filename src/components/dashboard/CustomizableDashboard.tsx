@@ -35,7 +35,7 @@ import {
     ChevronsDownUp,
     RotateCcw,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import { type DashboardTask, type RecentItem } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
@@ -339,7 +339,7 @@ export function CustomizableDashboard({
                     : t.approvalStatus === 'IN_REVIEW'
                       ? 'review'
                       : 'pending') as Task['status'],
-                dueDate: t.dueAt ? new Date(t.dueAt) : new Date(),
+                dueDate: t.dueAt ? parseDateOnly(t.dueAt) : new Date(),
             })),
         [data.tasks],
     );
@@ -349,7 +349,7 @@ export function CustomizableDashboard({
             data.calendar.map((t) => ({
                 id: t.id,
                 title: t.name || t.project.name,
-                date: t.dueAt ? new Date(t.dueAt) : new Date(),
+                date: t.dueAt ? parseDateOnly(t.dueAt) : new Date(),
                 type: 'task' as const,
                 status: (t.approvalStatus === 'COMPLETED'
                     ? 'complete'

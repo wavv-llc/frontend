@@ -1,7 +1,7 @@
 'use client';
 
 import { CalendarDays } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import { type DashboardTask } from '@/lib/api';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,11 +26,12 @@ function groupTasksByDay(tasks: DashboardTask[]) {
         .filter((t) => t.dueAt && t.approvalStatus !== 'COMPLETED')
         .sort(
             (a, b) =>
-                new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime(),
+                parseDateOnly(a.dueAt!).getTime() -
+                parseDateOnly(b.dueAt!).getTime(),
         );
 
     for (const task of sorted) {
-        const due = new Date(task.dueAt!);
+        const due = parseDateOnly(task.dueAt!);
         due.setHours(0, 0, 0, 0);
         if (due.getTime() === today.getTime()) {
             groups[0].tasks.push(task);
@@ -88,7 +89,7 @@ export function AgendaWidget({
                                 <div className="space-y-1">
                                     {group.tasks.map((task) => {
                                         const due = task.dueAt
-                                            ? new Date(task.dueAt)
+                                            ? parseDateOnly(task.dueAt)
                                             : null;
                                         const isOverdue =
                                             due &&

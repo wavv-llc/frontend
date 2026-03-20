@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { taskApi, type Task } from '@/lib/api';
+import { formatDateOnly, parseDateOnly } from '@/lib/utils';
 import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
 import { useDialogForm } from '@/hooks/useDialogForm';
 import { useCustomFields } from '@/hooks/useCustomFields';
@@ -110,7 +111,7 @@ export function TaskFormDialog({
             : {
                   name: task?.name || '',
                   description: task?.description || '',
-                  dueDate: task?.dueAt ? new Date(task.dueAt) : undefined,
+                  dueDate: task?.dueAt ? parseDateOnly(task.dueAt) : undefined,
               },
         validate: (values): Record<string, string> | null => {
             if (!values.name.trim()) {
@@ -133,7 +134,7 @@ export function TaskFormDialog({
                 name: values.name,
                 description: values.description || undefined,
                 dueAt: values.dueDate
-                    ? values.dueDate.toISOString()
+                    ? formatDateOnly(values.dueDate)
                     : undefined,
             };
 
@@ -156,7 +157,7 @@ export function TaskFormDialog({
             form.setValues({
                 name: task.name,
                 description: task.description || '',
-                dueDate: task.dueAt ? new Date(task.dueAt) : undefined,
+                dueDate: task.dueAt ? parseDateOnly(task.dueAt) : undefined,
             });
         }
     }, [open, task, isCreateMode]);

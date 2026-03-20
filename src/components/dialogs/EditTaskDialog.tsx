@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { taskApi, type Task } from '@/lib/api';
+import { formatDateOnly, parseDateOnly } from '@/lib/utils';
 import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
 import { useDialogForm } from '@/hooks/useDialogForm';
 import { FormDialog } from './shared/FormDialog';
@@ -45,7 +46,7 @@ export function EditTaskDialog({
         initialValues: {
             name: task.name,
             description: task.description || '',
-            dueDate: task.dueAt ? new Date(task.dueAt) : undefined,
+            dueDate: task.dueAt ? parseDateOnly(task.dueAt) : undefined,
         },
         validate: (values) => {
             if (!values.name.trim()) {
@@ -59,7 +60,7 @@ export function EditTaskDialog({
                 name: values.name,
                 description: values.description || undefined,
                 dueAt: values.dueDate
-                    ? values.dueDate.toISOString()
+                    ? formatDateOnly(values.dueDate)
                     : undefined,
             });
         },
@@ -72,7 +73,7 @@ export function EditTaskDialog({
             form.setValues({
                 name: task.name,
                 description: task.description || '',
-                dueDate: task.dueAt ? new Date(task.dueAt) : undefined,
+                dueDate: task.dueAt ? parseDateOnly(task.dueAt) : undefined,
             });
         }
     }, [open, task]);

@@ -25,7 +25,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, GripVertical, MoreVertical, Trash2, Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import {
     type Task,
     type CustomField,
@@ -116,7 +116,7 @@ function KanbanCard({
                     )}
                     {task.dueAt && (
                         <span className="text-[10px] text-dashboard-text-muted font-medium">
-                            {new Date(task.dueAt).toLocaleDateString(
+                            {parseDateOnly(task.dueAt).toLocaleDateString(
                                 undefined,
                                 { month: 'short', day: 'numeric' },
                             )}

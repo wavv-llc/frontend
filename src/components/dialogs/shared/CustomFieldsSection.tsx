@@ -1,4 +1,5 @@
 import { CustomField, User } from '@/lib/api';
+import { formatDateOnly, parseDateOnly } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
@@ -105,9 +106,9 @@ export function CustomFieldsSection({
             case 'DATE':
                 return (
                     <DatePicker
-                        date={value ? new Date(value) : undefined}
+                        date={value ? parseDateOnly(value) : undefined}
                         setDate={(date) =>
-                            onChange(field.id, date ? date.toISOString() : '')
+                            onChange(field.id, date ? formatDateOnly(date) : '')
                         }
                         disabled={disabled}
                         placeholder={`Select ${field.name.toLowerCase()}`}

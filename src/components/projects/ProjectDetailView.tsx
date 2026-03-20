@@ -42,7 +42,7 @@ import {
     ArrowUp,
     ArrowDown,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import {
     type Project,
     type Task,
@@ -513,11 +513,11 @@ function CalendarViewWrapper({ tasks }: { tasks: Task[] }) {
                 id: task.id,
                 title: task.name,
                 date: task.dueAt
-                    ? new Date(task.dueAt)
+                    ? parseDateOnly(task.dueAt)
                     : new Date(task.createdAt),
                 type: (task.approvalStatus === 'COMPLETED'
                     ? 'task'
-                    : task.dueAt && new Date(task.dueAt) < new Date()
+                    : task.dueAt && parseDateOnly(task.dueAt) < new Date()
                       ? 'deadline'
                       : 'task') as CalendarEvent['type'],
                 status: (task.approvalStatus === 'COMPLETED'

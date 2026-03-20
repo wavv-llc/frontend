@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { taskApi } from '@/lib/api';
+import { formatDateOnly } from '@/lib/utils';
 import { useAuthenticatedMutation } from '@/hooks/useAuthenticatedMutation';
 import { useDialogForm } from '@/hooks/useDialogForm';
 import { FormDialog } from './shared/FormDialog';
@@ -68,7 +69,7 @@ export function CreateTaskDialog({
                 name: values.name,
                 description: values.description || undefined,
                 dueAt: values.dueDate
-                    ? values.dueDate.toISOString()
+                    ? formatDateOnly(values.dueDate)
                     : undefined,
             });
             onOpenChange(false);

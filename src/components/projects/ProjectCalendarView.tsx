@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateOnly } from '@/lib/utils';
 import { type Task } from '@/lib/api';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -87,7 +87,7 @@ export function ProjectCalendarView({
         const weekTasks = tasks.filter((task) => {
             if (!task.dueAt) return false;
             const taskStart = new Date(task.createdAt);
-            const taskEnd = new Date(task.dueAt);
+            const taskEnd = parseDateOnly(task.dueAt);
 
             // Normalize
             taskStart.setHours(0, 0, 0, 0);
@@ -115,7 +115,7 @@ export function ProjectCalendarView({
 
         weekTasks.forEach((task) => {
             const taskStart = new Date(task.createdAt);
-            const taskEnd = new Date(task.dueAt!);
+            const taskEnd = parseDateOnly(task.dueAt!);
             taskStart.setHours(0, 0, 0, 0);
             taskEnd.setHours(23, 59, 59, 999);
             if (taskStart > taskEnd) taskStart.setTime(taskEnd.getTime());
@@ -202,7 +202,7 @@ export function ProjectCalendarView({
         if (!task.dueAt) return null;
 
         const startDate = new Date(task.createdAt);
-        const dueDate = new Date(task.dueAt);
+        const dueDate = parseDateOnly(task.dueAt);
 
         // Normalize times to start of day for accurate day calculation
         startDate.setHours(0, 0, 0, 0);
@@ -628,7 +628,7 @@ export function ProjectCalendarView({
                                                                     </p>
                                                                     <p className="text-muted-foreground">
                                                                         Due:{' '}
-                                                                        {new Date(
+                                                                        {parseDateOnly(
                                                                             task.dueAt!,
                                                                         ).toLocaleDateString()}
                                                                     </p>
