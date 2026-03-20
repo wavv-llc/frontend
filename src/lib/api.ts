@@ -1965,7 +1965,26 @@ export const taxLibraryApi = {
     },
 };
 
+export interface DocumentSearchResult {
+    id: string;
+    filename: string;
+    originalName: string;
+    filesize: number;
+    mimeType: string;
+    status: string;
+    source: string;
+    createdAt: string;
+}
+
 export const documentApi = {
+    /** Search documents within the user's organization by name */
+    search: async (token: string, query: string, limit = 20) => {
+        return apiRequest<DocumentSearchResult[]>(
+            `/api/v1/documents/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+            { method: 'GET', token },
+        );
+    },
+
     /** Upload a file for a task: gets a presigned S3 URL, puts the file, returns the documentId. */
     uploadForTask: async (
         token: string,
