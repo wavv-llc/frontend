@@ -667,6 +667,17 @@ export function TaskDetailView({
 }: TaskDetailViewProps) {
     const { getToken } = useAuth();
     const { user } = useUser();
+    const orgPrefix = user?.organization?.name
+        ? user.organization.name
+              .replace(/[^a-zA-Z]/g, '')
+              .slice(0, 3)
+              .toUpperCase() || 'TSK'
+        : 'TSK';
+    const formatTaskId = (taskNumber: number | null | undefined) =>
+        taskNumber !== null && taskNumber !== undefined
+            ? `${orgPrefix}-${String(taskNumber).padStart(3, '0')}`
+            : null;
+    const formattedTaskId = formatTaskId(task.taskNumber);
     const [comments, setComments] = useState<Comment[]>([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -1304,7 +1315,12 @@ export function TaskDetailView({
                         <span className="text-(--dashboard-text-muted)/40">
                             /
                         </span>
-                        <span className="font-medium text-dashboard-text-primary">
+                        <span className="font-medium text-dashboard-text-primary flex items-center gap-1.5">
+                            {formattedTaskId && (
+                                <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+                                    {formattedTaskId}
+                                </span>
+                            )}
                             {task.name}
                         </span>
                     </div>
@@ -1313,6 +1329,11 @@ export function TaskDetailView({
                 {/* Title & Actions */}
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
+                        {formattedTaskId && (
+                            <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded shrink-0">
+                                {formattedTaskId}
+                            </span>
+                        )}
                         {isEditingName ? (
                             <input
                                 ref={nameRef}
